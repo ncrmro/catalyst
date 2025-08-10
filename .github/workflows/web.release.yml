@@ -56,4 +56,4 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          docker run ghcr.io/railwayapp/cli:latest railway redeploy --service=web --yes
+          railway redeploy --service=web --yes
