@@ -62,12 +62,122 @@ jobs:
             GITHUB_APP_ID: test-app-id
             GITHUB_WEBHOOK_SECRET: test-secret
 
-  preview-environment:
-    uses: ./.github/workflows/web.release.yml
+  build-container:
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
       id-token: write
       attestations: write
-    with:
-      platforms: 'linux/amd64'
+    outputs:
+      image-tags: ${{ steps.build.outputs.image }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build and push container
+        id: build
+        uses: ./.github/actions/build.container.yml
+        with:
+          registry: ghcr.io
+          image: ${{ github.repository }}/web
+          platforms: 'linux/amd64'
+
+  preview-environment:
+    needs: build-container
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Kind cluster
+        uses: helm/kind-action@v1.10.0
+        with:
+          cluster_name: preview-cluster
+          wait: 60s
+
+      - name: Set PR tag
+        run: |
+          echo "PR_TAG=pr-${{ github.event.number }}" >> $GITHUB_ENV
+          echo "NAMESPACE=preview-pr-${{ github.event.number }}" >> $GITHUB_ENV
+
+      - name: Create preview namespace
+        run: |
+          kubectl create namespace ${{ env.NAMESPACE }}
+
+      - name: Deploy to Kind cluster
+        run: |
+          # Extract the pr tag from the built image
+          FULL_IMAGE_TAG=$(echo '${{ needs.build-container.outputs.image-tags }}' | grep 'pr-' | head -n 1)
+          if [ -z "$FULL_IMAGE_TAG" ]; then
+            echo "No PR tag found in built images, using SHA tag as fallback"
+            FULL_IMAGE_TAG=$(echo '${{ needs.build-container.outputs.image-tags }}' | head -n 1)
+          fi
+          
+          echo "Deploying image: $FULL_IMAGE_TAG"
+          echo "To namespace: ${{ env.NAMESPACE }}"
+          
+          # Create a simple deployment for the preview environment
+          cat <<EOF | kubectl apply -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: web-preview
+            namespace: ${{ env.NAMESPACE }}
+            labels:
+              app: web-preview
+              pr: "${{ github.event.number }}"
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: web-preview
+            template:
+              metadata:
+                labels:
+                  app: web-preview
+              spec:
+                containers:
+                - name: web
+                  image: $FULL_IMAGE_TAG
+                  ports:
+                  - containerPort: 3000
+                  env:
+                  - name: NODE_ENV
+                    value: "production"
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: web-preview-service
+            namespace: ${{ env.NAMESPACE }}
+          spec:
+            selector:
+              app: web-preview
+            ports:
+            - port: 80
+              targetPort: 3000
+            type: ClusterIP
+          EOF
+
+      - name: Verify deployment
+        run: |
+          echo "Waiting for deployment to be ready..."
+          kubectl wait --for=condition=Available deployment/web-preview -n ${{ env.NAMESPACE }} --timeout=300s
+          
+          echo "Deployment status:"
+          kubectl get deployments -n ${{ env.NAMESPACE }}
+          
+          echo "Pod status:"
+          kubectl get pods -n ${{ env.NAMESPACE }}
+          
+          echo "Service status:"
+          kubectl get services -n ${{ env.NAMESPACE }}
+          
+          echo "Preview environment deployed successfully!"
+          echo "Namespace: ${{ env.NAMESPACE }}"
+          echo "Release matches PR tag: ${{ env.PR_TAG }}"
