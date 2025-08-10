@@ -1,0 +1,39 @@
+name: Test Boilerplates Rails
+
+on:
+  push:
+    paths:
+      - 'boilerplate/rails/**'
+  pull_request:
+    paths:
+      - 'boilerplate/rails/**'
+
+jobs:
+  test-boilerplates-rails:
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./boilerplate/rails
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+          working-directory: './boilerplate/rails'
+      
+      - name: Setup database
+        run: |
+          bundle exec rails db:setup
+          bundle exec rails db:migrate
+      
+      - name: Run tests
+        run: bundle exec rails test
+      
+      - name: Run RuboCop
+        run: bundle exec rubocop
