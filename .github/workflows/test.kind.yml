@@ -1,0 +1,65 @@
+---
+name: Kind Cluster Testing
+
+"on":
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  kind-test:
+    name: Test with Kind Cluster
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Kind cluster
+        uses: helm/kind-action@v1.10.0
+        with:
+          cluster_name: test-cluster
+          wait: 60s
+
+      - name: Verify cluster with kubectl
+        run: |
+          # Verify that kubectl can communicate with the cluster
+          echo "Checking cluster info..."
+          kubectl cluster-info
+
+          echo "Checking nodes..."
+          kubectl get nodes
+
+          echo "Checking namespaces..."
+          kubectl get namespaces
+
+          echo "Checking pods in kube-system..."
+          kubectl get pods -n kube-system
+
+          echo "Cluster verification completed successfully!"
+
+      - name: Test basic kubectl operations
+        run: |
+          # Create a test namespace
+          kubectl create namespace test-namespace
+
+          # Verify the namespace was created
+          kubectl get namespace test-namespace
+
+          # Create a simple pod
+          kubectl run test-pod --image=nginx:alpine \
+            --restart=Never -n test-namespace
+
+          # Wait for pod to be ready
+          kubectl wait --for=condition=Ready pod/test-pod \
+            -n test-namespace --timeout=60s
+
+          # Verify the pod is running
+          kubectl get pods -n test-namespace
+
+          # Clean up
+          kubectl delete namespace test-namespace
+
+          echo "Basic kubectl operations test completed successfully!"
