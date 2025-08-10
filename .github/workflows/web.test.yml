@@ -2,11 +2,15 @@ name: Test Web
 
 on:
   push:
+    branches:
+      - main
     paths:
       - 'web/**'
+      - '.github/actions/build-container/**'
   pull_request:
     paths:
       - 'web/**'
+      - '.github/actions/build-container/**'
 
 jobs:
   test-web:
@@ -114,12 +118,78 @@ jobs:
           path: ./web/test-results/**/video.webm
           retention-days: 30
 
-  preview-environment:
-    uses: ./.github/workflows/web.release.yml
+  build-container:
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
       id-token: write
       attestations: write
-    with:
-      platforms: 'linux/amd64'
+    outputs:
+      image-tags: ${{ steps.build.outputs.image }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build and push container
+        id: build
+        uses: ./.github/actions/build-container
+        with:
+          registry: ghcr.io
+          image: ${{ github.repository }}/web
+          platforms: 'linux/amd64'
+
+  preview-environment:
+    needs: build-container
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Kind cluster
+        uses: helm/kind-action@v1.10.0
+        with:
+          cluster_name: preview-cluster
+          wait: 60s
+
+      - name: Set PR tag
+        run: |
+          echo "PR_TAG=pr-${{ github.event.number }}" >> $GITHUB_ENV
+          echo "NAMESPACE=preview-pr-${{ github.event.number }}" >> $GITHUB_ENV
+
+      - name: Create preview namespace
+        run: |
+          kubectl create namespace ${{ env.NAMESPACE }}
+
+      - name: Deploy to Kind cluster using Helm chart
+        run: |
+          # Extract the pr tag from the built image
+          FULL_IMAGE_TAG=$(echo '${{ needs.build-container.outputs.image-tags }}' | grep 'pr-' | head -n 1)
+          if [ -z "$FULL_IMAGE_TAG" ]; then
+            echo "No PR tag found in built images, using SHA tag as fallback"
+            FULL_IMAGE_TAG=$(echo '${{ needs.build-container.outputs.image-tags }}' | head -n 1)
+          fi
+          
+          echo "Deploying image: $FULL_IMAGE_TAG"
+          echo "To namespace: ${{ env.NAMESPACE }}"
+          
+          # Extract repository and tag from the full image tag
+          IMAGE_REPO=$(echo "$FULL_IMAGE_TAG" | cut -d':' -f1)
+          IMAGE_TAG=$(echo "$FULL_IMAGE_TAG" | cut -d':' -f2)
+          
+          # Deploy using the nextjs Helm chart
+          helm install web-preview-${{ github.event.number }} ./charts/nextjs \
+            --namespace ${{ env.NAMESPACE }} \
+            --set image.repository="$IMAGE_REPO" \
+            --set image.tag="$IMAGE_TAG" \
+            --set image.pullPolicy=IfNotPresent \
+            --wait --timeout=300s
+
+      - name: Verify deployment
+        run: |
+          kubectl wait --for=condition=available --timeout=300s deployment/web-preview-${{ github.event.number }}-nextjs -n ${{ env.NAMESPACE }}
+          helm test web-preview-${{ github.event.number }} --namespace ${{ env.NAMESPACE }} 
