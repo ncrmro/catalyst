@@ -1,0 +1,49 @@
+name: Test Charts NextJS
+
+on:
+  push:
+    paths:
+      - 'charts/nextjs/**'
+  pull_request:
+    paths:
+      - 'charts/nextjs/**'
+  workflow_dispatch:
+
+jobs:
+  test-nextjs-chart:
+    name: Test NextJS Helm Chart
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.14.0'
+
+      - name: Create Kind cluster
+        uses: helm/kind-action@v1.10.0
+        with:
+          cluster_name: nextjs-test-cluster
+          wait: 60s
+
+      - name: Verify cluster is ready
+        run: |
+          echo "Checking cluster info..."
+          kubectl cluster-info
+          
+          echo "Checking nodes..."
+          kubectl get nodes
+          
+          echo "Waiting for cluster to be fully ready..."
+          kubectl wait --for=condition=Ready nodes --all --timeout=300s
+
+      - name: Lint NextJS Helm chart
+        run: |
+          echo "Linting NextJS Helm chart..."
+          helm lint charts/nextjs
+          
+          echo "Validating chart templates..."
+          helm template test-release charts/nextjs --debug --dry-run
