@@ -35,3 +35,7 @@ jobs:
       
       - name: Build Next.js
         run: npm run build
+
+  preview-environment:
+    needs: test-web
+    uses: ./.github/workflows/web.release.yml
