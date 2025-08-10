@@ -38,7 +38,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build and push container
-        uses: ./.github/actions/build.container.yml
+        uses: ./.github/actions/build-container
         with:
           registry: ${{ env.REGISTRY }}
           image: ${{ github.repository }}/web

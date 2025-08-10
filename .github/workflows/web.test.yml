@@ -4,11 +4,11 @@ on:
   push:
     paths:
       - 'web/**'
-      - '.github/actions/build.container.yml'
+      - '.github/actions/build-container/**'
   pull_request:
     paths:
       - 'web/**'
-      - '.github/actions/build.container.yml'
+      - '.github/actions/build-container/**'
 
 jobs:
   test-web:
@@ -81,7 +81,7 @@ jobs:
 
       - name: Build and push container
         id: build
-        uses: ./.github/actions/build.container.yml
+        uses: ./.github/actions/build-container
         with:
           registry: ghcr.io
           image: ${{ github.repository }}/web
