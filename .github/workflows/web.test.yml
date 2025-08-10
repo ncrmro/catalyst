@@ -111,7 +111,7 @@ jobs:
         run: |
           kubectl create namespace ${{ env.NAMESPACE }}
 
-      - name: Deploy to Kind cluster
+      - name: Deploy to Kind cluster using Helm chart
         run: |
           # Extract the pr tag from the built image
           FULL_IMAGE_TAG=$(echo '${{ needs.build-container.outputs.image-tags }}' | grep 'pr-' | head -n 1)
@@ -123,53 +123,23 @@ jobs:
           echo "Deploying image: $FULL_IMAGE_TAG"
           echo "To namespace: ${{ env.NAMESPACE }}"
           
-          # Create a simple deployment for the preview environment
-          cat <<EOF | kubectl apply -f -
-          apiVersion: apps/v1
-          kind: Deployment
-          metadata:
-            name: web-preview
-            namespace: ${{ env.NAMESPACE }}
-            labels:
-              app: web-preview
-              pr: "${{ github.event.number }}"
-          spec:
-            replicas: 1
-            selector:
-              matchLabels:
-                app: web-preview
-            template:
-              metadata:
-                labels:
-                  app: web-preview
-              spec:
-                containers:
-                - name: web
-                  image: $FULL_IMAGE_TAG
-                  ports:
-                  - containerPort: 3000
-                  env:
-                  - name: NODE_ENV
-                    value: "production"
-          ---
-          apiVersion: v1
-          kind: Service
-          metadata:
-            name: web-preview-service
-            namespace: ${{ env.NAMESPACE }}
-          spec:
-            selector:
-              app: web-preview
-            ports:
-            - port: 80
-              targetPort: 3000
-            type: ClusterIP
-          EOF
+          # Extract repository and tag from the full image tag
+          IMAGE_REPO=$(echo "$FULL_IMAGE_TAG" | cut -d':' -f1)
+          IMAGE_TAG=$(echo "$FULL_IMAGE_TAG" | cut -d':' -f2)
+          
+          # Deploy using the nextjs Helm chart
+          helm install web-preview-${{ github.event.number }} ./charts/nextjs \
+            --namespace ${{ env.NAMESPACE }} \
+            --set image.repository="$IMAGE_REPO" \
+            --set image.tag="$IMAGE_TAG" \
+            --set image.pullPolicy=IfNotPresent \
+            --set podLabels.pr="${{ github.event.number }}" \
+            --wait --timeout=300s
 
       - name: Verify deployment
         run: |
           echo "Waiting for deployment to be ready..."
-          kubectl wait --for=condition=Available deployment/web-preview -n ${{ env.NAMESPACE }} --timeout=300s
+          kubectl wait --for=condition=Available deployment/nextjs -n ${{ env.NAMESPACE }} --timeout=300s
           
           echo "Deployment status:"
           kubectl get deployments -n ${{ env.NAMESPACE }}
@@ -179,6 +149,9 @@ jobs:
           
           echo "Service status:"
           kubectl get services -n ${{ env.NAMESPACE }}
+          
+          echo "Helm release status:"
+          helm status web-preview-${{ github.event.number }} -n ${{ env.NAMESPACE }}
           
           echo "Preview environment deployed successfully!"
           echo "Namespace: ${{ env.NAMESPACE }}"
