@@ -1,0 +1,105 @@
+name: Test Charts NextJS
+
+on:
+  push:
+    paths:
+      - 'charts/nextjs/**'
+  pull_request:
+    paths:
+      - 'charts/nextjs/**'
+  workflow_dispatch:
+
+jobs:
+  test-nextjs-chart:
+    name: Test NextJS Helm Chart
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.14.0'
+
+      - name: Create Kind cluster
+        uses: helm/kind-action@v1.10.0
+        with:
+          cluster_name: nextjs-test-cluster
+          wait: 60s
+
+      - name: Verify cluster is ready
+        run: |
+          echo "Checking cluster info..."
+          kubectl cluster-info
+          
+          echo "Checking nodes..."
+          kubectl get nodes
+          
+          echo "Waiting for cluster to be fully ready..."
+          kubectl wait --for=condition=Ready nodes --all --timeout=300s
+
+      - name: Lint NextJS Helm chart
+        run: |
+          echo "Linting NextJS Helm chart..."
+          helm lint charts/nextjs
+          
+          echo "Validating chart templates..."
+          helm template test-release charts/nextjs --debug --dry-run
+
+      - name: Install NextJS Helm chart
+        run: |
+          echo "Installing NextJS Helm chart..."
+          helm install nextjs-test charts/nextjs \
+            --wait \
+            --timeout=300s \
+            --debug \
+            --set image.repository=nginx \
+            --set image.tag=alpine \
+            --set image.pullPolicy=IfNotPresent
+
+      - name: Verify installation
+        run: |
+          echo "Checking Helm release status..."
+          helm status nextjs-test
+          
+          echo "Listing Helm releases..."
+          helm list
+          
+          echo "Checking deployed resources..."
+          kubectl get all -l app.kubernetes.io/instance=nextjs-test
+          
+          echo "Waiting for deployment to be ready..."
+          kubectl wait --for=condition=Available deployment -l app.kubernetes.io/instance=nextjs-test --timeout=300s
+
+      - name: Run Helm tests
+        run: |
+          echo "Running Helm tests..."
+          helm test nextjs-test --timeout=300s
+
+      - name: Debug on failure
+        if: failure()
+        run: |
+          echo "=== DEBUGGING INFORMATION ==="
+          
+          echo "Helm release status:"
+          helm status nextjs-test || true
+          
+          echo "All resources:"
+          kubectl get all -l app.kubernetes.io/instance=nextjs-test || true
+          
+          echo "Pod logs:"
+          kubectl logs -l app.kubernetes.io/instance=nextjs-test --all-containers=true || true
+          
+          echo "Events:"
+          kubectl get events --sort-by='.lastTimestamp' || true
+          
+          echo "Describe pods:"
+          kubectl describe pods -l app.kubernetes.io/instance=nextjs-test || true
+
+      - name: Cleanup
+        if: always()
+        run: |
+          echo "Cleaning up..."
+          helm uninstall nextjs-test || true
