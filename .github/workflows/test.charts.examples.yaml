@@ -1,0 +1,46 @@
+---
+name: Test Charts Examples
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'charts/**'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'charts/**'
+  workflow_dispatch:
+
+jobs:
+  lint-charts:
+    name: Lint Helm Charts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: '3.13.0'
+
+      - name: Lint example chart
+        run: |
+          echo "Linting example Helm chart..."
+          helm lint charts/example
+          
+      - name: Validate chart templating
+        run: |
+          echo "Validating chart templating..."
+          helm template test-release charts/example --debug --dry-run
+          
+      - name: Validate chart with different values
+        run: |
+          echo "Validating chart with custom values..."
+          helm template test-release charts/example \
+            --set replicaCount=2 \
+            --set image.tag=latest \
+            --set service.type=LoadBalancer \
+            --debug --dry-run
