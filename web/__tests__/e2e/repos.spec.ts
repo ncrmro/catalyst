@@ -9,7 +9,7 @@ test.describe('GitHub Repositories Page', () => {
     await expect(page.locator('h1')).toContainText('GitHub Repositories');
 
     // Check that the description is shown
-    await expect(page.locator('p')).toContainText('Connected repositories from your account and organizations');
+    await expect(page.getByText('Connected repositories from your account and organizations')).toBeVisible();
 
     // Check that user repositories section is shown
     await expect(page.locator('h2').filter({ hasText: 'Your Repositories' })).toBeVisible();
