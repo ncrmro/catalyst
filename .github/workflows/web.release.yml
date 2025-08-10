@@ -32,7 +32,9 @@ jobs:
       packages: write
       id-token: write
       attestations: write
-    
+    environment:
+      name: production
+      url: https://catalyst.ncrmro.com
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -43,3 +45,9 @@ jobs:
           registry: ${{ env.REGISTRY }}
           image: ${{ github.repository }}/web
           platforms: ${{ inputs.platforms || 'linux/amd64' }}
+
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secret.RAILWAY_TOKEN }}
+        run: |
+          railway redeploy --service=web --yes
