@@ -133,26 +133,8 @@ jobs:
             --set image.repository="$IMAGE_REPO" \
             --set image.tag="$IMAGE_TAG" \
             --set image.pullPolicy=IfNotPresent \
-            --set podLabels.pr="${{ github.event.number }}" \
             --wait --timeout=300s
 
       - name: Verify deployment
         run: |
-          echo "Waiting for deployment to be ready..."
-          kubectl wait --for=condition=Available deployment/nextjs -n ${{ env.NAMESPACE }} --timeout=300s
-          
-          echo "Deployment status:"
-          kubectl get deployments -n ${{ env.NAMESPACE }}
-          
-          echo "Pod status:"
-          kubectl get pods -n ${{ env.NAMESPACE }}
-          
-          echo "Service status:"
-          kubectl get services -n ${{ env.NAMESPACE }}
-          
-          echo "Helm release status:"
-          helm status web-preview-${{ github.event.number }} -n ${{ env.NAMESPACE }}
-          
-          echo "Preview environment deployed successfully!"
-          echo "Namespace: ${{ env.NAMESPACE }}"
-          echo "Release matches PR tag: ${{ env.PR_TAG }}"
+          helm test -namespace ${{ env.NAMESPACE }} web-preview-${{ github.event.number }} 
