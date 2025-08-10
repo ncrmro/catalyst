@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { 
+  findWorkloadConfig, 
+  shouldTriggerDeployment, 
+  createPRWorkloadConfig 
+} from '../../../../lib/workload-config';
+import { kubernetesService } from '../../../../lib/kubernetes-service';
 
 /**
  * GitHub App Webhook Endpoint
@@ -114,21 +120,81 @@ function handleInstallationRepositoriesEvent(payload: {
 }
 
 /**
- * Handle push events
+ * Handle push events and trigger workload deployments
  */
-function handlePushEvent(payload: {
+async function handlePushEvent(payload: {
   repository: { full_name: string };
   commits: Array<{ id: string }>;
   pusher: { name: string };
   ref: string;
 }) {
   const { repository, commits, pusher } = payload;
+  const branch = payload.ref.replace('refs/heads/', '');
   
   console.log(`Push to ${repository.full_name}`, {
     commits_count: commits.length,
     pusher: pusher.name,
-    ref: payload.ref
+    ref: payload.ref,
+    branch
   });
+
+  // Check if this branch should trigger a deployment
+  if (shouldTriggerDeployment(branch)) {
+    const workloadConfig = findWorkloadConfig(repository.full_name, branch);
+    
+    if (workloadConfig) {
+      console.log(`Triggering deployment for ${repository.full_name}:${branch}`, {
+        releaseName: workloadConfig.releaseName,
+        namespace: workloadConfig.namespace,
+        environment: workloadConfig.environment
+      });
+
+      try {
+        // Deploy the workload
+        const deploymentResult = await kubernetesService.deployWorkload(workloadConfig);
+        
+        if (deploymentResult.success) {
+          // Run tests if enabled
+          if (workloadConfig.enableTests) {
+            console.log(`Running tests for ${workloadConfig.releaseName}`);
+            const testResult = await kubernetesService.runTests(workloadConfig);
+            
+            return NextResponse.json({
+              success: true,
+              message: 'Push event processed with deployment and tests',
+              commits_processed: commits.length,
+              deployment: deploymentResult,
+              tests: testResult
+            });
+          }
+          
+          return NextResponse.json({
+            success: true,
+            message: 'Push event processed with deployment',
+            commits_processed: commits.length,
+            deployment: deploymentResult
+          });
+        } else {
+          console.error(`Deployment failed for ${repository.full_name}:${branch}`, deploymentResult.error);
+          return NextResponse.json({
+            success: false,
+            message: 'Push event processed but deployment failed',
+            commits_processed: commits.length,
+            deployment: deploymentResult
+          });
+        }
+      } catch (error) {
+        console.error('Deployment error:', error);
+        return NextResponse.json({
+          success: false,
+          message: 'Push event processed but deployment error occurred',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    } else {
+      console.log(`No workload configuration found for ${repository.full_name}:${branch}`);
+    }
+  }
   
   return NextResponse.json({
     success: true,
@@ -138,14 +204,16 @@ function handlePushEvent(payload: {
 }
 
 /**
- * Handle pull request events
+ * Handle pull request events and manage PR environments
  */
-function handlePullRequestEvent(payload: {
+async function handlePullRequestEvent(payload: {
   action: string;
   pull_request: {
     number: number;
     title: string;
     user: { login: string };
+    head: { ref: string };
+    base: { ref: string };
   };
   repository: { full_name: string };
 }) {
@@ -154,12 +222,86 @@ function handlePullRequestEvent(payload: {
   console.log(`Pull request ${action} in ${repository.full_name}`, {
     pr_number: pull_request.number,
     title: pull_request.title,
-    author: pull_request.user.login
+    author: pull_request.user.login,
+    head_branch: pull_request.head.ref,
+    base_branch: pull_request.base.ref
   });
-  
-  return NextResponse.json({
-    success: true,
-    message: `Pull request ${action} processed`,
-    pr_number: pull_request.number
-  });
+
+  try {
+    switch (action) {
+      case 'opened':
+      case 'synchronize':
+        // Create or update PR environment
+        const baseConfig = findWorkloadConfig(repository.full_name, pull_request.base.ref);
+        const prConfig = createPRWorkloadConfig(repository.full_name, pull_request.number, baseConfig || undefined);
+        
+        if (!prConfig) {
+          return NextResponse.json({
+            success: true,
+            message: `Pull request ${action} processed (no environment changes)`,
+            pr_number: pull_request.number
+          });
+        }
+        
+        console.log(`Creating PR environment for PR #${pull_request.number}`, {
+          releaseName: prConfig.releaseName,
+          namespace: prConfig.namespace
+        });
+
+        const deploymentResult = await kubernetesService.deployWorkload(prConfig);
+        
+        if (deploymentResult.success && prConfig.enableTests) {
+          const testResult = await kubernetesService.runTests(prConfig);
+          
+          return NextResponse.json({
+            success: true,
+            message: `Pull request ${action} processed with PR environment and tests`,
+            pr_number: pull_request.number,
+            deployment: deploymentResult,
+            tests: testResult
+          });
+        }
+        
+        return NextResponse.json({
+          success: true,
+          message: `Pull request ${action} processed with PR environment`,
+          pr_number: pull_request.number,
+          deployment: deploymentResult
+        });
+
+      case 'closed':
+        // Clean up PR environment
+        const prReleaseName = `pr-${repository.full_name.split('/').pop()}-${pull_request.number}`.toLowerCase();
+        const prNamespace = `pr-${pull_request.number}`;
+        
+        console.log(`Cleaning up PR environment for PR #${pull_request.number}`, {
+          releaseName: prReleaseName,
+          namespace: prNamespace
+        });
+
+        const deleteSuccess = await kubernetesService.deleteWorkload(prReleaseName, prNamespace);
+        
+        return NextResponse.json({
+          success: true,
+          message: `Pull request ${action} processed with environment cleanup`,
+          pr_number: pull_request.number,
+          cleanup_success: deleteSuccess
+        });
+
+      default:
+        return NextResponse.json({
+          success: true,
+          message: `Pull request ${action} processed (no environment changes)`,
+          pr_number: pull_request.number
+        });
+    }
+  } catch (error) {
+    console.error('PR environment management error:', error);
+    return NextResponse.json({
+      success: false,
+      message: `Pull request ${action} processed but environment management failed`,
+      pr_number: pull_request.number,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 }
