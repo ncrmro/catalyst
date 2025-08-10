@@ -8,12 +8,6 @@ on:
     paths:
       - 'web/**'
 
-permissions:
-  contents: read
-  packages: write
-  id-token: write
-  attestations: write
-
 jobs:
   test-web:
     runs-on: ubuntu-latest
@@ -70,5 +64,10 @@ jobs:
 
   preview-environment:
     uses: ./.github/workflows/web.release.yml
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
     with:
       platforms: 'linux/amd64'
