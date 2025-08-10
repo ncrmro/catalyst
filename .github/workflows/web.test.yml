@@ -2,6 +2,8 @@ name: Test Web
 
 on:
   push:
+    branches:
+      - main
     paths:
       - 'web/**'
       - '.github/actions/build-container/**'
@@ -137,4 +139,5 @@ jobs:
 
       - name: Verify deployment
         run: |
-          helm test -namespace ${{ env.NAMESPACE }} web-preview-${{ github.event.number }} 
+          kubectl wait --for=condition=available --timeout=300s deployment/web-preview-${{ github.event.number }}-nextjs -n ${{ env.NAMESPACE }}
+          helm test web-preview-${{ github.event.number }} --namespace ${{ env.NAMESPACE }} 
