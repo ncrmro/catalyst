@@ -31,6 +31,12 @@ export default defineConfig({
     
     /* Record video on failure */
     video: 'retain-on-failure',
+    
+    /* Set timeout for actions */
+    actionTimeout: 30000,
+    
+    /* Set timeout for navigation */
+    navigationTimeout: 30000,
   },
 
   /* Configure projects for major browsers */

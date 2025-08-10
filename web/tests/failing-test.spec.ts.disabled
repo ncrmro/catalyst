@@ -1,0 +1,31 @@
+import { test, expect } from '@playwright/test';
+
+/**
+ * This test file contains a test that will intentionally fail.
+ * It's designed to demonstrate Playwright's video and screenshot capture functionality.
+ * 
+ * To enable this test, rename this file to 'failing-test.spec.ts'
+ * To disable this test (recommended for CI), keep it as 'failing-test.spec.ts.disabled'
+ */
+
+test.describe('Failed Test for Video Capture Demo', () => {
+  test('this test will fail and generate video/screenshot artifacts', async ({ page }) => {
+    await page.goto('/');
+    
+    // Wait a bit to allow video recording to capture some content
+    await page.waitForTimeout(2000);
+    
+    // Click around a bit to generate more interesting video content
+    await page.hover('body');
+    await page.waitForTimeout(1000);
+    
+    // Navigate to another page to show interaction
+    await page.goto('/github');
+    await page.waitForTimeout(1000);
+    
+    // This will intentionally fail to trigger video/screenshot capture
+    await expect(page.locator('[data-testid="this-element-does-not-exist"]')).toBeVisible({
+      timeout: 5000
+    });
+  });
+});
