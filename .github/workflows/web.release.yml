@@ -47,6 +47,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     container: ghcr.io/railwayapp/cli:latest
+    needs: build
     environment:
       name: production
       url: https://catalyst.ncrmro.com
