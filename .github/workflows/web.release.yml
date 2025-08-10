@@ -7,7 +7,19 @@ on:
     paths:
       - 'web/**'
   workflow_dispatch:
+    inputs:
+      platforms:
+        description: 'Comma-separated list of platforms to build for (e.g., linux/amd64,linux/arm64)'
+        required: false
+        default: 'linux/amd64,linux/arm64'
+        type: string
   workflow_call:
+    inputs:
+      platforms:
+        description: 'Comma-separated list of platforms to build for (e.g., linux/amd64,linux/arm64)'
+        required: false
+        default: 'linux/amd64'
+        type: string
 
 env:
   REGISTRY: ghcr.io
@@ -55,7 +67,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ inputs.platforms || 'linux/amd64,linux/arm64' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

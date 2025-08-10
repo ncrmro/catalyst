@@ -64,3 +64,5 @@ jobs:
 
   preview-environment:
     uses: ./.github/workflows/web.release.yml
+    with:
+      platforms: 'linux/amd64'
