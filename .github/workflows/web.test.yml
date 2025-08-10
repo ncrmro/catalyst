@@ -8,6 +8,10 @@ on:
     paths:
       - 'web/**'
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   test-web:
     runs-on: ubuntu-latest
