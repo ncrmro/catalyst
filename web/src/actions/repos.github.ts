@@ -185,13 +185,13 @@ function getMockReposData(): ReposData {
  */
 export async function fetchGitHubRepos(): Promise<ReposData> {
   // Check if we should return mocked data
-  // We'll check for both NODE_ENV=mocked and a custom GITHUB_REPOS_MODE=mocked for flexibility
-  const nodeEnv = process.env.NODE_ENV as string;
+  // We'll check for both MOCKED=1 and a custom GITHUB_REPOS_MODE=mocked for flexibility
+  const mocked = process.env.MOCKED;
   const reposMode = process.env.GITHUB_REPOS_MODE;
   
-  console.log('Environment check - NODE_ENV:', nodeEnv, 'GITHUB_REPOS_MODE:', reposMode);
+  console.log('Environment check - MOCKED:', mocked, 'GITHUB_REPOS_MODE:', reposMode);
   
-  if (nodeEnv === 'mocked' || reposMode === 'mocked') {
+  if (mocked === '1' || reposMode === 'mocked') {
     console.log('Returning mocked GitHub repos data');
     return getMockReposData();
   }

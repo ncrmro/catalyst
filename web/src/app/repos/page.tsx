@@ -135,7 +135,7 @@ export default async function ReposPage() {
               <h2 className="text-lg font-semibold text-red-900 mb-2">Error Loading Repositories</h2>
               <p className="text-red-700">{error}</p>
               <div className="mt-4 text-sm text-red-600">
-                <p>To view repositories, set NODE_ENV=mocked or GITHUB_REPOS_MODE=mocked in your environment.</p>
+                <p>To view repositories, set MOCKED=1 or GITHUB_REPOS_MODE=mocked in your environment.</p>
               </div>
             </div>
           </div>

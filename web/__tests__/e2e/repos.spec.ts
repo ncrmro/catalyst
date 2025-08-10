@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('GitHub Repositories Page', () => {
-  test('should display mocked repositories when NODE_ENV=mocked', async ({ page }) => {
+  test('should display mocked repositories when MOCKED=1', async ({ page }) => {
     // Go to the repos page
     await page.goto('/repos');
 

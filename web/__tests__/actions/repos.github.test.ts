@@ -13,8 +13,8 @@ afterAll(() => {
 });
 
 describe('fetchGitHubRepos', () => {
-  test('should return mocked data when NODE_ENV is mocked', async () => {
-    process.env.NODE_ENV = 'mocked';
+  test('should return mocked data when MOCKED is 1', async () => {
+    process.env.MOCKED = '1';
     
     const result = await fetchGitHubRepos();
     
@@ -47,8 +47,9 @@ describe('fetchGitHubRepos', () => {
     expect(result.user_repos).toHaveLength(2);
   });
 
-  test('should throw error when neither NODE_ENV nor GITHUB_REPOS_MODE is mocked', async () => {
+  test('should throw error when neither MOCKED nor GITHUB_REPOS_MODE is set to enable mocking', async () => {
     process.env.NODE_ENV = 'development';
+    delete process.env.MOCKED;
     delete process.env.GITHUB_REPOS_MODE;
     
     await expect(fetchGitHubRepos()).rejects.toThrow(
@@ -58,6 +59,7 @@ describe('fetchGitHubRepos', () => {
 
   test('should throw error when environment is production', async () => {
     process.env.NODE_ENV = 'production';
+    delete process.env.MOCKED;
     delete process.env.GITHUB_REPOS_MODE;
     
     await expect(fetchGitHubRepos()).rejects.toThrow(
@@ -66,7 +68,7 @@ describe('fetchGitHubRepos', () => {
   });
 
   test('mocked data should have correct structure', async () => {
-    process.env.NODE_ENV = 'mocked';
+    process.env.MOCKED = '1';
     
     const result = await fetchGitHubRepos();
     
