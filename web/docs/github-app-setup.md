@@ -77,6 +77,9 @@ your_private_key_here
 # Application Configuration
 NEXTAUTH_URL=https://your-domain.com
 NEXTAUTH_SECRET=your_nextauth_secret_here
+AUTH_SECRET=123 # openssl rand -base64 33
+AUTH_GITHUB_ID=equal to above
+AUTH_GITHUB_SECRET=equal to above
 ```
 
 ### Getting GitHub App Credentials

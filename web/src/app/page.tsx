@@ -1,6 +1,10 @@
 import Image from "next/image";
+import { auth } from "@/auth";
+import SignIn from "@/components/sign-in";
+import SignOut from "@/components/sign-out";
 
-export default function Home() {
+export default async function Home() {
+  const session = await auth();
   return (
     <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
       <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
@@ -14,6 +18,9 @@ export default function Home() {
         />
         <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
           <li className="mb-2 tracking-[-.01em]">
+            Sign in with your GitHub account using OAuth authentication above.
+          </li>
+          <li className="mb-2 tracking-[-.01em]">
             Get started by visiting{" "}
             <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
               /github
@@ -26,6 +33,16 @@ export default function Home() {
         </ol>
 
         <div className="flex gap-4 items-center flex-col sm:flex-row">
+          {session?.user ? (
+            <div className="flex gap-4 items-center flex-col sm:flex-row">
+              <div className="text-sm text-gray-600">
+                Welcome, {session.user.name || session.user.email}!
+              </div>
+              <SignOut />
+            </div>
+          ) : (
+            <SignIn />
+          )}
           <a
             className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
             href="/github"
