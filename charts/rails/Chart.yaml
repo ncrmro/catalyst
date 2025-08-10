@@ -1,0 +1,17 @@
+apiVersion: v2
+name: rails
+description: A Helm chart for Rails applications on Kubernetes
+type: application
+version: 0.1.0
+appVersion: "7.2.1"
+keywords:
+  - rails
+  - ruby
+  - web
+  - api
+home: https://rubyonrails.org/
+sources:
+  - https://github.com/rails/rails
+maintainers:
+  - name: catalyst
+    email: maintainer@example.com
