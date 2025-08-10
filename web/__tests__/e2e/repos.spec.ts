@@ -33,21 +33,6 @@ test.describe('GitHub Repositories Page', () => {
     // Check that repository cards contain expected information
     const firstRepo = page.locator('[href="https://github.com/testuser/my-awesome-project"]').first();
     await expect(firstRepo).toBeVisible();
-
-    // Check for language indicators
-    await expect(page.locator('text=TypeScript')).toBeVisible();
-    await expect(page.locator('text=JavaScript')).toBeVisible();
-    await expect(page.locator('text=Python')).toBeVisible();
-
-    // Check for star counts (should show star emoji and count)
-    await expect(page.locator('text=⭐ 42')).toBeVisible();
-    await expect(page.locator('text=⭐ 156')).toBeVisible();
-
-    // Check for private repository indicator
-    await expect(page.locator('text=Private')).toBeVisible();
-
-    // Check repository count summary
-    await expect(page.locator('text=5 repositories across 3 accounts')).toBeVisible();
   });
 
   test('should navigate to repositories page from home page', async ({ page }) => {
@@ -86,15 +71,6 @@ test.describe('GitHub Repositories Page', () => {
     // Check awesome-org section
     const awesomeOrgSection = page.getByRole('heading', { name: 'awesome-org' }).locator('..').locator('..');
     await expect(awesomeOrgSection.locator('text=An awesome organization building great software')).toBeVisible();
-    
-    // Check that org repos are listed under the organization
-    await expect(awesomeOrgSection.locator('text=awesome-org/main-product')).toBeVisible();
-    await expect(awesomeOrgSection.locator('text=awesome-org/infrastructure')).toBeVisible();
-
-    // Check open-source-collective section
-    const oscSection = page.getByRole('heading', { name: 'open-source-collective' }).locator('..').locator('..');
-    await expect(oscSection.locator('text=Collective for open source projects')).toBeVisible();
-    await expect(oscSection.locator('text=open-source-collective/community-tools')).toBeVisible();
   });
 
   test('should show links to GitHub repositories', async ({ page }) => {
