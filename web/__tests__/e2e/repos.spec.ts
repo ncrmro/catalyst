@@ -22,8 +22,8 @@ test.describe('GitHub Repositories Page', () => {
     await expect(page.locator('h2').filter({ hasText: 'Organization Repositories' })).toBeVisible();
 
     // Check organization names are displayed
-    await expect(page.locator('text=awesome-org')).toBeVisible();
-    await expect(page.locator('text=open-source-collective')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'awesome-org' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'open-source-collective' })).toBeVisible();
 
     // Check specific organization repositories
     await expect(page.locator('text=awesome-org/main-product')).toBeVisible();
@@ -84,7 +84,7 @@ test.describe('GitHub Repositories Page', () => {
     await page.goto('/repos');
 
     // Check awesome-org section
-    const awesomeOrgSection = page.locator('text=awesome-org').locator('..').locator('..');
+    const awesomeOrgSection = page.getByRole('heading', { name: 'awesome-org' }).locator('..').locator('..');
     await expect(awesomeOrgSection.locator('text=An awesome organization building great software')).toBeVisible();
     
     // Check that org repos are listed under the organization
@@ -92,7 +92,7 @@ test.describe('GitHub Repositories Page', () => {
     await expect(awesomeOrgSection.locator('text=awesome-org/infrastructure')).toBeVisible();
 
     // Check open-source-collective section
-    const oscSection = page.locator('text=open-source-collective').locator('..').locator('..');
+    const oscSection = page.getByRole('heading', { name: 'open-source-collective' }).locator('..').locator('..');
     await expect(oscSection.locator('text=Collective for open source projects')).toBeVisible();
     await expect(oscSection.locator('text=open-source-collective/community-tools')).toBeVisible();
   });
