@@ -9,31 +9,106 @@ on:
       - 'boilerplate/rails/**'
 
 jobs:
-  test-boilerplates-rails:
+  scan_ruby:
     runs-on: ubuntu-latest
     
     defaults:
       run:
         working-directory: ./boilerplate/rails
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Setup Ruby
+
+      - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.2'
+          ruby-version: .ruby-version
           bundler-cache: true
           working-directory: './boilerplate/rails'
-      
-      - name: Setup database
-        run: |
-          bundle exec rails db:setup
-          bundle exec rails db:migrate
-      
+
+      - name: Scan for common Rails security vulnerabilities using static analysis
+        run: bundle exec brakeman --no-pager
+
+  scan_js:
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./boilerplate/rails
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+          working-directory: './boilerplate/rails'
+
+      - name: Scan for security vulnerabilities in JavaScript dependencies
+        run: bundle exec rails importmap:audit
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./boilerplate/rails
+        
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+          working-directory: './boilerplate/rails'
+
+      - name: Lint code for consistent style
+        run: bundle exec rubocop -f github
+
+  test:
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./boilerplate/rails
+
+    # services:
+    #  redis:
+    #    image: redis
+    #    ports:
+    #      - 6379:6379
+    #    options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - name: Install packages
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y build-essential git libyaml-dev pkg-config google-chrome-stable
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+          working-directory: './boilerplate/rails'
+
       - name: Run tests
-        run: bundle exec rails test
-      
-      - name: Run RuboCop
-        run: bundle exec rubocop
+        env:
+          RAILS_ENV: test
+          # REDIS_URL: redis://localhost:6379/0
+        run: bundle exec rails db:test:prepare test test:system
+
+      - name: Keep screenshots from failed system tests
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: screenshots
+          path: ${{ github.workspace }}/boilerplate/rails/tmp/screenshots
+          if-no-files-found: ignore
