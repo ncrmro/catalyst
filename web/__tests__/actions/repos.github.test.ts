@@ -1,11 +1,28 @@
 import { fetchGitHubRepos } from '../../src/actions/repos.github';
 
+// Mock the auth function to avoid Next Auth import issues
+jest.mock('../../src/auth', () => ({
+  auth: jest.fn()
+}));
+
+// Mock Octokit
+jest.mock('@octokit/rest', () => ({
+  Octokit: jest.fn()
+}));
+
+import { auth } from '../../src/auth';
+import { Octokit } from '@octokit/rest';
+const mockAuth = auth as jest.MockedFunction<typeof auth>;
+const MockOctokit = Octokit as jest.MockedClass<typeof Octokit>;
+
 // Mock environment variables
 const originalEnv = process.env;
 
 beforeEach(() => {
   jest.resetModules();
   process.env = { ...originalEnv };
+  mockAuth.mockReset();
+  MockOctokit.mockClear();
 });
 
 afterAll(() => {
@@ -47,23 +64,32 @@ describe('fetchGitHubRepos', () => {
     expect(result.user_repos).toHaveLength(2);
   });
 
-  test('should throw error when neither MOCKED nor GITHUB_REPOS_MODE is set to enable mocking', async () => {
+  test('should throw error when no session/access token is available for real API', async () => {
     process.env.NODE_ENV = 'development';
     delete process.env.MOCKED;
     delete process.env.GITHUB_REPOS_MODE;
     
+    // Mock auth to return no session
+    mockAuth.mockResolvedValue(null);
+    
     await expect(fetchGitHubRepos()).rejects.toThrow(
-      'GitHub repos fetching is not implemented for non-mocked environments yet'
+      'No GitHub access token found. Please sign in with GitHub first.'
     );
   });
 
-  test('should throw error when environment is production', async () => {
+  test('should throw error when session has no access token for real API', async () => {
     process.env.NODE_ENV = 'production';
     delete process.env.MOCKED;
     delete process.env.GITHUB_REPOS_MODE;
     
+    // Mock auth to return session without access token
+    mockAuth.mockResolvedValue({
+      user: { name: 'Test User' },
+      expires: '2024-12-31T23:59:59.999Z',
+    });
+    
     await expect(fetchGitHubRepos()).rejects.toThrow(
-      'GitHub repos fetching is not implemented for non-mocked environments yet'
+      'No GitHub access token found. Please sign in with GitHub first.'
     );
   });
 
@@ -94,5 +120,69 @@ describe('fetchGitHubRepos', () => {
     expect(result.user_repos[0].owner).toHaveProperty('login');
     expect(result.user_repos[0].owner).toHaveProperty('type');
     expect(result.user_repos[0].owner).toHaveProperty('avatar_url');
+  });
+
+  test('should fetch real GitHub data when session has access token', async () => {
+    process.env.NODE_ENV = 'production';
+    delete process.env.MOCKED;
+    delete process.env.GITHUB_REPOS_MODE;
+    
+    // Mock auth to return session with access token
+    mockAuth.mockResolvedValue({
+      user: { name: 'Test User' },
+      expires: '2024-12-31T23:59:59.999Z',
+      accessToken: 'test_access_token',
+    });
+
+    // Mock Octokit responses
+    const mockOctokitInstance = {
+      rest: {
+        repos: {
+          listForAuthenticatedUser: jest.fn().mockResolvedValue({
+            data: [
+              {
+                id: 123,
+                name: 'real-repo',
+                full_name: 'testuser/real-repo',
+                description: 'A real repository',
+                private: false,
+                owner: {
+                  login: 'testuser',
+                  type: 'User',
+                  avatar_url: 'https://github.com/testuser.png'
+                },
+                html_url: 'https://github.com/testuser/real-repo',
+                language: 'JavaScript',
+                stargazers_count: 10,
+                forks_count: 2,
+                open_issues_count: 1
+              }
+            ]
+          }),
+          listForOrg: jest.fn().mockResolvedValue({
+            data: []
+          })
+        },
+        orgs: {
+          listForAuthenticatedUser: jest.fn().mockResolvedValue({
+            data: []
+          })
+        }
+      }
+    };
+    
+    MockOctokit.mockImplementation(() => mockOctokitInstance as any);
+    
+    const result = await fetchGitHubRepos();
+    
+    expect(MockOctokit).toHaveBeenCalledWith({
+      auth: 'test_access_token',
+    });
+    expect(result).toHaveProperty('user_repos');
+    expect(result).toHaveProperty('organizations');
+    expect(result).toHaveProperty('org_repos');
+    expect(result.user_repos).toHaveLength(1);
+    expect(result.user_repos[0].name).toBe('real-repo');
+    expect(result.organizations).toHaveLength(0);
   });
 });
