@@ -4,9 +4,11 @@ on:
   push:
     paths:
       - 'web/**'
+      - '.github/actions/build.container.yml'
   pull_request:
     paths:
       - 'web/**'
+      - '.github/actions/build.container.yml'
 
 jobs:
   test-web:
