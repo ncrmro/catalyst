@@ -1,0 +1,73 @@
+name: Test Web
+
+on:
+  push:
+    paths:
+      - 'web/**'
+  pull_request:
+    paths:
+      - 'web/**'
+
+jobs:
+  test-web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./web
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './web/package-lock.json'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run ESLint
+        run: npm run lint
+      
+      - name: Build Next.js
+        run: npm run build
+
+  integration:
+      runs-on: ubuntu-latest
+      defaults:
+        run:
+          working-directory: ./web
+
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v4
+
+        - name: Setup Node.js
+          uses: actions/setup-node@v4
+          with:
+            node-version: '20'
+            cache: 'npm'
+            cache-dependency-path: './web/package-lock.json'
+
+        - name: Install dependencies
+          run: npm ci
+
+        - name: Run integration tests
+          run: npm test
+          env:
+            NODE_ENV: test
+            GITHUB_APP_ID: test-app-id
+            GITHUB_WEBHOOK_SECRET: test-secret
+
+  preview-environment:
+    uses: ./.github/workflows/web.release.yml
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    with:
+      platforms: 'linux/amd64'
