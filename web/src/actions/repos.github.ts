@@ -1,5 +1,8 @@
 'use server';
 
+import { auth } from '@/auth';
+import { Octokit } from '@octokit/rest';
+
 /**
  * Server action to fetch GitHub repositories for the current user and organizations
  */
@@ -181,6 +184,65 @@ function getMockReposData(): ReposData {
 }
 
 /**
+ * Fetch real GitHub repositories for the current user and organizations
+ */
+async function fetchRealGitHubRepos(): Promise<ReposData> {
+  const session = await auth();
+  
+  if (!session?.accessToken) {
+    throw new Error('No GitHub access token found. Please sign in with GitHub first.');
+  }
+
+  const octokit = new Octokit({
+    auth: session.accessToken,
+  });
+
+  try {
+    // Fetch user repositories
+    const userReposResponse = await octokit.rest.repos.listForAuthenticatedUser({
+      per_page: 100,
+      sort: 'updated',
+    });
+
+    // Fetch user organizations
+    const orgsResponse = await octokit.rest.orgs.listForAuthenticatedUser({
+      per_page: 100,
+    });
+
+    // Fetch repositories for each organization
+    const orgRepos: Record<string, GitHubRepo[]> = {};
+    
+    for (const org of orgsResponse.data) {
+      try {
+        const orgReposResponse = await octokit.rest.repos.listForOrg({
+          org: org.login,
+          per_page: 100,
+          sort: 'updated',
+        });
+        orgRepos[org.login] = orgReposResponse.data as GitHubRepo[];
+      } catch (error) {
+        // If we can't access org repos (permissions), skip it
+        console.warn(`Could not fetch repos for org ${org.login}:`, error instanceof Error ? error.message : 'Unknown error');
+        orgRepos[org.login] = [];
+      }
+    }
+
+    return {
+      user_repos: userReposResponse.data as GitHubRepo[],
+      organizations: orgsResponse.data as GitHubOrganization[],
+      org_repos: orgRepos,
+    };
+  } catch (error) {
+    console.error('Error fetching GitHub repositories:', error);
+    throw new Error(
+      error instanceof Error 
+        ? `Failed to fetch repositories: ${error.message}`
+        : 'Failed to fetch repositories from GitHub API'
+    );
+  }
+}
+
+/**
  * Fetch GitHub repositories for the current user and their organizations
  */
 export async function fetchGitHubRepos(): Promise<ReposData> {
@@ -196,6 +258,7 @@ export async function fetchGitHubRepos(): Promise<ReposData> {
     return getMockReposData();
   }
 
-  // For non-mocked environments, throw an error as requested
-  throw new Error('GitHub repos fetching is not implemented for non-mocked environments yet');
+  // For non-mocked environments, fetch real data from GitHub API
+  console.log('Fetching real GitHub repos data');
+  return await fetchRealGitHubRepos();
 }
