@@ -17,6 +17,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@auth/drizzle-adapter": "^1.10.0",
     "@octokit/app": "^16.0.1",
     "@octokit/auth-app": "^8.0.2",
     "@octokit/rest": "^22.0.0",

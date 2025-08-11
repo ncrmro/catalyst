@@ -2,9 +2,9 @@
  * @jest-environment node
  */
 
-import { GET } from '@/app/api/db/health/route';
+import { GET } from '@/app/health/readiness/route';
 
-describe('/api/db/health', () => {
+describe('/health/readiness', () => {
   test('should return database health status', async () => {
     const response = await GET();
     const data = await response.json();

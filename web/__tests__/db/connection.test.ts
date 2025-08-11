@@ -28,10 +28,13 @@ describe('Database Connection', () => {
 
   test('should have drizzle schema defined', async () => {
     // Test that our schema exports are available
-    const { users, repositories } = await import('../../src/db/schema');
+    const { users, accounts, sessions, verificationTokens, authenticators } = await import('../../src/db/schema');
     
     expect(users).toBeDefined();
-    expect(repositories).toBeDefined();
+    expect(accounts).toBeDefined();
+    expect(sessions).toBeDefined();
+    expect(verificationTokens).toBeDefined();
+    expect(authenticators).toBeDefined();
   });
 
   test('should have database connection module', async () => {
