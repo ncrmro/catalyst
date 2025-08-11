@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "rails.fullname" . }}-test-health"
+  labels:
+    {{- include "rails.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['--quiet', '--tries=1', '--spider', '{{ include "rails.fullname" . }}:{{ .Values.service.port }}/health']
+  restartPolicy: Never
