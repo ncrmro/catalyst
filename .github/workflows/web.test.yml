@@ -65,6 +65,7 @@ jobs:
           NODE_ENV: test
           GITHUB_APP_ID: test-app-id
           GITHUB_WEBHOOK_SECRET: test-secret
+          AUTH_SECRET: jNHNholmOZXPeoMCVJK15PLIZhJYlffM1qDwaJGjshE5
 
   e2e:
     runs-on: ubuntu-latest
@@ -93,6 +94,7 @@ jobs:
         run: npm run test:e2e
         env:
           MOCKED: 1
+          AUTH_SECRET: jNHNholmOZXPeoMCVJK15PLIZhJYlffM1qDwaJGjshE5
       
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
