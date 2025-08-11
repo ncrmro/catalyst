@@ -258,7 +258,18 @@ export async function fetchGitHubRepos(): Promise<ReposData> {
     return getMockReposData();
   }
 
-  // For non-mocked environments, fetch real data from GitHub API
+  // For non-mocked environments, try to fetch real data from GitHub API
+  // If authentication fails, gracefully fall back to mocked data
   console.log('Fetching real GitHub repos data');
-  return await fetchRealGitHubRepos();
+  try {
+    return await fetchRealGitHubRepos();
+  } catch (error) {
+    // If the error is related to authentication, fall back to mocked data
+    if (error instanceof Error && error.message.includes('No GitHub access token found')) {
+      console.log('GitHub authentication not available, falling back to mocked data');
+      return getMockReposData();
+    }
+    // For other errors, re-throw to maintain existing error handling behavior
+    throw error;
+  }
 }

@@ -64,7 +64,7 @@ describe('fetchGitHubRepos', () => {
     expect(result.user_repos).toHaveLength(2);
   });
 
-  test('should throw error when no session/access token is available for real API', async () => {
+  test('should return mocked data when no session/access token is available for real API', async () => {
     process.env.NODE_ENV = 'development';
     delete process.env.MOCKED;
     delete process.env.GITHUB_REPOS_MODE;
@@ -72,12 +72,16 @@ describe('fetchGitHubRepos', () => {
     // Mock auth to return no session
     mockAuth.mockResolvedValue(null);
     
-    await expect(fetchGitHubRepos()).rejects.toThrow(
-      'No GitHub access token found. Please sign in with GitHub first.'
-    );
+    const result = await fetchGitHubRepos();
+    
+    // Should gracefully fall back to mocked data instead of throwing
+    expect(result).toHaveProperty('user_repos');
+    expect(result).toHaveProperty('organizations');
+    expect(result).toHaveProperty('org_repos');
+    expect(result.user_repos).toHaveLength(2);
   });
 
-  test('should throw error when session has no access token for real API', async () => {
+  test('should return mocked data when session has no access token for real API', async () => {
     process.env.NODE_ENV = 'production';
     delete process.env.MOCKED;
     delete process.env.GITHUB_REPOS_MODE;
@@ -88,9 +92,13 @@ describe('fetchGitHubRepos', () => {
       expires: '2024-12-31T23:59:59.999Z',
     });
     
-    await expect(fetchGitHubRepos()).rejects.toThrow(
-      'No GitHub access token found. Please sign in with GitHub first.'
-    );
+    const result = await fetchGitHubRepos();
+    
+    // Should gracefully fall back to mocked data instead of throwing
+    expect(result).toHaveProperty('user_repos');
+    expect(result).toHaveProperty('organizations');
+    expect(result).toHaveProperty('org_repos');
+    expect(result.user_repos).toHaveLength(2);
   });
 
   test('mocked data should have correct structure', async () => {
@@ -184,5 +192,36 @@ describe('fetchGitHubRepos', () => {
     expect(result.user_repos).toHaveLength(1);
     expect(result.user_repos[0].name).toBe('real-repo');
     expect(result.organizations).toHaveLength(0);
+  });
+
+  test('should throw non-authentication errors', async () => {
+    process.env.NODE_ENV = 'production';
+    delete process.env.MOCKED;
+    delete process.env.GITHUB_REPOS_MODE;
+    
+    // Mock auth to return session with access token
+    mockAuth.mockResolvedValue({
+      user: { name: 'Test User' },
+      expires: '2024-12-31T23:59:59.999Z',
+      accessToken: 'test_access_token',
+    });
+
+    // Mock Octokit to throw a non-authentication error
+    const mockOctokitInstance = {
+      rest: {
+        repos: {
+          listForAuthenticatedUser: jest.fn().mockRejectedValue(new Error('API rate limit exceeded')),
+        },
+        orgs: {
+          listForAuthenticatedUser: jest.fn().mockResolvedValue({
+            data: []
+          })
+        }
+      }
+    };
+    
+    MockOctokit.mockImplementation(() => mockOctokitInstance as any);
+    
+    await expect(fetchGitHubRepos()).rejects.toThrow('Failed to fetch repositories: API rate limit exceeded');
   });
 });
