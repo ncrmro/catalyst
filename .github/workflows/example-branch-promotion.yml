@@ -1,0 +1,46 @@
+# Example usage of the branch-fast-forward reusable workflow
+# This file serves as documentation and testing for the reusable workflow.
+# 
+# To use this workflow in your repository:
+# 1. Copy the .github/workflows/branch-fast-forward.yml file to your repository
+# 2. Create a workflow like this example to call it when needed
+# 3. Customize the inputs as needed for your branching strategy
+
+name: Example - Promote Staging to Main
+
+on:
+  # This example workflow can be triggered manually
+  workflow_dispatch:
+    inputs:
+      head_branch:
+        description: 'Source branch to promote from'
+        required: false
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - develop
+          - release
+      target_branch:
+        description: 'Target branch to promote to'
+        required: false
+        default: 'main'
+        type: choice
+        options:
+          - main
+          - production
+
+  # Uncomment to automatically promote on staging branch updates
+  # push:
+  #   branches:
+  #     - staging
+
+jobs:
+  promote-branch:
+    name: Promote ${{ inputs.head_branch || 'staging' }} to ${{ inputs.target_branch || 'main' }}
+    uses: ./.github/workflows/branch-fast-forward.yml
+    with:
+      head_branch: ${{ inputs.head_branch || 'staging' }}
+      target_branch: ${{ inputs.target_branch || 'main' }}
+      git_user_name: 'GitHub Actions Bot'
+      git_user_email: 'actions@github.com'
