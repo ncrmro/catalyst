@@ -59,6 +59,41 @@ describe('Feature Flags', () => {
       expect(freshFF.TEST_STRING).toBe(false);
       expect(freshFF.TEST_NUMBER).toBe(false);
     });
+
+    it('should default to true in development unless set to "0"', () => {
+      // Set NODE_ENV to development
+      process.env.NODE_ENV = 'development';
+      process.env.FF_DEV_DEFAULT = undefined; // Not set
+      process.env.FF_DEV_EXPLICIT_TRUE = '1';
+      process.env.FF_DEV_EXPLICIT_FALSE = '0';
+      process.env.FF_DEV_EMPTY = '';
+      process.env.FF_DEV_STRING = 'true';
+      process.env.FF_DEV_NUMBER = '2';
+      
+      const { FF: freshFF } = require('../../src/lib/feature-flags');
+      
+      expect(freshFF.DEV_EXPLICIT_TRUE).toBe(true);
+      expect(freshFF.DEV_EXPLICIT_FALSE).toBe(false);
+      expect(freshFF.DEV_EMPTY).toBe(true); // defaults to true in dev
+      expect(freshFF.DEV_STRING).toBe(true); // defaults to true in dev
+      expect(freshFF.DEV_NUMBER).toBe(true); // defaults to true in dev
+    });
+
+    it('should behave like production when NODE_ENV is not development', () => {
+      // Set NODE_ENV to production
+      process.env.NODE_ENV = 'production';
+      process.env.FF_PROD_TRUE = '1';
+      process.env.FF_PROD_FALSE = '0';
+      process.env.FF_PROD_EMPTY = '';
+      process.env.FF_PROD_STRING = 'true';
+      
+      const { FF: freshFF } = require('../../src/lib/feature-flags');
+      
+      expect(freshFF.PROD_TRUE).toBe(true);
+      expect(freshFF.PROD_FALSE).toBe(false);
+      expect(freshFF.PROD_EMPTY).toBe(false); // only "1" is true in production
+      expect(freshFF.PROD_STRING).toBe(false); // only "1" is true in production
+    });
   });
 
   describe('isFeatureEnabled', () => {

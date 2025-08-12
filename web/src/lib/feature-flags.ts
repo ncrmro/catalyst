@@ -11,10 +11,12 @@ interface FeatureFlags {
 
 /**
  * Parse feature flags from environment variables
- * Converts FF_FOO=1 to FF.FOO = true, FF_BAR=0 to FF.BAR = false
+ * In development: defaults to true unless explicitly set to "0"
+ * In production: only "1" = true, anything else = false
  */
 function parseFeatureFlags(): FeatureFlags {
   const flags: FeatureFlags = {};
+  const isDevelopment = process.env.NODE_ENV === 'development';
   
   // Server-side: access process.env directly
   if (typeof window === 'undefined') {
@@ -22,8 +24,15 @@ function parseFeatureFlags(): FeatureFlags {
       if (key.startsWith('FF_')) {
         // Convert FF_FOO to FOO
         const flagName = key.slice(3);
-        // Convert to boolean: "1" = true, anything else = false
-        flags[flagName] = process.env[key] === '1';
+        const value = process.env[key];
+        
+        if (isDevelopment) {
+          // In development: default to true unless explicitly set to "0"
+          flags[flagName] = value !== '0';
+        } else {
+          // In production: only "1" = true, anything else = false
+          flags[flagName] = value === '1';
+        }
       }
     });
   }
