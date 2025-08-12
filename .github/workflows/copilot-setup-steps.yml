@@ -34,8 +34,14 @@ jobs:
           node-version: 22
           cache: 'npm'
 
+      - run: cd web
+      
+      - run: cp .env.example .env
+
+      - run: env
+
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Get Playwright version
         id: playwright-version
