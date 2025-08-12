@@ -1,26 +1,171 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light dark;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: Arial, Helvetica, sans-serif;
-  --font-mono: 'Courier New', monospace;
+.light {
+  /* forces light color-scheme */
+  color-scheme: light;
 }
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark {
+  /* forces dark color-scheme */
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: light-dark(var(--color-gray-200), var(--color-gray-950));
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* 
+  Material Design-Inspired Theme System
+  
+  This theme uses semantic color tokens rather than numerical shade scales:
+  
+  - primary: Main brand color (buttons, important UI elements)
+  - on-primary: Text/icons that appear on primary color backgrounds
+  - primary-container: Secondary/softer brand color for containers
+  - on-primary-container: Text/icons on primary-container backgrounds
+  
+  - secondary: Secondary accent color
+  - on-secondary: Text/icons that appear on secondary color backgrounds
+  - secondary-container: Secondary accent for containers
+  - on-secondary-container: Text/icons on secondary-container backgrounds
+  
+  - surface: Background color for cards, dialogs, etc.
+  - on-surface: Primary text on surface backgrounds
+  - on-surface-variant: Secondary text, hints, icons on surface
+  
+  - outline: Border colors, dividers
+  - background: Main background color
+  - on-background: Text on main background
+*/
+
+@theme {
+  --color-primary: light-dark(
+    oklch(0.55 0.14 264.665),
+    var(--color-indigo-500)
+  ); /* blue-300, blue-500 */
+  --color-on-primary: light-dark(white, white); /* white */
+  --color-primary-container: light-dark(
+    rgb(219 234 254),
+    rgb(30 64 175)
+  ); /* blue-100, blue-800 */
+  --color-on-primary-container: light-dark(
+    rgb(30 58 138),
+    rgb(191 219 254)
+  ); /* blue-900, blue-200 */
+
+  --color-secondary: light-dark(
+    rgb(217 119 6),
+    rgb(251 191 36)
+  ); /* amber-600, amber-400 */
+  --color-on-secondary: light-dark(white, rgb(0 0 0)); /* white, black */
+  --color-secondary-container: light-dark(
+    rgb(251 191 36),
+    rgb(146 64 14)
+  ); /* amber-400, amber-800 */
+  --color-on-secondary-container: light-dark(
+    rgb(120 53 15),
+    rgb(254 243 199)
+  ); /* amber-900, amber-100 */
+
+  --color-tertiary: light-dark(
+    rgb(147 51 234),
+    rgb(196 181 253)
+  ); /* purple-600, purple-300 */
+  --color-on-tertiary: light-dark(white, rgb(0 0 0)); /* white, black */
+  --color-tertiary-container: light-dark(
+    rgb(233 213 255),
+    rgb(88 28 135)
+  ); /* purple-200, purple-800 */
+  --color-on-tertiary-container: light-dark(
+    rgb(88 28 135),
+    rgb(243 232 255)
+  ); /* purple-900, purple-100 */
+
+  --color-error: light-dark(
+    rgb(220 38 38),
+    rgb(248 113 113)
+  ); /* red-600, red-400 */
+  --color-on-error: light-dark(white, rgb(0 0 0)); /* white, black */
+  --color-error-container: light-dark(
+    rgb(254 226 226),
+    rgb(127 29 29)
+  ); /* red-100, red-800 */
+  --color-on-error-container: light-dark(
+    rgb(127 29 29),
+    rgb(254 226 226)
+  ); /* red-900, red-100 */
+
+  --color-surface: light-dark(
+    rgb(249 250 251),
+    var(--color-gray-900)
+  ); /* gray-50, gray-900 */
+  --color-on-surface: light-dark(
+    rgb(31 41 55),
+    rgb(243 244 246)
+  ); /* gray-800, gray-100 */
+  --color-on-surface-variant: light-dark(
+    rgb(75 85 99),
+    rgb(156 163 175)
+  ); /* gray-600, gray-400 */
+
+  --color-outline: light-dark(
+    rgb(209 213 219),
+    rgb(75 85 99)
+  ); /* gray-300, gray-600 */
+  --color-background: light-dark(
+    var(--color-gray-200),
+    var(--color-gray-950)
+  ); /* white, gray-900 */
+  --color-on-background: light-dark(
+    rgb(17 24 39),
+    rgb(243 244 246)
+  ); /* gray-900, gray-100 */
+}
+
+/* 
+  THEME USAGE GUIDE:
+  
+  Here's how to use this theme system in your application:
+  
+  1. BUTTONS:
+     - Primary action button: <Button variant="default">
+     - Secondary action button: <Button variant="secondary">
+     - Outline button: <Button variant="outline">
+     - Text button: <Button variant="ghost">
+     - Danger button: <Button variant="destructive">
+     - Container-styled button: <Button variant="container">
+  
+  2. CARDS:
+     - Card container: bg-surface border border-outline rounded-lg
+     - Card title: text-on-surface font-medium
+     - Card subtitle/metadata: text-on-surface-variant
+  
+  3. TEXT:
+     - Primary text: text-on-background (on main app background)
+     - Primary text on cards: text-on-surface
+     - Secondary text on cards: text-on-surface-variant
+     - Text on primary elements: text-on-primary
+  
+  4. CONTAINERS:
+     - Primary branded container: bg-primary-container text-on-primary-container
+     - Secondary branded container: bg-secondary-container text-on-secondary-container
+     - Tertiary branded container: bg-tertiary-container text-on-tertiary-container
+     - Error container: bg-error-container text-on-error-container
+     - Main content area: bg-background text-on-background
+  
+  5. FORMS:
+     - Input borders: border-outline focus:border-primary
+     - Input text: text-on-surface
+     - Input background: bg-surface
+     - Labels: text-on-surface-variant
+     - Validation/errors: Use destructive colors for errors
+*/
+
+/* Custom Catalyst styles */
+.catalyst-title {
+  text-transform: uppercase;
 }
