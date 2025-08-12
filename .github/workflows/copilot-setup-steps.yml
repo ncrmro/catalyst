@@ -15,6 +15,9 @@ jobs:
   # The job MUST be called `copilot-setup-steps` or it will not be picked up by Copilot.
   copilot-setup-steps:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./web
 
     # Set the permissions to the lowest permissions possible needed for your steps.
     # Copilot will be given its own token for its operations.
@@ -31,10 +34,9 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: 'npm'
-
-      - run: cd web
+          cache-dependency-path: './web/package-lock.json'
       
       - run: cp .env.example .env
 
@@ -48,7 +50,7 @@ jobs:
         run: echo "version=$(node -p "require('./package.json').devDependencies['@playwright/test'].replace('^', '')")" >> $GITHUB_OUTPUT
 
       - name: Cache playwright binaries
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: playwright-cache
         with:
           path: |
