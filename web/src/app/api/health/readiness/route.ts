@@ -4,7 +4,12 @@ import { db } from '@/db';
 export async function GET() {
   try {
     // Simple query to test database connectivity
-    const result = await db.execute('SELECT 1 as test');
+import { sql } from 'drizzle-orm';
+
+export async function GET() {
+  try {
+    // Simple query to test database connectivity
+    const result = await db.execute(sql`SELECT 1 as test`);
     
     return NextResponse.json({
       success: true,
