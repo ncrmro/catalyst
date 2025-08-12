@@ -88,6 +88,21 @@ jobs:
       run:
         working-directory: ./web
     
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: catalyst_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -122,6 +137,7 @@ jobs:
         run: npm run test:e2e
         env:
           MOCKED: 1
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/catalyst_test
       
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
