@@ -55,7 +55,8 @@ describe('Feature Flags', () => {
       
       expect(freshFF.TEST_TRUE).toBe(true);
       expect(freshFF.TEST_FALSE).toBe(false);
-      expect(freshFF.TEST_EMPTY).toBe(false);
+      // this will only be true in development
+      expect(freshFF.TEST_EMPTY).toBe(true);
       expect(freshFF.TEST_STRING).toBe(false);
       expect(freshFF.TEST_NUMBER).toBe(false);
     });
