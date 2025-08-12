@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 
-import { GET } from '@/app/health/readiness/route';
+import { GET } from '@/app/api/health/readiness/route';
 
 describe('/health/readiness', () => {
   test('should return database health status', async () => {
