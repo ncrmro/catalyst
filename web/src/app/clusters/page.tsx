@@ -25,48 +25,48 @@ const mockClusters = [
 
 function ClusterCard({ cluster }: { cluster: typeof mockClusters[0] }) {
   return (
-    <div className="border border-gray-200 rounded-lg p-6 bg-white shadow-sm">
-      <h3 className="text-xl font-semibold text-gray-900 mb-4 capitalize">
+    <div className="border border-outline rounded-lg p-6 bg-surface shadow-sm">
+      <h3 className="text-xl font-semibold text-on-surface mb-4 capitalize">
         {cluster.name}
       </h3>
       
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <p className="text-sm text-gray-600">Cost per Month</p>
-          <p className="text-lg font-medium text-green-600">{cluster.costPerMonth}</p>
+          <p className="text-sm text-on-surface-variant">Cost per Month</p>
+          <p className="text-lg font-medium text-secondary">{cluster.costPerMonth}</p>
         </div>
         
         <div>
-          <p className="text-sm text-gray-600">Nodes</p>
-          <p className="text-lg font-medium">
+          <p className="text-sm text-on-surface-variant">Nodes</p>
+          <p className="text-lg font-medium text-on-surface">
             {cluster.currentNodes} / {cluster.maxNodes}
           </p>
         </div>
         
         <div>
-          <p className="text-sm text-gray-600">CPU</p>
-          <p className="text-lg font-medium">{cluster.allocatedCPU}</p>
+          <p className="text-sm text-on-surface-variant">CPU</p>
+          <p className="text-lg font-medium text-on-surface">{cluster.allocatedCPU}</p>
         </div>
         
         <div>
-          <p className="text-sm text-gray-600">Memory</p>
-          <p className="text-lg font-medium">{cluster.allocatedMemory}</p>
+          <p className="text-sm text-on-surface-variant">Memory</p>
+          <p className="text-lg font-medium text-on-surface">{cluster.allocatedMemory}</p>
         </div>
         
         <div className="col-span-2">
-          <p className="text-sm text-gray-600">Storage</p>
-          <p className="text-lg font-medium">{cluster.allocatedStorage}</p>
+          <p className="text-sm text-on-surface-variant">Storage</p>
+          <p className="text-lg font-medium text-on-surface">{cluster.allocatedStorage}</p>
         </div>
       </div>
       
-      <div className="mt-4 bg-gray-50 rounded p-3">
-        <div className="flex justify-between text-sm">
+      <div className="mt-4 bg-primary-container rounded p-3">
+        <div className="flex justify-between text-sm text-on-primary-container">
           <span>Node Utilization:</span>
           <span>{Math.round((cluster.currentNodes / cluster.maxNodes) * 100)}%</span>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+        <div className="w-full bg-outline rounded-full h-2 mt-1">
           <div 
-            className="bg-blue-600 h-2 rounded-full" 
+            className="bg-primary h-2 rounded-full" 
             style={{ width: `${(cluster.currentNodes / cluster.maxNodes) * 100}%` }}
           ></div>
         </div>
@@ -82,11 +82,11 @@ export default function ClustersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-background py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Clusters</h1>
-          <p className="mt-2 text-gray-600">
+          <h1 className="text-3xl font-bold text-on-background catalyst-title">Clusters</h1>
+          <p className="mt-2 text-on-surface-variant">
             Monitor and manage your Kubernetes clusters
           </p>
         </div>
@@ -98,7 +98,7 @@ export default function ClustersPage() {
         </div>
         
         <div className="mt-8 text-center">
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-on-surface-variant">
             This is a demo page showing mock cluster data.
           </p>
         </div>
