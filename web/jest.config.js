@@ -16,6 +16,9 @@ const customJestConfig = {
   transformIgnorePatterns: [
     'node_modules/(?!(next-auth|@auth/core)/)',
   ],
+  moduleNameMapper: {
+    '^@kubernetes/client-node$': '<rootDir>/__tests__/__mocks__/@kubernetes/client-node.js',
+  },
 };
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
