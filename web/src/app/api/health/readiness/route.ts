@@ -1,9 +1,5 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-
-export async function GET() {
-  try {
-    // Simple query to test database connectivity
 import { sql } from 'drizzle-orm';
 
 export async function GET() {
