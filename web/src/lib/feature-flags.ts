@@ -11,12 +11,12 @@ interface FeatureFlags {
 
 /**
  * Parse feature flags from environment variables
- * In development: defaults to true unless explicitly set to "0"
+ * In development (NODE_ENV !== 'production'): defaults to true unless explicitly set to "0"
  * In production: only "1" = true, anything else = false
  */
 function parseFeatureFlags(): FeatureFlags {
   const flags: FeatureFlags = {};
-  const isDevelopment = process.env.NODE_ENV === 'development';
+  const isDevelopment = process.env.NODE_ENV !== 'production';
   
   // Server-side: access process.env directly
   if (typeof window === 'undefined') {
@@ -28,7 +28,8 @@ function parseFeatureFlags(): FeatureFlags {
         
         if (isDevelopment) {
           // In development: default to true unless explicitly set to "0"
-          flags[flagName] = value !== '0';
+          // If not set at all (undefined), default to true
+          flags[flagName] = value === undefined ? true : value !== '0';
         } else {
           // In production: only "1" = true, anything else = false
           flags[flagName] = value === '1';
@@ -52,7 +53,16 @@ export function useFeatureFlags() {
 
 /**
  * Check if a specific feature flag is enabled
+ * In development: defaults to true if not explicitly set
+ * In production: defaults to false if not explicitly set
  */
 export function isFeatureEnabled(flagName: string): boolean {
-  return FF[flagName] === true;
+  // If the flag exists in the FF object, use its value
+  if (flagName in FF) {
+    return FF[flagName] === true;
+  }
+  
+  // If the flag doesn't exist, use default behavior
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+  return isDevelopment;
 }
