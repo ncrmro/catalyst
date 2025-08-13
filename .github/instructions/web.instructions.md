@@ -7,6 +7,7 @@ applyTo: "web/**"
 - NextJS App Router
 - Drizzle as ORM and Migrations manager
 - Playwright for E2E testing.
+- Kind for local cluster testings it should already be configured for use, verfiy with kubectl before using it.
 
 # Dev Server
 
