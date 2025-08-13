@@ -23,6 +23,12 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+# Copy drizzle mirations and config
+RUN npm install drizzle-orm@$(node -pe "require('./package').dependencies.drizzle-orm") drizzle-kit@$(node -pe "require('./package').devDependencies.drizzle-kit")
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts  /app/drizzle.config.ts
+COPY --from=builder --chown=nextjs:nodejs /app/drizzle  /app/drizzle
+
 # Copy the public folder
 COPY --from=builder /app/public ./public
 
