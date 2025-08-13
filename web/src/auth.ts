@@ -1,10 +1,7 @@
 import NextAuth from "next-auth"
-import { DrizzleAdapter } from "@auth/drizzle-adapter"
-import { db } from "@/db"
 import GitHub from "next-auth/providers/github"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: DrizzleAdapter(db),
   providers: [
     GitHub({
       authorization: {
@@ -14,6 +11,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
     })
   ],
+  session: {
+    strategy: "jwt"
+  },
   callbacks: {
       async signIn({ user, account, profile, email, credentials }) {
         console.log('signIn', user, account, profile, email, credentials)
@@ -27,8 +27,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         console.log('session', session, user, token)
         return session
       },
-      async jwt({ token, user, account, profile, isNewUser }) {
-        console.log('jwt', token, user, account, profile, isNewUser)
+      async jwt({ token, account, profile }) {
+        // Persist the OAuth access_token and or the user id to the token right after signin
+        if (account) {
+          token.accessToken = account.access_token
+          token.id = profile?.id
+        }
         return token
       }
     }
