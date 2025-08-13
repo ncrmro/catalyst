@@ -15,19 +15,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     })
   ],
   callbacks: {
-    async jwt({ token, account }) {
-      console.log('jwt', token, account)
-      // Persist the OAuth access_token to the token right after signin
-      if (account) {
-        token.accessToken = account.access_token
+      async signIn({ user, account, profile, email, credentials }) {
+        console.log('signIn', user, account, profile, email, credentials)
+        return true
+      },
+      async redirect({ url, baseUrl }) {
+        console.log('redirect', url, baseUrl)
+        return baseUrl
+      },
+      async session({ session, user, token }) {
+        console.log('session', session, user, token)
+        return session
+      },
+      async jwt({ token, user, account, profile, isNewUser }) {
+        console.log('jwt', token, user, account, profile, isNewUser)
+        return token
       }
-      return token
-    },
-    async session({ session, token }) {
-      console.log("sesh", session, token)
-      // Send properties to the client
-      session.accessToken = token?.accessToken as string
-      return session
-    },
-  },
+    }
 })
