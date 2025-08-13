@@ -19,9 +19,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // Persist the OAuth access_token and or the user id to the token right after signin
       if (account && profile) {
         token.accessToken = account.access_token
-        token.id = profile.id
         
-        // Create user if they don't exist
+        // Create user if they don't exist and get their database ID
         if (profile?.email) {
           try {
             // Check if user exists
@@ -35,12 +34,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 image: profile.avatar_url as string | null
               })
             }
+            
+            // Get the user from database to set token.id to database user ID
+            const user = await db.select().from(users).where(eq(users.email, profile.email as string)).limit(1)
+            if (user.length > 0) {
+              token.id = user[0].id
+            }
           } catch (error) {
             console.error('Error creating user:', error)
           }
         }
       }
       return token
+    },
+    async session({ session, token }) {
+      // Send properties to the client
+      session.accessToken = token.accessToken as string
+      session.userId = token.id as string
+      return session
     }
   }
 })
