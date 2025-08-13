@@ -8,9 +8,9 @@ async function createKubernetesClient() {
   
   // For kind clusters and local development, handle TLS issues
   const cluster = kc.getCurrentCluster();
-  if (cluster && cluster.server.includes('127.0.0.1')) {
-    cluster.skipTLSVerify = true;
-  }
+  // if (cluster && cluster.server.includes('127.0.0.1')) {
+  //   cluster.skipTLSVerify = true;
+  // }
 
   const coreApi = kc.makeApiClient(k8s.CoreV1Api);
   const appsApi = kc.makeApiClient(k8s.AppsV1Api);
