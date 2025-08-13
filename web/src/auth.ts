@@ -17,7 +17,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     async jwt({ token, account, profile }) {
       // Persist the OAuth access_token and or the user id to the token right after signin
-      if (account) {
+      if (account && profile) {
         token.accessToken = account.access_token
         token.id = profile.id
         
@@ -25,14 +25,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (profile?.email) {
           try {
             // Check if user exists
-            const existingUser = await db.select().from(users).where(eq(users.email, profile.email)).limit(1)
+            const existingUser = await db.select().from(users).where(eq(users.email, profile.email as string)).limit(1)
             
             if (existingUser.length === 0) {
               // Create new user
               await db.insert(users).values({
-                email: profile.email,
-                name: profile.name,
-                image: profile.avatar_url
+                email: profile.email as string,
+                name: profile.name as string | null,
+                image: profile.avatar_url as string | null
               })
             }
           } catch (error) {
