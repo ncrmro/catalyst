@@ -1,90 +1,113 @@
 import { test, expect } from '@playwright/test';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import * as k8s from '@kubernetes/client-node';
 
-const execAsync = promisify(exec);
+// Helper function to create and configure Kubernetes client
+async function createKubernetesClient() {
+  const kc = new k8s.KubeConfig();
+  kc.loadFromDefault();
+  
+  // For kind clusters and local development, handle TLS issues
+  const cluster = kc.getCurrentCluster();
+  if (cluster && cluster.server.includes('127.0.0.1')) {
+    cluster.skipTLSVerify = true;
+  }
+
+  const coreApi = kc.makeApiClient(k8s.CoreV1Api);
+  const appsApi = kc.makeApiClient(k8s.AppsV1Api);
+  
+  return { kc, coreApi, appsApi };
+}
+
+// Test cluster connectivity by listing namespaces - this must pass for tests to continue
+async function verifyClusterConnectivity() {
+  const { coreApi } = await createKubernetesClient();
+  
+  try {
+    const response = await coreApi.listNamespace();
+    
+    // Check if response has items directly
+    const namespaces = response.items;
+    expect(namespaces).toBeDefined();
+    expect(namespaces.length).toBeGreaterThan(0);
+    console.log('✓ Kubernetes cluster is accessible and can list namespaces');
+    return true;
+  } catch (error) {
+    console.error('Kubernetes client error:', error);
+    throw new Error(`Failed to connect to Kubernetes cluster or list namespaces: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
 
 test.describe('Kubernetes Integration', () => {
-  test('should create nginx deployment via API endpoint and verify with kubectl', async ({ page, request }) => {
-    // First, check if we can access the API endpoint
+  test('should create nginx deployment via API endpoint and verify with Kubernetes client', async ({ page, request }) => {
+    // First verify cluster connectivity - this must pass for the test to continue
+    await verifyClusterConnectivity();
+    
+    // Create deployment via API endpoint
     const response = await request.get('/api/kubernetes/deploy-nginx');
     const data = await response.json();
 
-    // We expect either success or a specific error indicating k8s is not available
-    if (response.ok()) {
-      // If successful, verify the response structure
-      expect(data.success).toBe(true);
-      expect(data.message).toBe('Nginx deployment created successfully');
-      expect(data.deployment).toBeDefined();
-      expect(data.deployment.name).toMatch(/^nginx-deployment-\d+$/);
-      expect(data.deployment.namespace).toBe('default');
-      expect(data.deployment.replicas).toBe(1);
-      expect(data.deployment.timestamp).toBeGreaterThan(0);
+    // API must succeed - no fallback error handling
+    expect(response.ok()).toBe(true);
+    expect(data.success).toBe(true);
+    expect(data.message).toBe('Nginx deployment created successfully');
+    expect(data.deployment).toBeDefined();
+    expect(data.deployment.name).toMatch(/^nginx-deployment-\d+$/);
+    expect(data.deployment.namespace).toBe('default');
+    expect(data.deployment.replicas).toBe(1);
+    expect(data.deployment.timestamp).toBeGreaterThan(0);
 
-      console.log('Deployment created successfully:', data.deployment.name);
+    console.log('Deployment created successfully:', data.deployment.name);
+    
+    // Verify the deployment exists using Kubernetes client
+    const { appsApi } = await createKubernetesClient();
+    
+    try {
+      const deploymentResponse = await appsApi.readNamespacedDeployment({
+        name: data.deployment.name,
+        namespace: 'default'
+      });
+      const deployment = deploymentResponse;
       
-      // Verify the deployment exists in the kind cluster using kubectl
-      try {
-        const { stdout } = await execAsync(`kubectl get deployment ${data.deployment.name} -n default -o json`);
-        const deployment = JSON.parse(stdout);
-        
-        // Verify deployment properties
-        expect(deployment.metadata.name).toBe(data.deployment.name);
-        expect(deployment.metadata.namespace).toBe('default');
-        expect(deployment.metadata.labels['created-by']).toBe('catalyst-web-app');
-        expect(deployment.spec.replicas).toBe(1);
-        expect(deployment.spec.template.spec.containers[0].image).toBe('nginx:1.25');
-        
-        console.log('✓ Deployment verified in kind cluster via kubectl');
-        
-        // Verify the pod is running
-        const { stdout: podStdout } = await execAsync(`kubectl get pods -l deployment=${data.deployment.name} -n default -o json`);
-        const pods = JSON.parse(podStdout);
-        
-        expect(pods.items.length).toBeGreaterThan(0);
-        const pod = pods.items[0];
-        expect(pod.metadata.labels.deployment).toBe(data.deployment.name);
-        expect(pod.spec.containers[0].image).toBe('nginx:1.25');
-        
-        console.log('✓ Pod verified in kind cluster via kubectl');
-        
-        // Clean up the test deployment
-        await execAsync(`kubectl delete deployment ${data.deployment.name} -n default`);
-        console.log('✓ Test deployment cleaned up');
-        
-      } catch (kubectlError) {
-        // If kubectl verification fails, log the error but don't fail the test
-        // This handles cases where kubectl might not be available in the test environment
-        console.warn('kubectl verification failed (this may be expected in some test environments):', kubectlError);
-        console.log('API test passed, but kubectl verification was not possible');
-      }
-    } else {
-      // If not successful, verify it's an expected error (no k8s cluster available)
-      expect(response.status()).toBeGreaterThanOrEqual(500);
-      expect(data.success).toBe(false);
-      expect(data.error).toBeDefined();
+      // Verify deployment properties
+      expect(deployment.metadata?.name).toBe(data.deployment.name);
+      expect(deployment.metadata?.namespace).toBe('default');
+      expect(deployment.metadata?.labels?.['created-by']).toBe('catalyst-web-app');
+      expect(deployment.spec?.replicas).toBe(1);
+      expect(deployment.spec?.template?.spec?.containers?.[0]?.image).toBe('nginx:1.25');
       
-      // Common expected errors when k8s is not available
-      const expectedErrors = [
-        'Failed to load Kubernetes configuration',
-        'Cannot connect to Kubernetes cluster',
-        'Unauthorized to access Kubernetes cluster',
-        'HTTP protocol is not allowed when skipTLSVerify is not set or false',
-        'ECONNREFUSED'
-      ];
+      console.log('✓ Deployment verified in cluster via Kubernetes client');
       
-      const errorMatches = expectedErrors.some(expectedError => 
-        data.error.includes(expectedError)
-      );
+      // Verify the pod is running using Kubernetes client
+      const { coreApi } = await createKubernetesClient();
+      const podsResponse = await coreApi.listNamespacedPod({
+        namespace: 'default',
+        labelSelector: `deployment=${data.deployment.name}`
+      });
+      const pods = podsResponse;
       
-      expect(errorMatches).toBe(true);
-      console.log('Expected error when Kubernetes is not available:', data.error);
+      expect(pods.items.length).toBeGreaterThan(0);
+      const pod = pods.items[0];
+      expect(pod.metadata?.labels?.deployment).toBe(data.deployment.name);
+      expect(pod.spec?.containers?.[0]?.image).toBe('nginx:1.25');
+      
+      console.log('✓ Pod verified in cluster via Kubernetes client');
+      
+      // Clean up the test deployment using Kubernetes client
+      await appsApi.deleteNamespacedDeployment({
+        name: data.deployment.name,
+        namespace: 'default'
+      });
+      console.log('✓ Test deployment cleaned up');
+      
+    } catch (k8sError) {
+      // If Kubernetes verification fails, the test must fail - no graceful handling
+      throw new Error(`Kubernetes verification failed: ${k8sError instanceof Error ? k8sError.message : 'Unknown error'}`);
     }
   });
 
   test('should handle API endpoint correctly in web interface', async ({ page }) => {
-    // Navigate to a test page (if we had a UI to trigger the deployment)
-    // For now, we'll test direct API access via the browser
+    // Verify cluster connectivity first
+    await verifyClusterConnectivity();
     
     // Go to the API endpoint directly
     await page.goto('/api/kubernetes/deploy-nginx');
@@ -96,52 +119,96 @@ test.describe('Kubernetes Integration', () => {
     // Parse the JSON response
     const data = JSON.parse(content as string);
     
-    // Verify response structure regardless of success/failure
-    expect(data).toBeDefined();
-    expect(typeof data.success).toBe('boolean');
+    // The API must succeed - no error handling fallback
+    expect(data.success).toBe(true);
+    expect(data.message).toBe('Nginx deployment created successfully');
+    expect(data.deployment).toBeDefined();
+    console.log('UI test: Deployment created via browser:', data.deployment.name);
     
-    if (data.success) {
-      expect(data.message).toBe('Nginx deployment created successfully');
-      expect(data.deployment).toBeDefined();
-      console.log('UI test: Deployment created via browser:', data.deployment.name);
-      
-      // Clean up deployment created via browser test
-      try {
-        await execAsync(`kubectl delete deployment ${data.deployment.name} -n default`);
-        console.log('✓ Browser test deployment cleaned up');
-      } catch (error) {
-        console.warn('Could not clean up browser test deployment:', error);
-      }
-    } else {
-      expect(data.error).toBeDefined();
-      console.log('UI test: Expected error in browser:', data.error);
+    // Clean up deployment created via browser test using Kubernetes client
+    const { appsApi } = await createKubernetesClient();
+    try {
+      await appsApi.deleteNamespacedDeployment({
+        name: data.deployment.name,
+        namespace: 'default'
+      });
+      console.log('✓ Browser test deployment cleaned up');
+    } catch (error) {
+      throw new Error(`Failed to clean up browser test deployment: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   });
   
   test('should verify kind cluster is accessible for testing', async () => {
-    // This test verifies that the kind cluster is properly set up for integration testing
+    // Verify cluster connectivity using Kubernetes client - this must pass
+    await verifyClusterConnectivity();
+    
+    // Test full permissions by creating and deleting a deployment
+    const { appsApi } = await createKubernetesClient();
+    
+    const testDeploymentName = `test-permissions-${Date.now()}`;
+    
+    // Create test deployment using Kubernetes client
+    const deployment: k8s.V1Deployment = {
+      apiVersion: 'apps/v1',
+      kind: 'Deployment',
+      metadata: {
+        name: testDeploymentName,
+        namespace: 'default',
+        labels: {
+          app: 'nginx',
+          'created-by': 'e2e-test'
+        }
+      },
+      spec: {
+        replicas: 1,
+        selector: {
+          matchLabels: {
+            app: 'nginx',
+            deployment: testDeploymentName
+          }
+        },
+        template: {
+          metadata: {
+            labels: {
+              app: 'nginx',
+              deployment: testDeploymentName
+            }
+          },
+          spec: {
+            containers: [
+              {
+                name: 'nginx',
+                image: 'nginx:1.25',
+                ports: [{ containerPort: 80 }]
+              }
+            ]
+          }
+        }
+      }
+    };
+
     try {
-      // Check if kubectl can access the cluster (strip ANSI color codes)
-      const { stdout: clusterInfo } = await execAsync('kubectl cluster-info --request-timeout=5s');
-      const cleanClusterInfo = clusterInfo.replace(/\x1b\[[0-9;]*m/g, ''); // Remove ANSI color codes
-      expect(cleanClusterInfo).toContain('Kubernetes control plane is running');
-      
-      // Verify we can create/delete resources (full permissions test)
-      const testDeploymentName = `test-permissions-${Date.now()}`;
-      await execAsync(`kubectl create deployment ${testDeploymentName} --image=nginx:1.25 -n default --request-timeout=10s`);
+      await appsApi.createNamespacedDeployment({
+        namespace: 'default',
+        body: deployment
+      });
       
       // Verify the deployment was created
-      const { stdout: deployment } = await execAsync(`kubectl get deployment ${testDeploymentName} -n default --request-timeout=5s`);
-      expect(deployment).toContain(testDeploymentName);
+      const deploymentResponse = await appsApi.readNamespacedDeployment({
+        name: testDeploymentName,
+        namespace: 'default'
+      });
+      expect(deploymentResponse.metadata?.name).toBe(testDeploymentName);
       
       // Clean up
-      await execAsync(`kubectl delete deployment ${testDeploymentName} -n default --request-timeout=10s`);
+      await appsApi.deleteNamespacedDeployment({
+        name: testDeploymentName,
+        namespace: 'default'
+      });
       
-      console.log('✓ Kind cluster is properly accessible for testing');
+      console.log('✓ Kind cluster is properly accessible with full permissions for testing');
     } catch (error) {
-      // This test can be skipped if kubectl is not available
-      console.warn('kubectl not available or cluster not accessible:', error);
-      test.skip();
+      throw new Error(`Failed to create/delete test deployment in cluster: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   });
 });

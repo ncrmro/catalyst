@@ -34,7 +34,7 @@ kubectl get nodes
 
 ## Running Kubernetes E2E Tests
 
-The E2E tests are designed to work with the kind cluster:
+The E2E tests are designed to work with the kind cluster and **require** a working Kubernetes cluster to pass:
 
 ```bash
 # Run all Kubernetes-related E2E tests
@@ -43,6 +43,8 @@ npm run test:e2e -- --grep "Kubernetes"
 # Run all E2E tests
 npm run test:e2e
 ```
+
+**Important**: These tests will fail if the Kubernetes cluster is not accessible. They use the Kubernetes JavaScript client to verify cluster connectivity by listing namespaces before running any deployment tests.
 
 ## Testing the Kubernetes API Endpoint
 
@@ -65,9 +67,9 @@ curl http://localhost:3000/api/kubernetes/deploy-nginx
 }
 ```
 
-### Via kubectl Verification
+### Via Kubernetes Client Verification
 
-After making API calls, verify deployments were actually created:
+After making API calls, the E2E tests use the Kubernetes JavaScript client to verify deployments were actually created:
 
 ```bash
 # List all deployments created by the web app
@@ -85,11 +87,15 @@ kubectl get pods -l created-by=catalyst-web-app
 
 ## Expected Test Flow
 
-1. **E2E Test Execution**: Playwright tests call the `/api/kubernetes/deploy-nginx` endpoint
-2. **API Processing**: The endpoint creates a deployment in the kind cluster
-3. **Response Validation**: Tests verify the API response structure and success status
-4. **Kubectl Verification**: Tests can optionally verify the deployment exists in the cluster
-5. **Cleanup**: Test deployments can be cleaned up after testing
+1. **Cluster Connectivity Check**: Tests verify the Kubernetes cluster is accessible by listing namespaces using the Kubernetes JavaScript client
+2. **E2E Test Execution**: Playwright tests call the `/api/kubernetes/deploy-nginx` endpoint
+3. **API Processing**: The endpoint creates a deployment in the kind cluster
+4. **Response Validation**: Tests verify the API response structure and success status
+5. **Kubernetes Client Verification**: Tests verify the deployment exists in the cluster using the Kubernetes JavaScript client
+6. **Pod Verification**: Tests verify pods are running with correct configuration using the Kubernetes client
+7. **Cleanup**: Test deployments are cleaned up using the Kubernetes client
+
+**Important**: All tests will fail if the Kubernetes cluster is not accessible. There is no fallback or graceful degradation.
 
 ## Cleanup
 
@@ -135,8 +141,12 @@ kubectl auth can-i create deployments
 ## Integration with CI/CD
 
 This kind cluster setup is designed to work in CI environments where:
-- A kind cluster is automatically provisioned
+- A kind cluster is automatically provisioned and must be accessible
 - The web application can create real Kubernetes resources
-- Tests verify end-to-end functionality including actual cluster state
+- Tests verify end-to-end functionality including actual cluster state using the Kubernetes JavaScript client
+- Tests will fail if the cluster is not accessible (no graceful fallback)
 
-The E2E tests will automatically adapt to whether a Kubernetes cluster is available, gracefully handling scenarios where the cluster is not accessible.
+**Test Requirements**:
+- Kubernetes cluster must be running and accessible
+- Tests use the default kubeconfig context
+- Full RBAC permissions required for creating/deleting deployments and listing namespaces
