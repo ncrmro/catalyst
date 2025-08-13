@@ -45,6 +45,8 @@ describe('Feature Flags', () => {
     });
 
     it('should only treat "1" as true', () => {
+      // Set NODE_ENV to production to test strict production behavior
+      process.env.NODE_ENV = 'production';
       process.env.FF_TEST_TRUE = '1';
       process.env.FF_TEST_FALSE = '0';
       process.env.FF_TEST_EMPTY = '';
@@ -55,8 +57,8 @@ describe('Feature Flags', () => {
       
       expect(freshFF.TEST_TRUE).toBe(true);
       expect(freshFF.TEST_FALSE).toBe(false);
-      // this will only be true in development
-      expect(freshFF.TEST_EMPTY).toBe(true);
+      // In production, only "1" is true, everything else is false
+      expect(freshFF.TEST_EMPTY).toBe(false);
       expect(freshFF.TEST_STRING).toBe(false);
       expect(freshFF.TEST_NUMBER).toBe(false);
     });
@@ -114,9 +116,15 @@ describe('Feature Flags', () => {
       expect(freshIsFeatureEnabled('DISABLED_FEATURE')).toBe(false);
     });
 
-    it('should return false for non-existent features', () => {
+    it('should return false for non-existent features in production', () => {
+      process.env.NODE_ENV = 'production';
       const { isFeatureEnabled: freshIsFeatureEnabled } = require('../../src/lib/feature-flags');
-      // this will only be true in development
+      expect(freshIsFeatureEnabled('NON_EXISTENT')).toBe(false);
+    });
+
+    it('should return true for non-existent features in development', () => {
+      process.env.NODE_ENV = 'development';
+      const { isFeatureEnabled: freshIsFeatureEnabled } = require('../../src/lib/feature-flags');
       expect(freshIsFeatureEnabled('NON_EXISTENT')).toBe(true);
     });
   });
