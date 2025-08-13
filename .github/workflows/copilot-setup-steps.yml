@@ -68,3 +68,9 @@ jobs:
           cp .env.example .env
           npm ci
           npx playwright install --with-deps
+
+      - name: Create Kind cluster
+        uses: helm/kind-action@v1.10.0
+        with:
+          cluster_name: preview-cluster
+          wait: 60s
