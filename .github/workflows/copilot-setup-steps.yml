@@ -74,3 +74,6 @@ jobs:
         with:
           cluster_name: preview-cluster
           wait: 60s
+      
+      - name: Verify Kind Access
+        run: kubectl get all
