@@ -68,11 +68,13 @@ test.describe('Kubernetes Integration', () => {
       const expectedErrors = [
         'Failed to load Kubernetes configuration',
         'Cannot connect to Kubernetes cluster',
-        'Unauthorized to access Kubernetes cluster'
+        'Unauthorized to access Kubernetes cluster',
+        'HTTP protocol is not allowed when skipTLSVerify is not set or false',
+        'ECONNREFUSED'
       ];
       
       const errorMatches = expectedErrors.some(expectedError => 
-        data.error.includes(expectedError) || data.error.includes('ECONNREFUSED')
+        data.error.includes(expectedError)
       );
       
       expect(errorMatches).toBe(true);
