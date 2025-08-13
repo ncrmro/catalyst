@@ -15,6 +15,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     })
   ],
   callbacks: {
+    /**
+     * JWT Callback
+     * 
+     * This callback is called whenever a JSON Web Token is created (i.e. at sign in) 
+     * or updated (i.e whenever a session is accessed in the client). The returned value 
+     * will be encrypted, and it is stored in a cookie.
+     * 
+     * Requests to /api/auth/signin, /api/auth/session and calls to getSession(), 
+     * getServerSession(), useSession() will invoke this function, but only if you are 
+     * using a JWT session. This method is not invoked when you persist sessions in a database.
+     * 
+     * @see https://next-auth.js.org/configuration/callbacks
+     */
     async jwt({ token, account, profile }) {
       // Persist the OAuth access_token and or the user id to the token right after signin
       if (account && profile) {
@@ -47,6 +60,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
       return token
     },
+    /**
+     * Session Callback
+     * 
+     * The session callback is called whenever a session is checked. By default, only a 
+     * subset of the token is returned for increased security. If you want to make something 
+     * available you added to the token (like access_token and user.id from above) via the 
+     * jwt() callback, you have to explicitly forward it here to make it available to the client.
+     * 
+     * e.g. getSession(), useSession(), /api/auth/session
+     * 
+     * When using database sessions, the User (user) object is passed as an argument.
+     * When using JSON Web Tokens for sessions, the JWT payload (token) is provided instead.
+     * 
+     * @see https://next-auth.js.org/configuration/callbacks
+     */
     async session({ session, token }) {
       // Send properties to the client
       session.accessToken = token.accessToken as string
