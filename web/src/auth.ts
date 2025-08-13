@@ -29,6 +29,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
      * @see https://next-auth.js.org/configuration/callbacks
      */
     async jwt({ token, account, profile }) {
+      console.log('JWT', { token, account, profile })
       // Persist the OAuth access_token and or the user id to the token right after signin
       if (account && profile) {
         // Add the GitHub access token to enable access to GitHub's APIs
@@ -81,6 +82,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
      * @see https://next-auth.js.org/configuration/callbacks
      */
     async session({ session, token }) {
+      console.log('session', { session, token })
       // Send properties to the client
       session.accessToken = token.accessToken as string
       session.userId = token.id as string
