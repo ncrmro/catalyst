@@ -2,6 +2,22 @@ import { createMocks } from 'node-mocks-http';
 import { POST } from '../../../src/app/api/github/webhook/route';
 import crypto from 'crypto';
 
+// Mock the Kubernetes service
+jest.mock('../../../src/lib/kubernetes-service', () => ({
+  kubernetesService: {
+    deployWorkload: jest.fn(),
+    deleteWorkload: jest.fn(),
+    runTests: jest.fn()
+  }
+}));
+
+// Mock the workload config
+jest.mock('../../../src/lib/workload-config', () => ({
+  findWorkloadConfig: jest.fn(),
+  shouldTriggerDeployment: jest.fn(),
+  createPRWorkloadConfig: jest.fn()
+}));
+
 describe('/api/github/webhook', () => {
   const mockWebhookSecret = 'test-webhook-secret';
 
@@ -124,12 +140,19 @@ describe('/api/github/webhook', () => {
     });
 
     it('should handle pull_request event', async () => {
+      // Reset mocks for this test to avoid workload management
+      const { findWorkloadConfig, createPRWorkloadConfig } = require('../../../src/lib/workload-config');
+      findWorkloadConfig.mockReturnValue(null); // No workload config found
+      createPRWorkloadConfig.mockReturnValue(null);
+      
       const payload = {
         action: 'opened',
         pull_request: {
           number: 42,
           title: 'Test PR',
-          user: { login: 'testuser' }
+          user: { login: 'testuser' },
+          head: { ref: 'feature-branch' },
+          base: { ref: 'main' }
         },
         repository: { full_name: 'user/repo' }
       };
@@ -155,7 +178,7 @@ describe('/api/github/webhook', () => {
       expect(response.status).toBe(200);
       expect(data).toMatchObject({
         success: true,
-        message: 'Pull request opened processed',
+        message: 'Pull request opened processed (no environment changes)',
         pr_number: 42
       });
     });
@@ -274,6 +297,179 @@ describe('/api/github/webhook', () => {
         success: false,
         error: 'Failed to process webhook'
       });
+    });
+
+    it('should handle push event with workload deployment', async () => {
+      const { kubernetesService } = require('../../../src/lib/kubernetes-service');
+      const { findWorkloadConfig, shouldTriggerDeployment } = require('../../../src/lib/workload-config');
+
+      // Mock functions
+      shouldTriggerDeployment.mockReturnValue(true);
+      findWorkloadConfig.mockReturnValue({
+        repository: 'user/repo',
+        branch: 'main',
+        releaseName: 'main-release',
+        namespace: 'production',
+        enableTests: true
+      });
+      kubernetesService.deployWorkload.mockResolvedValue({
+        success: true,
+        releaseName: 'main-release',
+        namespace: 'production',
+        url: 'https://app.example.com'
+      });
+      kubernetesService.runTests.mockResolvedValue({
+        success: true,
+        testsPassed: 5,
+        testsFailed: 0,
+        output: 'All tests passed',
+        duration: 2000
+      });
+
+      const payload = {
+        repository: { full_name: 'user/repo' },
+        commits: [{ id: 'abc123' }, { id: 'def456' }],
+        pusher: { name: 'testuser' },
+        ref: 'refs/heads/main'
+      };
+      const payloadString = JSON.stringify(payload);
+      const signature = createSignature(payloadString, mockWebhookSecret);
+
+      const { req } = createMocks({
+        method: 'POST',
+        headers: {
+          'x-github-event': 'push',
+          'x-github-delivery': 'test-delivery-123',
+          'x-hub-signature-256': signature,
+          'content-type': 'application/json'
+        },
+        body: payloadString,
+      });
+
+      req.text = jest.fn().mockResolvedValue(payloadString);
+
+      const response = await POST(req as any);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.commits_processed).toBe(2);
+      expect(data.deployment).toBeDefined();
+      expect(data.tests).toBeDefined();
+      expect(kubernetesService.deployWorkload).toHaveBeenCalled();
+      expect(kubernetesService.runTests).toHaveBeenCalled();
+    });
+
+    it('should handle pull request opened event with PR environment', async () => {
+      const { kubernetesService } = require('../../../src/lib/kubernetes-service');
+      const { findWorkloadConfig, createPRWorkloadConfig } = require('../../../src/lib/workload-config');
+
+      // Mock functions
+      findWorkloadConfig.mockReturnValue({
+        repository: 'user/repo',
+        branch: 'main',
+        chartPath: 'charts/nextjs'
+      });
+      createPRWorkloadConfig.mockReturnValue({
+        repository: 'user/repo',
+        branch: 'pr-42',
+        releaseName: 'pr-repo-42',
+        namespace: 'pr-42',
+        enableTests: true
+      });
+      kubernetesService.deployWorkload.mockResolvedValue({
+        success: true,
+        releaseName: 'pr-repo-42',
+        namespace: 'pr-42',
+        url: 'https://pr-42.preview.example.com'
+      });
+      kubernetesService.runTests.mockResolvedValue({
+        success: true,
+        testsPassed: 3,
+        testsFailed: 0,
+        output: 'PR tests passed',
+        duration: 1500
+      });
+
+      const payload = {
+        action: 'opened',
+        pull_request: {
+          number: 42,
+          title: 'Test PR',
+          user: { login: 'testuser' },
+          head: { ref: 'feature-branch' },
+          base: { ref: 'main' }
+        },
+        repository: { full_name: 'user/repo' }
+      };
+      const payloadString = JSON.stringify(payload);
+      const signature = createSignature(payloadString, mockWebhookSecret);
+
+      const { req } = createMocks({
+        method: 'POST',
+        headers: {
+          'x-github-event': 'pull_request',
+          'x-github-delivery': 'test-delivery-123',
+          'x-hub-signature-256': signature,
+          'content-type': 'application/json'
+        },
+        body: payloadString,
+      });
+
+      req.text = jest.fn().mockResolvedValue(payloadString);
+
+      const response = await POST(req as any);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.pr_number).toBe(42);
+      expect(data.deployment).toBeDefined();
+      expect(data.tests).toBeDefined();
+      expect(kubernetesService.deployWorkload).toHaveBeenCalled();
+      expect(kubernetesService.runTests).toHaveBeenCalled();
+    });
+
+    it('should handle pull request closed event with cleanup', async () => {
+      const { kubernetesService } = require('../../../src/lib/kubernetes-service');
+
+      kubernetesService.deleteWorkload.mockResolvedValue(true);
+
+      const payload = {
+        action: 'closed',
+        pull_request: {
+          number: 42,
+          title: 'Test PR',
+          user: { login: 'testuser' },
+          head: { ref: 'feature-branch' },
+          base: { ref: 'main' }
+        },
+        repository: { full_name: 'user/repo' }
+      };
+      const payloadString = JSON.stringify(payload);
+      const signature = createSignature(payloadString, mockWebhookSecret);
+
+      const { req } = createMocks({
+        method: 'POST',
+        headers: {
+          'x-github-event': 'pull_request',
+          'x-github-delivery': 'test-delivery-123',
+          'x-hub-signature-256': signature,
+          'content-type': 'application/json'
+        },
+        body: payloadString,
+      });
+
+      req.text = jest.fn().mockResolvedValue(payloadString);
+
+      const response = await POST(req as any);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.pr_number).toBe(42);
+      expect(data.cleanup_success).toBe(true);
+      expect(kubernetesService.deleteWorkload).toHaveBeenCalledWith('pr-repo-42', 'pr-42');
     });
   });
 });
