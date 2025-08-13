@@ -31,7 +31,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, account, profile }) {
       // Persist the OAuth access_token and or the user id to the token right after signin
       if (account && profile) {
-        token.accessToken = account.access_token
+        // Add the GitHub access token to enable access to GitHub's APIs
+        // GitHub's access_token will give you access to GitHub's APIs.
+        // Self-managed providers (like Keycloak, oidc-provider, etc.) can be used to authorize against custom third-party backends.
+        if (account?.provider === "github") {
+          token.accessToken = account.access_token
+        }
         
         // Create user if they don't exist and get their database ID
         if (profile?.email) {
