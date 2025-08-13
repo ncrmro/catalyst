@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   title: "Catalyst - Development Platform",
   description: "A powerful development platform for GitHub integration and repository management.",
 };
+import { isFeatureEnabled } from "@/lib/feature-flags";
 
 export default async function Home() {
   const session = await auth();
@@ -63,6 +64,15 @@ export default async function Home() {
           >
             View Repositories
           </a>
+          {isFeatureEnabled('USER_CLUSTERS') && (
+            <a
+              className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto"
+              href="/clusters"
+              rel="noopener noreferrer"
+            >
+              View Clusters
+            </a>
+          )}
           <a
             className="rounded-full border border-solid border-outline transition-colors flex items-center justify-center bg-surface text-on-surface hover:bg-secondary-container hover:text-on-secondary-container hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
             href="https://github.com/ncrmro/catalyst"
