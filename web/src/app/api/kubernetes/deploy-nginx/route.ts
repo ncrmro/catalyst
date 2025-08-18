@@ -9,14 +9,6 @@ export async function GET() {
     // Load config from default locations (in-cluster or kubeconfig)
     try {
       kc.loadFromDefault();
-      
-      // For kind clusters and local development, we might need to handle TLS issues
-      // Set reasonable defaults for local testing
-      const cluster = kc.getCurrentCluster();
-      if (cluster && cluster.server.includes('127.0.0.1')) {
-        // For local clusters (like kind), skip TLS verification if needed
-        cluster.skipTLSVerify = true;
-      }
     } catch (error) {
       console.error('Failed to load Kubernetes config:', error);
       return NextResponse.json(
