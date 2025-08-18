@@ -1,0 +1,118 @@
+<%
+content_for :title, "Repositories - Catalyst"
+%>
+
+<div class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-3xl mx-auto">
+    <div class="text-center">
+      <h1 class="text-3xl font-extrabold text-gray-900">Your Repositories</h1>
+      <p class="mt-4 text-lg text-gray-600">
+        Select repositories to enable for monitoring and integration
+      </p>
+    </div>
+
+    <div class="mt-8">
+      <div class="bg-white shadow overflow-hidden sm:rounded-md">
+        <ul class="divide-y divide-gray-200">
+          <% @repositories.each do |repo| %>
+            <li>
+              <div class="px-4 py-4 flex items-center justify-between">
+                <div class="flex items-center">
+                  <div class="flex-shrink-0">
+                    <svg class="h-10 w-10 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clip-rule="evenodd"/>
+                    </svg>
+                  </div>
+                  <div class="ml-4">
+                    <div class="text-sm font-medium text-gray-900">
+                      <%= repo[:full_name] %>
+                    </div>
+                    <div class="text-sm text-gray-500">
+                      <%= repo[:description] || 'No description available' %>
+                    </div>
+                  </div>
+                </div>
+                <div class="flex items-center">
+                  <%= button_to "Enable", enable_repository_path(id: repo[:name], name: repo[:full_name]), 
+                      method: :post,
+                      class: "inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" %>
+                </div>
+              </div>
+            </li>
+          <% end %>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mt-8 text-center">
+      <%= link_to root_path, 
+          class: "inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" do %>
+        ← Back to Home
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<style>
+  .min-h-screen { min-height: 100vh; }
+  .max-w-3xl { max-width: 48rem; }
+  .bg-gray-50 { background-color: #f9fafb; }
+  .bg-white { background-color: #ffffff; }
+  .bg-indigo-600 { background-color: #4f46e5; }
+  .bg-indigo-700 { background-color: #4338ca; }
+  .text-gray-900 { color: #111827; }
+  .text-gray-600 { color: #4b5563; }
+  .text-gray-700 { color: #374151; }
+  .text-gray-500 { color: #6b7280; }
+  .text-gray-400 { color: #9ca3af; }
+  .text-white { color: #ffffff; }
+  .text-indigo-600 { color: #4f46e5; }
+  .flex { display: flex; }
+  .flex-shrink-0 { flex-shrink: 0; }
+  .items-center { align-items: center; }
+  .justify-between { justify-content: space-between; }
+  .divide-y { border-top-width: 0px; }
+  .divide-y > * + * { border-top-width: 1px; }
+  .divide-gray-200 { border-color: #e5e7eb; }
+  .overflow-hidden { overflow: hidden; }
+  .shadow { box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1); }
+  .shadow-sm { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); }
+  .py-12 { padding-top: 3rem; padding-bottom: 3rem; }
+  .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
+  .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+  .px-4 { padding-left: 1rem; padding-right: 1rem; }
+  .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+  .ml-4 { margin-left: 1rem; }
+  .mt-4 { margin-top: 1rem; }
+  .mt-8 { margin-top: 2rem; }
+  .mx-auto { margin-left: auto; margin-right: auto; }
+  .text-center { text-align: center; }
+  .text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
+  .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+  .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+  .font-extrabold { font-weight: 800; }
+  .font-medium { font-weight: 500; }
+  .leading-4 { line-height: 1rem; }
+  .rounded-md { border-radius: 0.375rem; }
+  .border { border-width: 1px; }
+  .border-transparent { border-color: transparent; }
+  .border-gray-300 { border-color: #d1d5db; }
+  .h-10 { height: 2.5rem; }
+  .w-10 { width: 2.5rem; }
+  .inline-flex { display: inline-flex; }
+  .hover\:bg-indigo-700:hover { background-color: #4338ca; }
+  .hover\:bg-gray-50:hover { background-color: #f9fafb; }
+  .focus\:outline-none:focus { outline: 2px solid transparent; outline-offset: 2px; }
+  .focus\:ring-2:focus { box-shadow: 0 0 0 2px var(--ring-color); }
+  .focus\:ring-offset-2:focus { box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px var(--ring-color); }
+  .focus\:ring-indigo-500:focus { --ring-color: #6366f1; }
+  
+  @media (min-width: 640px) {
+    .sm\:px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+    .sm\:rounded-md { border-radius: 0.375rem; }
+  }
+  
+  @media (min-width: 1024px) {
+    .lg\:px-8 { padding-left: 2rem; padding-right: 2rem; }
+  }
+</style>
