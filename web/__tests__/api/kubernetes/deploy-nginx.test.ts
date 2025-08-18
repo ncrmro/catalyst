@@ -1,12 +1,19 @@
 import { createMocks } from 'node-mocks-http';
 import { GET } from '../../../src/app/api/kubernetes/deploy-nginx/route';
 
-// Use the manual mock
-const k8s = require('@kubernetes/client-node');
+// Mock the Kubernetes client wrapper for unit tests
+jest.mock('../../../src/lib/k8s-client', () => ({
+  KubeConfig: jest.fn(),
+  getAppsV1Api: jest.fn(),
+  getCoreV1Api: jest.fn(),
+}));
+
+const k8sWrapper = require('../../../src/lib/k8s-client');
 
 describe('/api/kubernetes/deploy-nginx', () => {
   let mockKubeConfig: any;
   let mockK8sApi: any;
+  let mockAppsV1Api: any;
 
   beforeEach(() => {
     // Reset all mocks
@@ -22,8 +29,11 @@ describe('/api/kubernetes/deploy-nginx', () => {
       makeApiClient: jest.fn().mockReturnValue(mockK8sApi),
     };
 
-    // Mock the constructor to return our mock
-    k8s.KubeConfig.mockImplementation(() => mockKubeConfig);
+    mockAppsV1Api = jest.fn();
+
+    // Mock the wrapper functions
+    k8sWrapper.KubeConfig.mockImplementation(() => mockKubeConfig);
+    k8sWrapper.getAppsV1Api.mockResolvedValue(mockAppsV1Api);
   });
 
   describe('GET', () => {
@@ -56,7 +66,7 @@ describe('/api/kubernetes/deploy-nginx', () => {
 
       // Verify Kubernetes API was called correctly
       expect(mockKubeConfig.loadFromDefault).toHaveBeenCalledTimes(1);
-      expect(mockKubeConfig.makeApiClient).toHaveBeenCalledWith(k8s.AppsV1Api);
+      expect(mockKubeConfig.makeApiClient).toHaveBeenCalledWith(mockAppsV1Api);
       expect(mockK8sApi.createNamespacedDeployment).toHaveBeenCalledTimes(1);
       
       const [requestParams] = mockK8sApi.createNamespacedDeployment.mock.calls[0];

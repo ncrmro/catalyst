@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
-import * as k8s from '@kubernetes/client-node';
+import { KubeConfig, getAppsV1Api } from '../../../../lib/k8s-client';
 
 export async function GET() {
   try {
     // Initialize Kubernetes client
-    const kc = new k8s.KubeConfig();
+    const kc = new KubeConfig();
     
     // Load config from default locations (in-cluster or kubeconfig)
     try {
-      kc.loadFromDefault();
+      await kc.loadFromDefault();
     } catch (error) {
       console.error('Failed to load Kubernetes config:', error);
       return NextResponse.json(
@@ -21,14 +21,16 @@ export async function GET() {
       );
     }
 
-    const k8sApi = kc.makeApiClient(k8s.AppsV1Api);
+    const AppsV1Api = await getAppsV1Api();
+    const k8sApi = kc.makeApiClient(AppsV1Api);
 
     // Generate a unique name for the deployment
     const timestamp = Date.now();
     const deploymentName = `nginx-deployment-${timestamp}`;
 
     // Define the nginx deployment
-    const deployment: k8s.V1Deployment = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const deployment: any = {
       apiVersion: 'apps/v1',
       kind: 'Deployment',
       metadata: {
