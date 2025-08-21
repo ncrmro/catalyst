@@ -254,6 +254,12 @@ export async function fetchProjects(): Promise<ProjectsData> {
       const repoData = row.repo;
       const projectRepoData = row.projectRepo;
 
+      // Validate project data
+      if (!projectData || !projectData.id || !projectData.name || !projectData.fullName) {
+        console.warn('Invalid project data found, skipping:', projectData);
+        continue;
+      }
+
       if (!projectMap.has(projectData.id)) {
         projectMap.set(projectData.id, {
           id: projectData.id,
@@ -262,40 +268,55 @@ export async function fetchProjects(): Promise<ProjectsData> {
           description: projectData.description,
           owner: {
             login: projectData.ownerLogin,
-            type: projectData.ownerType as 'User' | 'Organization',
+            type: (projectData.ownerType as 'User' | 'Organization') || 'User',
             avatar_url: projectData.ownerAvatarUrl || '',
           },
           repositories: [],
           environments: [], // Mock environments for now
-          preview_environments_count: projectData.previewEnvironmentsCount,
+          preview_environments_count: projectData.previewEnvironmentsCount || 0,
           created_at: projectData.createdAt.toISOString(),
           updated_at: projectData.updatedAt.toISOString(),
         });
       }
 
-      // Add repository if it exists
-      if (repoData && projectRepoData) {
+      // Add repository if it exists and is valid
+      if (repoData && projectRepoData && repoData.githubId && repoData.name && repoData.fullName) {
         const project = projectMap.get(projectData.id)!;
-        project.repositories.push({
-          id: repoData.githubId,
-          name: repoData.name,
-          full_name: repoData.fullName,
-          url: repoData.url,
-          primary: projectRepoData.isPrimary,
-        });
+        
+        // Check if this repository is already added (prevent duplicates)
+        const existingRepo = project.repositories.find(r => r.id === repoData.githubId);
+        if (!existingRepo) {
+          project.repositories.push({
+            id: repoData.githubId,
+            name: repoData.name,
+            full_name: repoData.fullName,
+            url: repoData.url,
+            primary: projectRepoData.isPrimary || false,
+          });
+        }
       }
     }
 
-    // Add mock environments to each project
+    // Convert to array and add mock environments
     const projectsList = Array.from(projectMap.values()).map(project => ({
       ...project,
       environments: getMockEnvironmentsForProject(project.name),
     }));
 
-    console.log(`Returning ${projectsList.length} projects from database`);
+    // Validate that we have valid projects
+    const validProjects = projectsList.filter(project => 
+      project.id && project.name && project.full_name && project.owner.login
+    );
+
+    if (validProjects.length === 0) {
+      console.warn('No valid projects found in database, falling back to mock data');
+      return getMockProjectsData();
+    }
+
+    console.log(`Returning ${validProjects.length} projects from database`);
     return {
-      projects: projectsList,
-      total_count: projectsList.length,
+      projects: validProjects,
+      total_count: validProjects.length,
     };
 
   } catch (error) {
