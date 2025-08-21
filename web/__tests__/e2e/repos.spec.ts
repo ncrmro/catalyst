@@ -35,16 +35,14 @@ test.describe('GitHub Repositories Page', () => {
     await expect(firstRepo).toBeVisible();
   });
 
-  test('should navigate to repositories page from home page', async ({ page }) => {
-    // Start at the home page
+  test('should redirect to login page when accessing home without authentication', async ({ page }) => {
+    // Start at the home page without authentication
     await page.goto('/');
 
-    // Click the "View Repositories" link
-    await page.click('text=View Repositories');
-
-    // Should navigate to repos page
-    await expect(page).toHaveURL('/repos');
-    await expect(page.locator('h1')).toContainText('GitHub Repositories');
+    // Should redirect to login page
+    await expect(page).toHaveURL('/login');
+    await expect(page.locator('h1')).toContainText('Catalyst');
+    await expect(page.locator('h2')).toContainText('Sign in to your account');
   });
 
   test('should display repository cards with correct information', async ({ page }) => {

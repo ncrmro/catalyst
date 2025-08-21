@@ -1,13 +1,11 @@
-import { auth } from "@/auth";
-import { redirect } from "next/navigation";
 import { Metadata } from "next";
 import DashboardLayout from "@/components/dashboard-layout";
 import { fetchLatestReport } from "@/actions/reports";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Dashboard - Catalyst",
-  description: "Your Catalyst development platform dashboard with latest project insights.",
+  title: "Dashboard Demo - Catalyst",
+  description: "Demo of the Catalyst dashboard with latest project insights.",
 };
 
 // Import utility functions for styling (copied from reports page)
@@ -37,13 +35,12 @@ function getStatusColor(status: 'draft' | 'ready' | 'changes_requested') {
   }
 }
 
-export default async function Home() {
-  const session = await auth();
-  
-  // Redirect to login if not authenticated
-  if (!session?.user) {
-    redirect("/login");
-  }
+export default async function DashboardDemo() {
+  // Simulate a user session for demo
+  const mockUser = {
+    name: "Bob Alice",
+    email: "bob@alice.com"
+  };
 
   // Fetch the latest report
   let latestReport;
@@ -57,12 +54,12 @@ export default async function Home() {
   }
 
   return (
-    <DashboardLayout user={session.user}>
+    <DashboardLayout user={mockUser}>
       <div className="space-y-6">
         {/* Welcome Section */}
         <div>
           <h1 className="text-3xl font-bold text-on-background mb-2">
-            Welcome back, {session.user.name || session.user.email?.split('@')[0]}!
+            Welcome back, {mockUser.name}!
           </h1>
           <p className="text-on-surface-variant">
             Here&apos;s your latest project overview and insights.
