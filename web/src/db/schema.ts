@@ -90,3 +90,62 @@ export const authenticators = pgTable(
     },
   ]
 )
+
+// Project and Repository tables
+export const repos = pgTable("repo", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  githubId: integer("github_id").notNull().unique(),
+  name: text("name").notNull(),
+  fullName: text("full_name").notNull(),
+  description: text("description"),
+  url: text("url").notNull(),
+  isPrivate: boolean("is_private").notNull().default(false),
+  language: text("language"),
+  stargazersCount: integer("stargazers_count").notNull().default(0),
+  forksCount: integer("forks_count").notNull().default(0),
+  openIssuesCount: integer("open_issues_count").notNull().default(0),
+  ownerLogin: text("owner_login").notNull(),
+  ownerType: text("owner_type").notNull(), // 'User' | 'Organization'
+  ownerAvatarUrl: text("owner_avatar_url"),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  pushedAt: timestamp("pushed_at", { mode: "date" }),
+})
+
+export const projects = pgTable("project", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  name: text("name").notNull(),
+  fullName: text("full_name").notNull().unique(),
+  description: text("description"),
+  ownerLogin: text("owner_login").notNull(),
+  ownerType: text("owner_type").notNull(), // 'User' | 'Organization'
+  ownerAvatarUrl: text("owner_avatar_url"),
+  previewEnvironmentsCount: integer("preview_environments_count").notNull().default(0),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+})
+
+export const projectsRepos = pgTable(
+  "projects_repos",
+  {
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    repoId: text("repo_id")
+      .notNull()
+      .references(() => repos.id, { onDelete: "cascade" }),
+    isPrimary: boolean("is_primary").notNull().default(false),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (projectsRepos) => [
+    {
+      pk: primaryKey({
+        columns: [projectsRepos.projectId, projectsRepos.repoId],
+      }),
+    },
+  ]
+)
