@@ -3,6 +3,8 @@ import { auth } from "@/auth";
 import SignIn from "@/components/sign-in";
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { getDevAuthUser } from "@/lib/dev-auth";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Catalyst - Sign In",
@@ -11,9 +13,10 @@ export const metadata: Metadata = {
 
 export default async function LoginPage() {
   const session = await auth();
+  const devUser = await getDevAuthUser();
   
   // If user is already authenticated, redirect to home
-  if (session?.user) {
+  if (session?.user || devUser) {
     redirect("/");
   }
 
@@ -54,6 +57,19 @@ export default async function LoginPage() {
             GitHub App Setup
           </a>
         </div>
+        
+        {/* Development authentication link */}
+        {process.env.NODE_ENV === "development" && (
+          <div className="text-center">
+            <p className="text-sm text-gray-500 mb-2">Development Mode</p>
+            <Link 
+              href="/dev-auth"
+              className="text-sm text-blue-600 hover:text-blue-800 underline"
+            >
+              Simulate Login for Testing
+            </Link>
+          </div>
+        )}
       </main>
       <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
         <a

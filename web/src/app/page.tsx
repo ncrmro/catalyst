@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Metadata } from "next";
 import DashboardLayout from "@/components/dashboard-layout";
 import DashboardContent from "@/components/dashboard-content";
+import { getDevAuthUser } from "@/lib/dev-auth";
 
 export const metadata: Metadata = {
   title: "Catalyst - Dashboard",
@@ -11,14 +12,17 @@ export const metadata: Metadata = {
 
 export default async function Home() {
   const session = await auth();
+  const devUser = await getDevAuthUser();
+  
+  const user = session?.user || devUser;
   
   // If user is not authenticated, redirect to login
-  if (!session?.user) {
+  if (!user) {
     redirect("/login");
   }
 
   return (
-    <DashboardLayout user={session.user}>
+    <DashboardLayout user={user}>
       <DashboardContent />
     </DashboardLayout>
   );
