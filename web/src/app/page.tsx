@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { auth } from "@/auth";
 import SignIn from "@/components/sign-in";
 import SignOut from "@/components/sign-out";
@@ -64,6 +65,12 @@ export default async function Home() {
           >
             View Repositories
           </a>
+          <Link
+            className="rounded-full border border-solid border-outline transition-colors flex items-center justify-center bg-surface text-on-surface hover:bg-primary-container hover:text-on-primary-container hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto"
+            href="/reports"
+          >
+            View Reports
+          </Link>
           {isFeatureEnabled('USER_CLUSTERS') && (
             <a
               className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto"
@@ -120,6 +127,19 @@ export default async function Home() {
           />
           Repositories
         </a>
+        <Link
+          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
+          href="/reports"
+        >
+          <Image
+            aria-hidden
+            src="/file.svg"
+            alt="Reports icon"
+            width={16}
+            height={16}
+          />
+          Reports
+        </Link>
         <a
           className="flex items-center gap-2 hover:underline hover:underline-offset-4"
           href="https://github.com/ncrmro/catalyst"
