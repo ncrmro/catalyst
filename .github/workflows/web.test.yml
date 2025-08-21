@@ -63,6 +63,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Create Kind cluster
+        uses: helm/kind-action@v1.10.0
+        with:
+          cluster_name: integration-test-cluster
+          wait: 60s
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -106,6 +112,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Create Kind cluster
+        uses: helm/kind-action@v1.10.0
+        with:
+          cluster_name: e2e-test-cluster
+          wait: 60s
       
       - name: Setup Node.js
         uses: actions/setup-node@v4

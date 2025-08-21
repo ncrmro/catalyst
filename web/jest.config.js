@@ -14,7 +14,7 @@ const customJestConfig = {
     '!src/**/*.d.ts',
   ],
   transformIgnorePatterns: [
-    'node_modules/(?!(next-auth|@auth/core)/)',
+    'node_modules/(?!(next-auth|@auth/core|@kubernetes/client-node)/)',
   ],
 };
 
