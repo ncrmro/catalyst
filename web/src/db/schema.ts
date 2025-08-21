@@ -5,6 +5,7 @@ import {
   text,
   primaryKey,
   integer,
+  json,
 } from "drizzle-orm/pg-core"
 import type { AdapterAccountType } from "@auth/core/adapters"
  
@@ -90,3 +91,36 @@ export const authenticators = pgTable(
     },
   ]
 )
+
+export const reports = pgTable("report", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  title: text("title").notNull(),
+  description: text("description"),
+  content: text("content").notNull(),
+  goal: text("goal"),
+  prSummary: json("prSummary").$type<{
+    total: number;
+    awaitingReview: number;
+    recentPRs: Array<{
+      id: number;
+      title: string;
+      url: string;
+      author: string;
+      createdAt: string;
+    }>;
+  }>(),
+  nextIssues: json("nextIssues").$type<Array<{
+    type: 'existing' | 'idea';
+    title: string;
+    description: string;
+    priority: 'low' | 'medium' | 'high';
+    url?: string;
+  }>>(),
+  userId: text("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("createdAt", { mode: "date" }).notNull().$defaultFn(() => new Date()),
+  updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().$defaultFn(() => new Date()),
+})
