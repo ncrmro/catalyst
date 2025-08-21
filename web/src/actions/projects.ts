@@ -4,7 +4,7 @@
  * Server action to fetch projects data for the current user and organizations
  */
 
-interface ProjectEnvironment {
+export interface ProjectEnvironment {
   id: string;
   name: string;
   type: 'branch_push' | 'cron';
@@ -15,7 +15,7 @@ interface ProjectEnvironment {
   last_deployed?: string;
 }
 
-interface ProjectRepo {
+export interface ProjectRepo {
   id: number;
   name: string;
   full_name: string;
@@ -23,7 +23,7 @@ interface ProjectRepo {
   primary: boolean;
 }
 
-interface Project {
+export interface Project {
   id: string;
   name: string;
   full_name: string;
@@ -40,7 +40,7 @@ interface Project {
   updated_at: string;
 }
 
-interface ProjectsData {
+export interface ProjectsData {
   projects: Project[];
   total_count: number;
 }
