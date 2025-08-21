@@ -32,3 +32,7 @@ Always attemp to run `npm run lint` and `npm run test:e2e` after making any chan
 # Style Guidelines
 
 A theme guide is documented in `src/app/globals.css` always consult it when writing styling, prefer tailwind components.
+
+# Screenshots
+
+Always attempt to take a screenshot of new or modified pages.
