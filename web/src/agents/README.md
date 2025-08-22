@@ -11,6 +11,7 @@ The PeriodicReportAgent generates comprehensive periodic reports about the curre
 #### Features
 
 - **Data Integration**: Automatically fetches current projects and clusters data
+- **GitHub Integration**: Uses GitHub MCP server tools to analyze repository health, code quality, and development workflows
 - **AI Analysis**: Uses AI to analyze infrastructure state and generate insights
 - **Provider Support**: Works with both Anthropic Claude and OpenAI GPT models
 - **Structured Output**: Returns well-structured reports with specific sections
@@ -58,6 +59,18 @@ interface Report {
     totalClusters: number;
     insights: string[];
   };
+  githubAnalysis: {
+    repositoriesCount: number;
+    totalIssues: number;
+    openIssues: number;
+    totalPullRequests: number;
+    openPullRequests: number;
+    recentCommits: number;
+    codeQualityAlerts: number;
+    securityAlerts: number;
+    workflowRuns: number;
+    insights: string[];
+  };
   recommendations: string[];
   nextSteps: string[];
 }
@@ -69,6 +82,23 @@ The agent provides the following tools for data fetching:
 
 - `fetchProjects()`: Retrieves current projects data including repositories and environments
 - `fetchClusters()`: Retrieves current Kubernetes clusters information
+- `fetchGitHubData()`: Aggregates GitHub repository data across all tracked repositories
+- `fetchGitHubRepositories(owner?, repo?)`: Retrieves GitHub repository information
+- `getRepositoryDetails(owner, repo)`: Gets comprehensive repository details including:
+  - Repository information
+  - Issues and pull requests
+  - Recent commits
+  - Code scanning alerts
+  - Secret scanning alerts
+  - Workflow runs
+
+**GitHub MCP Integration:**
+The agent uses GitHub MCP server tools to provide deep insights into repository health:
+- Repository activity and maintenance status
+- Code quality through scanning alerts
+- Development velocity through commits and PRs
+- Security posture through secret scanning
+- CI/CD health through workflow analysis
 
 #### Example
 
