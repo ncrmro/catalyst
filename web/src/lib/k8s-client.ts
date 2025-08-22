@@ -26,10 +26,50 @@ export class KubeConfig {
     return this._kc.loadFromDefault();
   }
 
+  async loadFromString(kubeConfigString: string) {
+    const k8sModule = await loadKubernetesClient();
+    this._kc = new k8sModule.KubeConfig();
+    return this._kc.loadFromString(kubeConfigString);
+  }
+
+  async loadFromEnvVar(envVarName: string) {
+    const envValue = process.env[envVarName];
+    if (!envValue) {
+      throw new Error(`Environment variable ${envVarName} not found`);
+    }
+    
+    let kubeConfigString: string;
+    try {
+      // Decode base64 and parse JSON
+      const decoded = Buffer.from(envValue, 'base64').toString('utf-8');
+      const kubeConfigObj = JSON.parse(decoded);
+      kubeConfigString = JSON.stringify(kubeConfigObj);
+    } catch (error) {
+      throw new Error(`Failed to decode kubeconfig from ${envVarName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+    return this.loadFromString(kubeConfigString);
+  }
+
+  getClusterInfo() {
+    if (!this._kc) {
+      throw new Error('KubeConfig not initialized. Call a load method first.');
+    }
+    
+    const currentContext = this._kc.getCurrentContext();
+    const cluster = this._kc.getCurrentCluster();
+    
+    return {
+      name: currentContext || 'unknown',
+      endpoint: cluster?.server || 'unknown',
+      cluster: cluster
+    };
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   makeApiClient(apiClass: any) {
     if (!this._kc) {
-      throw new Error('KubeConfig not initialized. Call loadFromDefault() first.');
+      throw new Error('KubeConfig not initialized. Call a load method first.');
     }
     return this._kc.makeApiClient(apiClass);
   }

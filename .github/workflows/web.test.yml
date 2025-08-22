@@ -69,6 +69,13 @@ jobs:
         with:
           cluster_name: integration-test-cluster
           wait: 60s
+
+      - name: Export kubeconfig for integration tests
+        run: |
+          # Export base64 encoded kubeconfig for integration tests
+          export KUBECONFIG_PRIMARY=$(kubectl config view --raw -o json | base64 -w 0)
+          echo "KUBECONFIG_PRIMARY=$KUBECONFIG_PRIMARY" >> $GITHUB_ENV
+          echo "Kubeconfig exported for integration tests"
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -87,6 +94,7 @@ jobs:
           GITHUB_APP_ID: test-app-id
           GITHUB_WEBHOOK_SECRET: test-secret
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/catalyst_test
+          KUBECONFIG_PRIMARY: ${{ env.KUBECONFIG_PRIMARY }}
 
   e2e:
     runs-on: ubuntu-latest
@@ -118,6 +126,13 @@ jobs:
         with:
           cluster_name: e2e-test-cluster
           wait: 60s
+
+      - name: Export kubeconfig for E2E tests
+        run: |
+          # Export base64 encoded kubeconfig for E2E tests
+          export KUBECONFIG_PRIMARY=$(kubectl config view --raw -o json | base64 -w 0)
+          echo "KUBECONFIG_PRIMARY=$KUBECONFIG_PRIMARY" >> $GITHUB_ENV
+          echo "Kubeconfig exported for E2E tests"
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -150,6 +165,7 @@ jobs:
         env:
           MOCKED: 1
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/catalyst_test
+          KUBECONFIG_PRIMARY: ${{ env.KUBECONFIG_PRIMARY }}
       
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
@@ -212,6 +228,13 @@ jobs:
         with:
           cluster_name: preview-cluster
           wait: 60s
+
+      - name: Export kubeconfig for preview environment
+        run: |
+          # Export base64 encoded kubeconfig for preview environment
+          export KUBECONFIG_PRIMARY=$(kubectl config view --raw -o json | base64 -w 0)
+          echo "KUBECONFIG_PRIMARY=$KUBECONFIG_PRIMARY" >> $GITHUB_ENV
+          echo "Kubeconfig exported for preview environment"
 
       - name: Set PR tag
         run: |

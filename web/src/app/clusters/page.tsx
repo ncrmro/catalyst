@@ -1,7 +1,8 @@
 import { isFeatureEnabled } from '@/lib/feature-flags';
 import { notFound } from 'next/navigation';
+import { getClusters, ClusterInfo } from '@/actions/clusters';
 
-// Mock cluster data
+// Mock cluster data for when real data is not available
 const mockClusters = [
   {
     name: 'staging',
@@ -23,63 +24,107 @@ const mockClusters = [
   }
 ];
 
-function ClusterCard({ cluster }: { cluster: typeof mockClusters[0] }) {
+interface ExtendedClusterInfo extends ClusterInfo {
+  costPerMonth?: string;
+  currentNodes?: number;
+  maxNodes?: number;
+  allocatedCPU?: string;
+  allocatedMemory?: string;
+  allocatedStorage?: string;
+}
+
+function ClusterCard({ cluster }: { cluster: ExtendedClusterInfo }) {
+  const isRealCluster = !!(cluster.endpoint && cluster.source);
+  
   return (
     <div className="border border-outline rounded-lg p-6 bg-surface shadow-sm">
-      <h3 className="text-xl font-semibold text-on-surface mb-4 capitalize">
-        {cluster.name}
-      </h3>
+      <div className="flex justify-between items-start mb-4">
+        <h3 className="text-xl font-semibold text-on-surface capitalize">
+          {cluster.name}
+        </h3>
+        {isRealCluster && (
+          <span className="text-xs bg-primary-container text-on-primary-container px-2 py-1 rounded">
+            {cluster.source}
+          </span>
+        )}
+      </div>
+      
+      {isRealCluster && (
+        <div className="mb-4">
+          <p className="text-sm text-on-surface-variant">Endpoint</p>
+          <p className="text-sm font-mono text-on-surface break-all">{cluster.endpoint}</p>
+        </div>
+      )}
       
       <div className="grid grid-cols-2 gap-4">
         <div>
           <p className="text-sm text-on-surface-variant">Cost per Month</p>
-          <p className="text-lg font-medium text-secondary">{cluster.costPerMonth}</p>
+          <p className="text-lg font-medium text-secondary">{cluster.costPerMonth || 'N/A'}</p>
         </div>
         
         <div>
           <p className="text-sm text-on-surface-variant">Nodes</p>
           <p className="text-lg font-medium text-on-surface">
-            {cluster.currentNodes} / {cluster.maxNodes}
+            {cluster.currentNodes && cluster.maxNodes ? `${cluster.currentNodes} / ${cluster.maxNodes}` : 'N/A'}
           </p>
         </div>
         
         <div>
           <p className="text-sm text-on-surface-variant">CPU</p>
-          <p className="text-lg font-medium text-on-surface">{cluster.allocatedCPU}</p>
+          <p className="text-lg font-medium text-on-surface">{cluster.allocatedCPU || 'N/A'}</p>
         </div>
         
         <div>
           <p className="text-sm text-on-surface-variant">Memory</p>
-          <p className="text-lg font-medium text-on-surface">{cluster.allocatedMemory}</p>
+          <p className="text-lg font-medium text-on-surface">{cluster.allocatedMemory || 'N/A'}</p>
         </div>
         
         <div className="col-span-2">
           <p className="text-sm text-on-surface-variant">Storage</p>
-          <p className="text-lg font-medium text-on-surface">{cluster.allocatedStorage}</p>
+          <p className="text-lg font-medium text-on-surface">{cluster.allocatedStorage || 'N/A'}</p>
         </div>
       </div>
       
-      <div className="mt-4 bg-primary-container rounded p-3">
-        <div className="flex justify-between text-sm text-on-primary-container">
-          <span>Node Utilization:</span>
-          <span>{Math.round((cluster.currentNodes / cluster.maxNodes) * 100)}%</span>
+      {cluster.currentNodes && cluster.maxNodes && (
+        <div className="mt-4 bg-primary-container rounded p-3">
+          <div className="flex justify-between text-sm text-on-primary-container">
+            <span>Node Utilization:</span>
+            <span>{Math.round((cluster.currentNodes / cluster.maxNodes) * 100)}%</span>
+          </div>
+          <div className="w-full bg-outline rounded-full h-2 mt-1">
+            <div 
+              className="bg-primary h-2 rounded-full" 
+              style={{ width: `${(cluster.currentNodes / cluster.maxNodes) * 100}%` }}
+            ></div>
+          </div>
         </div>
-        <div className="w-full bg-outline rounded-full h-2 mt-1">
-          <div 
-            className="bg-primary h-2 rounded-full" 
-            style={{ width: `${(cluster.currentNodes / cluster.maxNodes) * 100}%` }}
-          ></div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
 
-export default function ClustersPage() {
+export default async function ClustersPage() {
   // Check if the feature flag is enabled
   if (!isFeatureEnabled('USER_CLUSTERS')) {
     notFound();
   }
+
+  // Try to get real cluster data
+  let clusters: ExtendedClusterInfo[] = [];
+  try {
+    const realClusters = await getClusters();
+    clusters = realClusters;
+  } catch (error) {
+    console.warn('Failed to load real cluster data, using mock data:', error);
+    clusters = mockClusters.map(cluster => ({ ...cluster, endpoint: '', source: 'mock' }));
+  }
+
+  // If no clusters found, use mock data
+  if (clusters.length === 0) {
+    clusters = mockClusters.map(cluster => ({ ...cluster, endpoint: '', source: 'mock' }));
+  }
+
+  const hasRealClusters = clusters.some(cluster => cluster.source !== 'mock');
 
   return (
     <div className="min-h-screen bg-background py-8">
@@ -92,14 +137,17 @@ export default function ClustersPage() {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mockClusters.map((cluster) => (
-            <ClusterCard key={cluster.name} cluster={cluster} />
+          {clusters.map((cluster, index) => (
+            <ClusterCard key={`${cluster.name}-${cluster.source}-${index}`} cluster={cluster} />
           ))}
         </div>
         
         <div className="mt-8 text-center">
           <p className="text-sm text-on-surface-variant">
-            This is a demo page showing mock cluster data.
+            {hasRealClusters 
+              ? 'Showing real cluster data from kubeconfig sources'
+              : 'This is a demo page showing mock cluster data. Configure KUBECONFIG_PRIMARY, KUBECONFIG_FOO, or KUBECONFIG_BAR environment variables to see real cluster data.'
+            }
           </p>
         </div>
       </div>
