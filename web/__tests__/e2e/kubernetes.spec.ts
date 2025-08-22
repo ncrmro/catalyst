@@ -212,7 +212,7 @@ test.describe('Kubernetes Integration', () => {
     }
   });
 
-  test('should create project namespaces via API endpoint and verify with Kubernetes client', async ({ page, request }) => {
+  test('should create project namespaces via action (through API wrapper) and verify with Kubernetes client', async ({ page, request }) => {
     // First verify cluster connectivity - this must pass for the test to continue
     await verifyClusterConnectivity();
     
@@ -223,7 +223,7 @@ test.describe('Kubernetes Integration', () => {
       const environments = ['production', 'staging', 'pr-1'];
       
       for (const environment of environments) {
-        // Create namespace via API endpoint
+        // Create namespace via API endpoint (which calls the action)
         const response = await request.post('/api/kubernetes/namespaces', {
           data: {
             team: 'e2etest',
@@ -244,7 +244,7 @@ test.describe('Kubernetes Integration', () => {
         
         testNamespaces.push(data.namespace.name);
 
-        console.log(`✓ Namespace created via API: ${data.namespace.name}`);
+        console.log(`✓ Namespace created via action: ${data.namespace.name}`);
         
         // Verify the namespace exists in the cluster using Kubernetes client
         const { coreApi } = await createKubernetesClient();

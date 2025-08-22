@@ -1,69 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createProjectNamespace } from '../../../../lib/k8s-namespaces';
+import { createKubernetesNamespace } from '../../../../actions/kubernetes';
 
+/**
+ * Minimal API wrapper for E2E testing of the Kubernetes namespace action
+ * This converts the action result to HTTP responses for testing purposes
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { team, project, environment } = body;
 
-    // Validate required fields
-    if (!team || !project || !environment) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Missing required fields: team, project, environment' 
-        },
-        { status: 400 }
-      );
-    }
+    const result = await createKubernetesNamespace(team, project, environment);
 
-    // Validate environment is one of the supported values
-    const supportedEnvironments = ['production', 'staging', 'pr-1'];
-    if (!supportedEnvironments.includes(environment)) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: `Environment must be one of: ${supportedEnvironments.join(', ')}` 
-        },
-        { status: 400 }
-      );
-    }
-
-    try {
-      const result = await createProjectNamespace({ team, project, environment });
-
-      return NextResponse.json({
-        success: true,
-        message: result.created ? 'Namespace created successfully' : 'Namespace already exists',
-        namespace: result
-      });
-
-    } catch (kubeError) {
-      console.error('Kubernetes namespace creation error:', kubeError);
-      
-      let errorMessage = 'Failed to create namespace';
-      let statusCode = 500;
-      
-      if (kubeError instanceof Error) {
-        errorMessage = kubeError.message;
-        
-        // Handle specific Kubernetes API errors
-        if (kubeError.message.includes('Unauthorized')) {
-          statusCode = 401;
-          errorMessage = 'Unauthorized to access Kubernetes cluster';
-        } else if (kubeError.message.includes('connection refused')) {
-          statusCode = 503;
-          errorMessage = 'Cannot connect to Kubernetes cluster';
-        }
+    if (result.success) {
+      return NextResponse.json(result);
+    } else {
+      // Map action errors to appropriate HTTP status codes
+      let statusCode = 400;
+      if (result.error?.includes('Unauthorized')) {
+        statusCode = 401;
+      } else if (result.error?.includes('connection refused')) {
+        statusCode = 503;
+      } else if (result.error?.includes('Failed to create namespace')) {
+        statusCode = 500;
       }
 
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: errorMessage 
-        },
-        { status: statusCode }
-      );
+      return NextResponse.json(result, { status: statusCode });
     }
 
   } catch (error) {
