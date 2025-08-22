@@ -229,6 +229,14 @@ function getMockProjectsData(): ProjectsData {
  * Fetch projects data from database or fallback to mock data
  */
 export async function fetchProjects(): Promise<ProjectsData> {
+  // Check if we should return mocked data
+  const mocked = process.env.MOCKED;
+  
+  if (mocked === '1') {
+    console.log('Returning mocked projects data');
+    return getMockProjectsData();
+  }
+
   try {
     // First, try to fetch from database
     const projectsFromDb = await db

@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
 import DashboardLayout from "@/components/dashboard-layout";
+import Link from 'next/link';
 
 export const metadata: Metadata = {
   title: "GitHub Repositories - Catalyst",
@@ -80,6 +81,14 @@ function RepoCard({ repo }: { repo: GitHubRepo }) {
             <span>📋 {repo.open_issues_count} issues</span>
             <span>Updated {new Date(repo.updated_at).toLocaleDateString()}</span>
           </div>
+        </div>
+        <div className="ml-4">
+          <Link 
+            href={`/repos/${repo.id}/connect`}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+          >
+            Connect
+          </Link>
         </div>
       </div>
     </div>
