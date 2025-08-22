@@ -73,14 +73,6 @@ if (process.env.NODE_ENV === "development") {
         
         const [user] = await db.select().from(users).where(eq(users.email, userObject.email));
         if (user) {
-          // Validate that existing user matches expected role
-          const expectedAdmin = isAdmin;
-          // const actualAdmin = user.admin ?? false;
-          
-          // if (expectedAdmin !== actualAdmin) {
-          //   throw new Error(`User ${userObject.email} exists but has role mismatch. Expected admin: ${expectedAdmin}, actual admin: ${actualAdmin}`);
-          // }
-          
           // Convert integer ID to string for NextAuth compatibility
           return {
             ...user,

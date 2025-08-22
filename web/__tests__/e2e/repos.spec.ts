@@ -35,16 +35,18 @@ test.describe('GitHub Repositories Page', () => {
     await expect(firstRepo).toBeVisible();
   });
 
-  test('should navigate to repositories page from home page', async ({ page }) => {
-    // Start at the home page
+  test('should display dashboard on home page in mocked mode', async ({ page }) => {
+    // Start at the home page in mocked mode
     await page.goto('/');
 
-    // Click the "View Repositories" link
-    await page.click('text=View Repositories');
-
-    // Should navigate to repos page
-    await expect(page).toHaveURL('/repos');
-    await expect(page.locator('h1')).toContainText('GitHub Repositories');
+    // Should stay on home page and show dashboard
+    await expect(page).toHaveURL('/');
+    await expect(page.getByText('Welcome back, Test User!')).toBeVisible();
+    await expect(page.getByText('Here\'s your latest project overview and insights.')).toBeVisible();
+    
+    // Check that it's showing the dashboard layout
+    await expect(page.locator('nav')).toBeVisible(); // Sidebar navigation
+    await expect(page.locator('footer')).toBeVisible(); // Footer
   });
 
   test('should display repository cards with correct information', async ({ page }) => {
