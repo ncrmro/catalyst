@@ -1,19 +1,114 @@
-import NextAuth from "next-auth"
+import NextAuth, { DefaultSession } from "next-auth"
 import { db } from "@/db"
 import { users, teams, teamsMemberships } from "@/db/schema"
 import { eq } from "drizzle-orm"
 import GitHub from "next-auth/providers/github"
+import { Provider } from "next-auth/providers"
+import Credentials from "next-auth/providers/credentials"
+
+declare module 'next-auth' {
+  interface Session {
+      user: {
+          id: string;
+          // admin: boolean;
+      } & DefaultSession['user'];
+  }
+  
+  // interface User {
+  //     admin: boolean;
+  // }
+  
+  // interface JWT {
+  //     admin: boolean;
+  // }
+}
+
+const providers: Provider[] = [
+  GitHub({
+    authorization: {
+      params: {
+        scope: "read:user user:email read:org repo"
+      }
+    }
+  })
+];
+if (process.env.NODE_ENV === "development") {
+  providers.push(
+    Credentials({
+      id: "password",
+      name: "Password",
+      credentials: {
+        password: { label: "Password", type: "password" },
+      },
+      authorize: async (credentials) => {
+        /**
+         * In development users can sign in with either password or admin as a password
+         * Supports suffixed usernames like "password-user1" or "admin-user2" for E2E testing
+         */
+        const password = credentials.password as string;
+        
+        // Parse password to extract base type and optional suffix
+        const passwordMatch = password.match(/^(password|admin)(?:-(.*))?$/);
+        if (!passwordMatch) {
+          return null;
+        }
+        
+        const [, baseType, suffix] = passwordMatch;
+        const isAdmin = baseType === "admin";
+        
+        // For backward compatibility, use original emails for legacy passwords
+        const isLegacy = suffix === undefined;
+        const userSuffix = isLegacy ? (isAdmin ? "admin" : "user") : suffix;
+        
+        const userObject = {
+            id: `dev-${isAdmin ? "admin" : "user"}-${userSuffix}`,
+            email: isLegacy 
+              ? (isAdmin ? "admin@example.com" : "bob@alice.com")
+              : (isAdmin ? `admin-${userSuffix}@example.com` : `user-${userSuffix}@example.com`),
+            name: isLegacy
+              ? (isAdmin ? "Test Admin" : "Bob Alice")
+              : (isAdmin ? `Test Admin ${userSuffix}` : `Test User ${userSuffix}`),
+            image: "https://avatars.githubusercontent.com/u/67470890?s=200&v=4",
+          }
+        
+        const [user] = await db.select().from(users).where(eq(users.email, userObject.email));
+        if (user) {
+          // Validate that existing user matches expected role
+          const expectedAdmin = isAdmin;
+          // const actualAdmin = user.admin ?? false;
+          
+          // if (expectedAdmin !== actualAdmin) {
+          //   throw new Error(`User ${userObject.email} exists but has role mismatch. Expected admin: ${expectedAdmin}, actual admin: ${actualAdmin}`);
+          // }
+          
+          // Convert integer ID to string for NextAuth compatibility
+          return {
+            ...user,
+            id: user.id.toString(),
+            // admin: user.admin ?? false // Handle potential null admin value
+          };
+        }
+        
+        const [newUser] = await db.insert(users).values({
+          email: userObject.email,
+          name: userObject.name,
+          image: userObject.image,
+          // admin: isAdmin,
+        }).returning();
+        // Convert integer ID to string for NextAuth compatibility
+        // Next auth expects id to be a string (UUID) but I stubbornly used an integer
+        return {
+          ...newUser,
+          id: newUser.id.toString(),
+          // admin: newUser.admin ?? false // Handle potential null admin value
+        };
+      },
+    })
+  )
+}
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  providers: [
-    GitHub({
-      authorization: {
-        params: {
-          scope: "read:user user:email read:org repo"
-        }
-      }
-    })
-  ],
+  providers,
   callbacks: {
     /**
      * JWT Callback
