@@ -40,5 +40,7 @@ CREATE TABLE "repo" (
 	CONSTRAINT "repo_github_id_unique" UNIQUE("github_id")
 );
 --> statement-breakpoint
+DROP TABLE "teams" CASCADE;--> statement-breakpoint
+DROP TABLE "teams_memberships" CASCADE;--> statement-breakpoint
 ALTER TABLE "projects_repos" ADD CONSTRAINT "projects_repos_project_id_project_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."project"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "projects_repos" ADD CONSTRAINT "projects_repos_repo_id_repo_id_fk" FOREIGN KEY ("repo_id") REFERENCES "public"."repo"("id") ON DELETE cascade ON UPDATE no action;
