@@ -12,6 +12,86 @@ async function loadKubernetesClient() {
   return k8s;
 }
 
+export interface ClusterInfo {
+  name: string;
+  endpoint: string;
+  source: string; // Which environment variable it came from
+}
+
+// Global registry for initialized kubeconfigs
+class KubeConfigRegistry {
+  private configs: Map<string, KubeConfig> = new Map();
+  private initialized = false;
+
+  reset() {
+    this.configs.clear();
+    this.initialized = false;
+  }
+
+  async initialize() {
+    if (this.initialized) return;
+
+    // Find all environment variables starting with KUBECONFIG_
+    const kubeConfigEnvs = Object.keys(process.env).filter(key => 
+      key.startsWith('KUBECONFIG_') && process.env[key]
+    );
+
+    for (const envVar of kubeConfigEnvs) {
+      try {
+        const kubeConfig = new KubeConfig();
+        await kubeConfig.loadFromEnvVar(envVar);
+        
+        // Extract suffix from environment variable name (e.g., KUBECONFIG_PRIMARY -> PRIMARY)
+        const suffix = envVar.replace('KUBECONFIG_', '');
+        this.configs.set(suffix, kubeConfig);
+      } catch (error) {
+        console.warn(`Failed to load kubeconfig from ${envVar}:`, error instanceof Error ? error.message : 'Unknown error');
+      }
+    }
+
+    // If no environment variables are set, try to load from default kubeconfig
+    if (this.configs.size === 0) {
+      try {
+        const kubeConfig = new KubeConfig();
+        await kubeConfig.loadFromDefault();
+        this.configs.set('default', kubeConfig);
+      } catch (error) {
+        console.warn('Failed to load default kubeconfig:', error instanceof Error ? error.message : 'Unknown error');
+      }
+    }
+
+    this.initialized = true;
+  }
+
+  async getConfigs(): Promise<Map<string, KubeConfig>> {
+    await this.initialize();
+    return this.configs;
+  }
+
+  async getClusters(): Promise<ClusterInfo[]> {
+    await this.initialize();
+    const clusters: ClusterInfo[] = [];
+
+    for (const [source, kubeConfig] of this.configs) {
+      try {
+        const clusterInfo = kubeConfig.getClusterInfo();
+        clusters.push({
+          name: clusterInfo.name,
+          endpoint: clusterInfo.endpoint,
+          source: source === 'default' ? 'default' : `KUBECONFIG_${source}`
+        });
+      } catch (error) {
+        console.warn(`Failed to get cluster info for ${source}:`, error instanceof Error ? error.message : 'Unknown error');
+      }
+    }
+
+    return clusters;
+  }
+}
+
+// Global instance
+const kubeConfigRegistry = new KubeConfigRegistry();
+
 export class KubeConfig {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _kc: any;
@@ -83,4 +163,13 @@ export async function getAppsV1Api() {
 export async function getCoreV1Api() {
   const k8sModule = await loadKubernetesClient();
   return k8sModule.CoreV1Api;
+}
+
+export async function getClusters(): Promise<ClusterInfo[]> {
+  return kubeConfigRegistry.getClusters();
+}
+
+// For testing purposes
+export function resetKubeConfigRegistry() {
+  kubeConfigRegistry.reset();
 }

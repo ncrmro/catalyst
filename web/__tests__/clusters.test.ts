@@ -9,7 +9,7 @@ jest.mock('@kubernetes/client-node', () => ({
   }))
 }));
 
-import { KubeConfig } from '@/lib/k8s-client';
+import { KubeConfig, resetKubeConfigRegistry } from '@/lib/k8s-client';
 import { getClusters } from '@/actions/clusters';
 
 describe('Kubernetes Client Environment Variables', () => {
@@ -17,6 +17,14 @@ describe('Kubernetes Client Environment Variables', () => {
 
   beforeEach(() => {
     process.env = { ...originalEnv };
+    // Clear any existing KUBECONFIG_* variables
+    Object.keys(process.env).forEach(key => {
+      if (key.startsWith('KUBECONFIG_')) {
+        delete process.env[key];
+      }
+    });
+    // Reset the registry for each test
+    resetKubeConfigRegistry();
   });
 
   afterAll(() => {
@@ -103,6 +111,60 @@ describe('Kubernetes Client Environment Variables', () => {
     );
   });
 
+  it('getClusters should dynamically discover all KUBECONFIG_* environment variables', async () => {
+    // Mock kubeconfig data for various clusters with different naming patterns
+    const testConfigs = {
+      KUBECONFIG_PRIMARY: {
+        apiVersion: 'v1',
+        kind: 'Config',
+        clusters: [{ name: 'primary-cluster', cluster: { server: 'https://primary:6443' } }],
+        contexts: [{ name: 'primary-context', context: { cluster: 'primary-cluster', user: 'primary-user' } }],
+        'current-context': 'primary-context',
+        users: [{ name: 'primary-user', user: { 'client-certificate-data': 'dGVzdA==', 'client-key-data': 'dGVzdA==' } }]
+      },
+      KUBECONFIG_STAGING: {
+        apiVersion: 'v1',
+        kind: 'Config',
+        clusters: [{ name: 'staging-cluster', cluster: { server: 'https://staging:6443' } }],
+        contexts: [{ name: 'staging-context', context: { cluster: 'staging-cluster', user: 'staging-user' } }],
+        'current-context': 'staging-context',
+        users: [{ name: 'staging-user', user: { 'client-certificate-data': 'dGVzdA==', 'client-key-data': 'dGVzdA==' } }]
+      },
+      KUBECONFIG_PRODUCTION: {
+        apiVersion: 'v1',
+        kind: 'Config',
+        clusters: [{ name: 'production-cluster', cluster: { server: 'https://production:6443' } }],
+        contexts: [{ name: 'production-context', context: { cluster: 'production-cluster', user: 'production-user' } }],
+        'current-context': 'production-context',
+        users: [{ name: 'production-user', user: { 'client-certificate-data': 'dGVzdA==', 'client-key-data': 'dGVzdA==' } }]
+      }
+    };
+
+    // Set environment variables dynamically
+    Object.entries(testConfigs).forEach(([envVar, config]) => {
+      process.env[envVar] = Buffer.from(JSON.stringify(config)).toString('base64');
+    });
+
+    // Also set some non-KUBECONFIG variables to ensure they're ignored
+    process.env.SOME_OTHER_VAR = 'should-be-ignored';
+    process.env.KUBECONFIG = 'this-should-be-ignored-too';
+
+    const clusters = await getClusters();
+    
+    // Should discover all 3 KUBECONFIG_* variables dynamically
+    expect(clusters).toHaveLength(3);
+    
+    // Check that sources are properly identified with the suffix
+    const sources = clusters.map(c => c.source).sort();
+    expect(sources).toEqual(['KUBECONFIG_PRIMARY', 'KUBECONFIG_PRODUCTION', 'KUBECONFIG_STAGING']);
+    
+    // Each cluster should have the mocked data (our mock always returns the same values)
+    clusters.forEach(cluster => {
+      expect(cluster.name).toBe('test-context');
+      expect(cluster.endpoint).toBe('https://test-server:6443');
+    });
+  });
+
   it('getClusters should return clusters from environment variables', async () => {
     // Mock kubeconfig data for multiple clusters
     const primaryConfig = {
@@ -131,12 +193,15 @@ describe('Kubernetes Client Environment Variables', () => {
     
     // With our mocked KubeConfig, we should get 2 clusters with mocked data
     expect(clusters).toHaveLength(2);
-    expect(clusters[0].name).toBe('test-context'); // This is what our mock returns
-    expect(clusters[0].endpoint).toBe('https://test-server:6443'); // This is what our mock returns
-    expect(clusters[0].source).toBe('KUBECONFIG_PRIMARY');
     
-    expect(clusters[1].name).toBe('test-context'); // This is what our mock returns
-    expect(clusters[1].endpoint).toBe('https://test-server:6443'); // This is what our mock returns
-    expect(clusters[1].source).toBe('KUBECONFIG_FOO');
+    // Check that we have both clusters (order determined by alphabetical sorting of env var names)
+    const sources = clusters.map(c => c.source).sort();
+    expect(sources).toEqual(['KUBECONFIG_FOO', 'KUBECONFIG_PRIMARY']);
+    
+    // Each cluster should have the mocked data (our mock always returns the same values)
+    clusters.forEach(cluster => {
+      expect(cluster.name).toBe('test-context');
+      expect(cluster.endpoint).toBe('https://test-server:6443');
+    });
   });
 });
