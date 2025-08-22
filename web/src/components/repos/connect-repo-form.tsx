@@ -67,7 +67,7 @@ export function ConnectRepoForm({ repo, existingProjects }: ConnectRepoFormProps
         setError(result.error || 'Failed to connect repository');
       }
     } catch (err) {
-      setError('An unexpected error occurred');
+      setError('Failed to connect repository to project. Please try again.');
       console.error('Error connecting repo:', err);
     } finally {
       setIsSubmitting(false);
