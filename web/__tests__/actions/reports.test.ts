@@ -132,4 +132,56 @@ describe('Reports Actions', () => {
       expect(report.summary.total_priority_issues).toBe(report.priority_issues.length);
     });
   });
+
+  test('should have valid narrative report structure when present', async () => {
+    const reports = await fetchReports();
+    
+    reports.forEach(report => {
+      if (report.narrative_report) {
+        // Validate narrative report structure
+        expect(report.narrative_report).toHaveProperty('overview');
+        expect(report.narrative_report).toHaveProperty('repositories');
+        expect(typeof report.narrative_report.overview).toBe('string');
+        expect(Array.isArray(report.narrative_report.repositories)).toBe(true);
+        
+        // Validate each repository narrative
+        report.narrative_report.repositories.forEach(repo => {
+          expect(repo).toHaveProperty('repository');
+          expect(repo).toHaveProperty('recently_delivered_features');
+          expect(repo).toHaveProperty('ideal_next_tasks');
+          expect(repo).toHaveProperty('current_blockers');
+          
+          expect(typeof repo.repository).toBe('string');
+          expect(Array.isArray(repo.recently_delivered_features)).toBe(true);
+          expect(Array.isArray(repo.ideal_next_tasks)).toBe(true);
+          expect(Array.isArray(repo.current_blockers)).toBe(true);
+          
+          // Ensure each array contains strings
+          repo.recently_delivered_features.forEach(feature => {
+            expect(typeof feature).toBe('string');
+          });
+          repo.ideal_next_tasks.forEach(task => {
+            expect(typeof task).toBe('string');
+          });
+          repo.current_blockers.forEach(blocker => {
+            expect(typeof blocker).toBe('string');
+          });
+        });
+      }
+    });
+  });
+
+  test('latest report should have narrative content', async () => {
+    const latestReport = await fetchLatestReport();
+    
+    expect(latestReport).not.toBeNull();
+    expect(latestReport?.narrative_report).toBeDefined();
+    expect(latestReport?.narrative_report?.repositories).toHaveLength(3);
+    
+    // Check that we have the expected repositories
+    const repoNames = latestReport?.narrative_report?.repositories.map(repo => repo.repository) || [];
+    expect(repoNames).toContain('catalyst/api-gateway');
+    expect(repoNames).toContain('catalyst/web-ui');
+    expect(repoNames).toContain('catalyst/core-service');
+  });
 });
