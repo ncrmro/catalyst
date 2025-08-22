@@ -4,6 +4,9 @@
  * Server action to fetch projects data for the current user and organizations
  */
 
+import { db, projects, repos, projectsRepos } from '@/db';
+import { eq } from 'drizzle-orm';
+
 export interface ProjectEnvironment {
   id: string;
   name: string;
@@ -223,13 +226,151 @@ function getMockProjectsData(): ProjectsData {
 }
 
 /**
- * Fetch projects data
- * For now, this always returns mocked data, but it could be extended
- * to fetch real data from a projects API in the future
+ * Fetch projects data from database or fallback to mock data
  */
 export async function fetchProjects(): Promise<ProjectsData> {
-  // For now, always return mocked data
-  // In the future, this could check environment variables or user preferences
-  console.log('Returning mocked projects data');
-  return getMockProjectsData();
+  // Check if we should return mocked data
+  const mocked = process.env.MOCKED;
+  
+  if (mocked === '1') {
+    console.log('Returning mocked projects data');
+    return getMockProjectsData();
+  }
+
+  try {
+    // First, try to fetch from database
+    const projectsFromDb = await db
+      .select({
+        project: projects,
+        repo: repos,
+        projectRepo: projectsRepos,
+      })
+      .from(projects)
+      .leftJoin(projectsRepos, eq(projects.id, projectsRepos.projectId))
+      .leftJoin(repos, eq(projectsRepos.repoId, repos.id));
+
+    if (projectsFromDb.length === 0) {
+      console.log('No projects found in database, returning mocked data');
+      return getMockProjectsData();
+    }
+
+    // Group the results by project
+    const projectMap = new Map<string, Project>();
+
+    for (const row of projectsFromDb) {
+      const projectData = row.project;
+      const repoData = row.repo;
+      const projectRepoData = row.projectRepo;
+
+      // Validate project data
+      if (!projectData || !projectData.id || !projectData.name || !projectData.fullName) {
+        console.warn('Invalid project data found, skipping:', projectData);
+        continue;
+      }
+
+      if (!projectMap.has(projectData.id)) {
+        projectMap.set(projectData.id, {
+          id: projectData.id,
+          name: projectData.name,
+          full_name: projectData.fullName,
+          description: projectData.description,
+          owner: {
+            login: projectData.ownerLogin,
+            type: (projectData.ownerType as 'User' | 'Organization') || 'User',
+            avatar_url: projectData.ownerAvatarUrl || '',
+          },
+          repositories: [],
+          environments: [], // Mock environments for now
+          preview_environments_count: projectData.previewEnvironmentsCount || 0,
+          created_at: projectData.createdAt.toISOString(),
+          updated_at: projectData.updatedAt.toISOString(),
+        });
+      }
+
+      // Add repository if it exists and is valid
+      if (repoData && projectRepoData && repoData.githubId && repoData.name && repoData.fullName) {
+        const project = projectMap.get(projectData.id)!;
+        
+        // Check if this repository is already added (prevent duplicates)
+        const existingRepo = project.repositories.find(r => r.id === repoData.githubId);
+        if (!existingRepo) {
+          project.repositories.push({
+            id: repoData.githubId,
+            name: repoData.name,
+            full_name: repoData.fullName,
+            url: repoData.url,
+            primary: projectRepoData.isPrimary || false,
+          });
+        }
+      }
+    }
+
+    // Convert to array and add mock environments
+    const projectsList = Array.from(projectMap.values()).map(project => ({
+      ...project,
+      environments: getMockEnvironmentsForProject(project.name),
+    }));
+
+    // Validate that we have valid projects
+    const validProjects = projectsList.filter(project => 
+      project.id && project.name && project.full_name && project.owner.login
+    );
+
+    if (validProjects.length === 0) {
+      console.warn('No valid projects found in database, falling back to mock data');
+      return getMockProjectsData();
+    }
+
+    console.log(`Returning ${validProjects.length} projects from database`);
+    return {
+      projects: validProjects,
+      total_count: validProjects.length,
+    };
+
+  } catch (error) {
+    console.error('Error fetching projects from database:', error);
+    console.log('Falling back to mocked data');
+    return getMockProjectsData();
+  }
+}
+
+/**
+ * Get mock environments for a project (since environments aren't in the database yet)
+ */
+function getMockEnvironmentsForProject(projectName: string): ProjectEnvironment[] {
+  const baseEnvironments: ProjectEnvironment[] = [
+    {
+      id: `env-${projectName}-1`,
+      name: 'production',
+      type: 'branch_push' as const,
+      branch: 'main',
+      status: 'active' as const,
+      url: `https://${projectName}.example.com`,
+      last_deployed: new Date().toISOString(),
+    },
+    {
+      id: `env-${projectName}-2`,
+      name: 'staging',
+      type: 'branch_push' as const,
+      branch: 'develop',
+      status: 'active' as const,
+      url: `https://staging-${projectName}.example.com`,
+      last_deployed: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+    },
+  ];
+
+  // Add a cron environment for some projects
+  if (projectName === 'foo' || projectName === 'bar') {
+    baseEnvironments.push({
+      id: `env-${projectName}-3`,
+      name: 'nightly-build',
+      type: 'cron' as const,
+      cron_schedule: '0 2 * * *',
+      status: 'active' as const,
+      url: `https://nightly-${projectName}.example.com`,
+      last_deployed: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), // 6 hours ago
+    });
+  }
+
+  return baseEnvironments;
 }

@@ -22,12 +22,12 @@ The local development server allows loging in with just a password. The password
 
 # Testing
 
-Always attemp to run `npm run lint` and `npm run test:e2e` after making any changes.
+Always run `npm run lint` and `npm run test:e2e` before making your final commit.
 
 #  Development guidelines
 
 - Prefer to use NextJS server components
-- Prefer to use actions of API route unless specified.
+- Prefer to use actions over API route unless specified.
 
 # Style Guidelines
 
