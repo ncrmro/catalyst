@@ -40,52 +40,52 @@ interface GitHubOrganization {
 function RepoCard({ repo }: { repo: GitHubRepo }) {
   return (
     <div className="bg-surface border border-outline rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
             <Image 
               src={repo.owner.avatar_url} 
               alt={`${repo.owner.login} avatar`}
               width={24}
               height={24}
-              className="w-6 h-6 rounded-full"
+              className="w-6 h-6 rounded-full flex-shrink-0"
             />
             <a 
               href={repo.html_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-primary hover:text-primary font-semibold text-lg"
+              className="text-primary hover:text-primary font-semibold text-lg truncate"
             >
               {repo.full_name}
             </a>
             {repo.private && (
-              <span className="bg-secondary-container text-on-secondary-container text-xs px-2 py-1 rounded-full">
+              <span className="bg-secondary-container text-on-secondary-container text-xs px-2 py-1 rounded-full flex-shrink-0">
                 Private
               </span>
             )}
           </div>
           
           {repo.description && (
-            <p className="text-on-surface-variant mb-3">{repo.description}</p>
+            <p className="text-on-surface-variant mb-3 line-clamp-2">{repo.description}</p>
           )}
           
-          <div className="flex items-center gap-4 text-sm text-on-surface-variant">
+          <div className="flex items-center gap-4 text-sm text-on-surface-variant flex-wrap">
             {repo.language && (
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1 flex-shrink-0">
                 <span className="w-3 h-3 bg-primary rounded-full"></span>
                 {repo.language}
               </span>
             )}
-            <span>⭐ {repo.stargazers_count}</span>
-            <span>🍴 {repo.forks_count}</span>
-            <span>📋 {repo.open_issues_count} issues</span>
-            <span>Updated {new Date(repo.updated_at).toLocaleDateString()}</span>
+            <span className="flex-shrink-0">⭐ {repo.stargazers_count}</span>
+            <span className="flex-shrink-0">🍴 {repo.forks_count}</span>
+            <span className="flex-shrink-0">📋 {repo.open_issues_count} issues</span>
+            <span className="flex-shrink-0">Updated {new Date(repo.updated_at).toLocaleDateString()}</span>
           </div>
         </div>
-        <div className="ml-4">
+        <div className="flex-shrink-0">
           <Link 
             href={`/repos/${repo.id}/connect`}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-on-primary bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors"
           >
             Connect
           </Link>
