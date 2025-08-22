@@ -1,4 +1,4 @@
-import { TestInfo, Page } from '@playwright/test';
+import { TestInfo, Page, BrowserContext } from '@playwright/test';
 
 /**
  * Generate unique user credentials for E2E tests based on worker index and timestamp
@@ -14,29 +14,63 @@ export function generateUserCredentials(testInfo: TestInfo, role: 'user' | 'admi
 }
 
 /**
- * Sign in a user with unique credentials for E2E testing by calling NextAuth API directly
+ * Sign in a user with unique credentials for E2E testing
+ * This function navigates to the login page and performs authentication
  */
 export async function signInWithUniqueUser(page: Page, testInfo: TestInfo, role: 'user' | 'admin' = 'user') {
   const password = generateUserCredentials(testInfo, role);
   
-  // Make a POST request to the NextAuth credentials sign-in endpoint
-  const response = await page.request.post('/api/auth/callback/credentials', {
-    form: {
-      password: password,
-      callbackUrl: '/',
-      json: 'true'
-    }
-  });
-
-  // If the response is successful, the cookies should be set automatically
-  if (response.ok()) {
-    // Navigate to home page to verify authentication worked
-    await page.goto('/');
+  // Navigate to the login page
+  await page.goto('/login');
+  
+  // Check if we need to perform sign-in or if already authenticated
+  const signInButton = page.locator('button[type="submit"]');
+  
+  if (await signInButton.isVisible()) {
+    // Click the sign in button which should trigger the development authentication flow
+    await signInButton.click();
     
-    // Wait for the page to load and verify we're authenticated
-    // In development mode, authenticated users should see the dashboard
-    await page.waitForSelector('text=Welcome back', { timeout: 5000 });
-  } else {
-    throw new Error(`Authentication failed with status: ${response.status()}`);
+    // In development mode, this might show a password form
+    // Wait for either a password field or successful redirect
+    try {
+      // If a password field appears, fill it
+      const passwordField = page.locator('input[name="password"]');
+      await passwordField.waitFor({ timeout: 2000 });
+      await passwordField.fill(password);
+      
+      const submitButton = page.locator('button[type="submit"]').last();
+      await submitButton.click();
+      
+      // Wait for redirect to home page
+      await page.waitForURL('/', { timeout: 5000 });
+    } catch (error) {
+      // If no password field appears, the sign-in might have succeeded already
+      // Check if we're redirected to home page
+      try {
+        await page.waitForURL('/', { timeout: 5000 });
+      } catch {
+        throw new Error(`Authentication failed: ${error.message}`);
+      }
+    }
   }
+  
+  // Verify we're now authenticated by checking for authenticated content
+  await page.waitForSelector('text=Welcome back', { timeout: 10000 });
+}
+
+/**
+ * Create a browser context with authentication for E2E testing
+ * This can be used to set up authentication state before running tests
+ */
+export async function createAuthenticatedContext(
+  browser: any, 
+  testInfo: TestInfo, 
+  role: 'user' | 'admin' = 'user'
+): Promise<BrowserContext> {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  
+  await signInWithUniqueUser(page, testInfo, role);
+  
+  return context;
 }

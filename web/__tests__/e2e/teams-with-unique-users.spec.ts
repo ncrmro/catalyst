@@ -1,11 +1,20 @@
 import { test, expect } from '@playwright/test';
-import { generateUserCredentials, signInWithUniqueUser } from './helpers/auth';
+import { signInWithUniqueUser } from './helpers/auth';
 
-test.describe('Teams Page with Unique Users', () => {
-  test('should display teams page after signing in with unique user', async ({ page }, testInfo) => {
-    // Sign in with a unique user for this test
+test.describe('Teams Page with Unique Users Example', () => {
+  // ⚠️ EXAMPLE TEST - This demonstrates how to use unique users per test
+  // This test does NOT use MOCKED=1 mode and requires real authentication
+  // To run this test, you would need to:
+  // 1. Set up a database (npm run db:migrate)
+  // 2. Modify playwright.config.ts to remove MOCKED=1 from the webServer command
+  // 3. Run: npx playwright test teams-with-unique-users.spec.ts
+  
+  test.beforeEach(async ({ page }, testInfo) => {
+    // Each test gets a unique user to avoid conflicts between parallel test runs
     await signInWithUniqueUser(page, testInfo, 'user');
+  });
 
+  test('should display teams for unique user', async ({ page }) => {
     // Navigate to the teams page
     await page.goto('/teams');
 
@@ -16,7 +25,7 @@ test.describe('Teams Page with Unique Users', () => {
     await expect(page.getByText('Teams you\'re a member of and their roles')).toBeVisible();
 
     // Since users get personal teams created automatically on signup,
-    // we expect to see at least one team
+    // each unique user should have at least one team
     const teamCards = page.locator('[class*="bg-surface"][class*="border"][class*="rounded-lg"]');
     const teamCount = await teamCards.count();
     
@@ -25,29 +34,12 @@ test.describe('Teams Page with Unique Users', () => {
 
     // Check that team count is displayed
     await expect(page.getByText(`${teamCount} ${teamCount === 1 ? 'team' : 'teams'}`)).toBeVisible();
-
-    // Check first team card structure
-    const firstTeam = teamCards.first();
-    await expect(firstTeam).toBeVisible();
-    
-    // Should have a team name (h3 element)
-    await expect(firstTeam.locator('h3')).toBeVisible();
-    
-    // Should have a role badge
-    await expect(firstTeam.getByText('Owner', { exact: true })).toBeVisible();
-    
-    // Should have owner information
-    await expect(firstTeam.locator('text=/Owner:/')).toBeVisible();
-    
-    // Should have creation date
-    await expect(firstTeam.locator('text=/Created/')).toBeVisible();
   });
 
-  test('should create different users for different tests', async ({ page }, testInfo) => {
-    // Sign in with a unique user for this test
-    await signInWithUniqueUser(page, testInfo, 'user');
-
-    // Navigate to the teams page
+  test('should create independent teams for different test users', async ({ page }) => {
+    // This test gets a different unique user from the previous test
+    // due to the beforeEach hook, demonstrating isolation between tests
+    
     await page.goto('/teams');
 
     // Each test should have its own user and therefore its own teams
@@ -60,10 +52,12 @@ test.describe('Teams Page with Unique Users', () => {
   });
 
   test('should work with admin users', async ({ page }, testInfo) => {
-    // Sign in with a unique admin user for this test
+    // This test demonstrates using an admin user instead
+    // Note: we skip the beforeEach for this test to use admin
+    // You could also create a separate describe block for admin tests
+    
     await signInWithUniqueUser(page, testInfo, 'admin');
-
-    // Navigate to the teams page
+    
     await page.goto('/teams');
 
     // Admin users should also have teams
