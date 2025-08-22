@@ -1,6 +1,6 @@
 import NextAuth, { DefaultSession } from "next-auth"
 import { db } from "@/db"
-import { users } from "@/db/schema"
+import { users, teams, teamsMemberships } from "@/db/schema"
 import { eq } from "drizzle-orm"
 import GitHub from "next-auth/providers/github"
 import { Provider } from "next-auth/providers"
@@ -142,11 +142,32 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             
             if (existingUser.length === 0) {
               // Create new user
-              await db.insert(users).values({
+              const newUser = await db.insert(users).values({
                 email: profile.email as string,
                 name: profile.name as string | null,
                 image: profile.avatar_url as string | null
-              })
+              }).returning()
+              
+              // Create personal team for the new user
+              if (newUser.length > 0) {
+                const userId = newUser[0].id
+                const teamName = profile.name ? `${profile.name}'s Team` : `${profile.email.split('@')[0]}'s Team`
+                
+                const newTeam = await db.insert(teams).values({
+                  name: teamName,
+                  description: "Personal team",
+                  ownerId: userId,
+                }).returning()
+                
+                // Add user as owner in team memberships
+                if (newTeam.length > 0) {
+                  await db.insert(teamsMemberships).values({
+                    teamId: newTeam[0].id,
+                    userId: userId,
+                    role: "owner",
+                  })
+                }
+              }
             }
             
             // Get the user from database to set token.id to database user ID
