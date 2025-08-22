@@ -45,45 +45,8 @@ export async function connectRepoToProject(request: ConnectRepoRequest): Promise
   try {
     const { repoId, connectionType, projectName, projectId, description, isPrimary, repo } = request;
 
-    // Since we're using mocked data and don't have a real database connection,
-    // we'll simulate the operation and return success
-    // In a real implementation, this would:
-    // 1. Create/find the project
-    // 2. Create/find the repository record
-    // 3. Create the projects_repos relationship
-
-    if (connectionType === 'new') {
-      if (!projectName) {
-        return { success: false, error: 'Project name is required for new projects' };
-      }
-
-      // Simulate creating a new project
-      const newProjectId = `proj-${Date.now()}`;
-      
-      console.log('Mock: Creating new project', {
-        projectId: newProjectId,
-        name: projectName,
-        fullName: `${repo.owner.login}/${projectName}`,
-        description,
-        repoId,
-        isPrimary
-      });
-
-      return { success: true, projectId: newProjectId };
-    } else {
-      if (!projectId) {
-        return { success: false, error: 'Project ID is required for existing projects' };
-      }
-
-      // Simulate adding repo to existing project
-      console.log('Mock: Adding repository to existing project', {
-        projectId,
-        repoId,
-        isPrimary
-      });
-
     // Use mocked implementation only if MOCKED env var is set
-    if (process.env.MOCKED === 'true') {
+    if (process.env.MOCKED === '1') {
       // Since we're using mocked data and don't have a real database connection,
       // we'll simulate the operation and return success
       // In a real implementation, this would:
