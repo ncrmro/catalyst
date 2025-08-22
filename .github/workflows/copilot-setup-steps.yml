@@ -66,6 +66,7 @@ jobs:
       - run: |
           cd ./web
           cp .env.example .env
+          echo "DATABASE_URL: postgresql://postgres:postgres@localhost:5432/catalyst_test" >> .env
           npm ci
           npx playwright install --with-deps
 
