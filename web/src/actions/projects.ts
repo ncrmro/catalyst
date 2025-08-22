@@ -330,7 +330,7 @@ export async function fetchProjects(): Promise<ProjectsData> {
  * Get mock environments for a project (since environments aren't in the database yet)
  */
 function getMockEnvironmentsForProject(projectName: string): ProjectEnvironment[] {
-  const baseEnvironments = [
+  const baseEnvironments: ProjectEnvironment[] = [
     {
       id: `env-${projectName}-1`,
       name: 'production',
