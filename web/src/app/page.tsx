@@ -1,180 +1,245 @@
-import Image from "next/image";
-import Link from "next/link";
 import { auth } from "@/auth";
-import SignIn from "@/components/sign-in";
-import SignOut from "@/components/sign-out";
+import { redirect } from "next/navigation";
 import { Metadata } from "next";
+import DashboardLayout from "@/components/dashboard-layout";
+import { fetchLatestReport } from "@/actions/reports";
+import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Catalyst - Development Platform",
-  description: "A powerful development platform for GitHub integration and repository management.",
+  title: "Dashboard - Catalyst",
+  description: "Your Catalyst development platform dashboard with latest project insights.",
 };
-import { isFeatureEnabled } from "@/lib/feature-flags";
+
+// Import utility functions for styling (copied from reports page)
+function getPriorityColor(priority: 'high' | 'medium' | 'low') {
+  switch (priority) {
+    case 'high':
+      return 'bg-red-100 text-red-800';
+    case 'medium':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'low':
+      return 'bg-green-100 text-green-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+}
+
+function getStatusColor(status: 'draft' | 'ready' | 'changes_requested') {
+  switch (status) {
+    case 'ready':
+      return 'bg-green-100 text-green-800';
+    case 'changes_requested':
+      return 'bg-orange-100 text-orange-800';
+    case 'draft':
+      return 'bg-gray-100 text-gray-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+}
 
 export default async function Home() {
-  const session = await auth();
+  // In mocked mode, create a mock session for testing
+  let session;
+  if (process.env.MOCKED === '1') {
+    session = {
+      user: {
+        name: "Test User",
+        email: "test@example.com"
+      },
+      userId: "test-user-1",
+      accessToken: "mock-token"
+    };
+  } else {
+    session = await auth();
+    
+    // Redirect to login if not authenticated
+    if (!session?.user) {
+      redirect("/login");
+    }
+  }
+
+  // Fetch the latest report
+  let latestReport;
+  let error: string | null = null;
+
+  try {
+    latestReport = await fetchLatestReport();
+  } catch (err) {
+    error = err instanceof Error ? err.message : 'Failed to fetch latest report';
+    latestReport = null;
+  }
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <div className="text-center sm:text-left">
-          <h1 className="catalyst-title text-6xl font-bold text-gray-900 dark:text-white mb-2">
-            Catalyst
+    <DashboardLayout user={session.user}>
+      <div className="space-y-6">
+        {/* Welcome Section */}
+        <div>
+          <h1 className="text-3xl font-bold text-on-background mb-2">
+            Welcome back, {session.user.name || session.user.email?.split('@')[0]}!
           </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-300">
-            Development Platform
+          <p className="text-on-surface-variant">
+            Here&apos;s your latest project overview and insights.
           </p>
         </div>
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Sign in with your GitHub account using OAuth authentication above.
-          </li>
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by visiting{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              /github
-            </code>{" "}
-            to set up your GitHub App.
-          </li>
-          <li className="tracking-[-.01em]">
-            Configure webhooks and start integrating with GitHub repositories.
-          </li>
-        </ol>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          {session?.user ? (
-            <div className="flex gap-4 items-center flex-col sm:flex-row">
-              <div className="text-sm text-gray-600">
-                Welcome, {session.user.name || session.user.email}!
-              </div>
-              <SignOut />
+        {/* Latest Report Section */}
+        {error ? (
+          <div className="bg-error-container border border-outline rounded-lg p-6">
+            <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full mx-auto mb-4">
+              <span className="text-red-600 text-xl">⚠️</span>
             </div>
-          ) : (
-            <SignIn />
-          )}
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-primary text-on-primary gap-2 hover:opacity-90 font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="/github"
-            rel="noopener noreferrer"
-          >
-            GitHub App Setup
-          </a>
-          <a
-            className="rounded-full border border-solid border-outline transition-colors flex items-center justify-center bg-surface text-on-surface hover:bg-primary-container hover:text-on-primary-container hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto"
-            href="/repos"
-            rel="noopener noreferrer"
-          >
-            View Repositories
-          </a>
-          <Link
-            className="rounded-full border border-solid border-outline transition-colors flex items-center justify-center bg-surface text-on-surface hover:bg-primary-container hover:text-on-primary-container hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto"
-            href="/reports"
-          >
-            View Reports
-          </Link>
-          <Link
-            className="rounded-full border border-solid border-outline transition-colors flex items-center justify-center bg-surface text-on-surface hover:bg-primary-container hover:text-on-primary-container hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto"
-            href="/teams"
-          >
-            View Teams
-          </Link>
-          {isFeatureEnabled('USER_CLUSTERS') && (
-            <a
-              className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto"
-              href="/clusters"
-              rel="noopener noreferrer"
-            >
-              View Clusters
-            </a>
-          )}
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto"
-            href="/projects"
-            rel="noopener noreferrer"
-          >
-            View Projects
-          </a>
-          <a
-            className="rounded-full border border-solid border-outline transition-colors flex items-center justify-center bg-surface text-on-surface hover:bg-secondary-container hover:text-on-secondary-container hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://github.com/ncrmro/catalyst"
+            <h2 className="text-lg font-semibold text-on-error-container mb-2 text-center">Error Loading Dashboard</h2>
+            <p className="text-on-error-container text-center">{error}</p>
+          </div>
+        ) : !latestReport ? (
+          <div className="bg-surface border border-outline rounded-lg p-8 text-center">
+            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-gray-400 text-3xl">📊</span>
+            </div>
+            <h3 className="text-lg font-medium text-on-surface mb-2">No reports available</h3>
+            <p className="text-on-surface-variant max-w-md mx-auto">
+              Reports will be generated periodically to provide insights into your project status and development priorities.
+            </p>
+          </div>
+        ) : (
+          <div className="bg-surface border border-outline rounded-lg p-8 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-on-surface mb-2">Latest Project Report</h2>
+                <p className="text-on-surface-variant">
+                  Generated on {new Date(latestReport.generated_at).toLocaleDateString()} • 
+                  Period: {new Date(latestReport.period_start).toLocaleDateString()} - {new Date(latestReport.period_end).toLocaleDateString()}
+                </p>
+              </div>
+              <Link
+                href={`/reports/${latestReport.id}`}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                View Full Report →
+              </Link>
+            </div>
 
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            View on GitHub
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="/github"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Setup
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="/repos"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Repositories
-        </a>
-        <Link
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="/reports"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="Reports icon"
-            width={16}
-            height={16}
-          />
-          Reports
-        </Link>
-        <Link
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="/teams"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="Teams icon"
-            width={16}
-            height={16}
-          />
-          Teams
-        </Link>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://github.com/ncrmro/catalyst"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          GitHub Repository →
-        </a>
-      </footer>
-    </div>
+            {/* Summary Cards */}
+            <div className="grid md:grid-cols-3 gap-6 mb-6">
+              <div className="bg-blue-50 rounded-lg p-4">
+                <div className="text-2xl font-bold text-blue-600">{latestReport.summary.total_prs_awaiting_review}</div>
+                <div className="text-sm text-blue-800">PRs Awaiting Review</div>
+              </div>
+              <div className="bg-purple-50 rounded-lg p-4">
+                <div className="text-2xl font-bold text-purple-600">{latestReport.summary.total_priority_issues}</div>
+                <div className="text-sm text-purple-800">Priority Issues</div>
+              </div>
+              <div className="bg-green-50 rounded-lg p-4">
+                <div className="text-sm font-medium text-green-800 mb-1">Goal Focus</div>
+                <div className="text-sm text-green-700">{latestReport.summary.goal_focus}</div>
+              </div>
+            </div>
+
+            {/* Top PRs and Issues */}
+            <div className="grid md:grid-cols-2 gap-6 mb-6">
+              {/* Top PRs */}
+              <div>
+                <h3 className="text-lg font-semibold text-on-surface mb-4">Top PRs Awaiting Review</h3>
+                <div className="space-y-3">
+                  {latestReport.prs_awaiting_review.slice(0, 3).map((pr) => (
+                    <div key={pr.id} className="border border-outline rounded-lg p-3 bg-gray-50">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-900">#{pr.number}</span>
+                          <span className={`px-2 py-1 text-xs rounded-full ${getPriorityColor(pr.priority)}`}>
+                            {pr.priority}
+                          </span>
+                        </div>
+                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(pr.status)}`}>
+                          {pr.status.replace('_', ' ')}
+                        </span>
+                      </div>
+                      <a 
+                        href={pr.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:text-blue-800 line-clamp-2 block"
+                      >
+                        {pr.title}
+                      </a>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {pr.repository} • {pr.comments_count} comments
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Top Issues */}
+              <div>
+                <h3 className="text-lg font-semibold text-on-surface mb-4">Top Priority Issues</h3>
+                <div className="space-y-3">
+                  {latestReport.priority_issues.slice(0, 3).map((issue) => (
+                    <div key={issue.id} className="border border-outline rounded-lg p-3 bg-gray-50">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-900">#{issue.number}</span>
+                          <span className={`px-2 py-1 text-xs rounded-full ${getPriorityColor(issue.priority)}`}>
+                            {issue.priority}
+                          </span>
+                          <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
+                            {issue.type}
+                          </span>
+                        </div>
+                        <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700">
+                          {issue.effort_estimate}
+                        </span>
+                      </div>
+                      <a 
+                        href={issue.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:text-blue-800 line-clamp-2 block"
+                      >
+                        {issue.title}
+                      </a>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {issue.repository}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="pt-6 border-t border-outline">
+              <h3 className="text-lg font-semibold text-on-surface mb-4">Quick Actions</h3>
+              <div className="flex gap-4 flex-wrap">
+                <Link
+                  href="/reports"
+                  className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container"
+                >
+                  View All Reports
+                </Link>
+                <Link
+                  href="/projects"
+                  className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container"
+                >
+                  Manage Projects
+                </Link>
+                <Link
+                  href="/teams"
+                  className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container"
+                >
+                  View Teams
+                </Link>
+                <Link
+                  href="/repos"
+                  className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container"
+                >
+                  View Repositories
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </DashboardLayout>
   );
 }

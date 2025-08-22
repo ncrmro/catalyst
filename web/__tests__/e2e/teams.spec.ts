@@ -47,10 +47,13 @@ test.describe('Teams Page', () => {
   });
 
   test('should navigate to teams page from home page', async ({ page }) => {
-    // Start at the home page
+    // Start at the home page (should work in MOCKED=1 mode without auth)
     await page.goto('/');
 
-    // Click the "View Teams" link
+    // Should be on the dashboard now
+    await expect(page).toHaveURL('/');
+    
+    // Click the "View Teams" link in the Quick Actions section
     await page.click('text=View Teams');
 
     // Should navigate to teams page
@@ -119,7 +122,11 @@ test.describe('Teams Page', () => {
   });
 
   test('should display teams footer link', async ({ page }) => {
+    // Go to home page (should work in MOCKED=1 mode without auth)
     await page.goto('/');
+
+    // Should be on the dashboard now
+    await expect(page).toHaveURL('/');
 
     // Check that teams link exists in footer
     const footerTeamsLink = page.locator('footer').locator('a[href="/teams"]');
