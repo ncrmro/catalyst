@@ -76,7 +76,8 @@ export async function createProjectNamespace(options: CreateNamespaceOptions): P
     };
   } catch (error) {
     // Check if namespace already exists
-    if (error instanceof Error && error.message.includes('already exists')) {
+    // Check if namespace already exists (HTTP 409 Conflict)
+    if (error && typeof error === 'object' && 'response' in error && error.response?.status === 409) {
       console.log(`Namespace already exists: ${namespaceName}`);
       return {
         name: namespaceName,
