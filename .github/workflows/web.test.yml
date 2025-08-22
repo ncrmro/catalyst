@@ -51,7 +51,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: catalyst_test
+          POSTGRES_DB: catalyst
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -63,6 +63,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - run: cp .env.example .env
 
       - name: Create Kind cluster
         uses: helm/kind-action@v1.10.0
@@ -108,7 +110,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: catalyst_test
+          POSTGRES_DB: catalyst
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -165,8 +167,7 @@ jobs:
       - name: Run Playwright tests
         run: npm run test:e2e
         env:
-          MOCKED: 1
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/catalyst_test
+          GITHUB_REPOS_MODE: mocked
           KUBECONFIG_PRIMARY: ${{ env.KUBECONFIG_PRIMARY }}
       
       - name: Upload Playwright report
