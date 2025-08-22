@@ -264,10 +264,11 @@ test.describe('GitHub Repositories Page', () => {
     const projectCard = page.locator(`[data-testid="project-card-${projectFullName}"]`);
     if (await projectCard.count() > 0) {
       // If we have data-testid, use it for more specific assertions
-      await expect(projectCard.getByText('testuser/my-awesome-project')).toBeVisible();
+      // The repository name in the card shows just the repo name, not the full name
+      await expect(projectCard.getByText('my-awesome-project')).toBeVisible();
     } else {
       // Fallback: look for the repo name in the general area of the project
-      await expect(page.getByText('testuser/my-awesome-project')).toBeVisible();
+      await expect(page.getByText('my-awesome-project')).toBeVisible();
     }
   });
 });
