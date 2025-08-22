@@ -6,7 +6,7 @@ test.describe('GitHub Repositories Page', () => {
     await page.goto('/repos');
 
     // Check that the page title is correct
-    await expect(page.locator('h1')).toContainText('GitHub Repositories');
+    await expect(page.getByRole('heading', { name: 'GitHub Repositories' })).toBeVisible();
 
     // Check that the description is shown
     await expect(page.getByText('Connected repositories from your account and organizations')).toBeVisible();
