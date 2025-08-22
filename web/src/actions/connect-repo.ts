@@ -95,7 +95,9 @@ export async function connectRepoToProject(request: ConnectRepoRequest): Promise
 
 /**
  * Real implementation for when database is available
+ * Currently not used as we're using mocked data, but kept for future implementation
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function connectRepoToProjectReal(request: ConnectRepoRequest): Promise<ConnectRepoResponse> {
   try {
     const { repoId, connectionType, projectName, projectId, description, isPrimary, repo } = request;

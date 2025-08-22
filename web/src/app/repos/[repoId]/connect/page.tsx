@@ -2,6 +2,7 @@ import { fetchGitHubRepos } from '@/actions/repos.github';
 import { fetchProjects } from '@/actions/projects';
 import { ConnectRepoForm } from '@/components/repos/connect-repo-form';
 import { notFound } from 'next/navigation';
+import Image from 'next/image';
 
 interface ConnectRepoPageProps {
   params: Promise<{ repoId: string }>;
@@ -38,9 +39,11 @@ export default async function ConnectRepoPage({ params }: ConnectRepoPageProps) 
 
         <div className="bg-white shadow-sm border rounded-lg p-6 mb-8">
           <div className="flex items-center gap-4">
-            <img 
+            <Image 
               src={repo.owner.avatar_url} 
               alt={`${repo.owner.login} avatar`}
+              width={48}
+              height={48}
               className="w-12 h-12 rounded-full"
             />
             <div>
