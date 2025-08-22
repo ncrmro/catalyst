@@ -14,21 +14,21 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="bg-surface border-b border-outline">
+      <header className="bg-card border-b border-border">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <h1 className="catalyst-title text-2xl font-bold text-on-surface">
+              <h1 className="catalyst-title text-2xl font-bold text-card-foreground">
                 Catalyst
               </h1>
-              <span className="text-sm text-on-surface-variant">
+              <span className="text-sm text-muted-foreground">
                 Development Platform
               </span>
             </div>
             
             <div className="flex items-center gap-4">
               {user && (
-                <div className="text-sm text-on-surface-variant">
+                <div className="text-sm text-muted-foreground">
                   Welcome, {user.name || user.email}!
                 </div>
               )}
@@ -53,19 +53,19 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
       </div>
 
       {/* Footer */}
-      <footer className="bg-surface border-t border-outline mt-auto">
+      <footer className="bg-card border-t border-border mt-auto">
         <div className="px-6 py-4">
-          <div className="flex items-center justify-center gap-6 text-sm text-on-surface-variant">
-            <Link href="/teams" className="hover:text-on-surface hover:underline">
+          <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
+            <Link href="/teams" className="hover:text-card-foreground hover:underline">
               Teams
             </Link>
-            <Link href="/projects" className="hover:text-on-surface hover:underline">
+            <Link href="/projects" className="hover:text-card-foreground hover:underline">
               Projects
             </Link>
-            <Link href="/reports" className="hover:text-on-surface hover:underline">
+            <Link href="/reports" className="hover:text-card-foreground hover:underline">
               Reports
             </Link>
-            <Link href="/repos" className="hover:text-on-surface hover:underline">
+            <Link href="/repos" className="hover:text-card-foreground hover:underline">
               Repositories
             </Link>
           </div>

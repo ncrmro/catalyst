@@ -7,10 +7,7 @@ export function ProjectCard({ project }: { project: Project }) {
   const otherRepos = project.repositories.filter(repo => !repo.primary);
 
   return (
-    <div 
-      className="bg-surface border border-outline rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow"
-      data-testid={`project-card-${project.full_name}`}
-    >
+    <div className="bg-card border border-border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <Image 
@@ -21,14 +18,14 @@ export function ProjectCard({ project }: { project: Project }) {
             className="w-8 h-8 rounded-full"
           />
           <div>
-            <h3 className="text-lg font-semibold text-on-surface">{project.full_name}</h3>
+            <h3 className="text-lg font-semibold text-card-foreground">{project.full_name}</h3>
             {project.description && (
-              <p className="text-on-surface-variant text-sm mt-1">{project.description}</p>
+              <p className="text-muted-foreground text-sm mt-1">{project.description}</p>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 text-sm text-on-surface-variant">
-          <span className="bg-primary-container text-on-primary-container px-2 py-1 rounded-full text-xs font-medium">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="bg-muted text-primary-foreground-container px-2 py-1 rounded-full text-xs font-medium">
             {project.preview_environments_count} previews
           </span>
         </div>
@@ -36,7 +33,7 @@ export function ProjectCard({ project }: { project: Project }) {
 
       {/* Environments */}
       <div className="mb-4">
-        <h4 className="text-sm font-medium text-on-surface-variant mb-2">Environments</h4>
+        <h4 className="text-sm font-medium text-muted-foreground mb-2">Environments</h4>
         <div className="space-y-2">
           {project.environments.map((env) => (
             <EnvironmentBadge key={env.id} environment={env} />
@@ -46,7 +43,7 @@ export function ProjectCard({ project }: { project: Project }) {
 
       {/* Repositories */}
       <div>
-        <h4 className="text-sm font-medium text-on-surface-variant mb-2">
+        <h4 className="text-sm font-medium text-muted-foreground mb-2">
           Repositories ({project.repositories.length})
         </h4>
         <div className="space-y-1">
@@ -61,7 +58,7 @@ export function ProjectCard({ project }: { project: Project }) {
               >
                 {primaryRepo.name}
               </a>
-              <span className="bg-primary-container text-on-primary-container px-1.5 py-0.5 rounded text-xs">
+              <span className="bg-muted text-primary-foreground-container px-1.5 py-0.5 rounded text-xs">
                 primary
               </span>
             </div>
@@ -73,14 +70,14 @@ export function ProjectCard({ project }: { project: Project }) {
                 href={repo.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-on-surface-variant hover:text-on-surface"
+                className="text-muted-foreground hover:text-card-foreground"
               >
                 {repo.name}
               </a>
             </div>
           ))}
           {otherRepos.length > 2 && (
-            <div className="text-xs text-on-surface-variant ml-4">
+            <div className="text-xs text-muted-foreground ml-4">
               +{otherRepos.length - 2} more repositories
             </div>
           )}
@@ -88,8 +85,8 @@ export function ProjectCard({ project }: { project: Project }) {
       </div>
 
       {/* Footer */}
-      <div className="mt-4 pt-4 border-t border-outline">
-        <div className="flex items-center justify-between text-xs text-on-surface-variant">
+      <div className="mt-4 pt-4 border-t border-border">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>Created {new Date(project.created_at).toLocaleDateString()}</span>
           <span>Updated {new Date(project.updated_at).toLocaleDateString()}</span>
         </div>

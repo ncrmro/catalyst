@@ -56,39 +56,39 @@ export default async function Home() {
       <div className="space-y-6">
         {/* Welcome Section */}
         <div>
-          <h1 className="text-3xl font-bold text-on-background mb-2">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
             Welcome back, {session.user.name || session.user.email?.split('@')[0]}!
           </h1>
-          <p className="text-on-surface-variant">
+          <p className="text-muted-foreground">
             Here&apos;s your latest project overview and insights.
           </p>
         </div>
 
         {/* Latest Report Section */}
         {error ? (
-          <div className="bg-error-container border border-outline rounded-lg p-6">
+          <div className="bg-destructive border border-border rounded-lg p-6">
             <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full mx-auto mb-4">
               <span className="text-red-600 text-xl">⚠️</span>
             </div>
-            <h2 className="text-lg font-semibold text-on-error-container mb-2 text-center">Error Loading Dashboard</h2>
-            <p className="text-on-error-container text-center">{error}</p>
+            <h2 className="text-lg font-semibold text-destructive-foreground mb-2 text-center">Error Loading Dashboard</h2>
+            <p className="text-destructive-foreground text-center">{error}</p>
           </div>
         ) : !latestReport ? (
-          <div className="bg-surface border border-outline rounded-lg p-8 text-center">
+          <div className="bg-card border border-border rounded-lg p-8 text-center">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-gray-400 text-3xl">📊</span>
             </div>
-            <h3 className="text-lg font-medium text-on-surface mb-2">No reports available</h3>
-            <p className="text-on-surface-variant max-w-md mx-auto">
+            <h3 className="text-lg font-medium text-card-foreground mb-2">No reports available</h3>
+            <p className="text-muted-foreground max-w-md mx-auto">
               Reports will be generated periodically to provide insights into your project status and development priorities.
             </p>
           </div>
         ) : (
-          <div className="bg-surface border border-outline rounded-lg p-8 shadow-sm">
+          <div className="bg-card border border-border rounded-lg p-8 shadow-sm">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-2xl font-bold text-on-surface mb-2">Latest Project Report</h2>
-                <p className="text-on-surface-variant">
+                <h2 className="text-2xl font-bold text-card-foreground mb-2">Latest Project Report</h2>
+                <p className="text-muted-foreground">
                   Generated on {new Date(latestReport.generated_at).toLocaleDateString()} • 
                   Period: {new Date(latestReport.period_start).toLocaleDateString()} - {new Date(latestReport.period_end).toLocaleDateString()}
                 </p>
@@ -121,10 +121,10 @@ export default async function Home() {
             <div className="grid md:grid-cols-2 gap-6 mb-6">
               {/* Top PRs */}
               <div>
-                <h3 className="text-lg font-semibold text-on-surface mb-4">Top PRs Awaiting Review</h3>
+                <h3 className="text-lg font-semibold text-card-foreground mb-4">Top PRs Awaiting Review</h3>
                 <div className="space-y-3">
                   {latestReport.prs_awaiting_review.slice(0, 3).map((pr) => (
-                    <div key={pr.id} className="border border-outline rounded-lg p-3 bg-gray-50">
+                    <div key={pr.id} className="border border-border rounded-lg p-3 bg-gray-50">
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium text-gray-900">#{pr.number}</span>
@@ -154,10 +154,10 @@ export default async function Home() {
 
               {/* Top Issues */}
               <div>
-                <h3 className="text-lg font-semibold text-on-surface mb-4">Top Priority Issues</h3>
+                <h3 className="text-lg font-semibold text-card-foreground mb-4">Top Priority Issues</h3>
                 <div className="space-y-3">
                   {latestReport.priority_issues.slice(0, 3).map((issue) => (
-                    <div key={issue.id} className="border border-outline rounded-lg p-3 bg-gray-50">
+                    <div key={issue.id} className="border border-border rounded-lg p-3 bg-gray-50">
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium text-gray-900">#{issue.number}</span>
@@ -190,30 +190,30 @@ export default async function Home() {
             </div>
 
             {/* Quick Actions */}
-            <div className="pt-6 border-t border-outline">
-              <h3 className="text-lg font-semibold text-on-surface mb-4">Quick Actions</h3>
+            <div className="pt-6 border-t border-border">
+              <h3 className="text-lg font-semibold text-card-foreground mb-4">Quick Actions</h3>
               <div className="flex gap-4 flex-wrap">
                 <Link
                   href="/reports"
-                  className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container"
+                  className="inline-flex items-center px-4 py-2 border border-border text-sm font-medium rounded-md text-card-foreground bg-card hover:bg-secondary hover:text-secondary-foreground-container"
                 >
                   View All Reports
                 </Link>
                 <Link
                   href="/projects"
-                  className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container"
+                  className="inline-flex items-center px-4 py-2 border border-border text-sm font-medium rounded-md text-card-foreground bg-card hover:bg-secondary hover:text-secondary-foreground-container"
                 >
                   Manage Projects
                 </Link>
                 <Link
                   href="/teams"
-                  className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container"
+                  className="inline-flex items-center px-4 py-2 border border-border text-sm font-medium rounded-md text-card-foreground bg-card hover:bg-secondary hover:text-secondary-foreground-container"
                 >
                   View Teams
                 </Link>
                 <Link
                   href="/repos"
-                  className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container"
+                  className="inline-flex items-center px-4 py-2 border border-border text-sm font-medium rounded-md text-card-foreground bg-card hover:bg-secondary hover:text-secondary-foreground-container"
                 >
                   View Repositories
                 </Link>
