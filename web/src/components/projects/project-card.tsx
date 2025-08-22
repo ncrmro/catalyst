@@ -7,7 +7,7 @@ export function ProjectCard({ project }: { project: Project }) {
   const otherRepos = project.repositories.filter(repo => !repo.primary);
 
   return (
-    <div className="bg-white border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-surface border border-outline rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <Image 
@@ -18,14 +18,14 @@ export function ProjectCard({ project }: { project: Project }) {
             className="w-8 h-8 rounded-full"
           />
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">{project.full_name}</h3>
+            <h3 className="text-lg font-semibold text-on-surface">{project.full_name}</h3>
             {project.description && (
-              <p className="text-gray-600 text-sm mt-1">{project.description}</p>
+              <p className="text-on-surface-variant text-sm mt-1">{project.description}</p>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+        <div className="flex items-center gap-2 text-sm text-on-surface-variant">
+          <span className="bg-primary-container text-on-primary-container px-2 py-1 rounded-full text-xs font-medium">
             {project.preview_environments_count} previews
           </span>
         </div>
