@@ -43,10 +43,11 @@ export default async function Home() {
   if (process.env.MOCKED === '1') {
     session = {
       user: {
-        id: "test-user-1",
         name: "Test User",
         email: "test@example.com"
-      }
+      },
+      userId: "test-user-1",
+      accessToken: "mock-token"
     };
   } else {
     session = await auth();
