@@ -71,6 +71,12 @@ export default async function Home() {
           >
             View Reports
           </Link>
+          <Link
+            className="rounded-full border border-solid border-outline transition-colors flex items-center justify-center bg-surface text-on-surface hover:bg-primary-container hover:text-on-primary-container hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto"
+            href="/teams"
+          >
+            View Teams
+          </Link>
           {isFeatureEnabled('USER_CLUSTERS') && (
             <a
               className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto"
@@ -139,6 +145,19 @@ export default async function Home() {
             height={16}
           />
           Reports
+        </Link>
+        <Link
+          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
+          href="/teams"
+        >
+          <Image
+            aria-hidden
+            src="/file.svg"
+            alt="Teams icon"
+            width={16}
+            height={16}
+          />
+          Teams
         </Link>
         <a
           className="flex items-center gap-2 hover:underline hover:underline-offset-4"
