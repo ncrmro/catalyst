@@ -40,7 +40,7 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'MOCKED=1 npm run dev',
+    command: 'node_modules/.bin/next dev'',
     url: 'http://localhost:3000/api/health/readiness',
     reuseExistingServer: !process.env.CI,
   },
