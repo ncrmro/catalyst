@@ -38,11 +38,23 @@ function getStatusColor(status: 'draft' | 'ready' | 'changes_requested') {
 }
 
 export default async function Home() {
-  const session = await auth();
-  
-  // Redirect to login if not authenticated
-  if (!session?.user) {
-    redirect("/login");
+  // In mocked mode, create a mock session for testing
+  let session;
+  if (process.env.MOCKED === '1') {
+    session = {
+      user: {
+        id: "test-user-1",
+        name: "Test User",
+        email: "test@example.com"
+      }
+    };
+  } else {
+    session = await auth();
+    
+    // Redirect to login if not authenticated
+    if (!session?.user) {
+      redirect("/login");
+    }
   }
 
   // Fetch the latest report
@@ -209,6 +221,12 @@ export default async function Home() {
                   className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container"
                 >
                   Manage Projects
+                </Link>
+                <Link
+                  href="/teams"
+                  className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container"
+                >
+                  View Teams
                 </Link>
                 <Link
                   href="/repos"

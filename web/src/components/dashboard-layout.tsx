@@ -1,5 +1,6 @@
 import Sidebar from "@/components/sidebar";
 import SignOut from "@/components/sign-out";
+import Link from "next/link";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -11,7 +12,7 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children, user }: DashboardLayoutProps) {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="bg-surface border-b border-outline">
         <div className="px-6 py-4">
@@ -37,7 +38,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
         </div>
       </header>
 
-      <div className="flex h-[calc(100vh-73px)]">
+      <div className="flex flex-1">
         {/* Sidebar */}
         <div className="w-64 flex-shrink-0">
           <Sidebar className="h-full" />
@@ -50,6 +51,26 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
           </div>
         </main>
       </div>
+
+      {/* Footer */}
+      <footer className="bg-surface border-t border-outline mt-auto">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-center gap-6 text-sm text-on-surface-variant">
+            <Link href="/teams" className="hover:text-on-surface hover:underline">
+              Teams
+            </Link>
+            <Link href="/projects" className="hover:text-on-surface hover:underline">
+              Projects
+            </Link>
+            <Link href="/reports" className="hover:text-on-surface hover:underline">
+              Reports
+            </Link>
+            <Link href="/repos" className="hover:text-on-surface hover:underline">
+              Repositories
+            </Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

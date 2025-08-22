@@ -12,7 +12,7 @@ interface SidebarNavItem {
 const navItems: SidebarNavItem[] = [
   { href: "/", label: "Home", icon: "🏠" },
   { href: "/projects", label: "Projects", icon: "📁" },
-  { href: "/team", label: "Team", icon: "👥" },
+  { href: "/teams", label: "Teams", icon: "👥" },
   { href: "/infrastructure", label: "Infrastructure", icon: "🏗️" },
 ];
 

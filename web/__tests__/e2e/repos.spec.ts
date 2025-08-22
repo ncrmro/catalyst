@@ -35,14 +35,18 @@ test.describe('GitHub Repositories Page', () => {
     await expect(firstRepo).toBeVisible();
   });
 
-  test('should redirect to login page when accessing home without authentication', async ({ page }) => {
-    // Start at the home page without authentication
+  test('should display dashboard on home page in mocked mode', async ({ page }) => {
+    // Start at the home page in mocked mode
     await page.goto('/');
 
-    // Should redirect to login page
-    await expect(page).toHaveURL('/login');
-    await expect(page.locator('h1')).toContainText('Catalyst');
-    await expect(page.locator('h2')).toContainText('Sign in to your account');
+    // Should stay on home page and show dashboard
+    await expect(page).toHaveURL('/');
+    await expect(page.getByText('Welcome back, Test User!')).toBeVisible();
+    await expect(page.getByText('Here\'s your latest project overview and insights.')).toBeVisible();
+    
+    // Check that it's showing the dashboard layout
+    await expect(page.locator('nav')).toBeVisible(); // Sidebar navigation
+    await expect(page.locator('footer')).toBeVisible(); // Footer
   });
 
   test('should display repository cards with correct information', async ({ page }) => {
