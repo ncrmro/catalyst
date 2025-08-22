@@ -26,7 +26,7 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  build:
+  build-dev:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -37,7 +37,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build and push container
+      - name: Build and push development container
+        uses: ./.github/actions/build-container
+        with:
+          registry: ${{ env.REGISTRY }}
+          image: ${{ github.repository }}/web-dev
+          dockerfile: ./web/Dockerfile.dev
+          platforms: ${{ inputs.platforms || 'linux/amd64' }}
+
+  build:
+    runs-on: ubuntu-latest
+    needs: build-dev
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and push production container
         uses: ./.github/actions/build-container
         with:
           registry: ${{ env.REGISTRY }}

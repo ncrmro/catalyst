@@ -1,0 +1,32 @@
+# Dockerfile for Next.js web application - Development
+FROM node:20-alpine AS base
+
+# Install dependencies only when needed
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+# Set development environment
+ENV NODE_ENV=development
+
+# Install dependencies including dev dependencies
+COPY package*.json ./
+RUN npm ci
+
+# Copy application code
+COPY . .
+
+# Create user for security
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+RUN chown -R nextjs:nodejs /app
+
+USER nextjs
+
+# Expose development port
+EXPOSE 3000
+
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Run development server with hot reloading
+CMD ["npm", "run", "dev"]
