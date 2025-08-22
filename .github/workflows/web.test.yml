@@ -64,8 +64,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - run: cp .env.example .env
-
       - name: Create Kind cluster
         uses: helm/kind-action@v1.10.0
         with:
@@ -89,6 +87,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+        # Always prefer to use .env.example as the source of truth rather than settings envs in gh actions.
+      - run: cp .env.example .env
+
       - name: Run migrations
         run: npm run db:migrate
 
@@ -96,9 +97,6 @@ jobs:
         run: npm test
         env:
           NODE_ENV: test
-          GITHUB_APP_ID: test-app-id
-          GITHUB_WEBHOOK_SECRET: test-secret
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/catalyst_test
           KUBECONFIG_PRIMARY: ${{ env.KUBECONFIG_PRIMARY }}
 
   e2e:
@@ -125,8 +123,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - run: cp .env.example .env
 
       - name: Create Kind cluster
         uses: helm/kind-action@v1.10.0
@@ -167,13 +163,15 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps
 
+        # Always prefer to use .env.example as the source of truth rather than settings envs in gh actions.
+      - run: cp .env.example .env
+
       - name: Run migrations
         run: npm run db:migrate
 
       - name: Run Playwright tests
         run: npm run test:e2e
         env:
-          GITHUB_REPOS_MODE: mocked
           KUBECONFIG_PRIMARY: ${{ env.KUBECONFIG_PRIMARY }}
 
       - name: Upload Playwright report
