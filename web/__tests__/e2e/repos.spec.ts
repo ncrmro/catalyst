@@ -235,4 +235,39 @@ test.describe('GitHub Repositories Page', () => {
     // Should still be on the connect page (form validation prevents submission)
     await expect(page).toHaveURL('/repos/1/connect');
   });
+
+  test('should connect repository and verify persistence on projects page', async ({ page }) => {
+    // Go to connect page for the first repository
+    await page.goto('/repos/1/connect');
+
+    // Verify we're on the connect page with correct repo info
+    await expect(page.getByRole('heading', { name: 'testuser/my-awesome-project' })).toBeVisible();
+    
+    // Fill out the form to create a new project
+    const projectName = `test-project-${Date.now()}`;
+    await page.getByRole('textbox', { name: 'Project Name' }).clear();
+    await page.getByRole('textbox', { name: 'Project Name' }).fill(projectName);
+    
+    // Submit the form
+    await page.getByRole('button', { name: 'Connect Repository' }).click();
+
+    // Should redirect to projects page
+    await expect(page).toHaveURL('/projects');
+    await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
+
+    // Verify the new project appears on the page with the connected repository
+    const projectFullName = `testuser/${projectName}`;
+    await expect(page.getByRole('heading', { name: projectFullName })).toBeVisible();
+    
+    // Check that the repository is listed as part of the project
+    // Look for the repository within the project card
+    const projectCard = page.locator(`[data-testid="project-card-${projectFullName}"]`);
+    if (await projectCard.count() > 0) {
+      // If we have data-testid, use it for more specific assertions
+      await expect(projectCard.getByText('testuser/my-awesome-project')).toBeVisible();
+    } else {
+      // Fallback: look for the repo name in the general area of the project
+      await expect(page.getByText('testuser/my-awesome-project')).toBeVisible();
+    }
+  });
 });
