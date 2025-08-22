@@ -1,47 +1,6 @@
 @import "tailwindcss";
 
-:root {
-  color-scheme: light dark;
-}
-
-.light {
-  /* forces light color-scheme */
-  color-scheme: light;
-}
-.dark {
-  /* forces dark color-scheme */
-  color-scheme: dark;
-}
-
-body {
-  background: light-dark(var(--color-gray-200), var(--color-gray-950));
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-/* 
-  Material Design-Inspired Theme System
-  
-  This theme uses semantic color tokens rather than numerical shade scales:
-  
-  - primary: Main brand color (buttons, important UI elements)
-  - on-primary: Text/icons that appear on primary color backgrounds
-  - primary-container: Secondary/softer brand color for containers
-  - on-primary-container: Text/icons on primary-container backgrounds
-  
-  - secondary: Secondary accent color
-  - on-secondary: Text/icons that appear on secondary color backgrounds
-  - secondary-container: Secondary accent for containers
-  - on-secondary-container: Text/icons on secondary-container backgrounds
-  
-  - surface: Background color for cards, dialogs, etc.
-  - on-surface: Primary text on surface backgrounds
-  - on-surface-variant: Secondary text, hints, icons on surface
-  
-  - outline: Border colors, dividers
-  - background: Main background color
-  - on-background: Text on main background
-*/
-
+/* Tailwind CSS variable mappings */
 @theme {
   --color-primary: light-dark(
     oklch(0.55 0.14 264.665),
@@ -124,6 +83,102 @@ body {
     rgb(17 24 39),
     rgb(243 244 246)
   ); /* gray-900, gray-100 */
+
+  /* Additional shadcn compatibility variables */
+  --color-destructive: var(--color-error);
+  --color-on-destructive: var(--color-on-error);
+  --color-accent: light-dark(
+    rgb(243 244 246),
+    rgb(55 65 81)
+  ); /* gray-100, gray-700 */
+  --color-accent-foreground: var(--color-on-surface);
+  --color-ring: var(--color-primary);
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+.light {
+  /* forces light color-scheme */
+  color-scheme: light;
+}
+.dark {
+  /* forces dark color-scheme */
+  color-scheme: dark;
+}
+
+body {
+  background: light-dark(var(--color-gray-200), var(--color-gray-950));
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* 
+  Material Design-Inspired Theme System
+  
+  This theme uses semantic color tokens rather than numerical shade scales:
+  
+  - primary: Main brand color (buttons, important UI elements)
+  - on-primary: Text/icons that appear on primary color backgrounds
+  - primary-container: Secondary/softer brand color for containers
+  - on-primary-container: Text/icons on primary-container backgrounds
+  
+  - secondary: Secondary accent color
+  - on-secondary: Text/icons that appear on secondary color backgrounds
+  - secondary-container: Secondary accent for containers
+  - on-secondary-container: Text/icons on secondary-container backgrounds
+  
+  - surface: Background color for cards, dialogs, etc.
+  - on-surface: Primary text on surface backgrounds
+  - on-surface-variant: Secondary text, hints, icons on surface
+  
+  - outline: Border colors, dividers
+  - background: Main background color
+  - on-background: Text on main background
+*/
+
+/* 
+  THEME USAGE GUIDE:
+  
+  Here's how to use this theme system in your application:
+  
+  1. BUTTONS:
+     - Primary action button: <Button variant="default">
+     - Secondary action button: <Button variant="secondary">
+     - Outline button: <Button variant="outline">
+     - Text button: <Button variant="ghost">
+     - Danger button: <Button variant="destructive">
+     - Container-styled button: <Button variant="container">
+  
+  2. CARDS:
+     - Card container: bg-surface border border-outline rounded-lg
+     - Card title: text-on-surface font-medium
+     - Card subtitle/metadata: text-on-surface-variant
+  
+  3. TEXT:
+     - Primary text: text-on-background (on main app background)
+     - Primary text on cards: text-on-surface
+     - Secondary text on cards: text-on-surface-variant
+     - Text on primary elements: text-on-primary
+  
+  4. CONTAINERS:
+     - Primary branded container: bg-primary-container text-on-primary-container
+     - Secondary branded container: bg-secondary-container text-on-secondary-container
+     - Tertiary branded container: bg-tertiary-container text-on-tertiary-container
+     - Error container: bg-error-container text-on-error-container
+     - Main content area: bg-background text-on-background
+  
+  5. FORMS:
+     - Input borders: border-outline focus:border-primary
+     - Input text: text-on-surface
+     - Input background: bg-surface
+     - Labels: text-on-surface-variant
+     - Validation/errors: Use destructive colors for errors
+*/
+
+/* Custom Catalyst styles */
+.catalyst-title {
+  text-transform: uppercase;
 }
 
 /* 
