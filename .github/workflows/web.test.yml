@@ -113,6 +113,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - run: cp .env.example .env
+
       - name: Create Kind cluster
         uses: helm/kind-action@v1.10.0
         with:
