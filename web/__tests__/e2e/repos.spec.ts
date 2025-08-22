@@ -116,9 +116,11 @@ test.describe('GitHub Repositories Page', () => {
   test('should show repository information on connect page', async ({ page }) => {
     await page.goto('/repos/1/connect');
 
-    // Check repository display card
+    // Check repository display card - use more specific selectors
     await expect(page.getByRole('heading', { name: 'testuser/my-awesome-project' })).toBeVisible();
-    await expect(page.getByText('An awesome project built with Next.js')).toBeVisible();
+    
+    // Check repository description specifically in the paragraph (not textarea)
+    await expect(page.locator('p.text-gray-600').getByText('An awesome project built with Next.js')).toBeVisible();
     await expect(page.getByText('TypeScript')).toBeVisible();
     await expect(page.getByText('⭐ 42')).toBeVisible();
     await expect(page.getByText('🍴 8')).toBeVisible();
