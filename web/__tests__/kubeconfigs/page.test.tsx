@@ -64,7 +64,9 @@ describe('KubeconfigCore', () => {
   });
 
   test('download functionality works correctly', () => {
-    // Mock document.createElement and appendChild/removeChild
+    render(<KubeconfigCore />);
+    
+    // Mock document.createElement and appendChild/removeChild after render
     const mockAnchor = {
       click: jest.fn(),
       href: '',
@@ -83,8 +85,6 @@ describe('KubeconfigCore', () => {
     
     jest.spyOn(document.body, 'appendChild').mockImplementation(mockAppendChild);
     jest.spyOn(document.body, 'removeChild').mockImplementation(mockRemoveChild);
-    
-    render(<KubeconfigCore />);
     
     const downloadButton = screen.getByTestId('download-button');
     
