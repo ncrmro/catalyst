@@ -40,7 +40,7 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'DATABASE_URL=postgresql://postgres:postgres@localhost:5432/catalyst GITHUB_REPOS_MODE=mocked npm run dev',
+    command: 'GITHUB_REPOS_MODE=mocked npm run dev',
     url: 'http://localhost:3000/api/health/readiness',
     reuseExistingServer: !process.env.CI,
   },
