@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { connectRepoToProject } from '@/actions/connect-repo';
+import { Button } from '@/components/ui/button';
 
 interface GitHubRepo {
   id: number;
@@ -210,21 +211,20 @@ export function ConnectRepoForm({ repo, existingProjects }: ConnectRepoFormProps
 
         {/* Submit Button */}
         <div className="flex items-center justify-between pt-4 border-t">
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={() => router.push('/repos')}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
             Cancel
-          </button>
+          </Button>
           
-          <button
+          <Button
             type="submit"
             disabled={isSubmitting || (connectionType === 'existing' && !selectedProjectId)}
-            className="px-6 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? 'Connecting...' : 'Connect Repository'}
-          </button>
+          </Button>
         </div>
       </form>
     </div>
