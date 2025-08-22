@@ -10,17 +10,17 @@ declare module 'next-auth' {
   interface Session {
       user: {
           id: string;
-          // admin: boolean;
+          admin: boolean;
       } & DefaultSession['user'];
   }
   
-  // interface User {
-  //     admin: boolean;
-  // }
+  interface User {
+      admin: boolean;
+  }
   
-  // interface JWT {
-  //     admin: boolean;
-  // }
+  interface JWT {
+      admin: boolean;
+  }
 }
 
 const providers: Provider[] = [
@@ -77,7 +77,7 @@ if (process.env.NODE_ENV === "development") {
           return {
             ...user,
             id: user.id.toString(),
-            // admin: user.admin ?? false // Handle potential null admin value
+            admin: user.admin ?? false // Handle potential null admin value
           };
         }
         
@@ -85,14 +85,14 @@ if (process.env.NODE_ENV === "development") {
           email: userObject.email,
           name: userObject.name,
           image: userObject.image,
-          // admin: isAdmin,
+          admin: isAdmin,
         }).returning();
         // Convert integer ID to string for NextAuth compatibility
         // Next auth expects id to be a string (UUID) but I stubbornly used an integer
         return {
           ...newUser,
           id: newUser.id.toString(),
-          // admin: newUser.admin ?? false // Handle potential null admin value
+          admin: newUser.admin ?? false // Handle potential null admin value
         };
       },
     })
@@ -162,16 +162,32 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               }
             }
             
-            // Get the user from database to set token.id to database user ID
+            // Get the user from database to set token.id and admin status
             const user = await db.select().from(users).where(eq(users.email, profile.email as string)).limit(1)
             if (user.length > 0) {
               token.id = user[0].id
+              token.admin = user[0].admin ?? false
             }
           } catch (error) {
             console.error('Error creating user:', error)
           }
         }
       }
+      
+      // For subsequent requests (no account/profile), look up user info from database
+      // This is especially important for credentials provider
+      if (token.email && !token.id) {
+        try {
+          const user = await db.select().from(users).where(eq(users.email, token.email as string)).limit(1)
+          if (user.length > 0) {
+            token.id = user[0].id
+            token.admin = user[0].admin ?? false
+          }
+        } catch (error) {
+          console.error('Error looking up user:', error)
+        }
+      }
+      
       return token
     },
     /**
@@ -194,6 +210,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // Send properties to the client
       session.accessToken = token.accessToken as string
       session.userId = token.id as string
+      session.user.admin = token.admin as boolean
       return session
     }
   }

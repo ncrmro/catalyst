@@ -1,6 +1,6 @@
-import { isFeatureEnabled } from '@/lib/feature-flags';
 import { notFound } from 'next/navigation';
 import { getClusters, ClusterInfo } from '@/actions/clusters';
+import { isCurrentUserAdmin } from '@/lib/auth';
 
 // Mock cluster data for when real data is not available
 const mockClusters = [
@@ -104,8 +104,8 @@ function ClusterCard({ cluster }: { cluster: ExtendedClusterInfo }) {
 }
 
 export default async function ClustersPage() {
-  // Check if the feature flag is enabled
-  if (!isFeatureEnabled('USER_CLUSTERS')) {
+  // Check if the user is an admin
+  if (!(await isCurrentUserAdmin())) {
     notFound();
   }
 
