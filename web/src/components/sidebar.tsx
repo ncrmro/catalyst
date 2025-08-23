@@ -25,9 +25,9 @@ export default function Sidebar({ className = "" }: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <nav className={`bg-surface border-r border-outline h-full ${className}`}>
+    <nav className={`bg-card border-r border-border h-full ${className}`}>
       <div className="p-6">
-        <h2 className="text-lg font-semibold text-on-surface mb-6">Navigation</h2>
+        <h2 className="text-lg font-semibold text-card-foreground mb-6">Navigation</h2>
         
         <ul className="space-y-2">
           {navItems.map((item) => {
@@ -39,8 +39,8 @@ export default function Sidebar({ className = "" }: SidebarProps) {
                   href={item.href}
                   className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     isActive
-                      ? "bg-primary-container text-on-primary-container"
-                      : "text-on-surface hover:bg-secondary-container hover:text-on-secondary-container"
+                      ? "bg-muted text-primary-foreground-container"
+                      : "text-card-foreground hover:bg-secondary hover:text-secondary-foreground-container"
                   }`}
                 >
                   {item.icon && (
