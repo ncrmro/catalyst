@@ -35,6 +35,14 @@ The following table lists the configurable parameters of the NextJS chart and th
 | `image.tag` | NextJS image tag | `20-alpine` |
 | `image.pullPolicy` | Image pull policy | `IfNotPresent` |
 
+### Development Image Configuration
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `developmentImage.repository` | Development image repository for helm tests | `node` |
+| `developmentImage.tag` | Development image tag for helm tests | `Chart.AppVersion` |
+| `developmentImage.pullPolicy` | Development image pull policy for helm tests | `IfNotPresent` |
+
 ### NextJS Configuration
 
 | Parameter | Description | Default |

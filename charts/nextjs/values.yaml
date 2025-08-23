@@ -13,6 +13,12 @@ image:
   # Overrides the image tag whose default is the chart appVersion.
   tag: "20-alpine"
 
+# Development image configuration for helm tests
+developmentImage:
+  repository: node
+  pullPolicy: IfNotPresent
+  # tag defaults to Chart.AppVersion if not specified
+
 # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 imagePullSecrets: []
 # This is to override the chart name.

@@ -9,7 +9,8 @@ metadata:
 spec:
   containers:
     - name: wget
-      image: busybox
+      image: "{{ .Values.developmentImage.repository }}:{{ .Values.developmentImage.tag | default .Chart.AppVersion }}"
+      imagePullPolicy: {{ .Values.developmentImage.pullPolicy }}
       command: ['wget']
       args: ['{{ include "nextjs.fullname" . }}:{{ .Values.service.port }}']
   restartPolicy: Never
