@@ -12,8 +12,13 @@ This Helm chart deploys a NextJS application on Kubernetes with optional Postgre
 To install the chart with the release name `my-nextjs-app`:
 
 ```bash
-helm install my-nextjs-app ./charts/nextjs
+# You must specify your NextJS application image
+helm install my-nextjs-app ./charts/nextjs \
+  --set image.repository=my-nextjs-app \
+  --set image.tag=v1.0.0
 ```
+
+**Important**: You must provide a containerized NextJS application image. The chart does not work with the base Node.js image.
 
 ## Uninstalling the Chart
 
@@ -31,8 +36,8 @@ The following table lists the configurable parameters of the NextJS chart and th
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `image.repository` | NextJS image repository | `node` |
-| `image.tag` | NextJS image tag | `20-alpine` |
+| `image.repository` | NextJS image repository | `""` (required) |
+| `image.tag` | NextJS image tag | `""` (uses chart appVersion if not set) |
 | `image.pullPolicy` | Image pull policy | `IfNotPresent` |
 
 ### NextJS Configuration
@@ -134,8 +139,9 @@ The chart includes default health checks that probe the root path (`/`) on port 
 
 ## Notes
 
-- This chart assumes your NextJS application is containerized and listens on port 3000
-- The default image is `node:20-alpine` which is suitable for custom NextJS builds
+- **This chart requires a containerized NextJS application** - you must provide your own built NextJS image
+- The NextJS application must include database migration capabilities (`npm run db:migrate` command)
+- The application should listen on port 3000 and respond to HTTP health checks on the root path (`/`)
 - Environment variables can be customized via the `nextjs.env` values
 - The chart supports horizontal pod autoscaling when `autoscaling.enabled` is set to `true`
 - When PostgreSQL is enabled, database migrations run automatically before the application starts
