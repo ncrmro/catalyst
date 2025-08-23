@@ -1,4 +1,4 @@
-import { fetchProjectById, fetchProjectPullRequests, fetchProjectIssues } from '@/actions/projects';
+import { fetchProjectById, fetchProjectPullRequests, fetchProjectIssues, type Project } from '@/actions/projects';
 import { type PullRequest, type Issue } from '@/actions/reports';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -167,7 +167,9 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   const session = await auth();
   const { projectId } = await params;
   
-  let project, pullRequests, issues;
+  let project: Project | null;
+  let pullRequests: PullRequest[];
+  let issues: Issue[];
   let error: string | null = null;
 
   try {
