@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { loginWithDevPassword } from './helpers';
 
 test.describe('Clusters Page Admin Access', () => {
   test('should deny access for non-admin users', async ({ page }) => {
@@ -25,8 +26,7 @@ test.describe('Clusters Page Admin Access', () => {
     
     // Wait for authentication
     await page.waitForURL('/');
-    
-    // Access clusters page - should work
+
     await page.goto('/clusters');
     await expect(page.locator('h1')).toContainText('Clusters');
   });
