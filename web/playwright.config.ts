@@ -5,12 +5,11 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './__tests__/e2e',
+  timeout: 60000, // Timeout is shared between all tests.
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
@@ -30,10 +29,18 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
 
-  /* Configure projects for major browsers */
+  /* Configure projects for different test types */
   projects: [
     {
-      name: 'chromium',
+      name: 'Kubernetes',
+      testMatch: /.*kubernetes.*\.spec\.ts/,
+      retries: 0,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'Default',
+      testIgnore: /.*kubernetes.*\.spec\.ts/,
+      retries: process.env.CI ? 2 : 0,
       use: { ...devices['Desktop Chrome'] },
     },
   ],
