@@ -4,6 +4,7 @@ import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { fetchProjects } from '@/actions/projects';
 import { getClusters } from '@/actions/clusters';
+import { getGitHubMCPClient, GitHubMCPClient } from '@/lib/mcp-clients';
 
 // Schema for the generated report
 const reportSchema = z.object({
@@ -45,15 +46,26 @@ The user will provide you with current data about projects and clusters to analy
 export interface PeriodicReportOptions {
   provider?: 'anthropic' | 'openai';
   model?: string;
+  enableGitHubMCP?: boolean;
+  gitHubMCPApiKey?: string;
 }
 
 export class PeriodicReportAgent {
   private provider: 'anthropic' | 'openai';
   private model: string;
+  private enableGitHubMCP: boolean;
+  private gitHubMCPClient?: GitHubMCPClient;
 
   constructor(options: PeriodicReportOptions = {}) {
     this.provider = options.provider || 'anthropic';
     this.model = options.model || (this.provider === 'anthropic' ? 'claude-3-sonnet-20240229' : 'gpt-4');
+    this.enableGitHubMCP = options.enableGitHubMCP ?? true;
+    
+    if (this.enableGitHubMCP) {
+      this.gitHubMCPClient = getGitHubMCPClient({
+        apiKey: options.gitHubMCPApiKey,
+      });
+    }
   }
 
   async generateReport(): Promise<z.infer<typeof reportSchema>> {
@@ -61,18 +73,38 @@ export class PeriodicReportAgent {
     const projectsData = await this.fetchProjects();
     const clustersData = await this.fetchClusters();
 
+    // Check GitHub MCP availability for enhanced reporting context
+    let gitHubToolsAvailable = false;
+    let gitHubToolsCount = 0;
+    
+    if (this.enableGitHubMCP && this.gitHubMCPClient) {
+      try {
+        const gitHubTools = await this.gitHubMCPClient.getTools();
+        gitHubToolsAvailable = this.gitHubMCPClient.isAvailable() && Object.keys(gitHubTools).length > 0;
+        gitHubToolsCount = Object.keys(gitHubTools).length;
+        
+        if (gitHubToolsAvailable) {
+          console.log(`GitHub MCP integration enabled with ${gitHubToolsCount} tools available`);
+        }
+      } catch (error) {
+        console.warn('Failed to load GitHub MCP tools:', error);
+      }
+    }
+
     const model = this.provider === 'anthropic' ? anthropic(this.model) : openai(this.model);
 
-    const result = await generateObject({
-      model,
-      system: SYSTEM_PROMPT,
-      prompt: `Generate a comprehensive periodic report for the Catalyst platform based on the following current data:
+    // Enhanced prompt that mentions GitHub integration capabilities
+    const prompt = `Generate a comprehensive periodic report for the Catalyst platform based on the following current data:
 
 PROJECTS DATA:
 ${JSON.stringify(projectsData.data, null, 2)}
 
 CLUSTERS DATA:
 ${JSON.stringify(clustersData.data, null, 2)}
+
+${gitHubToolsAvailable ? `
+GITHUB INTEGRATION:
+GitHub MCP tools are available (${gitHubToolsCount} tools) and can provide additional repository insights, issue tracking, PR analysis, and code metrics to enhance the report with real GitHub data.` : ''}
 
 Analyze this data to create a detailed report covering:
 
@@ -82,7 +114,12 @@ Analyze this data to create a detailed report covering:
 4. Recommendations for improvements
 5. Suggested next steps
 
-Focus on providing actionable insights that help teams maintain and improve their infrastructure.`,
+Focus on providing actionable insights that help teams maintain and improve their infrastructure.${gitHubToolsAvailable ? ' Consider leveraging GitHub data for more comprehensive analysis.' : ''}`;
+
+    const result = await generateObject({
+      model,
+      system: SYSTEM_PROMPT,
+      prompt,
       schema: reportSchema,
     });
 
@@ -118,6 +155,31 @@ Focus on providing actionable insights that help teams maintain and improve thei
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
         data: null
+      };
+    }
+  }
+
+  async getGitHubTools() {
+    if (!this.enableGitHubMCP || !this.gitHubMCPClient) {
+      return {
+        success: false,
+        error: 'GitHub MCP is not enabled',
+        data: {}
+      };
+    }
+
+    try {
+      const tools = await this.gitHubMCPClient.getTools();
+      return {
+        success: true,
+        data: tools,
+        available: this.gitHubMCPClient.isAvailable()
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        data: {}
       };
     }
   }
