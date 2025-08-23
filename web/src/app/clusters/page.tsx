@@ -1,4 +1,3 @@
-import { isFeatureEnabled } from '@/lib/feature-flags';
 import { notFound } from 'next/navigation';
 import { getClusters, ClusterInfo } from '@/actions/clusters';
 import { auth } from '@/auth';
@@ -105,12 +104,6 @@ function ClusterCard({ cluster }: { cluster: ExtendedClusterInfo }) {
 }
 
 export default async function ClustersPage() {
-  // Check if the feature flag is enabled
-  if (!isFeatureEnabled('USER_CLUSTERS')) {
-    notFound();
-    return; // Add return to stop execution
-  }
-
   // Check if user is authenticated and has admin privileges
   const session = await auth();
   if (!session.user.admin) {

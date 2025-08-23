@@ -28,14 +28,10 @@ jest.mock('@kubernetes/client-node', () => ({
   }))
 }));
 
-const originalEnv = process.env;
-
 describe('Clusters Page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.resetModules(); // This is important for feature flag changes
-    process.env = { ...originalEnv };
-    process.env.FF_USER_CLUSTERS = '1'; // Enable feature flag by default
+    jest.resetModules();
     
     mockGetClusters.mockResolvedValue([
       {
@@ -44,10 +40,6 @@ describe('Clusters Page', () => {
         source: 'KUBECONFIG_TEST'
       }
     ]);
-  });
-
-  afterAll(() => {
-    process.env = originalEnv;
   });
 
   it('should allow admin users access', async () => {
@@ -86,31 +78,5 @@ describe('Clusters Page', () => {
     
     expect(mockNotFound).toHaveBeenCalledTimes(1);
     expect(mockAuth).toHaveBeenCalledTimes(1);
-  });
-
-  it('should still check feature flag first', async () => {
-    // Disable feature flag
-    process.env.FF_USER_CLUSTERS = '0';
-    process.env.NODE_ENV = 'test'; // Ensure not development mode for this test
-    
-    mockAuth.mockResolvedValue({
-      user: {
-        id: 'admin-user-id',
-        email: 'admin@example.com',
-        admin: true
-      }
-    });
-
-    // Import fresh module with new env vars
-    delete require.cache[require.resolve('../src/app/clusters/page')];
-    delete require.cache[require.resolve('../src/lib/feature-flags')];
-    const ClustersPage = require('../src/app/clusters/page').default;
-    
-    await ClustersPage();
-    
-    // Should call notFound due to disabled feature flag, even for admin
-    expect(mockNotFound).toHaveBeenCalledTimes(1);
-    // Auth should not be called if feature flag fails first
-    expect(mockAuth).not.toHaveBeenCalled();
   });
 });
