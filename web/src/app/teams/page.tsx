@@ -1,6 +1,8 @@
 import { fetchUserTeams, Team } from '@/actions/teams';
 import { Metadata } from 'next';
 import Link from 'next/link';
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Teams - Catalyst",
@@ -60,6 +62,14 @@ function TeamCard({ team }: { team: Team }) {
 }
 
 export default async function TeamsPage() {
+  // Get the session - auth check is now handled globally by AuthGuard
+  const session = await auth();
+  
+  // This should never happen due to AuthGuard, but keeping as safety check
+  if (!session?.user) {
+    redirect("/login");
+  }
+
   let teams: Team[] = [];
   let error: string | null = null;
 

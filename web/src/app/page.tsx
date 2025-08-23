@@ -38,24 +38,12 @@ function getStatusColor(status: 'draft' | 'ready' | 'changes_requested') {
 }
 
 export default async function Home() {
-  // In mocked mode, create a mock session for testing
-  let session;
-  if (process.env.MOCKED === '1') {
-    session = {
-      user: {
-        name: "Test User",
-        email: "test@example.com"
-      },
-      userId: "test-user-1",
-      accessToken: "mock-token"
-    };
-  } else {
-    session = await auth();
-    
-    // Redirect to login if not authenticated
-    if (!session?.user) {
-      redirect("/login");
-    }
+  // Get the session - auth check is now handled globally by AuthGuard
+  const session = await auth();
+  
+  // This should never happen due to AuthGuard, but keeping as safety check
+  if (!session?.user) {
+    redirect("/login");
   }
 
   // Fetch the latest report

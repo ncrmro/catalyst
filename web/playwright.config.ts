@@ -40,8 +40,8 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'MOCKED=1 npm run dev',
-    url: 'http://localhost:3000/api/health/readiness',
+    command: 'npm run dev',
+    url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
   },
 });

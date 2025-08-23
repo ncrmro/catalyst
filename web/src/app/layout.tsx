@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import AuthGuard from "@/components/auth-guard";
+import { SessionProvider } from "next-auth/react";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -14,7 +16,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        {children}
+        <SessionProvider>
+          <AuthGuard>
+            {children}
+          </AuthGuard>
+        </SessionProvider>
       </body>
     </html>
   );
