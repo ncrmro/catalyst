@@ -7,10 +7,12 @@ on:
     paths:
       - 'web/**'
       - '.github/actions/build-container/**'
+      - '.github/workflows/web.test.yml'
   pull_request:
     paths:
       - 'web/**'
       - '.github/actions/build-container/**'
+      - '.github/workflows/web.test.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
