@@ -38,25 +38,7 @@ function getStatusColor(status: 'draft' | 'ready' | 'changes_requested') {
 }
 
 export default async function Home() {
-  // In mocked mode, create a mock session for testing
-  let session;
-  if (process.env.MOCKED === '1') {
-    session = {
-      user: {
-        name: "Test User",
-        email: "test@example.com"
-      },
-      userId: "test-user-1",
-      accessToken: "mock-token"
-    };
-  } else {
-    session = await auth();
-    
-    // Redirect to login if not authenticated
-    if (!session?.user) {
-      redirect("/login");
-    }
-  }
+  const session = await auth();
 
   // Fetch the latest report
   let latestReport;
