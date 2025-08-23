@@ -32,6 +32,23 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.postgresql.enabled }}
+      initContainers:
+        - name: migrate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["npm", "run", "db:migrate"]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "nextjs.fullname" . }}-database
+                  key: DATABASE_URL
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           {{- with .Values.securityContext }}
@@ -44,10 +61,17 @@ spec:
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
-          {{- if .Values.nextjs.env }}
           env:
+            {{- if .Values.postgresql.enabled }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "nextjs.fullname" . }}-database
+                  key: DATABASE_URL
+            {{- end }}
+            {{- if .Values.nextjs.env }}
             {{- toYaml .Values.nextjs.env | nindent 12 }}
-          {{- end }}
+            {{- end }}
           {{- if .Values.nextjs.envFrom }}
           envFrom:
             {{- toYaml .Values.nextjs.envFrom | nindent 12 }}

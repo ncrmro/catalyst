@@ -30,6 +30,29 @@ nextjs:
   # Additional environment variables from secrets or configmaps
   envFrom: []
 
+# PostgreSQL configuration
+postgresql:
+  # Enable PostgreSQL subchart
+  enabled: true
+  auth:
+    # PostgreSQL username
+    username: nextjs
+    # PostgreSQL database name  
+    database: nextjs
+    # PostgreSQL password will be auto-generated if not specified
+    password: ""
+    # Existing secret containing PostgreSQL password
+    existingSecret: ""
+    # Key in existing secret containing PostgreSQL password
+    secretKeys:
+      adminPasswordKey: postgres-password
+      userPasswordKey: password
+  # Primary PostgreSQL configuration
+  primary:
+    persistence:
+      enabled: true
+      size: 1Gi
+
 # This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
 serviceAccount:
   # Specifies whether a service account should be created
