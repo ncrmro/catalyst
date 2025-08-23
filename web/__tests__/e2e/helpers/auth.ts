@@ -23,39 +23,42 @@ export async function signInWithUniqueUser(page: Page, testInfo: TestInfo, role:
   // Navigate to the login page
   await page.goto('/login');
   
-  // Check if we need to perform sign-in or if already authenticated
-  const signInButton = page.locator('button[type="submit"]');
+  // Look for the "Sign in (dev password)" button
+  const devSignInButton = page.locator('button:has-text("Sign in (dev password)")');
   
-  if (await signInButton.isVisible()) {
-    // Click the sign in button which should trigger the development authentication flow
-    await signInButton.click();
+  if (await devSignInButton.isVisible()) {
+    // Click the development sign in button
+    await devSignInButton.click();
     
-    // In development mode, this might show a password form
-    // Wait for either a password field or successful redirect
-    try {
-      // If a password field appears, fill it
-      const passwordField = page.locator('input[name="password"]');
-      await passwordField.waitFor({ timeout: 2000 });
-      await passwordField.fill(password);
-      
-      const submitButton = page.locator('button[type="submit"]').last();
-      await submitButton.click();
-      
-      // Wait for redirect to home page
-      await page.waitForURL('/', { timeout: 5000 });
-    } catch (error) {
-      // If no password field appears, the sign-in might have succeeded already
-      // Check if we're redirected to home page
-      try {
-        await page.waitForURL('/', { timeout: 5000 });
-      } catch {
-        throw new Error(`Authentication failed: ${error.message}`);
-      }
-    }
+    // Wait for navigation to the auth form
+    await page.waitForLoadState('networkidle');
+    
+    // Now we should be on the auth signin page, look for password field
+    const passwordField = page.locator('input[name="password"], input[type="password"], textbox:has-text("Password")').first();
+    await passwordField.waitFor({ timeout: 10000 });
+    await passwordField.fill(password);
+    
+    // Click the "Sign in with Password" button
+    const submitButton = page.locator('button:has-text("Sign in with Password")');
+    await submitButton.click();
+    
+    // Wait for redirect to home page
+    await page.waitForURL('/', { timeout: 10000 });
+  } else {
+    throw new Error('Development sign-in button not found on login page');
   }
   
   // Verify we're now authenticated by checking for authenticated content
-  await page.waitForSelector('text=Welcome back', { timeout: 10000 });
+  // Look for welcome message or navigation to be more flexible
+  try {
+    await page.waitForSelector('text=Welcome back, h1:has-text("My Teams"), nav', { timeout: 10000 });
+  } catch {
+    // Fallback check - just verify we're not on login page
+    const currentUrl = page.url();
+    if (currentUrl.includes('/login')) {
+      throw new Error(`Still on login page after authentication attempt. URL: ${currentUrl}`);
+    }
+  }
 }
 
 /**

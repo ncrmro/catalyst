@@ -50,14 +50,17 @@ test.describe('Teams Page with Unique Users Example', () => {
     const teamCount = await teamCards.count();
     expect(teamCount).toBeGreaterThan(0);
   });
+});
 
-  test('should work with admin users', async ({ page }, testInfo) => {
-    // This test demonstrates using an admin user instead
-    // Note: we skip the beforeEach for this test to use admin
-    // You could also create a separate describe block for admin tests
-    
+test.describe('Teams Page with Admin Users', () => {
+  // Test admin users separately with their own beforeEach
+  test.beforeEach(async ({ page }, testInfo) => {
+    // Each test gets a unique admin user
     await signInWithUniqueUser(page, testInfo, 'admin');
-    
+  });
+
+  test('should work with admin users', async ({ page }) => {
+    // Navigate to teams page with admin user
     await page.goto('/teams');
 
     // Admin users should also have teams

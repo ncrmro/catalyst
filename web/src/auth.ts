@@ -32,7 +32,7 @@ const providers: Provider[] = [
     }
   })
 ];
-if (process.env.NODE_ENV === "development") {
+if (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test") {
   providers.push(
     Credentials({
       id: "password",
@@ -87,8 +87,28 @@ if (process.env.NODE_ENV === "development") {
           image: userObject.image,
           // admin: isAdmin,
         }).returning();
-        // Convert integer ID to string for NextAuth compatibility
-        // Next auth expects id to be a string (UUID) but I stubbornly used an integer
+        
+        // Create personal team for the new user (like in GitHub OAuth flow)
+        if (newUser) {
+          const teamName = newUser.name ? `${newUser.name}'s Team` : `${newUser.email?.split('@')[0]}'s Team`
+          
+          const [newTeam] = await db.insert(teams).values({
+            name: teamName,
+            description: "Personal team",
+            ownerId: newUser.id,
+          }).returning()
+          
+          // Add user as owner in team memberships
+          if (newTeam) {
+            await db.insert(teamsMemberships).values({
+              teamId: newTeam.id,
+              userId: newUser.id,
+              role: "owner",
+            })
+          }
+        }
+        
+        // Return user with ID as string for NextAuth compatibility
         return {
           ...newUser,
           id: newUser.id.toString(),
@@ -171,6 +191,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             console.error('Error creating user:', error)
           }
         }
+      } else if (account?.provider === "password") {
+        // For credentials provider, the user ID is in token.sub
+        // Set token.id to the user ID for consistency with GitHub OAuth flow
+        token.id = token.sub
       }
       return token
     },
