@@ -51,11 +51,7 @@ export default async function Home() {
     };
   } else {
     session = await auth();
-    
-    // Redirect to login if not authenticated
-    if (!session?.user) {
-      redirect("/login");
-    }
+    // Auth check is now handled by middleware, so session should always exist here
   }
 
   // Fetch the latest report
