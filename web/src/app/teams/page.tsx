@@ -1,6 +1,7 @@
 import { fetchUserTeams, Team } from '@/actions/teams';
 import { Metadata } from 'next';
 import Link from 'next/link';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 export const metadata: Metadata = {
   title: "Teams - Catalyst",
@@ -15,9 +16,9 @@ function TeamCard({ team }: { team: Team }) {
       case 'admin':
         return 'bg-secondary text-secondary-foreground';
       case 'member':
-        return 'bg-outline text-card-foreground';
+        return 'bg-muted text-card-foreground';
       default:
-        return 'bg-outline text-card-foreground';
+        return 'bg-muted text-card-foreground';
     }
   };
 
@@ -26,36 +27,40 @@ function TeamCard({ team }: { team: Team }) {
   };
 
   return (
-    <div className="bg-card border border-border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
-              <span className="text-primary-foreground-container font-semibold text-lg">
-                {team.name.charAt(0).toUpperCase()}
-              </span>
+    <Card className="shadow-sm hover:shadow-md transition-shadow">
+      <CardHeader className="pb-4">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
+                <span className="text-primary-foreground-container font-semibold text-lg">
+                  {team.name.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-card-foreground">{team.name}</h3>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor(team.role)}`}>
+                  {capitalizeRole(team.role)}
+                </span>
+              </div>
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-card-foreground">{team.name}</h3>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor(team.role)}`}>
-                {capitalizeRole(team.role)}
-              </span>
-            </div>
-          </div>
-          
-          {team.description && (
-            <p className="text-muted-foreground mb-3">{team.description}</p>
-          )}
-          
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1">
-              👤 Owner: {team.owner.name || team.owner.email}
-            </span>
-            <span>📅 Created {new Date(team.createdAt).toLocaleDateString()}</span>
           </div>
         </div>
-      </div>
-    </div>
+      </CardHeader>
+
+      <CardContent>
+        {team.description && (
+          <p className="text-muted-foreground mb-3">{team.description}</p>
+        )}
+        
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <span className="flex items-center gap-1">
+            👤 Owner: {team.owner.name || team.owner.email}
+          </span>
+          <span>📅 Created {new Date(team.createdAt).toLocaleDateString()}</span>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
