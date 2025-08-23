@@ -76,7 +76,6 @@ export async function fetchUserTeams(): Promise<Team[]> {
   }
 
   const session = await auth()
-  
 
   try {
     // Join teams with memberships and owner information
@@ -95,7 +94,7 @@ export async function fetchUserTeams(): Promise<Team[]> {
       .from(teamsMemberships)
       .innerJoin(teams, eq(teamsMemberships.teamId, teams.id))
       .innerJoin(users, eq(teams.ownerId, users.id))
-      .where(eq(teamsMemberships.userId, session.userId))
+      .where(eq(teamsMemberships.userId, session.user.id))
 
     return userTeams.map(team => ({
       id: team.id,

@@ -6,7 +6,8 @@ build: ## Build all services
 	$(DC) run --env NODE_ENV=production --rm -it app pnpm run build
 
 up: ## Start all services
-	$(DC) up -d
+	$(DC) up --detach --wait
+	npm run db:migrate
 	GITHUB_REPOS_MODE=mocked npm run dev
 
 down: ## Stop all services
