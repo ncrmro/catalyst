@@ -1,5 +1,4 @@
 import { auth } from "@/auth";
-import { redirect } from "next/navigation";
 import { Metadata } from "next";
 import DashboardLayout from "@/components/dashboard-layout";
 import { fetchLatestReport } from "@/actions/reports";
@@ -38,6 +37,8 @@ function getStatusColor(status: 'draft' | 'ready' | 'changes_requested') {
 }
 
 export default async function Home() {
+  // Since authentication is now handled globally in the root layout,
+  // we can get the session directly without checking
   // In mocked mode, create a mock session for testing
   let session;
   if (process.env.MOCKED === '1') {
@@ -50,12 +51,13 @@ export default async function Home() {
       accessToken: "mock-token"
     };
   } else {
+    // We know we're authenticated at this point due to global auth check
     session = await auth();
-    
-    // Redirect to login if not authenticated
-    if (!session?.user) {
-      redirect("/login");
-    }
+  }
+
+  // At this point, we should always have a session due to global auth check
+  if (!session?.user) {
+    throw new Error("Session should be available after global auth check");
   }
 
   // Fetch the latest report
