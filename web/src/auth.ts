@@ -2,8 +2,7 @@ import NextAuth, { DefaultSession } from "next-auth"
 import { db } from "@/db"
 import { users, teams, teamsMemberships } from "@/db/schema"
 import { eq } from "drizzle-orm"
-import GitHub from "next-auth/providers/github"
-import { Provider } from "next-auth/providers"
+import authConfig from "@/lib/auth.config"
 import Credentials from "next-auth/providers/credentials"
 
 declare module 'next-auth' {
@@ -23,17 +22,7 @@ declare module 'next-auth' {
   // }
 }
 
-const providers: Provider[] = [
-  GitHub({
-    authorization: {
-      params: {
-        scope: "read:user user:email read:org repo"
-      }
-    }
-  })
-];
-if (process.env.NODE_ENV === "development") {
-  providers.push(
+authConfig.providers.push(
     Credentials({
       id: "password",
       name: "Password",
@@ -96,11 +85,10 @@ if (process.env.NODE_ENV === "development") {
         };
       },
     })
-  )
-}
+)
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
-  providers,
+export const { handlers, signIn, signOut, auth: _auth } = NextAuth({
+  ...authConfig,
   callbacks: {
     /**
      * JWT Callback
@@ -116,7 +104,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
      * @see https://next-auth.js.org/configuration/callbacks
      */
     async jwt({ token, account, profile }) {
-      console.log('JWT', { token, account, profile })
       // Persist the OAuth access_token and or the user id to the token right after signin
       if (account && profile) {
         // Add the GitHub access token to enable access to GitHub's APIs
@@ -198,3 +185,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }
   }
 })
+
+/*
+  All routes should be authenticaated via the middleware except login and logout
+*/
+export async function auth() {
+  const session = await _auth();
+  if (!session?.user) {
+    throw new Error("Not authenticated!");
+  }
+  return session;
+}

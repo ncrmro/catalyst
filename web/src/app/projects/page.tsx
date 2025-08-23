@@ -12,25 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ProjectsPage() {
-  // In mocked mode or when GITHUB_REPOS_MODE is mocked, create a mock session for testing
-  let session;
-  if (process.env.MOCKED === '1' || process.env.GITHUB_REPOS_MODE === 'mocked') {
-    session = {
-      user: {
-        name: "Test User",
-        email: "test@example.com"
-      },
-      userId: "test-user-1",
-      accessToken: "mock-token"
-    };
-  } else {
-    session = await auth();
-    
-    // Redirect to login if not authenticated
-    if (!session?.user) {
-      redirect("/login");
-    }
-  }
+  const session = await auth();
   let projectsData: ProjectsData | null;
   let error: string | null = null;
 
