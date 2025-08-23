@@ -77,9 +77,6 @@ export async function fetchUserTeams(): Promise<Team[]> {
 
   const session = await auth()
   
-  if (!session?.userId) {
-    throw new Error('Not authenticated')
-  }
 
   try {
     // Join teams with memberships and owner information
