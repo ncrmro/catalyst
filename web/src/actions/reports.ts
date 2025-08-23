@@ -33,6 +33,13 @@ export interface Issue {
   type: 'bug' | 'feature' | 'improvement' | 'idea';
 }
 
+export interface RepoNarrative {
+  repository: string;
+  recently_delivered_features: string[];
+  ideal_next_tasks: string[];
+  current_blockers: string[];
+}
+
 export interface Report {
   id: string;
   generated_at: string;
@@ -46,6 +53,10 @@ export interface Report {
   prs_awaiting_review: PullRequest[];
   priority_issues: Issue[];
   recommendations: string[];
+  narrative_report?: {
+    overview: string;
+    repositories: RepoNarrative[];
+  };
 }
 
 /**
@@ -208,7 +219,66 @@ function getMockReportsData(): Report[] {
         'Consider scheduling a team discussion about the real-time notifications implementation approach',
         'Review and merge the memory leak fix (#178) to prevent production issues',
         'Plan technical debt reduction sprint focusing on database optimization'
-      ]
+      ],
+      narrative_report: {
+        overview: "This week has been focused on improving API reliability and user experience across our three core repositories. The team has made significant progress on authentication security, user interface improvements, and backend performance optimizations. However, some critical issues around rate limiting and memory management require immediate attention to maintain system stability.",
+        repositories: [
+          {
+            repository: "catalyst/api-gateway",
+            recently_delivered_features: [
+              "Implemented comprehensive API request logging and monitoring dashboard",
+              "Added support for JWT token refresh functionality",
+              "Deployed circuit breaker pattern for external service calls"
+            ],
+            ideal_next_tasks: [
+              "Complete authentication middleware implementation (#247) to enhance security",
+              "Integrate distributed tracing for better observability",
+              "Add automated API documentation generation"
+            ],
+            current_blockers: [
+              "API rate limiting causing timeouts for large datasets (#412) - affecting user experience",
+              "Legacy authentication tokens need migration strategy before middleware deployment",
+              "External service dependencies causing intermittent failures"
+            ]
+          },
+          {
+            repository: "catalyst/web-ui",
+            recently_delivered_features: [
+              "Redesigned user dashboard with improved navigation and performance",
+              "Added real-time status indicators for all background processes",
+              "Implemented responsive design for mobile and tablet devices"
+            ],
+            ideal_next_tasks: [
+              "Implement real-time notifications system (#298) for better user engagement",
+              "Add dark mode theme support for improved accessibility",
+              "Optimize bundle size and implement code splitting for faster load times"
+            ],
+            current_blockers: [
+              "WebSocket connection instability causing notification delays",
+              "Browser compatibility issues with older Safari versions",
+              "Form validation improvements blocked by backend API changes"
+            ]
+          },
+          {
+            repository: "catalyst/core-service",
+            recently_delivered_features: [
+              "Optimized database queries resulting in 40% performance improvement",
+              "Implemented automated backup and recovery procedures",
+              "Added comprehensive health check endpoints for monitoring"
+            ],
+            ideal_next_tasks: [
+              "Complete database connection pool optimization (#167) for better resource utilization",
+              "Implement data retention policies for long-term storage management",
+              "Add support for read replicas to distribute query load"
+            ],
+            current_blockers: [
+              "Memory leak in background job processor (#178) causing service restarts",
+              "Database migration scripts need approval for production deployment",
+              "Monitoring alerts generating false positives during high load periods"
+            ]
+          }
+        ]
+      }
     },
     {
       id: 'report-2024-01-15',
