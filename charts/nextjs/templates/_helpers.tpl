@@ -60,3 +60,34 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Create a default fully qualified postgresql name.
+We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
+*/}}
+{{- define "nextjs.postgresql.fullname" -}}
+{{- printf "%s-%s" .Release.Name "postgresql" | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Get the PostgreSQL password
+*/}}
+{{- define "nextjs.postgresql.password" -}}
+{{- if .Values.postgresql.auth.password }}
+{{- .Values.postgresql.auth.password }}
+{{- else }}
+{{- randAlphaNum 16 }}
+{{- end }}
+{{- end }}
+
+{{/*
+Create the PostgreSQL DATABASE_URL
+*/}}
+{{- define "nextjs.database.url" -}}
+{{- $host := printf "%s.%s.svc.cluster.local" (include "nextjs.postgresql.fullname" .) .Release.Namespace }}
+{{- $port := "5432" }}
+{{- $username := .Values.postgresql.auth.username }}
+{{- $password := include "nextjs.postgresql.password" . }}
+{{- $database := .Values.postgresql.auth.database }}
+{{- printf "postgresql://%s:%s@%s:%s/%s" $username $password $host $port $database }}
+{{- end }}
