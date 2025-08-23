@@ -12,6 +12,10 @@ on:
       - 'web/**'
       - '.github/actions/build-container/**'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test-web:
     runs-on: ubuntu-latest
@@ -88,7 +92,9 @@ jobs:
       
       - name: Install dependencies
         run: npm ci
-      
+
+      - run: npm run db:migrate
+
       - name: Run integration tests
         run: npm test
         env:
@@ -107,7 +113,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: catalyst_test
+          POSTGRES_DB: catalyst
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -161,10 +167,11 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps
       
+      - run: npm run db:migrate
+      
       - name: Run Playwright tests
         run: npm run test:e2e
         env:
-          MOCKED: 1
           KUBECONFIG_PRIMARY: ${{ env.KUBECONFIG_PRIMARY }}
       
       - name: Upload Playwright report
