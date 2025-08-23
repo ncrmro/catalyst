@@ -42,7 +42,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           image: ${{ github.repository }}/web-dev
-          dockerfile: ./web/Dockerfile.dev
+          target: development
           platforms: ${{ inputs.platforms || 'linux/amd64' }}
 
       - name: Build and push production container

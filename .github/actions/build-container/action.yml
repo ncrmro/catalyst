@@ -21,6 +21,9 @@ inputs:
     description: 'Path to Dockerfile'
     required: false
     default: './web/Dockerfile'
+  target:
+    description: 'Target stage to build'
+    required: false
   push:
     description: 'Whether to push the built image'
     required: false
@@ -70,6 +73,7 @@ runs:
       with:
         context: ${{ inputs.context }}
         file: ${{ inputs.dockerfile }}
+        target: ${{ inputs.target }}
         push: ${{ inputs.push }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}

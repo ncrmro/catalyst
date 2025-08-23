@@ -214,7 +214,7 @@ jobs:
         with:
           registry: ghcr.io
           image: ${{ github.repository }}/web-dev
-          dockerfile: ./web/Dockerfile.dev
+          target: development
           platforms: 'linux/amd64'
 
       - name: Build and push production container
