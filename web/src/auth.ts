@@ -9,25 +9,26 @@ declare module "next-auth" {
   interface Session {
     user: {
       id: string;
-      // admin: boolean;
+      admin: boolean;
     } & DefaultSession["user"];
   }
 
-  // interface User {
-  //     admin: boolean;
-  // }
+  interface User {
+    admin: boolean;
+  }
 
-  // interface JWT {
-  //     admin: boolean;
-  // }
+  interface JWT {
+    admin: boolean;
+  }
 }
 
 async function createUserWithPersonalTeam(params: {
   email: string;
   name?: string | null;
   image?: string | null;
+  admin?: boolean;
 }) {
-  const { email, name = null, image = null } = params;
+  const { email, name = null, image = null, admin = false } = params;
 
   const createdUser = await db.transaction(async (tx) => {
     const [newUser] = await tx
@@ -36,6 +37,7 @@ async function createUserWithPersonalTeam(params: {
         email,
         name,
         image,
+        admin,
       })
       .returning();
 
@@ -113,7 +115,15 @@ authConfig.providers.push(
         .from(users)
         .where(eq(users.email, userObject.email));
       if (user) {
-        // Convert integer ID to string for NextAuth compatibility
+        // Update admin status if it has changed based on password type
+        if (user.admin !== isAdmin) {
+          const [updatedUser] = await db
+            .update(users)
+            .set({ admin: isAdmin })
+            .where(eq(users.id, user.id))
+            .returning();
+          return updatedUser;
+        }
         return user;
       }
 
@@ -121,6 +131,7 @@ authConfig.providers.push(
         email: userObject.email,
         name: userObject.name,
         image: userObject.image,
+        admin: isAdmin,
       });
       // Convert integer ID to string for NextAuth compatibility
       // Next auth expects id to be a string (UUID) but I stubbornly used an integer
@@ -171,6 +182,7 @@ export const {
         .limit(1);
       if (existingUser) {
         token.id = existingUser.id;
+        token.admin = existingUser.admin;
         return token;
       } else {
         const createdUser = await createUserWithPersonalTeam({
@@ -180,6 +192,7 @@ export const {
         });
 
         token.id = createdUser.id;
+        token.admin = createdUser.admin;
         return token;
       }
       return token;
@@ -203,6 +216,7 @@ export const {
       // Send properties to the client
       session.accessToken = token.accessToken as string;
       session.user.id = token.id as string;
+      session.user.admin = token.admin as boolean;
       return session;
     },
   },
