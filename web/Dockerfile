@@ -63,6 +63,12 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+# Copy drizzle migrations and config
+COPY --from=builder /app/package.json ./package.json
+RUN npm install --production=false drizzle-orm drizzle-kit
+COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts  /app/drizzle.config.ts
+COPY --from=builder --chown=nextjs:nodejs /app/drizzle  /app/drizzle
+
 COPY --from=builder /app/public ./public
 
 # Automatically leverage output traces to reduce image size
