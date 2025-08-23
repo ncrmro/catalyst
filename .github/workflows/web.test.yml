@@ -208,29 +208,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build and push production container
-        id: build
-        uses: ./.github/actions/build-container
-        with:
-          registry: ghcr.io
-          image: ${{ github.repository }}/web
-          platforms: 'linux/amd64'
-
-  build-dev-container:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-      attestations: write
-    outputs:
-      image-tags: ${{ steps.build-dev.outputs.image }}
-      image-digest: ${{ steps.build-dev.outputs.digest }}
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Build and push development container
         id: build-dev
         uses: ./.github/actions/build-container
@@ -238,6 +215,14 @@ jobs:
           registry: ghcr.io
           image: ${{ github.repository }}/web-dev
           dockerfile: ./web/Dockerfile.dev
+          platforms: 'linux/amd64'
+
+      - name: Build and push production container
+        id: build
+        uses: ./.github/actions/build-container
+        with:
+          registry: ghcr.io
+          image: ${{ github.repository }}/web
           platforms: 'linux/amd64'
 
   preview-environment:
