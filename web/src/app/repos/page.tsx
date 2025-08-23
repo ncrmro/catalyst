@@ -1,6 +1,15 @@
 import { fetchGitHubRepos } from '@/actions/repos.github';
 import Image from 'next/image';
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+import { Metadata } from "next";
+import DashboardLayout from "@/components/dashboard-layout";
 import Link from 'next/link';
+
+export const metadata: Metadata = {
+  title: "GitHub Repositories - Catalyst",
+  description: "View and manage your GitHub repositories and organization repos.",
+};
 
 interface GitHubRepo {
   id: number;
@@ -30,53 +39,53 @@ interface GitHubOrganization {
 
 function RepoCard({ repo }: { repo: GitHubRepo }) {
   return (
-    <div className="bg-white border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
+    <div className="bg-surface border border-outline rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
             <Image 
               src={repo.owner.avatar_url} 
               alt={`${repo.owner.login} avatar`}
               width={24}
               height={24}
-              className="w-6 h-6 rounded-full"
+              className="w-6 h-6 rounded-full flex-shrink-0"
             />
             <a 
               href={repo.html_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 font-semibold text-lg"
+              className="text-primary hover:text-primary font-semibold text-lg truncate"
             >
               {repo.full_name}
             </a>
             {repo.private && (
-              <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">
+              <span className="bg-secondary-container text-on-secondary-container text-xs px-2 py-1 rounded-full flex-shrink-0">
                 Private
               </span>
             )}
           </div>
           
           {repo.description && (
-            <p className="text-gray-600 mb-3">{repo.description}</p>
+            <p className="text-on-surface-variant mb-3 line-clamp-2">{repo.description}</p>
           )}
           
-          <div className="flex items-center gap-4 text-sm text-gray-500">
+          <div className="flex items-center gap-4 text-sm text-on-surface-variant flex-wrap">
             {repo.language && (
-              <span className="flex items-center gap-1">
-                <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
+              <span className="flex items-center gap-1 flex-shrink-0">
+                <span className="w-3 h-3 bg-primary rounded-full"></span>
                 {repo.language}
               </span>
             )}
-            <span>⭐ {repo.stargazers_count}</span>
-            <span>🍴 {repo.forks_count}</span>
-            <span>📋 {repo.open_issues_count} issues</span>
-            <span>Updated {new Date(repo.updated_at).toLocaleDateString()}</span>
+            <span className="flex-shrink-0">⭐ {repo.stargazers_count}</span>
+            <span className="flex-shrink-0">🍴 {repo.forks_count}</span>
+            <span className="flex-shrink-0">📋 {repo.open_issues_count} issues</span>
+            <span className="flex-shrink-0">Updated {new Date(repo.updated_at).toLocaleDateString()}</span>
           </div>
         </div>
-        <div className="ml-4">
+        <div className="flex-shrink-0">
           <Link 
             href={`/repos/${repo.id}/connect`}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-on-primary bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors"
           >
             Connect
           </Link>
@@ -104,9 +113,9 @@ function OrganizationSection({
           className="w-8 h-8 rounded-full"
         />
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">{organization.login}</h2>
+          <h2 className="text-xl font-semibold text-on-surface">{organization.login}</h2>
           {organization.description && (
-            <p className="text-gray-600 text-sm">{organization.description}</p>
+            <p className="text-on-surface-variant text-sm">{organization.description}</p>
           )}
         </div>
       </div>
@@ -121,6 +130,26 @@ function OrganizationSection({
 }
 
 export default async function ReposPage() {
+  // Authentication check (matching the dashboard pattern)
+  let session;
+  if (process.env.MOCKED === '1') {
+    session = {
+      user: {
+        name: "Test User",
+        email: "test@example.com"
+      },
+      userId: "test-user-1",
+      accessToken: "mock-token"
+    };
+  } else {
+    session = await auth();
+    
+    // Redirect to login if not authenticated
+    if (!session?.user) {
+      redirect("/login");
+    }
+  }
+
   let reposData;
   let error: string | null = null;
 
@@ -133,34 +162,47 @@ export default async function ReposPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">GitHub Repositories</h1>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-2xl mx-auto">
-              <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full mx-auto mb-4">
-                <span className="text-red-600 text-xl">⚠️</span>
-              </div>
-              <h2 className="text-lg font-semibold text-red-900 mb-2">Error Loading Repositories</h2>
-              <p className="text-red-700">{error}</p>
-              <div className="mt-4 text-sm text-red-600">
-                <p>To view repositories, set MOCKED=1 or GITHUB_REPOS_MODE=mocked in your environment.</p>
-              </div>
+      <DashboardLayout user={session.user}>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold text-on-background mb-2">GitHub Repositories</h1>
+            <p className="text-on-surface-variant">
+              View and manage your GitHub repositories and organization repos.
+            </p>
+          </div>
+          
+          <div className="bg-error-container border border-outline rounded-lg p-6">
+            <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full mx-auto mb-4">
+              <span className="text-red-600 text-xl">⚠️</span>
+            </div>
+            <h2 className="text-lg font-semibold text-on-error-container mb-2 text-center">Error Loading Repositories</h2>
+            <p className="text-on-error-container text-center">{error}</p>
+            <div className="mt-4 text-sm text-on-error-container text-center">
+              <p>To view repositories, set MOCKED=1 or GITHUB_REPOS_MODE=mocked in your environment.</p>
             </div>
           </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   if (!reposData) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading repositories...</p>
+      <DashboardLayout user={session.user}>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold text-on-background mb-2">GitHub Repositories</h1>
+            <p className="text-on-surface-variant">
+              View and manage your GitHub repositories and organization repos.
+            </p>
+          </div>
+          
+          <div className="bg-surface border border-outline rounded-lg p-8 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-on-surface-variant">Loading repositories...</p>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
@@ -168,22 +210,23 @@ export default async function ReposPage() {
     Object.values(reposData.org_repos).reduce((sum, repos) => sum + repos.length, 0);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-12">
-          <h1 className="text-3xl font-bold text-gray-900">GitHub Repositories</h1>
-          <p className="mt-4 text-lg text-gray-600">
+    <DashboardLayout user={session.user}>
+      <div className="space-y-6">
+        {/* Header Section */}
+        <div>
+          <h1 className="text-3xl font-bold text-on-background mb-2">GitHub Repositories</h1>
+          <p className="text-on-surface-variant">
             Connected repositories from your account and organizations
           </p>
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-sm text-on-surface-variant mt-2">
             {totalRepos} repositories across {reposData.organizations.length + 1} accounts
           </p>
         </div>
 
         {/* User Repositories */}
         {reposData.user_repos.length > 0 && (
-          <div className="mb-12">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-6">Your Repositories</h2>
+          <div className="bg-surface border border-outline rounded-lg p-6 shadow-sm">
+            <h2 className="text-2xl font-semibold text-on-surface mb-6">Your Repositories</h2>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {reposData.user_repos.map((repo) => (
                 <RepoCard key={repo.id} repo={repo} />
@@ -194,37 +237,39 @@ export default async function ReposPage() {
 
         {/* Organization Repositories */}
         {reposData.organizations.length > 0 && (
-          <div>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-8">Organization Repositories</h2>
-            {reposData.organizations.map((org) => {
-              const orgRepos = reposData.org_repos[org.login] || [];
-              if (orgRepos.length === 0) return null;
-              
-              return (
-                <OrganizationSection 
-                  key={org.id} 
-                  organization={org} 
-                  repos={orgRepos} 
-                />
-              );
-            })}
+          <div className="bg-surface border border-outline rounded-lg p-6 shadow-sm">
+            <h2 className="text-2xl font-semibold text-on-surface mb-6">Organization Repositories</h2>
+            <div className="space-y-8">
+              {reposData.organizations.map((org) => {
+                const orgRepos = reposData.org_repos[org.login] || [];
+                if (orgRepos.length === 0) return null;
+                
+                return (
+                  <OrganizationSection 
+                    key={org.id} 
+                    organization={org} 
+                    repos={orgRepos} 
+                  />
+                );
+              })}
+            </div>
           </div>
         )}
 
         {/* Empty State */}
         {totalRepos === 0 && (
-          <div className="text-center py-12">
+          <div className="bg-surface border border-outline rounded-lg p-8 text-center">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-gray-400 text-3xl">📁</span>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No repositories found</h3>
-            <p className="text-gray-600 max-w-md mx-auto">
+            <h3 className="text-lg font-medium text-on-surface mb-2">No repositories found</h3>
+            <p className="text-on-surface-variant max-w-md mx-auto">
               Connect your GitHub account and grant access to organizations to see repositories here.
             </p>
             <div className="mt-6">
               <a
                 href="/github"
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
               >
                 Set up GitHub Integration
               </a>
@@ -232,6 +277,6 @@ export default async function ReposPage() {
           </div>
         )}
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

@@ -87,9 +87,8 @@ export async function connectRepoToProject(request: ConnectRepoRequest): Promise
         return { success: true, projectId };
       }
     } else {
-      // Real implementation should go here
-      // For now, return an error indicating not implemented
-      return { success: false, error: 'Real database connection not implemented yet' };
+      // Use the real database implementation
+      return await connectRepoToProjectReal(request);
     }
   } catch (error) {
     console.error('Error connecting repository to project:', error);
@@ -102,9 +101,7 @@ export async function connectRepoToProject(request: ConnectRepoRequest): Promise
 
 /**
  * Real implementation for when database is available
- * Currently not used as we're using mocked data, but kept for future implementation
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function connectRepoToProjectReal(request: ConnectRepoRequest): Promise<ConnectRepoResponse> {
   try {
     const { repoId, connectionType, projectName, projectId, description, isPrimary, repo } = request;
