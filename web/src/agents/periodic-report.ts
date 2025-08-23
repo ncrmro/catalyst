@@ -4,7 +4,7 @@ import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { fetchProjects } from '@/actions/projects';
 import { getClusters } from '@/actions/clusters';
-import { getGitHubMCPClient, GitHubMCPClient } from '@/lib/mcp-clients';
+import { getGitHubMCPClient, createGitHubMCPClient, GitHubMCPClient } from '@/lib/mcp-clients';
 
 // Schema for the generated report
 const reportSchema = z.object({
@@ -48,6 +48,7 @@ export interface PeriodicReportOptions {
   model?: string;
   enableGitHubMCP?: boolean;
   gitHubMCPApiKey?: string;
+  accessToken?: string;
 }
 
 export class PeriodicReportAgent {
@@ -62,9 +63,19 @@ export class PeriodicReportAgent {
     this.enableGitHubMCP = options.enableGitHubMCP ?? true;
     
     if (this.enableGitHubMCP) {
-      this.gitHubMCPClient = getGitHubMCPClient({
-        apiKey: options.gitHubMCPApiKey,
-      });
+      // Prefer session access token over API key for user-specific GitHub access
+      if (options.accessToken) {
+        this.gitHubMCPClient = createGitHubMCPClient({
+          accessToken: options.accessToken,
+        });
+      } else if (options.gitHubMCPApiKey) {
+        this.gitHubMCPClient = getGitHubMCPClient({
+          apiKey: options.gitHubMCPApiKey,
+        });
+      } else {
+        // Fallback to default client (uses environment variable)
+        this.gitHubMCPClient = getGitHubMCPClient();
+      }
     }
   }
 

@@ -1,13 +1,20 @@
 'use server';
 
 import { generatePeriodicReport } from '@/agents/periodic-report';
+import { _auth } from '@/auth';
 
 /**
  * Server action to generate and fetch a periodic report using the periodic report agent
  */
 export async function generateLatestPeriodicReport() {
   try {
-    const report = await generatePeriodicReport();
+    // Get the current session to access the user's GitHub access token
+    // Use _auth instead of auth to avoid throwing on unauthenticated users
+    const session = await _auth();
+    
+    const report = await generatePeriodicReport({
+      accessToken: session?.accessToken,
+    });
     return {
       success: true,
       data: report,

@@ -11,6 +11,7 @@ import { experimental_createMCPClient as createMCPClient } from 'ai';
 export interface GitHubMCPClientOptions {
   apiKey?: string;
   baseUrl?: string;
+  accessToken?: string;
 }
 
 export class GitHubMCPClient {
@@ -39,10 +40,14 @@ export class GitHubMCPClient {
         url: this.options.baseUrl!,
       };
 
-      // Add authentication headers if API key is provided
+      // Add authentication headers if API key or access token is provided
       if (this.options.apiKey) {
         transportConfig.headers = {
           Authorization: `Bearer ${this.options.apiKey}`,
+        };
+      } else if (this.options.accessToken) {
+        transportConfig.headers = {
+          Authorization: `Bearer ${this.options.accessToken}`,
         };
       }
 
@@ -105,6 +110,7 @@ let defaultGitHubMCPClient: GitHubMCPClient | null = null;
 /**
  * Get the default GitHub MCP client instance
  * This function creates a singleton instance for the application
+ * For session-based authentication, prefer creating new instances with session access tokens
  */
 export function getGitHubMCPClient(options?: GitHubMCPClientOptions): GitHubMCPClient {
   if (!defaultGitHubMCPClient) {
@@ -114,6 +120,14 @@ export function getGitHubMCPClient(options?: GitHubMCPClientOptions): GitHubMCPC
     });
   }
   return defaultGitHubMCPClient;
+}
+
+/**
+ * Create a new GitHub MCP client instance with session-based authentication
+ * This is the preferred method when using user sessions
+ */
+export function createGitHubMCPClient(options: GitHubMCPClientOptions): GitHubMCPClient {
+  return new GitHubMCPClient(options);
 }
 
 /**
