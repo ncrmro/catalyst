@@ -41,7 +41,24 @@ async function main() {
     console.log('🔧 Provider:', openaiAgent instanceof PeriodicReportAgent ? 'openai' : 'unknown');
     console.log();
 
-    // Example 3: Show what a generated report structure would look like
+    // Example 3: Using GitHub MCP integration
+    console.log('🐙 Configuring agent with GitHub MCP integration...');
+    const mcpAgent = new PeriodicReportAgent({
+      provider: 'anthropic',
+      enableGitHubMCP: true,
+      gitHubMCPConfig: {
+        url: 'https://api.githubcopilot.com/mcp/',
+        headers: {
+          // Authorization headers would go here in real usage
+        }
+      }
+    });
+    
+    console.log('✅ GitHub MCP agent configured successfully');
+    console.log('🛠️  GitHub MCP enabled:', mcpAgent.isGitHubMCPEnabled());
+    console.log();
+
+    // Example 4: Show what a generated report structure would look like
     console.log('📄 Example report structure:');
     const exampleReport = {
       title: 'Weekly Infrastructure Report - January 2024',
@@ -83,6 +100,10 @@ async function main() {
     console.log('📝 To use with real AI providers, set up your API keys:');
     console.log('   - ANTHROPIC_API_KEY for Anthropic Claude');
     console.log('   - OPENAI_API_KEY for OpenAI GPT models');
+    console.log('🐙 To use GitHub MCP integration:');
+    console.log('   - Enable the enableGitHubMCP option');
+    console.log('   - Configure gitHubMCPConfig with proper authentication headers');
+    console.log('   - GitHub MCP tools will provide additional repository insights');
 
   } catch (error) {
     console.error('❌ Error during report generation:', error);

@@ -31,6 +31,20 @@ const agent = new PeriodicReportAgent({
 });
 
 const report = await agent.generateReport();
+
+// Using with GitHub MCP integration
+const mcpAgent = new PeriodicReportAgent({
+  provider: 'anthropic',
+  enableGitHubMCP: true,
+  gitHubMCPConfig: {
+    url: 'https://api.githubcopilot.com/mcp/', // default
+    headers: {
+      Authorization: 'Bearer your-github-token'
+    }
+  }
+});
+
+const reportWithGitHubData = await mcpAgent.generateReport();
 ```
 
 #### Configuration
@@ -39,6 +53,21 @@ The agent requires API keys for the AI providers:
 
 - **Anthropic**: Set `ANTHROPIC_API_KEY` environment variable
 - **OpenAI**: Set `OPENAI_API_KEY` environment variable
+
+##### GitHub MCP Integration
+
+The agent can optionally integrate with GitHub through MCP (Model Context Protocol) to provide enhanced repository insights:
+
+- **enableGitHubMCP**: Boolean flag to enable GitHub MCP integration (default: false)
+- **gitHubMCPConfig**: Configuration object for GitHub MCP client
+  - **url**: GitHub MCP server URL (default: 'https://api.githubcopilot.com/mcp/')
+  - **headers**: HTTP headers for authentication (e.g., Authorization tokens)
+
+When enabled, the agent will:
+1. Initialize a connection to the GitHub MCP server
+2. Fetch available GitHub tools (repository analysis, issue tracking, etc.)
+3. Include GitHub tools in the AI context for enhanced report generation
+4. Gracefully handle connection failures without breaking report generation
 
 #### Report Structure
 
@@ -68,6 +97,9 @@ interface Report {
 The agent provides the following tools for data fetching:
 
 - `fetchProjects()`: Retrieves current projects data including repositories and environments
+- `fetchClusters()`: Retrieves current Kubernetes clusters information
+- `isGitHubMCPEnabled()`: Returns whether GitHub MCP integration is active
+- `getGitHubTools()`: Fetches available GitHub MCP tools (when MCP is enabled)
 - `fetchClusters()`: Retrieves current Kubernetes clusters information
 
 #### Example

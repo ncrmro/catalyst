@@ -1,6 +1,7 @@
 // Mock the AI SDK modules to avoid requiring API keys in tests
 jest.mock('ai', () => ({
-  generateObject: jest.fn()
+  generateObject: jest.fn(),
+  experimental_createMCPClient: jest.fn()
 }));
 
 jest.mock('@ai-sdk/anthropic', () => ({
@@ -23,7 +24,7 @@ jest.mock('../../src/actions/clusters', () => ({
 import { PeriodicReportAgent, generatePeriodicReport } from '../../src/agents/periodic-report';
 import { fetchProjects } from '../../src/actions/projects';
 import { getClusters } from '../../src/actions/clusters';
-import { generateObject } from 'ai';
+import { generateObject, experimental_createMCPClient as createMCPClient } from 'ai';
 
 describe('PeriodicReportAgent', () => {
   beforeEach(() => {
@@ -206,5 +207,178 @@ describe('PeriodicReportAgent', () => {
 
     expect(result).toEqual(mockReport);
     expect(generateObject).toHaveBeenCalledTimes(1);
+  });
+
+  describe('GitHub MCP Integration', () => {
+    it('should create an agent with GitHub MCP enabled', () => {
+      const agent = new PeriodicReportAgent({
+        enableGitHubMCP: true,
+        gitHubMCPConfig: {
+          url: 'https://api.githubcopilot.com/mcp/',
+          headers: { Authorization: 'Bearer test-token' }
+        }
+      });
+      
+      expect(agent).toBeInstanceOf(PeriodicReportAgent);
+      expect(agent.isGitHubMCPEnabled()).toBe(false); // Should be false until client is initialized
+    });
+
+    it('should initialize MCP client and fetch tools successfully', async () => {
+      const mockMCPClient = {
+        tools: jest.fn().mockResolvedValue([
+          { name: 'get_repo', description: 'Get repository information' },
+          { name: 'list_issues', description: 'List repository issues' }
+        ])
+      };
+
+      (createMCPClient as jest.Mock).mockResolvedValue(mockMCPClient);
+
+      const agent = new PeriodicReportAgent({
+        enableGitHubMCP: true,
+        gitHubMCPConfig: {
+          url: 'https://api.githubcopilot.com/mcp/',
+          headers: { Authorization: 'Bearer test-token' }
+        }
+      });
+
+      const mockProjectsData = { projects: [], total_count: 0 };
+      const mockClustersData: never[] = [];
+      const mockReport = {
+        title: 'Test Report',
+        summary: 'Test summary',
+        projectsAnalysis: {
+          totalProjects: 0,
+          activeEnvironments: 0,
+          inactiveEnvironments: 0,
+          insights: []
+        },
+        clustersAnalysis: {
+          totalClusters: 0,
+          insights: []
+        },
+        recommendations: [],
+        nextSteps: []
+      };
+
+      (fetchProjects as jest.Mock).mockResolvedValue(mockProjectsData);
+      (getClusters as jest.Mock).mockResolvedValue(mockClustersData);
+      (generateObject as jest.Mock).mockResolvedValue({ object: mockReport });
+
+      const result = await agent.generateReport();
+
+      expect(createMCPClient).toHaveBeenCalledWith({
+        transport: {
+          type: 'sse',
+          url: 'https://api.githubcopilot.com/mcp/',
+          headers: { Authorization: 'Bearer test-token' }
+        }
+      });
+
+      expect(mockMCPClient.tools).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(mockReport);
+    });
+
+    it('should handle MCP client initialization failure gracefully', async () => {
+      const initError = new Error('Failed to connect to MCP server');
+      (createMCPClient as jest.Mock).mockRejectedValue(initError);
+
+      const agent = new PeriodicReportAgent({
+        enableGitHubMCP: true
+      });
+
+      await expect(agent.generateReport()).rejects.toThrow('Failed to connect to MCP server');
+    });
+
+    it('should handle MCP tools fetch failure gracefully', async () => {
+      const mockMCPClient = {
+        tools: jest.fn().mockRejectedValue(new Error('Failed to fetch tools'))
+      };
+
+      (createMCPClient as jest.Mock).mockResolvedValue(mockMCPClient);
+
+      const agent = new PeriodicReportAgent({
+        enableGitHubMCP: true
+      });
+
+      const mockProjectsData = { projects: [], total_count: 0 };
+      const mockClustersData: never[] = [];
+      const mockReport = {
+        title: 'Test Report',
+        summary: 'Test summary',
+        projectsAnalysis: {
+          totalProjects: 0,
+          activeEnvironments: 0,
+          inactiveEnvironments: 0,
+          insights: []
+        },
+        clustersAnalysis: {
+          totalClusters: 0,
+          insights: []
+        },
+        recommendations: [],
+        nextSteps: []
+      };
+
+      (fetchProjects as jest.Mock).mockResolvedValue(mockProjectsData);
+      (getClusters as jest.Mock).mockResolvedValue(mockClustersData);
+      (generateObject as jest.Mock).mockResolvedValue({ object: mockReport });
+
+      // Should not throw, but should log warning
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      
+      const result = await agent.generateReport();
+
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to fetch GitHub MCP tools:', expect.any(Error));
+      expect(result).toEqual(mockReport);
+      
+      consoleSpy.mockRestore();
+    });
+
+    it('should generate report with GitHub MCP tools in prompt when available', async () => {
+      const mockTools = [
+        { name: 'get_repo', description: 'Get repository information' },
+        { name: 'list_issues', description: 'List repository issues' }
+      ];
+
+      const mockMCPClient = {
+        tools: jest.fn().mockResolvedValue(mockTools)
+      };
+
+      (createMCPClient as jest.Mock).mockResolvedValue(mockMCPClient);
+
+      const agent = new PeriodicReportAgent({
+        enableGitHubMCP: true
+      });
+
+      const mockProjectsData = { projects: [], total_count: 0 };
+      const mockClustersData: never[] = [];
+      const mockReport = {
+        title: 'Test Report',
+        summary: 'Test summary',
+        projectsAnalysis: {
+          totalProjects: 0,
+          activeEnvironments: 0,
+          inactiveEnvironments: 0,
+          insights: []
+        },
+        clustersAnalysis: {
+          totalClusters: 0,
+          insights: []
+        },
+        recommendations: [],
+        nextSteps: []
+      };
+
+      (fetchProjects as jest.Mock).mockResolvedValue(mockProjectsData);
+      (getClusters as jest.Mock).mockResolvedValue(mockClustersData);
+      (generateObject as jest.Mock).mockResolvedValue({ object: mockReport });
+
+      await agent.generateReport();
+
+      expect(generateObject).toHaveBeenCalledWith(expect.objectContaining({
+        prompt: expect.stringContaining('AVAILABLE GITHUB TOOLS:'),
+        tools: mockTools
+      }));
+    });
   });
 });
