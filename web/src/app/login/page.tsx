@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { _auth } from "@/auth";
 import SignIn from "@/components/sign-in";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default async function LoginPage() {
-  const session = await auth();
+  const session = await _auth();
   
   // If user is already authenticated, redirect to home
   if (session?.user) {

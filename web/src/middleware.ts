@@ -4,6 +4,7 @@ import NextAuth from "next-auth";
  const { auth: middleware } = NextAuth(authConfig)
 
 export default middleware((req) => {
+  console.log('Middleware invoked', req.nextUrl.pathname);
   if (!req.auth && req.nextUrl.pathname !== "/login") {
     const newUrl = new URL("/login", req.nextUrl.origin)
     return Response.redirect(newUrl)
@@ -22,6 +23,6 @@ export const config = {
      * - favicon.ico, sitemap.xml, robots.txt (metadata files)
      * - login, api/auth (auth endpoints)
      */
-    '/((?!login|api/auth|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.well-known|favicon.ico).*)',
+    '/((?!login|api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.well-known|favicon.ico).*)',
   ],
 }
