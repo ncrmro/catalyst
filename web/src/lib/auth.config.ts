@@ -1,6 +1,6 @@
 /**
- * This is seperate from authjs because nextjs middleware **always** runs in edge runtime 
- * This means we can use the database event htought we only use it during dev.
+ * This is separate from authjs because nextjs middleware **always** runs in edge runtime 
+ * This means we can use the database even though we only use it during dev.
  */
 import { Provider } from "next-auth/providers";
 import GitHub from "next-auth/providers/github";
