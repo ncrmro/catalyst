@@ -42,6 +42,6 @@ export default defineConfig({
   webServer: {
     command: 'GITHUB_REPOS_MODE=mocked npm run dev',
     url: 'http://localhost:3000/api/health/readiness',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
   },
 });
