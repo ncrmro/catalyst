@@ -12,9 +12,9 @@ export const metadata: Metadata = {
 };
 
 export default async function ProjectsPage() {
-  // In mocked mode, create a mock session for testing
+  // In mocked mode or when GITHUB_REPOS_MODE is mocked, create a mock session for testing
   let session;
-  if (process.env.MOCKED === '1') {
+  if (process.env.MOCKED === '1' || process.env.GITHUB_REPOS_MODE === 'mocked') {
     session = {
       user: {
         name: "Test User",
