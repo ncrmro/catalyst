@@ -208,8 +208,7 @@ export const {
   },
 });
 
-/*
-  All routes should be authenticaated via the middleware except login and logout
+  All routes should be authenticated via the middleware except login and logout
 */
 export async function auth() {
   const session = await _auth();
