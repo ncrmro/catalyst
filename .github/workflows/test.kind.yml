@@ -2,10 +2,6 @@
 name: Kind Cluster Testing
 
 "on":
-  push:
-    branches: [main, master]
-    paths:
-      - '.github/workflows/test.kind.yml'
   pull_request:
     branches: [main, master]
     paths:
