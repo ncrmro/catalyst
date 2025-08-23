@@ -26,12 +26,14 @@ export async function createKubernetesNamespace(
       };
     }
 
-    // Validate environment is one of the supported values
-    const supportedEnvironments = ['production', 'staging', 'pr-1'];
-    if (!supportedEnvironments.includes(environment)) {
+    // Validate environment is one of the supported values or follows PR pattern
+    const supportedEnvironments = ['production', 'staging'];
+    const isPrEnvironment = /^gh-pr-\d+$/.test(environment);
+    
+    if (!supportedEnvironments.includes(environment) && !isPrEnvironment) {
       return {
         success: false,
-        error: `Environment must be one of: ${supportedEnvironments.join(', ')}`
+        error: `Environment must be one of: ${supportedEnvironments.join(', ')} or follow pattern gh-pr-NUMBER`
       };
     }
 

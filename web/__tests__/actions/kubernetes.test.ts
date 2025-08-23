@@ -89,7 +89,7 @@ describe('createKubernetesNamespace action', () => {
 
     expect(result).toMatchObject({
       success: false,
-      error: 'Environment must be one of: production, staging, pr-1'
+      error: 'Environment must be one of: production, staging or follow pattern gh-pr-NUMBER'
     });
 
     expect(mockCreateProjectNamespace).not.toHaveBeenCalled();
@@ -120,7 +120,7 @@ describe('createKubernetesNamespace action', () => {
   });
 
   it('should accept all supported environments', async () => {
-    const environments = ['production', 'staging', 'pr-1'];
+    const environments = ['production', 'staging', 'gh-pr-42', 'gh-pr-123'];
 
     for (const environment of environments) {
       mockCreateProjectNamespace.mockResolvedValue({

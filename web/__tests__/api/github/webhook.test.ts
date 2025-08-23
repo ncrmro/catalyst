@@ -2,11 +2,21 @@ import { createMocks } from 'node-mocks-http';
 import { POST } from '../../../src/app/api/github/webhook/route';
 import crypto from 'crypto';
 
+// Mock the Kubernetes action
+jest.mock('../../../src/actions/kubernetes', () => ({
+  createKubernetesNamespace: jest.fn()
+}));
+
+import { createKubernetesNamespace } from '../../../src/actions/kubernetes';
+
 describe('/api/github/webhook', () => {
   const mockWebhookSecret = 'test-webhook-secret';
+  const mockCreateKubernetesNamespace = createKubernetesNamespace as jest.MockedFunction<typeof createKubernetesNamespace>;
 
   beforeEach(() => {
     process.env.GITHUB_WEBHOOK_SECRET = mockWebhookSecret;
+    // Reset all mocks
+    jest.clearAllMocks();
   });
 
   afterEach(() => {
@@ -123,7 +133,22 @@ describe('/api/github/webhook', () => {
       });
     });
 
-    it('should handle pull_request event', async () => {
+    it('should handle pull_request opened event with namespace creation', async () => {
+      // Mock successful namespace creation
+      mockCreateKubernetesNamespace.mockResolvedValue({
+        success: true,
+        message: 'Namespace created successfully',
+        namespace: {
+          name: 'user-repo-gh-pr-42',
+          labels: {
+            'catalyst/team': 'user',
+            'catalyst/project': 'repo', 
+            'catalyst/environment': 'gh-pr-42'
+          },
+          created: true
+        }
+      });
+
       const payload = {
         action: 'opened',
         pull_request: {
@@ -155,9 +180,108 @@ describe('/api/github/webhook', () => {
       expect(response.status).toBe(200);
       expect(data).toMatchObject({
         success: true,
-        message: 'Pull request opened processed',
+        message: 'Pull request opened processed and namespace created',
+        pr_number: 42,
+        namespace: {
+          name: 'user-repo-gh-pr-42',
+          labels: {
+            'catalyst/team': 'user',
+            'catalyst/project': 'repo',
+            'catalyst/environment': 'gh-pr-42'
+          },
+          created: true
+        }
+      });
+
+      // Verify namespace creation was called with correct parameters
+      expect(mockCreateKubernetesNamespace).toHaveBeenCalledWith('user', 'repo', 'gh-pr-42');
+    });
+
+    it('should handle pull_request non-opened event without namespace creation', async () => {
+      const payload = {
+        action: 'closed',
+        pull_request: {
+          number: 42,
+          title: 'Test PR',
+          user: { login: 'testuser' }
+        },
+        repository: { full_name: 'user/repo' }
+      };
+      const payloadString = JSON.stringify(payload);
+      const signature = createSignature(payloadString, mockWebhookSecret);
+
+      const { req } = createMocks({
+        method: 'POST',
+        headers: {
+          'x-github-event': 'pull_request',
+          'x-github-delivery': 'test-delivery-123',
+          'x-hub-signature-256': signature,
+          'content-type': 'application/json'
+        },
+        body: payloadString,
+      });
+
+      req.text = jest.fn().mockResolvedValue(payloadString);
+
+      const response = await POST(req as any);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toMatchObject({
+        success: true,
+        message: 'Pull request closed processed',
         pr_number: 42
       });
+
+      // Verify namespace creation was NOT called
+      expect(mockCreateKubernetesNamespace).not.toHaveBeenCalled();
+    });
+
+    it('should handle pull_request opened event with namespace creation failure', async () => {
+      // Mock failed namespace creation
+      mockCreateKubernetesNamespace.mockResolvedValue({
+        success: false,
+        error: 'Failed to create namespace'
+      });
+
+      const payload = {
+        action: 'opened',
+        pull_request: {
+          number: 42,
+          title: 'Test PR',
+          user: { login: 'testuser' }
+        },
+        repository: { full_name: 'user/repo' }
+      };
+      const payloadString = JSON.stringify(payload);
+      const signature = createSignature(payloadString, mockWebhookSecret);
+
+      const { req } = createMocks({
+        method: 'POST',
+        headers: {
+          'x-github-event': 'pull_request',
+          'x-github-delivery': 'test-delivery-123',
+          'x-hub-signature-256': signature,
+          'content-type': 'application/json'
+        },
+        body: payloadString,
+      });
+
+      req.text = jest.fn().mockResolvedValue(payloadString);
+
+      const response = await POST(req as any);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toMatchObject({
+        success: true,
+        message: 'Pull request opened processed but namespace creation failed',
+        pr_number: 42,
+        namespace_error: 'Failed to create namespace'
+      });
+
+      // Verify namespace creation was called
+      expect(mockCreateKubernetesNamespace).toHaveBeenCalledWith('user', 'repo', 'gh-pr-42');
     });
 
     it('should handle unhandled events', async () => {
