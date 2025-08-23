@@ -374,3 +374,283 @@ function getMockEnvironmentsForProject(projectName: string): ProjectEnvironment[
 
   return baseEnvironments;
 }
+
+/**
+ * Fetch individual project by ID
+ */
+export async function fetchProjectById(projectId: string): Promise<Project | null> {
+  try {
+    // First try to get from real database
+    if (process.env.MOCKED !== '1') {
+      const projectData = await db
+        .select()
+        .from(projects)
+        .leftJoin(projectsRepos, eq(projects.id, projectsRepos.projectId))
+        .leftJoin(repos, eq(projectsRepos.repoId, repos.id))
+        .where(eq(projects.id, projectId));
+
+      if (projectData.length > 0) {
+        const firstRow = projectData[0];
+        if (firstRow.project) {
+          const project: Project = {
+            id: firstRow.project.id,
+            name: firstRow.project.name,
+            full_name: firstRow.project.fullName,
+            description: firstRow.project.description,
+            owner: {
+              login: firstRow.project.ownerLogin,
+              type: (firstRow.project.ownerType as 'User' | 'Organization') || 'User',
+              avatar_url: firstRow.project.ownerAvatarUrl || '',
+            },
+            repositories: [],
+            environments: [],
+            preview_environments_count: firstRow.project.previewEnvironmentsCount || 0,
+            created_at: firstRow.project.createdAt.toISOString(),
+            updated_at: firstRow.project.updatedAt.toISOString(),
+          };
+
+          // Collect repositories
+          const repoMap = new Map<number, ProjectRepo>();
+          for (const row of projectData) {
+            if (row.repo && row.projectsRepos && row.repo.githubId) {
+              repoMap.set(row.repo.githubId, {
+                id: row.repo.githubId,
+                name: row.repo.name,
+                full_name: row.repo.fullName,
+                url: row.repo.url,
+                primary: row.projectsRepos.isPrimary || false,
+              });
+            }
+          }
+
+          project.repositories = Array.from(repoMap.values());
+          project.environments = getMockEnvironmentsForProject(project.name);
+
+          return project;
+        }
+      }
+    }
+
+    // Fallback to mock data
+    const mockData = getMockProjectsData();
+    return mockData.projects.find(p => p.id === projectId) || null;
+  } catch (error) {
+    console.error('Error fetching project by ID:', error);
+    
+    // Fallback to mock data
+    const mockData = getMockProjectsData();
+    return mockData.projects.find(p => p.id === projectId) || null;
+  }
+}
+
+/**
+ * Fetch pull requests for a specific project across all its repositories
+ */
+export async function fetchProjectPullRequests(projectId: string): Promise<import('@/actions/reports').PullRequest[]> {
+  try {
+    const project = await fetchProjectById(projectId);
+    if (!project) {
+      return [];
+    }
+
+    // For now, return mock pull requests filtered by project repositories
+    // In a real implementation, this would query GitHub API or database
+    const allMockPRs = getMockPullRequestsData();
+    const projectRepoNames = project.repositories.map(repo => repo.full_name);
+    
+    return allMockPRs.filter(pr => 
+      projectRepoNames.some(repoName => pr.repository.includes(repoName.split('/')[1]))
+    );
+  } catch (error) {
+    console.error('Error fetching project pull requests:', error);
+    return [];
+  }
+}
+
+/**
+ * Fetch priority issues for a specific project across all its repositories
+ */
+export async function fetchProjectIssues(projectId: string): Promise<import('@/actions/reports').Issue[]> {
+  try {
+    const project = await fetchProjectById(projectId);
+    if (!project) {
+      return [];
+    }
+
+    // For now, return mock issues filtered by project repositories
+    // In a real implementation, this would query GitHub API or database
+    const allMockIssues = getMockIssuesData();
+    const projectRepoNames = project.repositories.map(repo => repo.full_name);
+    
+    return allMockIssues.filter(issue => 
+      projectRepoNames.some(repoName => issue.repository.includes(repoName.split('/')[1]))
+    );
+  } catch (error) {
+    console.error('Error fetching project issues:', error);
+    return [];
+  }
+}
+
+/**
+ * Mock pull requests data for development
+ */
+function getMockPullRequestsData(): import('@/actions/reports').PullRequest[] {
+  return [
+    {
+      id: 1,
+      title: "Add user authentication system",
+      number: 42,
+      author: "jdoe",
+      author_avatar: "https://github.com/identicons/jdoe.png",
+      repository: "foo-frontend",
+      url: "https://github.com/jdoe/foo-frontend/pull/42",
+      created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      comments_count: 5,
+      priority: 'high' as const,
+      status: 'ready' as const,
+    },
+    {
+      id: 2,
+      title: "Fix responsive design issues on mobile",
+      number: 38,
+      author: "alice",
+      author_avatar: "https://github.com/identicons/alice.png",
+      repository: "foo-frontend",
+      url: "https://github.com/jdoe/foo-frontend/pull/38",
+      created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+      comments_count: 12,
+      priority: 'medium' as const,
+      status: 'changes_requested' as const,
+    },
+    {
+      id: 3,
+      title: "Optimize database queries for better performance",
+      number: 67,
+      author: "bob",
+      author_avatar: "https://github.com/identicons/bob.png",
+      repository: "foo-backend",
+      url: "https://github.com/jdoe/foo-backend/pull/67",
+      created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      comments_count: 8,
+      priority: 'high' as const,
+      status: 'ready' as const,
+    },
+    {
+      id: 4,
+      title: "Add rate limiting middleware",
+      number: 23,
+      author: "carol",
+      author_avatar: "https://github.com/identicons/carol.png",
+      repository: "bar-api",
+      url: "https://github.com/jdoe/bar-api/pull/23",
+      created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 0.5 * 24 * 60 * 60 * 1000).toISOString(),
+      comments_count: 3,
+      priority: 'medium' as const,
+      status: 'draft' as const,
+    },
+    {
+      id: 5,
+      title: "Update React components to use hooks",
+      number: 15,
+      author: "dave",
+      author_avatar: "https://github.com/identicons/dave.png",
+      repository: "bar-web",
+      url: "https://github.com/jdoe/bar-web/pull/15",
+      created_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      comments_count: 7,
+      priority: 'low' as const,
+      status: 'ready' as const,
+    },
+  ];
+}
+
+/**
+ * Mock issues data for development
+ */
+function getMockIssuesData(): import('@/actions/reports').Issue[] {
+  return [
+    {
+      id: 101,
+      title: "Memory leak in background job processor",
+      number: 178,
+      repository: "foo-backend",
+      url: "https://github.com/jdoe/foo-backend/issues/178",
+      created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      labels: ["bug", "critical", "backend"],
+      priority: 'high' as const,
+      effort_estimate: 'large' as const,
+      type: 'bug' as const,
+    },
+    {
+      id: 102,
+      title: "Add dark mode support to UI",
+      number: 145,
+      repository: "foo-frontend",
+      url: "https://github.com/jdoe/foo-frontend/issues/145",
+      created_at: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+      labels: ["enhancement", "ui", "frontend"],
+      priority: 'medium' as const,
+      effort_estimate: 'medium' as const,
+      type: 'feature' as const,
+    },
+    {
+      id: 103,
+      title: "Implement caching layer for API responses",
+      number: 89,
+      repository: "bar-api",
+      url: "https://github.com/jdoe/bar-api/issues/89",
+      created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      labels: ["performance", "api", "backend"],
+      priority: 'high' as const,
+      effort_estimate: 'large' as const,
+      type: 'improvement' as const,
+    },
+    {
+      id: 104,
+      title: "Add integration tests for payment flow",
+      number: 56,
+      repository: "foo-backend",
+      url: "https://github.com/jdoe/foo-backend/issues/56",
+      created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      labels: ["testing", "integration", "payment"],
+      priority: 'medium' as const,
+      effort_estimate: 'medium' as const,
+      type: 'improvement' as const,
+    },
+    {
+      id: 105,
+      title: "Explore using WebSockets for real-time updates",
+      number: 203,
+      repository: "bar-web",
+      url: "https://github.com/jdoe/bar-web/issues/203",
+      created_at: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+      labels: ["research", "websockets", "realtime"],
+      priority: 'low' as const,
+      effort_estimate: 'large' as const,
+      type: 'idea' as const,
+    },
+    {
+      id: 106,
+      title: "Fix Docker container startup issues",
+      number: 67,
+      repository: "foo-shared",
+      url: "https://github.com/jdoe/foo-shared/issues/67",
+      created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      labels: ["bug", "docker", "infrastructure"],
+      priority: 'high' as const,
+      effort_estimate: 'small' as const,
+      type: 'bug' as const,
+    },
+  ];
+}
