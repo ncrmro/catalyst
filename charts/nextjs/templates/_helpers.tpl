@@ -81,6 +81,17 @@ Get the PostgreSQL password
 {{- end }}
 
 {{/*
+Get the PostgreSQL admin password
+*/}}
+{{- define "nextjs.postgresql.adminPassword" -}}
+{{- if .Values.postgresql.auth.postgresPassword }}
+{{- .Values.postgresql.auth.postgresPassword }}
+{{- else }}
+{{- randAlphaNum 16 }}
+{{- end }}
+{{- end }}
+
+{{/*
 Create the PostgreSQL DATABASE_URL
 */}}
 {{- define "nextjs.database.url" -}}

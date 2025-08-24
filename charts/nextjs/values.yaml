@@ -42,7 +42,7 @@ postgresql:
     # PostgreSQL password will be auto-generated if not specified
     password: ""
     # Existing secret containing PostgreSQL password
-    existingSecret: ""
+    existingSecret: "nextjs-database"
     # Key in existing secret containing PostgreSQL password
     secretKeys:
       adminPasswordKey: postgres-password

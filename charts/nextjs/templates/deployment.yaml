@@ -46,7 +46,7 @@ spec:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "nextjs.fullname" . }}-database
+                  name: {{ .Values.postgresql.auth.existingSecret | default (printf "%s-database" (include "nextjs.fullname" .)) }}
                   key: DATABASE_URL
           {{- with .Values.securityContext }}
           securityContext:
@@ -74,7 +74,7 @@ spec:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "nextjs.fullname" . }}-database
+                  name: {{ .Values.postgresql.auth.existingSecret | default (printf "%s-database" (include "nextjs.fullname" .)) }}
                   key: DATABASE_URL
             {{- end }}
             {{- if .Values.nextjs.env }}
