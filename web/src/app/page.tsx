@@ -102,6 +102,8 @@ export default async function Home() {
               </div>
             </div>
 
+            {/* Analysis Sections */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
                 <h3 className="text-lg font-semibold text-on-surface mb-4">Projects Insights</h3>
                 <div className="space-y-3">
