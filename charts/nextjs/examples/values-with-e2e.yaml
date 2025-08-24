@@ -5,13 +5,13 @@ image:
   repository: my-nextjs-app
   tag: v1.0.0
 
+# Development image for E2E tests (same as your main app but with development dependencies)
+developmentImage:
+  repository: my-nextjs-app
+  tag: development  # or use a development build of your app
+
 # E2E test configuration
 e2eTests:
-  # E2E test image (must be built from web/Dockerfile.e2e)
-  image:
-    repository: my-nextjs-app-e2e
-    tag: v1.0.0
-  
   # Run only smoke tests (recommended for Helm tests)
   smokeOnly: true
   

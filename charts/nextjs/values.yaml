@@ -19,14 +19,8 @@ developmentImage:
   pullPolicy: IfNotPresent
   # tag defaults to Chart.AppVersion if not specified
 
-# E2E test configuration for helm tests
+# E2E test configuration for helm tests using development image
 e2eTests:
-  # E2E test image configuration
-  image:
-    repository: ""  # Must be set to a built E2E test image
-    tag: ""         # Defaults to Chart.AppVersion if not specified
-    pullPolicy: IfNotPresent
-  
   # Run only smoke tests by default (recommended for Helm tests)
   smokeOnly: true
   

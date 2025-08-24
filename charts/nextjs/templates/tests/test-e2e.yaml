@@ -10,8 +10,8 @@ metadata:
 spec:
   containers:
     - name: e2e-tests
-      image: "{{ .Values.e2eTests.image.repository }}:{{ .Values.e2eTests.image.tag | default .Chart.AppVersion }}"
-      imagePullPolicy: {{ .Values.e2eTests.image.pullPolicy }}
+      image: "{{ .Values.developmentImage.repository }}:{{ .Values.developmentImage.tag | default .Chart.AppVersion }}"
+      imagePullPolicy: {{ .Values.developmentImage.pullPolicy }}
       env:
         - name: TEST_BASE_URL
           value: "http://{{ include "nextjs.fullname" . }}:{{ .Values.service.port }}"
@@ -26,17 +26,22 @@ spec:
           value: {{ .value | quote }}
         {{- end }}
       command: 
-        - npx
-        - playwright
-        - test
-        - --config=playwright.config.helm.ts
-        {{- if .Values.e2eTests.smokeOnly }}
-        - __tests__/e2e/smoke.spec.ts
-        {{- else }}
-        {{- range .Values.e2eTests.testFiles }}
-        - {{ . }}
-        {{- end }}
-        {{- end }}
+        - sh
+        - -c
+        - |
+          # Install playwright browsers if not present
+          npx playwright install chromium --with-deps
+          # Run the tests
+          npx playwright test \
+            --config=/app/playwright.config.ts \
+            --project=chromium \
+            {{- if .Values.e2eTests.smokeOnly }}
+            /app/__tests__/e2e/smoke.spec.ts
+            {{- else }}
+            {{- range .Values.e2eTests.testFiles }}
+            /app/{{ . }}
+            {{- end }}
+            {{- end }}
       resources:
         {{- toYaml .Values.e2eTests.resources | nindent 8 }}
       volumeMounts:
