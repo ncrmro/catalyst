@@ -174,8 +174,19 @@ export default function KubeconfigsPage() {
   --driver-opt namespace=default \\
   --name k8s-builder
 docker buildx build --builder k8s-builder \\
-  -t myapp:latest --push .`}
+  -t localhost:5000/myapp:latest --push .`}
                   </pre>
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-on-surface mb-2">In-Cluster Registry</h4>
+                <p className="text-sm text-on-surface-variant mb-2">
+                  The Kind testing environment includes an in-cluster container registry at <code className="bg-background px-1 rounded">localhost:5000</code> for fast image caching and deployment.
+                </p>
+                <div className="bg-primary-container border border-outline rounded p-3 mt-2">
+                  <p className="text-xs text-on-primary-container">
+                    <strong>💡 Tip:</strong> Images pushed to the in-cluster registry are immediately available for deployment without external network dependencies.
+                  </p>
                 </div>
               </div>
             </div>

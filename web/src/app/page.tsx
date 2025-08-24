@@ -36,10 +36,10 @@ export default async function Home() {
       <div className="space-y-6">
         {/* Welcome Section */}
         <div>
-          <h1 className="text-3xl font-bold text-on-background mb-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-on-background mb-2">
             Welcome back, {session.user.name || session.user.email?.split('@')[0]}!
           </h1>
-          <p className="text-on-surface-variant">
+          <p className="text-sm md:text-base text-on-surface-variant">
             Here&apos;s your latest project overview and insights.
           </p>
         </div>
@@ -64,8 +64,8 @@ export default async function Home() {
             </p>
           </div>
         ) : (
-          <div className="bg-surface border border-outline rounded-lg p-8 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
+          <div className="bg-surface border border-outline rounded-lg p-4 md:p-8 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
               <div>
                 <h2 className="text-2xl font-bold text-on-surface mb-2">{periodicReport.title}</h2>
                 <p className="text-on-surface-variant">
@@ -75,8 +75,7 @@ export default async function Home() {
               </div>
               <Link
                 href="/reports"
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              >
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
                 View All Reports →
               </Link>
             </div>
@@ -88,7 +87,7 @@ export default async function Home() {
             </div>
 
             {/* Summary Cards */}
-            <div className="grid md:grid-cols-3 gap-6 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-6">
               <div className="bg-blue-50 rounded-lg p-4">
                 <div className="text-2xl font-bold text-blue-600">{periodicReport.projectsAnalysis.totalProjects}</div>
                 <div className="text-sm text-blue-800">Total Projects</div>
@@ -103,9 +102,6 @@ export default async function Home() {
               </div>
             </div>
 
-            {/* Analysis Sections */}
-            <div className="grid md:grid-cols-2 gap-6 mb-6">
-              {/* Projects Analysis */}
               <div>
                 <h3 className="text-lg font-semibold text-on-surface mb-4">Projects Insights</h3>
                 <div className="space-y-3">
@@ -159,28 +155,28 @@ export default async function Home() {
             {/* Quick Actions */}
             <div className="pt-6 border-t border-outline">
               <h3 className="text-lg font-semibold text-on-surface mb-4">Quick Actions</h3>
-              <div className="flex gap-4 flex-wrap">
+              <div className="grid grid-cols-2 md:flex md:flex-wrap gap-3 md:gap-4">
                 <Link
                   href="/reports"
-                  className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container"
+                  className="inline-flex items-center justify-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container min-h-[44px]"
                 >
                   View All Reports
                 </Link>
                 <Link
                   href="/projects"
-                  className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container"
+                  className="inline-flex items-center justify-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container min-h-[44px]"
                 >
                   Manage Projects
                 </Link>
                 <Link
                   href="/teams"
-                  className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container"
+                  className="inline-flex items-center justify-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container min-h-[44px]"
                 >
                   View Teams
                 </Link>
                 <Link
                   href="/repos"
-                  className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container"
+                  className="inline-flex items-center justify-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container min-h-[44px]"
                 >
                   View Repositories
                 </Link>
