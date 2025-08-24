@@ -70,6 +70,7 @@ jobs:
       # Install Playwright browsers after npm ci to ensure dependencies are available
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps
       - run: env
 
       - name: Create Kind cluster
