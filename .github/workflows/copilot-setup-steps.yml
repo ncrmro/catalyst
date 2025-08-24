@@ -60,18 +60,19 @@ jobs:
             ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
 
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: |
-          cd ./web
-          npx playwright install --with-deps
-
       # Copliot setup steps don't respect changing the directory between steps
       - run: |
           cd ./web
           cp .env.example .env
           npm ci
           npm run db:migrate
+
+      # Install Playwright browsers after npm ci to ensure dependencies are available
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: |
+          cd ./web
+          npx playwright install --with-deps
         
       - run: env
 
