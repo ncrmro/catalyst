@@ -11,6 +11,7 @@ declare module "next-auth" {
       id: string;
       admin: boolean;
     } & DefaultSession["user"];
+    accessToken?: string;
   }
 
   interface User {
@@ -212,7 +213,7 @@ export const {
      *
      * @see https://next-auth.js.org/configuration/callbacks
      */
-    async session({ session, token, user }) {
+    async session({ session, token }) {
       // Send properties to the client
       session.accessToken = token.accessToken as string;
       session.user.id = token.id as string;

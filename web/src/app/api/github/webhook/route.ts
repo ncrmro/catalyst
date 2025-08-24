@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { createKubernetesNamespace, deleteKubernetesNamespace } from '../../../../actions/kubernetes';
 
 /**
  * GitHub App Webhook Endpoint
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
       case 'push':
         return handlePushEvent(payload);
       case 'pull_request':
-        return handlePullRequestEvent(payload);
+        return await handlePullRequestEvent(payload);
       default:
         console.log(`Received unhandled event: ${event}`);
         return NextResponse.json({ 
@@ -140,7 +141,7 @@ function handlePushEvent(payload: {
 /**
  * Handle pull request events
  */
-function handlePullRequestEvent(payload: {
+async function handlePullRequestEvent(payload: {
   action: string;
   pull_request: {
     number: number;
@@ -156,6 +157,80 @@ function handlePullRequestEvent(payload: {
     title: pull_request.title,
     author: pull_request.user.login
   });
+
+  // Create namespace when PR is opened
+  if (action === 'opened') {
+    try {
+      // Extract team and project from repository full_name (owner/repo)
+      const [owner, repo] = repository.full_name.split('/');
+      const environment = `gh-pr-${pull_request.number}`;
+      
+      const namespaceResult = await createKubernetesNamespace(owner, repo, environment);
+      
+      if (namespaceResult.success) {
+        console.log(`Namespace created for PR ${pull_request.number}:`, namespaceResult.namespace?.name);
+        return NextResponse.json({
+          success: true,
+          message: `Pull request ${action} processed and namespace created`,
+          pr_number: pull_request.number,
+          namespace: namespaceResult.namespace
+        });
+      } else {
+        console.error(`Failed to create namespace for PR ${pull_request.number}:`, namespaceResult.error);
+        return NextResponse.json({
+          success: true,
+          message: `Pull request ${action} processed but namespace creation failed`,
+          pr_number: pull_request.number,
+          namespace_error: namespaceResult.error
+        });
+      }
+    } catch (error) {
+      console.error(`Error creating namespace for PR ${pull_request.number}:`, error);
+      return NextResponse.json({
+        success: true,
+        message: `Pull request ${action} processed but namespace creation failed`,
+        pr_number: pull_request.number,
+        namespace_error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  // Delete namespace when PR is closed
+  if (action === 'closed') {
+    try {
+      // Extract team and project from repository full_name (owner/repo)
+      const [owner, repo] = repository.full_name.split('/');
+      const environment = `gh-pr-${pull_request.number}`;
+      
+      const deleteResult = await deleteKubernetesNamespace(owner, repo, environment);
+      
+      if (deleteResult.success) {
+        console.log(`Namespace deleted for PR ${pull_request.number}:`, deleteResult.namespaceName);
+        return NextResponse.json({
+          success: true,
+          message: `Pull request ${action} processed and namespace deleted`,
+          pr_number: pull_request.number,
+          namespace_deleted: deleteResult.namespaceName
+        });
+      } else {
+        console.error(`Failed to delete namespace for PR ${pull_request.number}:`, deleteResult.error);
+        return NextResponse.json({
+          success: true,
+          message: `Pull request ${action} processed but namespace deletion failed`,
+          pr_number: pull_request.number,
+          namespace_error: deleteResult.error
+        });
+      }
+    } catch (error) {
+      console.error(`Error deleting namespace for PR ${pull_request.number}:`, error);
+      return NextResponse.json({
+        success: true,
+        message: `Pull request ${action} processed but namespace deletion failed`,
+        pr_number: pull_request.number,
+        namespace_error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
   
   return NextResponse.json({
     success: true,
