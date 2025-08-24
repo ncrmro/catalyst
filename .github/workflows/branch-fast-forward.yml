@@ -1,0 +1,63 @@
+name: Branch Fast Forward
+
+# This reusable workflow promotes a branch by performing a fast-forward merge.
+# It is typically used to promote staging -> main branches.
+# 
+# The workflow ensures that Git history is always fast-forwarded. If a hotfix 
+# has been applied and branches have diverged, it will first reconcile the 
+# branches by merging the target branch back into the head branch, then 
+# perform the fast-forward merge.
+#
+# Usage example:
+#   jobs:
+#     promote:
+#       uses: ./.github/workflows/branch-fast-forward.yml
+#       with:
+#         head_branch: staging
+#         target_branch: main
+#         git_user_name: "GitHub Actions"
+#         git_user_email: "actions@github.com"
+
+on:
+  workflow_call:
+    inputs:
+      head_branch:
+        description: 'Source branch to promote from (e.g., staging)'
+        required: false
+        default: 'staging'
+        type: string
+      target_branch:
+        description: 'Target branch to promote to (e.g., main)'
+        required: false
+        default: 'main'
+        type: string
+      git_user_name:
+        description: 'Git user name for commits'
+        required: false
+        default: 'GitHub Actions'
+        type: string
+      git_user_email:
+        description: 'Git user email for commits'
+        required: false
+        default: 'actions@github.com'
+        type: string
+
+jobs:
+  fast-forward:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for proper merge operations
+
+      - name: Fast-forward branch promotion
+        uses: ./.github/actions/branch-fast-forward
+        with:
+          head_branch: ${{ inputs.head_branch }}
+          target_branch: ${{ inputs.target_branch }}
+          git_user_name: ${{ inputs.git_user_name }}
+          git_user_email: ${{ inputs.git_user_email }}
