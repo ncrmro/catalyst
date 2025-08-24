@@ -33,14 +33,14 @@ export async function createKubernetesNamespace(
       };
     }
 
-    // Validate environment is one of the supported values or follows PR pattern
+    // Validate environment is one of the supported values or follows a PR pattern
     const supportedEnvironments = ['production', 'staging'];
-    const isPrEnvironment = /^gh-pr-\d+$/.test(environment);
+    const isPrEnvironment = /^(pr-\d+|gh-pr-\d+)$/.test(environment);
     
     if (!supportedEnvironments.includes(environment) && !isPrEnvironment) {
       return {
         success: false,
-        error: `Environment must be one of: ${supportedEnvironments.join(', ')} or follow pattern gh-pr-NUMBER`
+        error: `Environment must be one of: ${supportedEnvironments.join(', ')} or follow pattern pr-NUMBER or gh-pr-NUMBER`
       };
     }
 
@@ -101,14 +101,14 @@ export async function deleteKubernetesNamespace(
       };
     }
 
-    // Validate environment is one of the supported values or follows PR pattern
+    // Validate environment is one of the supported values or follows a PR pattern
     const supportedEnvironments = ['production', 'staging'];
-    const isPrEnvironment = /^gh-pr-\d+$/.test(environment);
+    const isPrEnvironment = /^(pr-\d+|gh-pr-\d+)$/.test(environment);
     
     if (!supportedEnvironments.includes(environment) && !isPrEnvironment) {
       return {
         success: false,
-        error: `Environment must be one of: ${supportedEnvironments.join(', ')} or follow pattern gh-pr-NUMBER`
+        error: `Environment must be one of: ${supportedEnvironments.join(', ')} or follow pattern pr-NUMBER or gh-pr-NUMBER`
       };
     }
 
@@ -131,7 +131,13 @@ export async function deleteKubernetesNamespace(
         errorMessage = kubeError.message;
         
         // Handle specific Kubernetes API errors
-        if (kubeError.message.includes('not found')) {
+        // Check for 404 status code or "not found" in the error
+        const errorString = JSON.stringify(kubeError);
+        const hasCode404 = 'code' in kubeError && kubeError.code === 404;
+        if (kubeError.message.includes('not found') || 
+            errorString.includes('not found') || 
+            errorString.includes('"code":404') ||
+            hasCode404) {
           // Namespace doesn't exist, consider this a success
           const namespaceName = generateNamespaceName(team, project, environment);
           return {

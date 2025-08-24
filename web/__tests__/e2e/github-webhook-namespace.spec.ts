@@ -165,8 +165,10 @@ test.describe('GitHub Webhook → Namespace E2E Integration', () => {
     expect(response.ok()).toBe(true);
     expect(data.success).toBe(true);
     expect(data.pr_number).toBe(prNumber);
-    expect(data.message).toBe('Pull request closed processed');
-    expect(data.namespace).toBeUndefined();
+    // When a PR is closed, the webhook tries to delete the namespace
+    // If the namespace doesn't exist, it should still report success
+    expect(data.message).toBe('Pull request closed processed and namespace deleted');
+    expect(data.namespace_deleted).toBeDefined();
 
     // Verify namespace was NOT created
     const exists = await namespaceExists(expectedNamespace);
