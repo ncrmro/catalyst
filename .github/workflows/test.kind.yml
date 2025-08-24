@@ -39,20 +39,50 @@ jobs:
 
           echo "Cluster verification completed successfully!"
 
+      - name: Install in-cluster container registry
+        run: |
+          echo "Installing in-cluster container registry..."
+          
+          # Create a simple registry deployment
+          kubectl run registry --image=registry:2.8.3 --port=5000
+          kubectl expose pod registry --port=5000 --target-port=5000
+          
+          # Wait for registry to be ready
+          kubectl wait --for=condition=ready pod/registry --timeout=120s
+          
+          echo "Registry installed successfully!"
+          kubectl get pods,svc | grep registry
+          
+          # Set up port forwarding for registry access in background
+          kubectl port-forward pod/registry 5000:5000 &
+          sleep 5
+          
+          # Test registry connectivity
+          curl -f "http://localhost:5000/v2/" && echo "Registry is accessible!"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          driver: kubernetes
 
-      - name: Build web application with buildx
+      - name: Build and push web application to in-cluster registry
         run: |
-          echo "Building web/Dockerfile using buildx with kubernetes driver..."
-          docker buildx build \
-            --platform linux/amd64 \
-            --tag catalyst-web:test \
+          echo "Building and pushing web/Dockerfile to in-cluster registry..."
+          
+          # Build and push to the in-cluster registry
+          docker build \
+            --tag localhost:5000/catalyst-web:test \
             --file web/Dockerfile \
             web/
-          echo "Web application build completed successfully!"
+          
+          # Push the image to the registry
+          docker push localhost:5000/catalyst-web:test
+          
+          echo "Web application build and push completed successfully!"
+          
+          # Verify the image was pushed successfully
+          echo "Verifying image push to registry..."
+          curl -f "http://localhost:5000/v2/catalyst-web/tags/list" && \
+            echo "Image successfully pushed and verified in registry!" || \
+            echo "Warning: Could not verify image in registry, but push command succeeded"
 
       - name: Test basic kubectl operations
         run: |
