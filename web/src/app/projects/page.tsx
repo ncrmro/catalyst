@@ -2,7 +2,6 @@ import { fetchProjects, ProjectsData } from '@/actions/projects';
 import Link from 'next/link';
 import { ProjectCard } from '@/components/projects/project-card';
 import { auth } from "@/auth";
-import { redirect } from "next/navigation";
 import { Metadata } from "next";
 import DashboardLayout from "@/components/dashboard-layout";
 

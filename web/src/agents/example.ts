@@ -30,7 +30,23 @@ async function main() {
     console.log('🏗️  Total clusters:', clustersResult.data?.length || 0);
     console.log();
 
-    // Example 2: Using OpenAI configuration
+    // Example 2: Using GitHub MCP integration
+    console.log('🐙 Testing GitHub MCP integration...');
+    const agentWithMCP = new PeriodicReportAgent({
+      provider: 'anthropic',
+      enableGitHubMCP: true,
+    });
+    
+    const gitHubToolsResult = await agentWithMCP.getGitHubTools();
+    console.log('✅ GitHub MCP tools result:', {
+      success: gitHubToolsResult.success,
+      available: gitHubToolsResult.available,
+      toolsCount: gitHubToolsResult.success ? Object.keys(gitHubToolsResult.data).length : 0,
+      error: gitHubToolsResult.error || 'None'
+    });
+    console.log();
+
+    // Example 3: Using OpenAI configuration
     console.log('📊 Configuring OpenAI agent...');
     const openaiAgent = new PeriodicReportAgent({
       provider: 'openai',
@@ -41,7 +57,7 @@ async function main() {
     console.log('🔧 Provider:', openaiAgent instanceof PeriodicReportAgent ? 'openai' : 'unknown');
     console.log();
 
-    // Example 3: Show what a generated report structure would look like
+    // Example 4: Show what a generated report structure would look like
     console.log('📄 Example report structure:');
     const exampleReport = {
       title: 'Weekly Infrastructure Report - January 2024',
