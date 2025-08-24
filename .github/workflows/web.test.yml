@@ -302,8 +302,14 @@ jobs:
           IMAGE_REPO=$(echo "$FULL_IMAGE_TAG" | cut -d':' -f1)
           IMAGE_TAG=$(echo "$FULL_IMAGE_TAG" | cut -d':' -f2)
           
+          # Extract repository and tag from the full development image tag
+          DEV_IMAGE_REPO=$(echo "$FULL_DEV_IMAGE_TAG" | cut -d':' -f1)
+          DEV_IMAGE_TAG=$(echo "$FULL_DEV_IMAGE_TAG" | cut -d':' -f2)
+          
           echo "Image repository: $IMAGE_REPO"
           echo "Image tag: $IMAGE_TAG"
+          echo "Development image repository: $DEV_IMAGE_REPO"
+          echo "Development image tag: $DEV_IMAGE_TAG"
           
           # Verify namespace exists
           kubectl get namespace ${{ env.NAMESPACE }}
