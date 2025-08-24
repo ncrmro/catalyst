@@ -12,5 +12,5 @@ spec:
       image: "{{ .Values.developmentImage.repository }}:{{ .Values.developmentImage.tag | default .Chart.AppVersion }}"
       imagePullPolicy: {{ .Values.developmentImage.pullPolicy }}
       command: ['wget']
-      args: ['{{ include "nextjs.fullname" . }}:{{ .Values.service.port }}']
+      args: ['{{ include "nextjs.fullname" . }}:{{ .Values.service.port }}/api/health/readiness']
   restartPolicy: Never

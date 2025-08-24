@@ -1,9 +1,6 @@
 name: Test Charts NextJS
 
 on:
-  push:
-    paths:
-      - 'charts/nextjs/**'
   pull_request:
     paths:
       - 'charts/nextjs/**'
