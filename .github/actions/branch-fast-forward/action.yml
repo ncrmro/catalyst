@@ -1,0 +1,105 @@
+name: Branch Fast Forward
+description: Promotes a branch by performing a fast-forward merge. Ensures Git history is always fast-forwarded by reconciling divergent branches when needed.
+
+inputs:
+  head_branch:
+    description: 'Source branch to promote from (e.g., staging)'
+    required: false
+    default: 'staging'
+  target_branch:
+    description: 'Target branch to promote to (e.g., main)'
+    required: false
+    default: 'main'
+  git_user_name:
+    description: 'Git user name for commits'
+    required: false
+    default: 'GitHub Actions'
+  git_user_email:
+    description: 'Git user email for commits'
+    required: false
+    default: 'actions@github.com'
+
+outputs:
+  fast_forward_successful:
+    description: 'Whether the fast-forward merge was successful'
+    value: ${{ steps.merge.outputs.fast_forward_successful }}
+  reconciliation_required:
+    description: 'Whether branch reconciliation was required'
+    value: ${{ steps.merge.outputs.reconciliation_required }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Configure Git
+      shell: bash
+      run: |
+        git config --global user.email "${{ inputs.git_user_email }}"
+        git config --global user.name "${{ inputs.git_user_name }}"
+
+    - name: Fast-forward ${{ inputs.target_branch }} from ${{ inputs.head_branch }}
+      id: merge
+      shell: bash
+      run: |
+        set -e  # Exit on any error
+        echo "Starting fast-forward promotion: ${{ inputs.head_branch }} -> ${{ inputs.target_branch }}"
+        
+        # Verify branches exist
+        if ! git show-ref --verify --quiet refs/remotes/origin/${{ inputs.head_branch }}; then
+          echo "❌ Error: Head branch '${{ inputs.head_branch }}' does not exist"
+          exit 1
+        fi
+        
+        if ! git show-ref --verify --quiet refs/remotes/origin/${{ inputs.target_branch }}; then
+          echo "❌ Error: Target branch '${{ inputs.target_branch }}' does not exist"
+          exit 1
+        fi
+        
+        # Ensure we're on head branch and up to date
+        git checkout ${{ inputs.head_branch }}
+        git pull origin ${{ inputs.head_branch }}
+        
+        # Switch to target branch and ensure it's up to date
+        git checkout ${{ inputs.target_branch }}
+        git pull origin ${{ inputs.target_branch }}
+        
+        # Check if we can fast-forward
+        if git merge-base --is-ancestor ${{ inputs.target_branch }} ${{ inputs.head_branch }}; then
+          echo "✅ Fast-forward merge possible"
+          git merge ${{ inputs.head_branch }} --ff-only
+          echo "fast_forward_successful=true" >> $GITHUB_OUTPUT
+        else
+          echo "⚠️  Fast-forward not possible, reconciling branches"
+          echo "Merging ${{ inputs.target_branch }} into ${{ inputs.head_branch }} first to reconcile"
+          
+          # Merge target into head first to reconcile, preferring head's changes
+          git checkout ${{ inputs.head_branch }}
+          git merge ${{ inputs.target_branch }} -m "Reconcile: Merge ${{ inputs.target_branch }} into ${{ inputs.head_branch }}" --strategy-option=ours
+          git push origin ${{ inputs.head_branch }}
+          
+          # Now try fast-forward again
+          git checkout ${{ inputs.target_branch }}
+          git merge ${{ inputs.head_branch }} --ff-only
+          echo "fast_forward_successful=true" >> $GITHUB_OUTPUT
+          echo "reconciliation_required=true" >> $GITHUB_OUTPUT
+        fi
+        
+        # Push changes to target branch
+        git push origin ${{ inputs.target_branch }}
+        echo "✅ Successfully promoted ${{ inputs.head_branch }} to ${{ inputs.target_branch }}"
+
+    - name: Summary
+      shell: bash
+      run: |
+        echo "## Branch Promotion Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Head Branch:** ${{ inputs.head_branch }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Target Branch:** ${{ inputs.target_branch }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Fast-forward Successful:** ${{ steps.merge.outputs.fast_forward_successful }}" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.merge.outputs.reconciliation_required }}" = "true" ]; then
+          echo "- **Reconciliation Required:** Yes" >> $GITHUB_STEP_SUMMARY
+          echo "  - Merged ${{ inputs.target_branch }} into ${{ inputs.head_branch }} first" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- **Reconciliation Required:** No" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Branch promotion completed successfully!" >> $GITHUB_STEP_SUMMARY
