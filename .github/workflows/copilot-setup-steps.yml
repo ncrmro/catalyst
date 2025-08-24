@@ -50,7 +50,7 @@ jobs:
 
       - name: Get Playwright version
         id: playwright-version
-        run: echo "version=$(node -p "require('./package.json').devDependencies['@playwright/test'].replace('^', '')")" >> $GITHUB_OUTPUT
+        run: echo "version=$(node -p "require('./web/package.json').devDependencies['@playwright/test'].replace('^', '')")" >> $GITHUB_OUTPUT
 
       - name: Cache playwright binaries
         uses: actions/cache@v4
@@ -62,7 +62,9 @@ jobs:
 
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps
+        run: |
+          cd ./web
+          npx playwright install --with-deps
 
       # Copliot setup steps don't respect changing the directory between steps
       - run: |
