@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "nextjs.fullname" . }}-test-e2e"
+  labels:
+    {{- include "nextjs.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-weight": "1"
+spec:
+  containers:
+    - name: e2e-tests
+      image: "{{ .Values.e2eTests.image.repository }}:{{ .Values.e2eTests.image.tag | default .Chart.AppVersion }}"
+      imagePullPolicy: {{ .Values.e2eTests.image.pullPolicy }}
+      env:
+        - name: TEST_BASE_URL
+          value: "http://{{ include "nextjs.fullname" . }}:{{ .Values.service.port }}"
+        - name: NODE_ENV
+          value: "production"
+        - name: MOCKED
+          value: "1"
+        - name: CI
+          value: "true"
+        {{- range .Values.e2eTests.env }}
+        - name: {{ .name }}
+          value: {{ .value | quote }}
+        {{- end }}
+      command: 
+        - npx
+        - playwright
+        - test
+        - --config=playwright.config.helm.ts
+        {{- if .Values.e2eTests.smokeOnly }}
+        - __tests__/e2e/smoke.spec.ts
+        {{- else }}
+        {{- range .Values.e2eTests.testFiles }}
+        - {{ . }}
+        {{- end }}
+        {{- end }}
+      resources:
+        {{- toYaml .Values.e2eTests.resources | nindent 8 }}
+      volumeMounts:
+        - name: test-results
+          mountPath: /tmp
+  volumes:
+    - name: test-results
+      emptyDir: {}
+  restartPolicy: Never
+  {{- with .Values.e2eTests.nodeSelector }}
+  nodeSelector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.e2eTests.tolerations }}
+  tolerations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}

@@ -1,0 +1,46 @@
+# Example values for using E2E tests with the NextJS Helm chart
+
+# Your NextJS application image
+image:
+  repository: my-nextjs-app
+  tag: v1.0.0
+
+# E2E test configuration
+e2eTests:
+  # E2E test image (must be built from web/Dockerfile.e2e)
+  image:
+    repository: my-nextjs-app-e2e
+    tag: v1.0.0
+  
+  # Run only smoke tests (recommended for Helm tests)
+  smokeOnly: true
+  
+  # Alternative: specify custom test files to run
+  # smokeOnly: false
+  # testFiles:
+  #   - "__tests__/e2e/smoke.spec.ts"
+  #   - "__tests__/e2e/teams.spec.ts"
+  
+  # Additional environment variables for E2E tests
+  env:
+    - name: CUSTOM_TEST_VAR
+      value: "test-value"
+  
+  # Resource limits for E2E test pod
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+# PostgreSQL configuration
+postgresql:
+  enabled: true
+  auth:
+    password: "test-password"
+
+# Enable ingress for external testing (optional)
+ingress:
+  enabled: false

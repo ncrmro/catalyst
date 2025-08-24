@@ -48,6 +48,18 @@ The following table lists the configurable parameters of the NextJS chart and th
 | `developmentImage.tag` | Development image tag for helm tests | `Chart.AppVersion` |
 | `developmentImage.pullPolicy` | Development image pull policy for helm tests | `IfNotPresent` |
 
+### E2E Tests Configuration
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `e2eTests.image.repository` | E2E test image repository | `""` (required when using E2E tests) |
+| `e2eTests.image.tag` | E2E test image tag | `Chart.AppVersion` |
+| `e2eTests.image.pullPolicy` | E2E test image pull policy | `IfNotPresent` |
+| `e2eTests.smokeOnly` | Run only smoke tests | `true` |
+| `e2eTests.testFiles` | Custom test files to run | `[]` |
+| `e2eTests.env` | Additional environment variables for E2E tests | `[]` |
+| `e2eTests.resources` | Resource limits for E2E test pod | See values.yaml |
+
 ### NextJS Configuration
 
 | Parameter | Description | Default |
@@ -144,6 +156,59 @@ The DATABASE_URL format is: `postgresql://nextjs:password@postgresql.namespace.s
 ## Health Checks
 
 The chart includes default health checks that probe the root path (`/`) on port 3000. Make sure your NextJS application responds to HTTP requests on this endpoint.
+
+## Helm Tests
+
+The chart includes two types of tests that can be run with `helm test`:
+
+### Connection Test
+A basic connectivity test that verifies the NextJS service is accessible:
+```bash
+helm test my-nextjs-app
+```
+
+### E2E Tests
+Advanced end-to-end tests using Playwright that validate application functionality:
+
+**Prerequisites:**
+- A container image built with E2E test capabilities (see `web/Dockerfile.e2e`)
+- The E2E test image must be specified in values
+
+**Configuration:**
+```yaml
+e2eTests:
+  image:
+    repository: my-nextjs-app-e2e
+    tag: v1.0.0
+  smokeOnly: true  # Run only smoke tests (recommended)
+  
+  # Alternative: specify custom test files
+  # smokeOnly: false
+  # testFiles:
+  #   - "__tests__/e2e/smoke.spec.ts"
+  #   - "__tests__/e2e/teams.spec.ts"
+```
+
+**Running E2E Tests:**
+```bash
+# Run all tests (including E2E)
+helm test my-nextjs-app
+
+# Run only E2E tests
+helm test my-nextjs-app --filter name=*e2e*
+```
+
+**Building E2E Test Image:**
+```bash
+cd web
+docker build -f Dockerfile.e2e -t my-nextjs-app-e2e:v1.0.0 .
+```
+
+The E2E tests run against the deployed NextJS service and validate:
+- Application loading and basic functionality
+- Authentication flows
+- Core page navigation
+- API endpoint accessibility
 
 ## Notes
 

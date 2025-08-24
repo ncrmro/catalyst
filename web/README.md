@@ -82,6 +82,33 @@ cd web
 npm test
 ```
 
+### E2E Testing
+
+Run end-to-end tests with Playwright:
+
+```bash
+npm run test:e2e
+```
+
+#### Smoke Tests for Helm Deployments
+
+A simplified smoke test suite is available for testing deployed applications:
+
+```bash
+npm run test:e2e -- __tests__/e2e/smoke.spec.ts
+```
+
+#### Building E2E Test Images for Helm
+
+To create a containerized E2E test runner for Helm tests:
+
+```bash
+cd web
+./build-e2e-image.sh catalyst-web-e2e v1.0.0
+```
+
+This creates a container image that can be used with the Helm chart's E2E test feature.
+
 The test suite includes comprehensive coverage of:
 - GitHub App registration endpoints
 - Webhook event processing
