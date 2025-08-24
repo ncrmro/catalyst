@@ -213,7 +213,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build and push container
+      - name: Build and push development container
+        id: build-dev
+        uses: ./.github/actions/build-container
+        with:
+          registry: ghcr.io
+          image: ${{ github.repository }}/web-dev
+          target: development
+          platforms: 'linux/amd64'
+
+      - name: Build and push production container
         id: build
         uses: ./.github/actions/build-container
         with:
