@@ -11,6 +11,7 @@ declare module "next-auth" {
       id: string;
       admin: boolean;
     } & DefaultSession["user"];
+    accessToken?: string;
   }
 
   interface User {
