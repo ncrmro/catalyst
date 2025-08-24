@@ -9,6 +9,25 @@ The web application includes Kubernetes integration capabilities that can be tes
 - E2E testing of Kubernetes API endpoints
 - Validating deployment creation and management
 - Testing without requiring a full production Kubernetes cluster
+- Building and caching container images with the in-cluster registry
+
+## In-Cluster Container Registry
+
+The Kind cluster includes an in-cluster container registry that enables fast image building and caching:
+
+- **Registry URL**: `localhost:5000` (when port-forwarded)
+- **Purpose**: Fast image caching and deployment without external dependencies
+- **Usage**: Images can be built and pushed directly to the registry for immediate use in deployments
+
+Example usage:
+```bash
+# Build and push to in-cluster registry
+docker build -t localhost:5000/myapp:latest .
+docker push localhost:5000/myapp:latest
+
+# Deploy from in-cluster registry
+kubectl run myapp --image=localhost:5000/myapp:latest
+```
 
 ## Prerequisites
 
