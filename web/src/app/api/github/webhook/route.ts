@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { createKubernetesNamespace } from '../../../../actions/kubernetes';
+import { createKubernetesNamespace, deleteKubernetesNamespace } from '../../../../actions/kubernetes';
 
 /**
  * GitHub App Webhook Endpoint
@@ -189,6 +189,43 @@ async function handlePullRequestEvent(payload: {
       return NextResponse.json({
         success: true,
         message: `Pull request ${action} processed but namespace creation failed`,
+        pr_number: pull_request.number,
+        namespace_error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  // Delete namespace when PR is closed
+  if (action === 'closed') {
+    try {
+      // Extract team and project from repository full_name (owner/repo)
+      const [owner, repo] = repository.full_name.split('/');
+      const environment = `gh-pr-${pull_request.number}`;
+      
+      const deleteResult = await deleteKubernetesNamespace(owner, repo, environment);
+      
+      if (deleteResult.success) {
+        console.log(`Namespace deleted for PR ${pull_request.number}:`, deleteResult.namespaceName);
+        return NextResponse.json({
+          success: true,
+          message: `Pull request ${action} processed and namespace deleted`,
+          pr_number: pull_request.number,
+          namespace_deleted: deleteResult.namespaceName
+        });
+      } else {
+        console.error(`Failed to delete namespace for PR ${pull_request.number}:`, deleteResult.error);
+        return NextResponse.json({
+          success: true,
+          message: `Pull request ${action} processed but namespace deletion failed`,
+          pr_number: pull_request.number,
+          namespace_error: deleteResult.error
+        });
+      }
+    } catch (error) {
+      console.error(`Error deleting namespace for PR ${pull_request.number}:`, error);
+      return NextResponse.json({
+        success: true,
+        message: `Pull request ${action} processed but namespace deletion failed`,
         pr_number: pull_request.number,
         namespace_error: error instanceof Error ? error.message : 'Unknown error'
       });
