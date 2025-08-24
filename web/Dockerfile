@@ -21,6 +21,20 @@ RUN \
 FROM deps AS development
 WORKDIR /app
 ENV NODE_ENV=development
+
+# Install system dependencies needed for Playwright browsers (as root)
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    freetype-dev \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont
+
+# Install Playwright browsers early for better caching
+RUN npx playwright install chromium --with-deps
+
 COPY . .
 
 # Create user for security
