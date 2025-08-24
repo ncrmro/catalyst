@@ -4,14 +4,16 @@ import crypto from 'crypto';
 
 // Mock the Kubernetes action
 jest.mock('../../../src/actions/kubernetes', () => ({
-  createKubernetesNamespace: jest.fn()
+  createKubernetesNamespace: jest.fn(),
+  deleteKubernetesNamespace: jest.fn()
 }));
 
-import { createKubernetesNamespace } from '../../../src/actions/kubernetes';
+import { createKubernetesNamespace, deleteKubernetesNamespace } from '../../../src/actions/kubernetes';
 
 describe('/api/github/webhook', () => {
   const mockWebhookSecret = 'test-webhook-secret';
   const mockCreateKubernetesNamespace = createKubernetesNamespace as jest.MockedFunction<typeof createKubernetesNamespace>;
+  const mockDeleteKubernetesNamespace = deleteKubernetesNamespace as jest.MockedFunction<typeof deleteKubernetesNamespace>;
 
   beforeEach(() => {
     process.env.GITHUB_WEBHOOK_SECRET = mockWebhookSecret;
@@ -197,7 +199,14 @@ describe('/api/github/webhook', () => {
       expect(mockCreateKubernetesNamespace).toHaveBeenCalledWith('user', 'repo', 'gh-pr-42');
     });
 
-    it('should handle pull_request non-opened event without namespace creation', async () => {
+    it('should handle pull_request closed event with namespace deletion', async () => {
+      // Mock successful namespace deletion
+      mockDeleteKubernetesNamespace.mockResolvedValue({
+        success: true,
+        message: 'Namespace deleted successfully',
+        namespaceName: 'user-repo-gh-pr-42'
+      });
+
       const payload = {
         action: 'closed',
         pull_request: {
@@ -229,12 +238,105 @@ describe('/api/github/webhook', () => {
       expect(response.status).toBe(200);
       expect(data).toMatchObject({
         success: true,
-        message: 'Pull request closed processed',
+        message: 'Pull request closed processed and namespace deleted',
+        pr_number: 42,
+        namespace_deleted: 'user-repo-gh-pr-42'
+      });
+
+      // Verify namespace deletion was called with correct parameters
+      expect(mockDeleteKubernetesNamespace).toHaveBeenCalledWith('user', 'repo', 'gh-pr-42');
+      // Verify namespace creation was NOT called
+      expect(mockCreateKubernetesNamespace).not.toHaveBeenCalled();
+    });
+
+    it('should handle pull_request closed event with namespace deletion failure', async () => {
+      // Mock failed namespace deletion
+      mockDeleteKubernetesNamespace.mockResolvedValue({
+        success: false,
+        error: 'Failed to delete namespace'
+      });
+
+      const payload = {
+        action: 'closed',
+        pull_request: {
+          number: 42,
+          title: 'Test PR',
+          user: { login: 'testuser' }
+        },
+        repository: { full_name: 'user/repo' }
+      };
+      const payloadString = JSON.stringify(payload);
+      const signature = createSignature(payloadString, mockWebhookSecret);
+
+      const { req } = createMocks({
+        method: 'POST',
+        headers: {
+          'x-github-event': 'pull_request',
+          'x-github-delivery': 'test-delivery-123',
+          'x-hub-signature-256': signature,
+          'content-type': 'application/json'
+        },
+        body: payloadString,
+      });
+
+      req.text = jest.fn().mockResolvedValue(payloadString);
+
+      const response = await POST(req as any);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toMatchObject({
+        success: true,
+        message: 'Pull request closed processed but namespace deletion failed',
+        pr_number: 42,
+        namespace_error: 'Failed to delete namespace'
+      });
+
+      // Verify namespace deletion was called
+      expect(mockDeleteKubernetesNamespace).toHaveBeenCalledWith('user', 'repo', 'gh-pr-42');
+      // Verify namespace creation was NOT called
+      expect(mockCreateKubernetesNamespace).not.toHaveBeenCalled();
+    });
+
+    it('should handle pull_request non-opened/non-closed event without namespace operations', async () => {
+      const payload = {
+        action: 'synchronize',
+        pull_request: {
+          number: 42,
+          title: 'Test PR',
+          user: { login: 'testuser' }
+        },
+        repository: { full_name: 'user/repo' }
+      };
+      const payloadString = JSON.stringify(payload);
+      const signature = createSignature(payloadString, mockWebhookSecret);
+
+      const { req } = createMocks({
+        method: 'POST',
+        headers: {
+          'x-github-event': 'pull_request',
+          'x-github-delivery': 'test-delivery-123',
+          'x-hub-signature-256': signature,
+          'content-type': 'application/json'
+        },
+        body: payloadString,
+      });
+
+      req.text = jest.fn().mockResolvedValue(payloadString);
+
+      const response = await POST(req as any);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toMatchObject({
+        success: true,
+        message: 'Pull request synchronize processed',
         pr_number: 42
       });
 
-      // Verify namespace creation was NOT called
+      // Verify neither namespace creation nor deletion was called
       expect(mockCreateKubernetesNamespace).not.toHaveBeenCalled();
+      expect(mockDeleteKubernetesNamespace).not.toHaveBeenCalled();
     });
 
     it('should handle pull_request opened event with namespace creation failure', async () => {
