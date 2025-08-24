@@ -14,7 +14,7 @@ export default defineConfig({
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
+  reporter: process.env.CI ? 'github' : 'list',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -40,7 +40,7 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'MOCKED=1 npm run dev',
+    command: 'GITHUB_REPOS_MODE=mocked npm run dev',
     url: 'http://localhost:3000/api/health/readiness',
     reuseExistingServer: !process.env.CI,
   },

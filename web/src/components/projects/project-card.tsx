@@ -7,7 +7,10 @@ export function ProjectCard({ project }: { project: Project }) {
   const otherRepos = project.repositories.filter(repo => !repo.primary);
 
   return (
-    <div className="bg-surface border border-outline rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
+    <div 
+      className="bg-surface border border-outline rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow"
+      data-testid={`project-card-${project.full_name}`}
+    >
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <Image 

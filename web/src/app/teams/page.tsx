@@ -60,36 +60,7 @@ function TeamCard({ team }: { team: Team }) {
 }
 
 export default async function TeamsPage() {
-  let teams: Team[] = [];
-  let error: string | null = null;
-
-  try {
-    teams = await fetchUserTeams();
-  } catch (err) {
-    error = err instanceof Error ? err.message : 'Failed to fetch teams';
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-on-background mb-4">My Teams</h1>
-            <div className="bg-error-container border border-error rounded-lg p-6 max-w-2xl mx-auto">
-              <div className="flex items-center justify-center w-12 h-12 bg-error rounded-full mx-auto mb-4">
-                <span className="text-on-error text-xl">⚠️</span>
-              </div>
-              <h2 className="text-lg font-semibold text-on-error-container mb-2">Error Loading Teams</h2>
-              <p className="text-on-error-container">{error}</p>
-              <div className="mt-4 text-sm text-on-error-container">
-                <p>Please try refreshing the page or sign in again.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const teams = await fetchUserTeams();
 
   return (
     <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">

@@ -13,14 +13,16 @@ const navItems: SidebarNavItem[] = [
   { href: "/", label: "Home", icon: "🏠" },
   { href: "/projects", label: "Projects", icon: "📁" },
   { href: "/teams", label: "Teams", icon: "👥" },
+  { href: "/kubeconfigs", label: "Kubeconfigs", icon: "⚙️" },
   { href: "/infrastructure", label: "Infrastructure", icon: "🏗️" },
 ];
 
 interface SidebarProps {
   className?: string;
+  onLinkClick?: () => void;
 }
 
-export default function Sidebar({ className = "" }: SidebarProps) {
+export default function Sidebar({ className = "", onLinkClick }: SidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -36,6 +38,7 @@ export default function Sidebar({ className = "" }: SidebarProps) {
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  onClick={onLinkClick}
                   className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     isActive
                       ? "bg-primary-container text-on-primary-container"

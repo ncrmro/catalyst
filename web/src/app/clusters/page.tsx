@@ -1,6 +1,6 @@
-import { isFeatureEnabled } from '@/lib/feature-flags';
 import { notFound } from 'next/navigation';
 import { getClusters, ClusterInfo } from '@/actions/clusters';
+import { auth } from '@/auth';
 
 // Mock cluster data for when real data is not available
 const mockClusters = [
@@ -104,9 +104,11 @@ function ClusterCard({ cluster }: { cluster: ExtendedClusterInfo }) {
 }
 
 export default async function ClustersPage() {
-  // Check if the feature flag is enabled
-  if (!isFeatureEnabled('USER_CLUSTERS')) {
+  // Check if user is authenticated and has admin privileges
+  const session = await auth();
+  if (!session.user.admin) {
     notFound();
+    return; // Add return to stop execution
   }
 
   // Try to get real cluster data

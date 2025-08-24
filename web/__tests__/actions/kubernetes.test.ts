@@ -1,4 +1,4 @@
-import { createKubernetesNamespace, deleteKubernetesNamespace } from '../../src/actions/kubernetes';
+import { createProjectNamespace, deleteNamespace, generateNamespaceName } from '../../src/lib/k8s-namespaces';
 
 // Mock the k8s-namespaces module
 jest.mock('../../src/lib/k8s-namespaces', () => ({
@@ -7,14 +7,12 @@ jest.mock('../../src/lib/k8s-namespaces', () => ({
   generateNamespaceName: jest.fn()
 }));
 
-import { createProjectNamespace, deleteNamespace, generateNamespaceName } from '../../src/lib/k8s-namespaces';
 
 const mockCreateProjectNamespace = createProjectNamespace as jest.MockedFunction<typeof createProjectNamespace>;
 const mockDeleteNamespace = deleteNamespace as jest.MockedFunction<typeof deleteNamespace>;
 const mockGenerateNamespaceName = generateNamespaceName as jest.MockedFunction<typeof generateNamespaceName>;
 
 describe('createKubernetesNamespace action', () => {
-
   beforeEach(() => {
     jest.clearAllMocks();
   });

@@ -11,5 +11,5 @@ spec:
     - name: wget
       image: busybox
       command: ['wget']
-      args: ['{{ include "nextjs.fullname" . }}:{{ .Values.service.port }}']
+      args: ['{{ include "nextjs.fullname" . }}:{{ .Values.service.port }}/api/health/readiness']
   restartPolicy: Never

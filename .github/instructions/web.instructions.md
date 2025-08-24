@@ -18,7 +18,9 @@ npm run db:migrate
 npm run dev
 ```
 
-The local development server allows loging in with just a password. The password is `password` for a nomral user and the password for an admin user is `admin`.
+The local development server allows loging in with just a password. The password is `password` for a nomral user and the password for an admin user is `admin`. 
+
+It has already been started.
 
 # Testing
 

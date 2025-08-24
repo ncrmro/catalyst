@@ -38,25 +38,7 @@ function getStatusColor(status: 'draft' | 'ready' | 'changes_requested') {
 }
 
 export default async function Home() {
-  // In mocked mode, create a mock session for testing
-  let session;
-  if (process.env.MOCKED === '1') {
-    session = {
-      user: {
-        name: "Test User",
-        email: "test@example.com"
-      },
-      userId: "test-user-1",
-      accessToken: "mock-token"
-    };
-  } else {
-    session = await auth();
-    
-    // Redirect to login if not authenticated
-    if (!session?.user) {
-      redirect("/login");
-    }
-  }
+  const session = await auth();
 
   // Fetch the latest report
   let latestReport;
@@ -74,10 +56,10 @@ export default async function Home() {
       <div className="space-y-6">
         {/* Welcome Section */}
         <div>
-          <h1 className="text-3xl font-bold text-on-background mb-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-on-background mb-2">
             Welcome back, {session.user.name || session.user.email?.split('@')[0]}!
           </h1>
-          <p className="text-on-surface-variant">
+          <p className="text-sm md:text-base text-on-surface-variant">
             Here&apos;s your latest project overview and insights.
           </p>
         </div>
@@ -102,25 +84,25 @@ export default async function Home() {
             </p>
           </div>
         ) : (
-          <div className="bg-surface border border-outline rounded-lg p-8 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
+          <div className="bg-surface border border-outline rounded-lg p-4 md:p-8 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
               <div>
-                <h2 className="text-2xl font-bold text-on-surface mb-2">Latest Project Report</h2>
-                <p className="text-on-surface-variant">
+                <h2 className="text-xl md:text-2xl font-bold text-on-surface mb-2">Latest Project Report</h2>
+                <p className="text-sm md:text-base text-on-surface-variant">
                   Generated on {new Date(latestReport.generated_at).toLocaleDateString()} • 
                   Period: {new Date(latestReport.period_start).toLocaleDateString()} - {new Date(latestReport.period_end).toLocaleDateString()}
                 </p>
               </div>
               <Link
                 href={`/reports/${latestReport.id}`}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 min-h-[44px] whitespace-nowrap"
               >
                 View Full Report →
               </Link>
             </div>
 
             {/* Summary Cards */}
-            <div className="grid md:grid-cols-3 gap-6 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-6">
               <div className="bg-blue-50 rounded-lg p-4">
                 <div className="text-2xl font-bold text-blue-600">{latestReport.summary.total_prs_awaiting_review}</div>
                 <div className="text-sm text-blue-800">PRs Awaiting Review</div>
@@ -129,14 +111,14 @@ export default async function Home() {
                 <div className="text-2xl font-bold text-purple-600">{latestReport.summary.total_priority_issues}</div>
                 <div className="text-sm text-purple-800">Priority Issues</div>
               </div>
-              <div className="bg-green-50 rounded-lg p-4">
+              <div className="bg-green-50 rounded-lg p-4 sm:col-span-2 md:col-span-1">
                 <div className="text-sm font-medium text-green-800 mb-1">Goal Focus</div>
                 <div className="text-sm text-green-700">{latestReport.summary.goal_focus}</div>
               </div>
             </div>
 
             {/* Top PRs and Issues */}
-            <div className="grid md:grid-cols-2 gap-6 mb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-6">
               {/* Top PRs */}
               <div>
                 <h3 className="text-lg font-semibold text-on-surface mb-4">Top PRs Awaiting Review</h3>
@@ -210,28 +192,28 @@ export default async function Home() {
             {/* Quick Actions */}
             <div className="pt-6 border-t border-outline">
               <h3 className="text-lg font-semibold text-on-surface mb-4">Quick Actions</h3>
-              <div className="flex gap-4 flex-wrap">
+              <div className="grid grid-cols-2 md:flex md:flex-wrap gap-3 md:gap-4">
                 <Link
                   href="/reports"
-                  className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container"
+                  className="inline-flex items-center justify-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container min-h-[44px]"
                 >
                   View All Reports
                 </Link>
                 <Link
                   href="/projects"
-                  className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container"
+                  className="inline-flex items-center justify-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container min-h-[44px]"
                 >
                   Manage Projects
                 </Link>
                 <Link
                   href="/teams"
-                  className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container"
+                  className="inline-flex items-center justify-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container min-h-[44px]"
                 >
                   View Teams
                 </Link>
                 <Link
                   href="/repos"
-                  className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container"
+                  className="inline-flex items-center justify-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container min-h-[44px]"
                 >
                   View Repositories
                 </Link>
