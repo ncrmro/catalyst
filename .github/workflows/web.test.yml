@@ -1,12 +1,6 @@
 name: Test Web
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'web/**'
-      - '.github/actions/build-container/**'
   pull_request:
     paths:
       - 'web/**'
