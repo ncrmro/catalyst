@@ -13,6 +13,7 @@ const navItems: SidebarNavItem[] = [
   { href: "/", label: "Home", icon: "🏠" },
   { href: "/projects", label: "Projects", icon: "📁" },
   { href: "/teams", label: "Teams", icon: "👥" },
+  { href: "/kubeconfigs", label: "Kubeconfigs", icon: "⚙️" },
   { href: "/infrastructure", label: "Infrastructure", icon: "🏗️" },
 ];
 

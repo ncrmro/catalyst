@@ -12,6 +12,10 @@ on:
       - 'web/**'
       - '.github/actions/build-container/**'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test-web:
     runs-on: ubuntu-latest
@@ -51,7 +55,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: catalyst_test
+          POSTGRES_DB: catalyst
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -63,6 +67,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - run: cp .env.example .env
 
       - name: Create Kind cluster
         uses: helm/kind-action@v1.10.0
@@ -86,14 +92,13 @@ jobs:
       
       - name: Install dependencies
         run: npm ci
-      
+
+      - run: npm run db:migrate
+
       - name: Run integration tests
         run: npm test
         env:
           NODE_ENV: test
-          GITHUB_APP_ID: test-app-id
-          GITHUB_WEBHOOK_SECRET: test-secret
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/catalyst_test
           KUBECONFIG_PRIMARY: ${{ env.KUBECONFIG_PRIMARY }}
 
   e2e:
@@ -108,7 +113,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: catalyst_test
+          POSTGRES_DB: catalyst
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -162,11 +167,11 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps
       
+      - run: npm run db:migrate
+      
       - name: Run Playwright tests
         run: npm run test:e2e
         env:
-          MOCKED: 1
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/catalyst_test
           KUBECONFIG_PRIMARY: ${{ env.KUBECONFIG_PRIMARY }}
       
       - name: Upload Playwright report
@@ -208,7 +213,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build and push container
+      - name: Build and push development container
+        id: build-dev
+        uses: ./.github/actions/build-container
+        with:
+          registry: ghcr.io
+          image: ${{ github.repository }}/web-dev
+          target: development
+          platforms: 'linux/amd64'
+
+      - name: Build and push production container
         id: build
         uses: ./.github/actions/build-container
         with:
