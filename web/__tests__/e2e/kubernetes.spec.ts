@@ -211,4 +211,81 @@ test.describe('Kubernetes Integration', () => {
       throw new Error(`Failed to create/delete test deployment in cluster: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   });
+
+  test('should create project namespaces via action (through API wrapper) and verify with Kubernetes client', async ({ page, request }) => {
+    // First verify cluster connectivity - this must pass for the test to continue
+    await verifyClusterConnectivity();
+    
+    const testNamespaces: string[] = [];
+    
+    try {
+      // Test creating namespaces for different environments
+      const environments = ['production', 'staging', 'pr-1'];
+      
+      for (const environment of environments) {
+        // Create namespace via API endpoint (which calls the action)
+        const response = await request.post('/api/kubernetes/namespaces', {
+          data: {
+            team: 'e2etest',
+            project: 'testproject',
+            environment: environment
+          }
+        });
+        const data = await response.json();
+
+        // API must succeed
+        expect(response.ok()).toBe(true);
+        expect(data.success).toBe(true);
+        expect(data.namespace).toBeDefined();
+        expect(data.namespace.name).toBe(`e2etest-testproject-${environment}`);
+        expect(data.namespace.labels['catalyst/team']).toBe('e2etest');
+        expect(data.namespace.labels['catalyst/project']).toBe('testproject');
+        expect(data.namespace.labels['catalyst/environment']).toBe(environment);
+        
+        testNamespaces.push(data.namespace.name);
+
+        console.log(`✓ Namespace created via action: ${data.namespace.name}`);
+        
+        // Verify the namespace exists in the cluster using Kubernetes client
+        const { coreApi } = await createKubernetesClient();
+        const namespaceResponse = await coreApi.readNamespace({ name: data.namespace.name });
+        
+        expect(namespaceResponse.metadata?.name).toBe(data.namespace.name);
+        expect(namespaceResponse.metadata?.labels?.['catalyst/team']).toBe('e2etest');
+        expect(namespaceResponse.metadata?.labels?.['catalyst/project']).toBe('testproject');
+        expect(namespaceResponse.metadata?.labels?.['catalyst/environment']).toBe(environment);
+        
+        console.log(`✓ Namespace verified in cluster: ${data.namespace.name}`);
+      }
+      
+      // Test duplicate creation handling
+      const duplicateResponse = await request.post('/api/kubernetes/namespaces', {
+        data: {
+          team: 'e2etest',
+          project: 'testproject',
+          environment: 'production'
+        }
+      });
+      const duplicateData = await duplicateResponse.json();
+      
+      expect(duplicateResponse.ok()).toBe(true);
+      expect(duplicateData.success).toBe(true);
+      expect(duplicateData.message).toBe('Namespace already exists');
+      expect(duplicateData.namespace.created).toBe(false);
+      
+      console.log('✓ Duplicate namespace creation handled gracefully');
+      
+    } finally {
+      // Clean up test namespaces using Kubernetes client
+      const { coreApi } = await createKubernetesClient();
+      for (const namespaceName of testNamespaces) {
+        try {
+          await coreApi.deleteNamespace({ name: namespaceName });
+          console.log(`✓ Cleaned up namespace: ${namespaceName}`);
+        } catch (error) {
+          console.log(`⚠ Failed to clean up namespace ${namespaceName}:`, error instanceof Error ? error.message : 'Unknown error');
+        }
+      }
+    }
+  });
 });
