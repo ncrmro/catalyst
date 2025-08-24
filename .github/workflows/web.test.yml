@@ -22,24 +22,24 @@ jobs:
     defaults:
       run:
         working-directory: ./web
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: './web/package-lock.json'
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Run ESLint
         run: npm run lint
-      
+
       - name: Build Next.js
         run: npm run build
 
@@ -48,7 +48,7 @@ jobs:
     defaults:
       run:
         working-directory: ./web
-    
+
     services:
       postgres:
         image: postgres:17-alpine
@@ -63,7 +63,7 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -82,14 +82,14 @@ jobs:
           export KUBECONFIG_PRIMARY=$(kubectl config view --raw -o json | base64 -w 0)
           echo "KUBECONFIG_PRIMARY=$KUBECONFIG_PRIMARY" >> $GITHUB_ENV
           echo "Kubeconfig exported for integration tests"
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: './web/package-lock.json'
-      
+
       - name: Install dependencies
         run: npm ci
 
@@ -106,7 +106,7 @@ jobs:
     defaults:
       run:
         working-directory: ./web
-    
+
     services:
       postgres:
         image: postgres:17-alpine
@@ -121,7 +121,7 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -140,14 +140,14 @@ jobs:
           export KUBECONFIG_PRIMARY=$(kubectl config view --raw -o json | base64 -w 0)
           echo "KUBECONFIG_PRIMARY=$KUBECONFIG_PRIMARY" >> $GITHUB_ENV
           echo "Kubeconfig exported for E2E tests"
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: './web/package-lock.json'
-      
+
       - name: Install dependencies
         run: npm ci
 
@@ -166,14 +166,14 @@ jobs:
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps
-      
+
       - run: npm run db:migrate
-      
+
       - name: Run Playwright tests
         run: npm run test:e2e
         env:
           KUBECONFIG_PRIMARY: ${{ env.KUBECONFIG_PRIMARY }}
-      
+
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
         if: failure()
@@ -181,7 +181,7 @@ jobs:
           name: playwright-report
           path: ./web/playwright-report/
           retention-days: 30
-      
+
       - name: Upload test screenshots
         uses: actions/upload-artifact@v4
         if: failure()
@@ -189,7 +189,7 @@ jobs:
           name: playwright-screenshots
           path: ./web/test-results/**/test-failed-*.png
           retention-days: 30
-      
+
       - name: Upload test videos
         uses: actions/upload-artifact@v4
         if: failure()
@@ -208,7 +208,9 @@ jobs:
     outputs:
       image-tags: ${{ steps.build.outputs.image }}
       image-digest: ${{ steps.build.outputs.digest }}
-    
+      dev-image-tags: ${{ steps.build-dev.outputs.image }}
+      dev-image-digest: ${{ steps.build-dev.outputs.digest }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -234,7 +236,7 @@ jobs:
     needs: build-container
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -269,23 +271,38 @@ jobs:
             echo "No PR tag found in built images, using SHA tag as fallback"
             FULL_IMAGE_TAG=$(echo '${{ needs.build-container.outputs.image-tags }}' | head -n 1)
           fi
-          
+
+          # Extract the pr tag from the built development image
+          FULL_DEV_IMAGE_TAG=$(echo '${{ needs.build-container.outputs.dev-image-tags }}' | grep 'pr-' | head -n 1)
+          if [ -z "$FULL_DEV_IMAGE_TAG" ]; then
+            echo "No PR tag found in built dev images, using SHA tag as fallback"
+            FULL_DEV_IMAGE_TAG=$(echo '${{ needs.build-container.outputs.dev-image-tags }}' | head -n 1)
+          fi
+
           echo "Deploying image: $FULL_IMAGE_TAG"
+          echo "Development image for tests: $FULL_DEV_IMAGE_TAG"
           echo "To namespace: ${{ env.NAMESPACE }}"
-          
+
           # Extract repository and tag from the full image tag
           IMAGE_REPO=$(echo "$FULL_IMAGE_TAG" | cut -d':' -f1)
           IMAGE_TAG=$(echo "$FULL_IMAGE_TAG" | cut -d':' -f2)
-          
+
+          # Extract repository and tag from the full development image tag
+          DEV_IMAGE_REPO=$(echo "$FULL_DEV_IMAGE_TAG" | cut -d':' -f1)
+          DEV_IMAGE_TAG=$(echo "$FULL_DEV_IMAGE_TAG" | cut -d':' -f2)
+
           # Deploy using the nextjs Helm chart
           helm install web-preview-${{ github.event.number }} ./charts/nextjs \
             --namespace ${{ env.NAMESPACE }} \
             --set image.repository="$IMAGE_REPO" \
             --set image.tag="$IMAGE_TAG" \
             --set image.pullPolicy=IfNotPresent \
+            --set developmentImage.repository="$DEV_IMAGE_REPO" \
+            --set developmentImage.tag="$DEV_IMAGE_TAG" \
+            --set developmentImage.pullPolicy=IfNotPresent \
             --wait --timeout=300s
 
       - name: Verify deployment
         run: |
           kubectl wait --for=condition=available --timeout=300s deployment/web-preview-${{ github.event.number }}-nextjs -n ${{ env.NAMESPACE }}
-          helm test web-preview-${{ github.event.number }} --namespace ${{ env.NAMESPACE }} 
+          helm test web-preview-${{ github.event.number }} --namespace ${{ env.NAMESPACE }}
