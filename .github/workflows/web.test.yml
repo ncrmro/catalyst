@@ -302,6 +302,7 @@ jobs:
             --set image.repository="$IMAGE_REPO" \
             --set image.tag="$IMAGE_TAG" \
             --set image.pullPolicy=IfNotPresent \
+            --set postgresql.auth.password="postgres" \
             --wait --timeout=300s
 
       - name: Verify deployment
