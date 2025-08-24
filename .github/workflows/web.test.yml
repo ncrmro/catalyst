@@ -317,7 +317,7 @@ jobs:
             --set developmentImage.repository="$DEV_IMAGE_REPO" \
             --set developmentImage.tag="$DEV_IMAGE_TAG" \
             --set developmentImage.pullPolicy=IfNotPresent \
-            --wait --timeout=300s
+            --wait --timeout=120s
 
       - name: Verify deployment
         run: |
