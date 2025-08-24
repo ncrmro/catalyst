@@ -41,7 +41,7 @@ export async function createKubernetesNamespace(
     if (!supportedEnvironments.includes(environment) && !isPrEnvironment) {
       return {
         success: false,
-        error: `Environment must be one of: ${supportedEnvironments.join(', ')} or follow pattern pr-NUMBER or gh-pr-NUMBER`
+        error: 'Environment must be one of: production, staging or follow pattern gh-pr-NUMBER'
       };
     }
 
@@ -109,7 +109,7 @@ export async function deleteKubernetesNamespace(
     if (!supportedEnvironments.includes(environment) && !isPrEnvironment) {
       return {
         success: false,
-        error: `Environment must be one of: ${supportedEnvironments.join(', ')} or follow pattern pr-NUMBER or gh-pr-NUMBER`
+        error: 'Environment must be one of: production, staging or follow pattern gh-pr-NUMBER'
       };
     }
 
