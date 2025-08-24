@@ -34,7 +34,11 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { 
+        ...devices['Desktop Chrome'],
+        // Use system chromium if playwright browsers aren't installed
+        channel: process.env.CI ? undefined : 'chromium',
+      },
     },
   ],
 
@@ -42,6 +46,6 @@ export default defineConfig({
   webServer: {
     command: 'GITHUB_REPOS_MODE=mocked npm run dev',
     url: 'http://localhost:3000/api/health/readiness',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
   },
 });
