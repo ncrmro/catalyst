@@ -42,12 +42,6 @@ export async function createKubernetesNamespace(
       return {
         success: false,
         error: `Environment must be one of: ${supportedEnvironments.join(', ')} or follow pattern pr-NUMBER or gh-pr-NUMBER`
-    // Validate environment is one of the supported values
-    const supportedEnvironments = ['production', 'staging', 'pr-1'];
-    if (!supportedEnvironments.includes(environment)) {
-      return {
-        success: false,
-        error: `Environment must be one of: ${supportedEnvironments.join(', ')}`
       };
     }
 
