@@ -68,37 +68,3 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 {{- define "nextjs.postgresql.fullname" -}}
 {{- printf "%s-%s" .Release.Name "postgresql" | trunc 63 | trimSuffix "-" }}
 {{- end }}
-
-{{/*
-Get the PostgreSQL password
-*/}}
-{{- define "nextjs.postgresql.password" -}}
-{{- if .Values.postgresql.auth.password }}
-{{- .Values.postgresql.auth.password }}
-{{- else }}
-{{- randAlphaNum 16 }}
-{{- end }}
-{{- end }}
-
-{{/*
-Get the PostgreSQL admin password
-*/}}
-{{- define "nextjs.postgresql.adminPassword" -}}
-{{- if .Values.postgresql.auth.postgresPassword }}
-{{- .Values.postgresql.auth.postgresPassword }}
-{{- else }}
-{{- randAlphaNum 16 }}
-{{- end }}
-{{- end }}
-
-{{/*
-Create the PostgreSQL DATABASE_URL
-*/}}
-{{- define "nextjs.database.url" -}}
-{{- $host := printf "%s.%s.svc.cluster.local" (include "nextjs.postgresql.fullname" .) .Release.Namespace }}
-{{- $port := "5432" }}
-{{- $username := .Values.postgresql.auth.username }}
-{{- $password := include "nextjs.postgresql.password" . }}
-{{- $database := .Values.postgresql.auth.database }}
-{{- printf "postgresql://%s:%s@%s:%s/%s" $username $password $host $port $database }}
-{{- end }}
