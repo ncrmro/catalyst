@@ -19,7 +19,8 @@
 #
 # Use with docker-bake files in subdirectories:
 #   - Set workdir input to the directory containing docker-bake.yml
-#   - Example: workdir: 'web' for web/docker-bake.yml
+#   - Set files input to specify the bake file name (e.g., "docker-bake.yml")
+#   - Example: workdir: 'web', files: 'docker-bake.yml' for web/docker-bake.yml
 #
 # CONVENTIONS:
 # - Production images use the base tag (e.g., image:pr-123)
@@ -40,6 +41,12 @@
 #     latest
 # This creates both production (v1.2.3) and development (v1.2.3-dev) variants
 # without creating separate cache tags for each version.
+#
+# FILES INPUT USE CASE:
+# To use an existing docker-bake.yml file instead of inline configurations:
+#   workdir: 'web'
+#   files: 'docker-bake.yml'
+# This uses the docker-bake.yml file in the web directory for build configuration.
 #
 name: Build Container with Docker Bake
 description: Build and push Docker container images using Docker Bake with multiple targets and tags
@@ -72,6 +79,10 @@ inputs:
     description: 'Working directory for the bake command (where docker-bake file is located)'
     required: false
     default: '.'
+  files:
+    description: 'List of bake definition files (e.g., "docker-bake.yml"). If not specified, uses inline configurations.'
+    required: false
+    default: ''
 
 outputs:
   production-image:
@@ -164,6 +175,7 @@ runs:
       uses: docker/bake-action@v6
       with:
         workdir: ${{ inputs.workdir }}
+        files: ${{ inputs.files }}
         push: ${{ inputs.push }}
         set: |
           *.platform=${{ inputs.platforms }}
