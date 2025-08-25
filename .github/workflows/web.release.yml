@@ -44,7 +44,7 @@ jobs:
           image: ${{ github.repository }}/web
           platforms: ${{ inputs.platforms || 'linux/amd64' }}
           workdir: './web'
-          files: 'docker-bake.yml'
+          files: './web/docker-bake.yml'
 
   release:
     runs-on: ubuntu-latest
