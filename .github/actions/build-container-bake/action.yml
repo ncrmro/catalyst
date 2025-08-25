@@ -1,0 +1,212 @@
+# Docker Bake Action for Multi-Target Container Builds
+#
+# This reusable action builds both development and production container targets
+# simultaneously using Docker Bake with optimized caching and shared configurations.
+#
+# USAGE:
+# Build containers for pull requests:
+#   - Produces: image:pr-123 and image:pr-123-dev
+#   - Uses PR-specific and main cache for fast builds
+#
+# Build containers for release branches:
+#   - Produces: image:main and image:main-dev (configurable via release-branches)
+#   - Updates main cache for optimal layer sharing
+#   - Supports additional tags via additional-tags input (e.g., semantic versions)
+#
+# Build containers for other branches:
+#   - Produces: image:branch-name and image:branch-name-dev
+#   - Uses main cache for base layers
+#
+# Use with docker-bake files in subdirectories:
+#   - Set workdir input to the directory containing docker-bake.yml
+#   - Set files input to specify the bake file name (e.g., "docker-bake.yml")
+#   - Example: workdir: 'web', files: 'docker-bake.yml' for web/docker-bake.yml
+#
+# CONVENTIONS:
+# - Production images use the base tag (e.g., image:pr-123)
+# - Development images append '-dev' suffix (e.g., image:pr-123-dev)
+# - Cache images use 'main-cache' tag for optimal layer sharing
+# - All outputs use zstd compression for performance
+#
+# CACHE STRATEGY:
+# - Registry-only caching with 'main-cache' tag
+# - Production target pushes cache with mode=max (contains all layers)
+# - Development and production targets share cache references
+# - Cache is updated on release branches and pull requests
+#
+# ADDITIONAL TAGS USE CASE:
+# For semantic release workflows, use additional-tags to create version tags:
+#   additional-tags: |
+#     v1.2.3
+#     latest
+# This creates both production (v1.2.3) and development (v1.2.3-dev) variants
+# without creating separate cache tags for each version.
+#
+# FILES INPUT USE CASE:
+# To use an existing docker-bake.yml file instead of inline configurations:
+#   workdir: 'web'
+#   files: 'docker-bake.yml'
+# This uses the docker-bake.yml file in the web directory for build configuration.
+#
+name: Build Container with Docker Bake
+description: Build and push Docker container images using Docker Bake with multiple targets and tags
+
+inputs:
+  registry:
+    description: 'Container registry URL'
+    required: true
+    default: 'ghcr.io'
+  image:
+    description: 'Base image name (without registry)'
+    required: true
+  platforms:
+    description: 'Comma-separated list of platforms to build for'
+    required: false
+    default: 'linux/amd64'
+  push:
+    description: 'Whether to push the built images'
+    required: false
+    default: 'true'
+  release-branches:
+    description: 'Comma-separated list of branches that should be treated as release branches (e.g., "main,staging")'
+    required: false
+    default: 'main'
+  additional-tags:
+    description: 'Additional tags to apply to images (one per line). Each tag creates both production and development variants.'
+    required: false
+    default: ''
+  workdir:
+    description: 'Working directory for the bake command (where docker-bake file is located)'
+    required: false
+    default: '.'
+  files:
+    description: 'List of bake definition files (e.g., "docker-bake.yml"). If not specified, uses inline configurations.'
+    required: false
+    default: ''
+
+outputs:
+  production-image:
+    description: 'Production image name with tag'
+    value: ${{ steps.set-outputs.outputs.production-image }}
+  development-image:
+    description: 'Development image name with tag'
+    value: ${{ steps.set-outputs.outputs.development-image }}
+  cache-image:
+    description: 'Cache image name with tag'
+    value: ${{ steps.set-outputs.outputs.cache-image }}
+  pr-cache-image:
+    description: 'PR cache image name with tag'
+    value: ${{ steps.set-outputs.outputs.pr-cache-image }}
+  digest:
+    description: 'Image digest'
+    value: ${{ steps.bake.outputs.digest }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set lowercase image name
+      shell: bash
+      run: |
+        echo "IMAGE_NAME=$(echo '${{ inputs.image }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ inputs.registry }}
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
+    - name: Generate tag suffix
+      shell: bash
+      run: |
+        # Convert release-branches to array for checking
+        IFS=',' read -ra RELEASE_BRANCHES <<< "${{ inputs.release-branches }}"
+        IS_RELEASE_BRANCH=false
+        
+        for branch in "${RELEASE_BRANCHES[@]}"; do
+          if [ "${{ github.ref_name }}" = "${branch// /}" ]; then
+            IS_RELEASE_BRANCH=true
+            break
+          fi
+        done
+        
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          echo "TAG_SUFFIX=pr-${{ github.event.number }}" >> $GITHUB_ENV
+          echo "IS_RELEASE_BRANCH=false" >> $GITHUB_ENV
+        elif [ "$IS_RELEASE_BRANCH" = "true" ]; then
+          echo "TAG_SUFFIX=${{ github.ref_name }}" >> $GITHUB_ENV
+          echo "IS_RELEASE_BRANCH=true" >> $GITHUB_ENV
+        else
+          echo "TAG_SUFFIX=${{ github.ref_name }}" >> $GITHUB_ENV
+          echo "IS_RELEASE_BRANCH=false" >> $GITHUB_ENV
+        fi
+
+    - name: Set image tags
+      shell: bash
+      run: |
+        BASE_NAME="${{ inputs.registry }}/${{ env.IMAGE_NAME }}"
+        
+        # Primary tags based on branch/PR
+        PRODUCTION_TAGS="${BASE_NAME}:${{ env.TAG_SUFFIX }}"
+        DEVELOPMENT_TAGS="${BASE_NAME}:${{ env.TAG_SUFFIX }}-dev"
+        
+        # Add additional tags if specified
+        if [ -n "${{ inputs.additional-tags }}" ]; then
+          while IFS= read -r tag; do
+            if [ -n "$tag" ]; then
+              # Trim whitespace
+              tag=$(echo "$tag" | xargs)
+              PRODUCTION_TAGS="$PRODUCTION_TAGS,${BASE_NAME}:${tag}"
+              DEVELOPMENT_TAGS="$DEVELOPMENT_TAGS,${BASE_NAME}:${tag}-dev"
+            fi
+          done <<< "${{ inputs.additional-tags }}"
+        fi
+        
+        echo "PRODUCTION_TAGS=$PRODUCTION_TAGS" >> $GITHUB_ENV
+        echo "DEVELOPMENT_TAGS=$DEVELOPMENT_TAGS" >> $GITHUB_ENV
+        echo "CACHE_TAG=${BASE_NAME}:main-cache" >> $GITHUB_ENV
+        echo "PR_CACHE_TAG=${BASE_NAME}:${{ env.TAG_SUFFIX }}-cache" >> $GITHUB_ENV
+
+    - name: Build and push with Docker Bake
+      id: bake
+      uses: docker/bake-action@v6
+      with:
+        source: .
+        workdir: ${{ inputs.workdir }}
+        files: ${{ inputs.files }}
+        push: ${{ inputs.push }}
+        set: |
+          development.tags=${{ env.DEVELOPMENT_TAGS }}
+          development.output=type=registry,push=${{ inputs.push }},compression=zstd
+          development.cache-from=type=registry,ref=${{ env.CACHE_TAG }}
+          development.cache-from=type=registry,ref=${{ env.PR_CACHE_TAG }}
+          production.tags=${{ env.PRODUCTION_TAGS }}
+          production.output=type=registry,push=${{ inputs.push }},compression=zstd
+          production.cache-from=type=registry,ref=${{ env.CACHE_TAG }}
+          production.cache-from=type=registry,ref=${{ env.PR_CACHE_TAG }}
+          production.cache-to=type=registry,ref=${{ env.CACHE_TAG }},mode=max,compression=zstd
+
+    - name: Set outputs
+      id: set-outputs
+      shell: bash
+      run: |
+        # Extract first tag from comma-separated lists for outputs
+        FIRST_PRODUCTION_TAG=$(echo "${{ env.PRODUCTION_TAGS }}" | cut -d',' -f1)
+        FIRST_DEVELOPMENT_TAG=$(echo "${{ env.DEVELOPMENT_TAGS }}" | cut -d',' -f1)
+        
+        echo "production-image=$FIRST_PRODUCTION_TAG" >> $GITHUB_OUTPUT
+        echo "development-image=$FIRST_DEVELOPMENT_TAG" >> $GITHUB_OUTPUT
+        echo "cache-image=${{ env.CACHE_TAG }}" >> $GITHUB_OUTPUT
+        echo "pr-cache-image=${{ env.PR_CACHE_TAG }}" >> $GITHUB_OUTPUT
+
+    # TODO we need to read the subject-digest for each of the image build during bake and run this step for each image.
+    # - name: Generate artifact attestation for production image
+    #   if: inputs.push == 'true'
+    #   uses: actions/attest-build-provenance@v1
+    #   with:
+    #     subject-name: ${{ steps.set-outputs.outputs.production-image }}
+    #     subject-digest: ${{ steps.bake.outputs.digest }}
+    #     push-to-registry: true
