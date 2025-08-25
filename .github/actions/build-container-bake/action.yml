@@ -56,14 +56,6 @@ inputs:
     description: 'Comma-separated list of platforms to build for'
     required: false
     default: 'linux/amd64'
-  context:
-    description: 'Build context path'
-    required: false
-    default: './web'
-  dockerfile:
-    description: 'Path to Dockerfile'
-    required: false
-    default: './web/Dockerfile'
   push:
     description: 'Whether to push the built images'
     required: false
@@ -174,8 +166,6 @@ runs:
         workdir: ${{ inputs.workdir }}
         push: ${{ inputs.push }}
         set: |
-          *.context=${{ inputs.context }}
-          *.dockerfile=${{ inputs.dockerfile }}
           *.platform=${{ inputs.platforms }}
           *.cache-from=type=registry,ref=${{ env.CACHE_TAG }}
           *.cache-from=type=registry,ref=${{ env.PR_CACHE_TAG }}
