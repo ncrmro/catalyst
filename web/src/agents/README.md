@@ -12,7 +12,7 @@ The PeriodicReportAgent generates comprehensive periodic reports about the curre
 
 - **Data Integration**: Automatically fetches current projects and clusters data
 - **AI Analysis**: Uses AI to analyze infrastructure state and generate insights
-- **Provider Support**: Works with both Anthropic Claude and OpenAI GPT models
+- **Provider Support**: Works with both OpenAI GPT and Anthropic Claude models
 - **Structured Output**: Returns well-structured reports with specific sections
 - **Error Handling**: Robust error handling for data fetching and AI interactions
 
@@ -26,8 +26,8 @@ const report = await generatePeriodicReport();
 
 // Using the agent class with custom options
 const agent = new PeriodicReportAgent({
-  provider: 'anthropic', // or 'openai'
-  model: 'claude-3-sonnet-20240229' // or 'gpt-4'
+  provider: 'openai', // or 'anthropic'
+  model: 'gpt-4' // or 'claude-3-sonnet-20240229'
 });
 
 const report = await agent.generateReport();
@@ -37,8 +37,8 @@ const report = await agent.generateReport();
 
 The agent requires API keys for the AI providers:
 
-- **Anthropic**: Set `ANTHROPIC_API_KEY` environment variable
 - **OpenAI**: Set `OPENAI_API_KEY` environment variable
+- **Anthropic**: Set `ANTHROPIC_API_KEY` environment variable
 
 #### Report Structure
 
@@ -115,11 +115,11 @@ npm test -- __tests__/agents/periodic-report.test.ts
 Make sure to set the following environment variables for AI providers:
 
 ```bash
+# For OpenAI GPT (default)
+OPENAI_API_KEY=your_openai_api_key
+
 # For Anthropic Claude
 ANTHROPIC_API_KEY=your_anthropic_api_key
-
-# For OpenAI GPT
-OPENAI_API_KEY=your_openai_api_key
 ```
 
 ## Dependencies

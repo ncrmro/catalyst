@@ -58,8 +58,8 @@ export class PeriodicReportAgent {
   private gitHubMCPClient?: GitHubMCPClient;
 
   constructor(options: PeriodicReportOptions = {}) {
-    this.provider = options.provider || 'anthropic';
-    this.model = options.model || (this.provider === 'anthropic' ? 'claude-3-sonnet-20240229' : 'gpt-4');
+    this.provider = options.provider || 'openai';
+    this.model = options.model || (this.provider === 'anthropic' ? 'claude-3-sonnet-20240229' : 'gpt-5-mini');
     this.enableGitHubMCP = options.enableGitHubMCP ?? true;
     
     if (this.enableGitHubMCP) {
