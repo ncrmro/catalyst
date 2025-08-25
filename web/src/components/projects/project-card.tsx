@@ -1,5 +1,6 @@
 import { Project } from '@/actions/projects';
 import Image from 'next/image';
+import Link from 'next/link';
 import { EnvironmentBadge } from './environment-badge';
 
 export function ProjectCard({ project }: { project: Project }) {
@@ -7,10 +8,11 @@ export function ProjectCard({ project }: { project: Project }) {
   const otherRepos = project.repositories.filter(repo => !repo.primary);
 
   return (
-    <div 
-      className="bg-surface border border-outline rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow"
-      data-testid={`project-card-${project.full_name}`}
-    >
+    <Link href={`/projects/${project.id}`}>
+      <div 
+        className="bg-surface border border-outline rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+        data-testid={`project-card-${project.full_name}`}
+      >
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <Image 
@@ -94,6 +96,7 @@ export function ProjectCard({ project }: { project: Project }) {
           <span>Updated {new Date(project.updated_at).toLocaleDateString()}</span>
         </div>
       </div>
-    </div>
+      </div>
+    </Link>
   );
 }
