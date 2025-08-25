@@ -20,18 +20,8 @@ FROM deps AS development
 WORKDIR /app
 ENV NODE_ENV=development
 
-# Install system dependencies needed for Playwright browsers (as root)
-RUN apt-get update && apt-get install -y \
-    libnss3 \
-    libatk-bridge2.0-0 \
-    libdrm2 \
-    libgtk-3-0 \
-    libgbm1 \
-    libasound2 \
-    && rm -rf /var/lib/apt/lists/*
-
 # Install Playwright browsers early for better caching
-RUN npx playwright install chromium --with-deps
+RUN npx playwright install --with-deps --no-shell
 
 COPY . .
 
