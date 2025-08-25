@@ -1,0 +1,63 @@
+# Docker Bake file in YAML format
+# Matrix-based configuration for building development and runner layers in parallel
+# 
+# Usage examples:
+#   docker buildx bake                     # Build all targets (default group)
+#   docker buildx bake web                 # Build only web targets
+#   docker buildx bake rails               # Build only rails targets  
+#   docker buildx bake development         # Build only development variants
+#   docker buildx bake production          # Build only production/runner variants
+#   docker buildx bake web-development     # Build specific target
+
+version: '3.8'
+
+# Matrix approach: Define services that represent build targets
+# Each service can be built in parallel by Docker Buildx
+services:
+  # Web application targets
+  web-development:
+    build:
+      dockerfile: Dockerfile
+      context: ./web
+      target: development
+      platforms:
+        - linux/amd64
+    image: catalyst/web:development
+
+  web-runner:
+    build:
+      dockerfile: Dockerfile
+      context: ./web
+      target: runner
+      platforms:
+        - linux/amd64
+    image: catalyst/web:runner
+
+  # Rails application targets  
+  rails-development:
+    build:
+      dockerfile: Dockerfile
+      context: ./boilerplate/rails
+      target: base
+      args:
+        RAILS_ENV: development
+      platforms:
+        - linux/amd64
+    image: catalyst/rails:development
+
+  rails-runner:
+    build:
+      dockerfile: Dockerfile
+      context: ./boilerplate/rails
+      platforms:
+        - linux/amd64
+    image: catalyst/rails:runner
+
+# Groups for matrix-style parallel building
+# Note: Groups are implicit based on service names matching patterns
+# Available groups when using this file:
+# - default: all services (web-development, web-runner, rails-development, rails-runner)
+# - Services matching 'web-*': web-development, web-runner  
+# - Services matching 'rails-*': rails-development, rails-runner
+# - Services matching '*-development': web-development, rails-development
+# - Services matching '*-runner': web-runner, rails-runner
