@@ -3,9 +3,9 @@ name: Test Web
 on:
   pull_request:
     paths:
-      - 'web/**'
-      - '.github/actions/build-container/**'
-      - '.github/workflows/web.test.yml'
+      - "web/**"
+      - ".github/actions/build-container-bake/**"
+      - ".github/workflows/web.test.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,9 +25,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: './web/package-lock.json'
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "./web/package-lock.json"
 
       - name: Install dependencies
         run: npm ci
@@ -81,9 +81,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: './web/package-lock.json'
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "./web/package-lock.json"
 
       - name: Install dependencies
         run: npm ci
@@ -126,7 +126,8 @@ jobs:
       - name: Create Kind cluster
         uses: helm/kind-action@v1.10.0
         with:
-          cluster_name: e2e-test-cluster
+          # TODO we need to rename this to be consistant across envirnments but that will also involve updating the e2e tests that look for cluster name/namespace.
+          cluster_name: preview-cluster
           wait: 60s
 
       - name: Export kubeconfig for E2E tests
@@ -139,9 +140,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: './web/package-lock.json'
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "./web/package-lock.json"
 
       - name: Install dependencies
         run: npm ci
@@ -160,7 +161,7 @@ jobs:
 
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps
+        run: npx playwright install --with-deps --no-shell
 
       - run: npm run db:migrate
 
@@ -201,31 +202,24 @@ jobs:
       id-token: write
       attestations: write
     outputs:
-      image-tags: ${{ steps.build.outputs.image }}
-      image-digest: ${{ steps.build.outputs.digest }}
-      dev-image-tags: ${{ steps.build-dev.outputs.image }}
-      dev-image-digest: ${{ steps.build-dev.outputs.digest }}
+      production-image: ${{ steps.build.outputs.production-image }}
+      development-image: ${{ steps.build.outputs.development-image }}
+      cache-image: ${{ steps.build.outputs.cache-image }}
+      digest: ${{ steps.build.outputs.digest }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build and push development container
-        id: build-dev
-        uses: ./.github/actions/build-container
-        with:
-          registry: ghcr.io
-          image: ${{ github.repository }}/web-dev
-          target: development
-          platforms: 'linux/amd64'
-
-      - name: Build and push production container
+      - name: Build and push containers with Docker Bake
         id: build
-        uses: ./.github/actions/build-container
+        uses: ./.github/actions/build-container-bake
         with:
           registry: ghcr.io
           image: ${{ github.repository }}/web
-          platforms: 'linux/amd64'
+          platforms: "linux/amd64"
+          workdir: "./web"
+          files: "./docker-bake.yml"
 
   preview-environment:
     needs: build-container
@@ -261,11 +255,12 @@ jobs:
           echo "Namespace created successfully"
           kubectl get namespace ${{ env.NAMESPACE }}
 
-      - name: Debug - Pre-deployment state  
+      - name: Debug - Pre-deployment state
         run: |
           echo "=== PRE-DEPLOYMENT DEBUG INFO ==="
-          echo "Image tags from build: ${{ needs.build-container.outputs.image-tags }}"
-          echo "Image digest: ${{ needs.build-container.outputs.image-digest }}"
+          echo "Production image: ${{ needs.build-container.outputs.production-image }}"
+          echo "Development image: ${{ needs.build-container.outputs.development-image }}"
+          echo "Image digest: ${{ needs.build-container.outputs.digest }}"
           echo "PR number: ${{ github.event.number }}"
           echo "Namespace: ${{ env.NAMESPACE }}"
           echo "PR tag: ${{ env.PR_TAG }}"
@@ -280,19 +275,10 @@ jobs:
 
       - name: Deploy to Kind cluster using Helm chart
         run: |
-          # Extract the pr tag from the built image
-          FULL_IMAGE_TAG=$(echo '${{ needs.build-container.outputs.image-tags }}' | grep 'pr-' | head -n 1)
-          if [ -z "$FULL_IMAGE_TAG" ]; then
-            echo "No PR tag found in built images, using SHA tag as fallback"
-            FULL_IMAGE_TAG=$(echo '${{ needs.build-container.outputs.image-tags }}' | head -n 1)
-          fi
-
-          # Extract the pr tag from the built development image
-          FULL_DEV_IMAGE_TAG=$(echo '${{ needs.build-container.outputs.dev-image-tags }}' | grep 'pr-' | head -n 1)
-          if [ -z "$FULL_DEV_IMAGE_TAG" ]; then
-            echo "No PR tag found in built dev images, using SHA tag as fallback"
-            FULL_DEV_IMAGE_TAG=$(echo '${{ needs.build-container.outputs.dev-image-tags }}' | head -n 1)
-          fi
+          # Use the production image
+          FULL_IMAGE_TAG="${{ needs.build-container.outputs.production-image }}"
+          # Use the development image
+          FULL_DEV_IMAGE_TAG="${{ needs.build-container.outputs.development-image }}"
 
           echo "Deploying image: $FULL_IMAGE_TAG"
           echo "Development image for tests: $FULL_DEV_IMAGE_TAG"
@@ -301,19 +287,19 @@ jobs:
           # Extract repository and tag from the full image tag
           IMAGE_REPO=$(echo "$FULL_IMAGE_TAG" | cut -d':' -f1)
           IMAGE_TAG=$(echo "$FULL_IMAGE_TAG" | cut -d':' -f2)
-          
+
           # Extract repository and tag from the full development image tag
           DEV_IMAGE_REPO=$(echo "$FULL_DEV_IMAGE_TAG" | cut -d':' -f1)
           DEV_IMAGE_TAG=$(echo "$FULL_DEV_IMAGE_TAG" | cut -d':' -f2)
-          
+
           echo "Image repository: $IMAGE_REPO"
           echo "Image tag: $IMAGE_TAG"
           echo "Development image repository: $DEV_IMAGE_REPO"
           echo "Development image tag: $DEV_IMAGE_TAG"
-          
+
           # Verify namespace exists
           kubectl get namespace ${{ env.NAMESPACE }}
-          
+
           # Deploy using the nextjs Helm chart
           helm install web-preview-${{ github.event.number }} ./charts/nextjs \
             --namespace ${{ env.NAMESPACE }} \
@@ -410,4 +396,4 @@ jobs:
           name: preview-env-debug-logs-pr-${{ github.event.number }}
           path: |
             /tmp/debug-*.log
-          retention-days: 7 
+          retention-days: 7

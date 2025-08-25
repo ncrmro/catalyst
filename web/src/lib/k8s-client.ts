@@ -68,6 +68,26 @@ class KubeConfigRegistry {
     return this.configs;
   }
 
+  async getConfigForCluster(clusterName: string): Promise<KubeConfig | null> {
+    await this.initialize();
+    
+    // First try to find by exact cluster name
+    for (const [source, kubeConfig] of this.configs) {
+      try {
+        const clusterInfo = kubeConfig.getClusterInfo();
+        if (clusterInfo.name === clusterName) {
+          return kubeConfig;
+        }
+      } catch (error) {
+        console.warn(`Failed to get cluster info for ${source}:`, error instanceof Error ? error.message : 'Unknown error');
+      }
+    }
+    
+    // If not found by exact name, try by source name
+    const config = this.configs.get(clusterName) || this.configs.get(clusterName.replace('KUBECONFIG_', ''));
+    return config || null;
+  }
+
   async getClusters(): Promise<ClusterInfo[]> {
     await this.initialize();
     const clusters: ClusterInfo[] = [];
@@ -167,6 +187,10 @@ export async function getCoreV1Api() {
 
 export async function getClusters(): Promise<ClusterInfo[]> {
   return kubeConfigRegistry.getClusters();
+}
+
+export async function getClusterConfig(clusterName: string): Promise<KubeConfig | null> {
+  return kubeConfigRegistry.getConfigForCluster(clusterName);
 }
 
 // For testing purposes

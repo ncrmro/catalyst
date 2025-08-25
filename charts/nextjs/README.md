@@ -48,6 +48,16 @@ The following table lists the configurable parameters of the NextJS chart and th
 | `developmentImage.tag` | Development image tag for helm tests | `Chart.AppVersion` |
 | `developmentImage.pullPolicy` | Development image pull policy for helm tests | `IfNotPresent` |
 
+### E2E Tests Configuration
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `e2eTests.enabled` | Enable E2E tests | `false` |
+| `e2eTests.smokeOnly` | Run only smoke tests | `true` |
+| `e2eTests.testFiles` | Custom test files to run | `[]` |
+| `e2eTests.env` | Additional environment variables for E2E tests | `[]` |
+| `e2eTests.resources` | Resource limits for E2E test pod | See values.yaml |
+
 ### NextJS Configuration
 
 | Parameter | Description | Default |
@@ -127,6 +137,11 @@ ingress:
 
 # Scale to multiple replicas
 replicaCount: 3
+
+# Enable E2E tests
+e2eTests:
+  enabled: true
+  smokeOnly: true
 ```
 
 ## Database Integration
@@ -144,6 +159,64 @@ The DATABASE_URL format is: `postgresql://nextjs:password@postgresql.namespace.s
 ## Health Checks
 
 The chart includes default health checks that probe the root path (`/`) on port 3000. Make sure your NextJS application responds to HTTP requests on this endpoint.
+
+## Helm Tests
+
+The chart includes two types of tests that can be run with `helm test`:
+
+### Connection Test
+A basic connectivity test that verifies the NextJS service is accessible:
+```bash
+helm test my-nextjs-app
+```
+
+### E2E Tests
+Advanced end-to-end tests using Playwright that validate application functionality:
+
+**Prerequisites:**
+- Your NextJS application must be built with the development image that includes E2E test dependencies
+- The development image is used to run E2E tests against the deployed service
+
+**Configuration:**
+```yaml
+e2eTests:
+  enabled: true        # Enable E2E tests (disabled by default)
+  smokeOnly: true      # Run only smoke tests (recommended)
+  
+  # Alternative: specify custom test files
+  # smokeOnly: false
+  # testFiles:
+  #   - "__tests__/e2e/smoke.spec.ts"
+  #   - "__tests__/e2e/teams.spec.ts"
+  
+  # Additional environment variables for tests
+  env:
+    - name: CUSTOM_VAR
+      value: "custom-value"
+```
+
+**Running E2E Tests:**
+```bash
+# Deploy with development image and enable E2E testing
+helm install my-nextjs-app charts/nextjs \
+  --set image.repository=my-nextjs-app \
+  --set image.tag=v1.0.0 \
+  --set developmentImage.repository=my-nextjs-app \
+  --set developmentImage.tag=development \
+  --set e2eTests.enabled=true
+
+# Run all tests (including E2E)
+helm test my-nextjs-app
+
+# Run only E2E tests
+helm test my-nextjs-app --filter name=*e2e*
+```
+
+The E2E tests use the development image to run Playwright tests against the deployed NextJS service and validate:
+- Application loading and basic functionality
+- Authentication flows
+- Core page navigation
+- API endpoint accessibility
 
 ## Notes
 
