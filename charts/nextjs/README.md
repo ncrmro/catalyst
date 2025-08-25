@@ -52,6 +52,7 @@ The following table lists the configurable parameters of the NextJS chart and th
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
+| `e2eTests.enabled` | Enable E2E tests | `false` |
 | `e2eTests.smokeOnly` | Run only smoke tests | `true` |
 | `e2eTests.testFiles` | Custom test files to run | `[]` |
 | `e2eTests.env` | Additional environment variables for E2E tests | `[]` |
@@ -136,6 +137,11 @@ ingress:
 
 # Scale to multiple replicas
 replicaCount: 3
+
+# Enable E2E tests
+e2eTests:
+  enabled: true
+  smokeOnly: true
 ```
 
 ## Database Integration
@@ -174,7 +180,8 @@ Advanced end-to-end tests using Playwright that validate application functionali
 **Configuration:**
 ```yaml
 e2eTests:
-  smokeOnly: true  # Run only smoke tests (recommended)
+  enabled: true        # Enable E2E tests (disabled by default)
+  smokeOnly: true      # Run only smoke tests (recommended)
   
   # Alternative: specify custom test files
   # smokeOnly: false
@@ -190,12 +197,13 @@ e2eTests:
 
 **Running E2E Tests:**
 ```bash
-# Deploy with development image for E2E testing
+# Deploy with development image and enable E2E testing
 helm install my-nextjs-app charts/nextjs \
   --set image.repository=my-nextjs-app \
   --set image.tag=v1.0.0 \
   --set developmentImage.repository=my-nextjs-app \
-  --set developmentImage.tag=development
+  --set developmentImage.tag=development \
+  --set e2eTests.enabled=true
 
 # Run all tests (including E2E)
 helm test my-nextjs-app

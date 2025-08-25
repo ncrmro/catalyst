@@ -21,6 +21,9 @@ developmentImage:
 
 # E2E test configuration for helm tests using development image
 e2eTests:
+  # Enable E2E tests (disabled by default)
+  enabled: false
+  
   # Run only smoke tests by default (recommended for Helm tests)
   smokeOnly: true
   

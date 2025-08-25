@@ -1,3 +1,4 @@
+{{- if .Values.e2eTests.enabled }}
 apiVersion: v1
 kind: Pod
 metadata:
@@ -59,3 +60,4 @@ spec:
   tolerations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
+{{- end }}
