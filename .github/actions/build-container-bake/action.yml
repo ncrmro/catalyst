@@ -179,14 +179,16 @@ runs:
         files: ${{ inputs.files }}
         push: ${{ inputs.push }}
         set: |
-          *.platform=${{ inputs.platforms }}
-          *.cache-from=type=registry,ref=${{ env.CACHE_TAG }}
-          *.cache-from=type=registry,ref=${{ env.PR_CACHE_TAG }}
-          production.tags=${{ env.PRODUCTION_TAGS }}
-          production.output=type=image,push=${{ inputs.push }},compression=zstd
-          production.cache-to=type=registry,ref=${{ env.CACHE_TAG }},mode=max,compression=zstd
           development.tags=${{ env.DEVELOPMENT_TAGS }}
-          development.output=type=image,push=${{ inputs.push }},compression=zstd
+          development.output=type=registry,push=${{ inputs.push }},compression=zstd
+          development.cache-from=type=registry,ref=${{ env.CACHE_TAG }}
+          development.cache-from=type=registry,ref=${{ env.PR_CACHE_TAG }}
+          production.tags=${{ env.PRODUCTION_TAGS }}
+          production.output=type=registry,push=${{ inputs.push }},compression=zstd
+          production.cache-from=type=registry,ref=${{ env.CACHE_TAG }}
+          production.cache-from=type=registry,ref=${{ env.PR_CACHE_TAG }}
+          production.cache-to=type=registry,ref=${{ env.CACHE_TAG }},mode=max,compression=zstd
+
 
     - name: Set outputs
       id: set-outputs
