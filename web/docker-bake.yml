@@ -16,7 +16,7 @@ services:
       platforms:
         - linux/amd64
 
-  runner:
+  production:
     build:
       dockerfile: Dockerfile
       context: .
