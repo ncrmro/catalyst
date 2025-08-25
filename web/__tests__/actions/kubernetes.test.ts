@@ -1,4 +1,5 @@
 import { createProjectNamespace, deleteNamespace, generateNamespaceName } from '../../src/lib/k8s-namespaces';
+import { createKubernetesNamespace, deleteKubernetesNamespace } from '../../src/actions/kubernetes';
 
 // Mock the k8s-namespaces module
 jest.mock('../../src/lib/k8s-namespaces', () => ({
