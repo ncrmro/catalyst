@@ -182,3 +182,71 @@ export const projectsRepos = pgTable(
     },
   ]
 )
+
+// GitHub App installations for enabling periodic reports without active user sessions
+export const githubInstallations = pgTable("github_installations", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  installationId: integer("installation_id").notNull().unique(),
+  accountId: integer("account_id").notNull(),
+  accountLogin: text("account_login").notNull(),
+  accountType: text("account_type").notNull(), // 'User' | 'Organization'
+  targetType: text("target_type").notNull(), // 'User' | 'Organization'
+  permissions: text("permissions"), // JSON string
+  events: text("events"), // JSON array as string
+  singleFileName: text("single_file_name"),
+  hasMultipleSingleFiles: boolean("has_multiple_single_files").default(false),
+  suspendedBy: text("suspended_by"),
+  suspendedAt: timestamp("suspended_at", { mode: "date" }),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+})
+
+export const userGithubInstallations = pgTable(
+  "user_github_installations",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    installationId: text("installation_id")
+      .notNull()
+      .references(() => githubInstallations.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("member"), // 'owner', 'admin', 'member'
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    {
+      uniqueUserInstallation: primaryKey({
+        columns: [table.userId, table.installationId],
+      }),
+    },
+  ]
+)
+
+export const installationRepositories = pgTable(
+  "installation_repositories",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    installationId: text("installation_id")
+      .notNull()
+      .references(() => githubInstallations.id, { onDelete: "cascade" }),
+    repositoryId: integer("repository_id").notNull(),
+    repositoryName: text("repository_name").notNull(),
+    repositoryFullName: text("repository_full_name").notNull(),
+    private: boolean("private").notNull().default(false),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    {
+      uniqueInstallationRepo: primaryKey({
+        columns: [table.installationId, table.repositoryId],
+      }),
+    },
+  ]
+)

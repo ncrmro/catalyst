@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createKubernetesNamespace, deleteKubernetesNamespace } from '../../../../actions/kubernetes';
+import { createGitHubAppService } from '@/lib/github-app';
 
 /**
  * GitHub App Webhook Endpoint
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     // Handle different webhook events
     switch (event) {
       case 'installation':
-        return handleInstallationEvent(payload);
+        return await handleInstallationEvent(payload);
       case 'installation_repositories':
         return handleInstallationRepositoriesEvent(payload);
       case 'push':
@@ -67,22 +68,61 @@ export async function POST(request: NextRequest) {
 /**
  * Handle GitHub App installation events
  */
-function handleInstallationEvent(payload: {
+async function handleInstallationEvent(payload: {
   action: string;
   installation: {
     id: number;
-    account: { login: string };
+    account: { 
+      id: number;
+      login: string; 
+      type: string;
+    };
+    target_type: string;
     permissions: Record<string, string>;
+    events: string[];
+    single_file_name?: string;
+    has_multiple_single_files?: boolean;
   };
   sender: { login: string };
 }) {
   const { action, installation, sender } = payload;
+  const githubAppService = createGitHubAppService();
   
   console.log(`Installation ${action} by ${sender.login}`, {
     installation_id: installation.id,
     account: installation.account.login,
     permissions: installation.permissions
   });
+
+  try {
+    switch (action) {
+      case 'created':
+        console.log('GitHub App installed:', installation.id);
+        // Store installation in database
+        await githubAppService.storeInstallation(payload);
+        break;
+      case 'deleted':
+        console.log('GitHub App uninstalled:', installation.id);
+        // Remove installation from database
+        await githubAppService.removeInstallation(installation.id);
+        break;
+      case 'suspend':
+        console.log('GitHub App suspended:', installation.id);
+        await githubAppService.updateInstallationStatus(installation.id, true, sender.login);
+        break;
+      case 'unsuspend':
+        console.log('GitHub App unsuspended:', installation.id);
+        await githubAppService.updateInstallationStatus(installation.id, false);
+        break;
+      case 'new_permissions_accepted':
+        console.log('GitHub App permissions updated:', installation.id);
+        await githubAppService.updateInstallation(payload);
+        break;
+    }
+  } catch (error) {
+    console.error(`Failed to handle installation ${action}:`, error);
+    // Continue processing, don't fail the webhook
+  }
   
   return NextResponse.json({
     success: true,
