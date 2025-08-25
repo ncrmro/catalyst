@@ -19,6 +19,43 @@ developmentImage:
   pullPolicy: IfNotPresent
   # tag defaults to Chart.AppVersion if not specified
 
+# E2E test configuration for helm tests using development image
+e2eTests:
+  # Enable E2E tests (disabled by default)
+  enabled: false
+  
+  # Run only smoke tests by default (recommended for Helm tests)
+  smokeOnly: true
+  
+  # Alternative: specify custom test files to run
+  testFiles: []
+  # Example:
+  # testFiles:
+  #   - "__tests__/e2e/smoke.spec.ts"
+  #   - "__tests__/e2e/teams.spec.ts"
+  
+  # Additional environment variables for E2E tests
+  env: []
+  # Example:
+  # env:
+  #   - name: CUSTOM_VAR
+  #     value: "custom-value"
+  
+  # Resource limits for E2E test pod
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  
+  # Node selector for E2E test pod
+  nodeSelector: {}
+  
+  # Tolerations for E2E test pod
+  tolerations: []
+
 # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 imagePullSecrets: []
 # This is to override the chart name.

@@ -1,0 +1,63 @@
+{{- if .Values.e2eTests.enabled }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "nextjs.fullname" . }}-test-e2e"
+  labels:
+    {{- include "nextjs.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-weight": "1"
+spec:
+  containers:
+    - name: e2e-tests
+      image: "{{ .Values.developmentImage.repository }}:{{ .Values.developmentImage.tag | default .Chart.AppVersion }}"
+      imagePullPolicy: {{ .Values.developmentImage.pullPolicy }}
+      env:
+        - name: TEST_BASE_URL
+          value: "http://{{ include "nextjs.fullname" . }}:{{ .Values.service.port }}"
+        - name: NODE_ENV
+          value: "production"
+        - name: MOCKED
+          value: "1"
+        - name: CI
+          value: "true"
+        {{- range .Values.e2eTests.env }}
+        - name: {{ .name }}
+          value: {{ .value | quote }}
+        {{- end }}
+      command: 
+        - sh
+        - -c
+        - |
+          # Install playwright browsers if not present
+          npx playwright install chromium --with-deps
+          # Run the tests
+          npx playwright test \
+            --config=/app/playwright.config.ts \
+            --project=chromium \
+            {{- if .Values.e2eTests.smokeOnly }}
+            /app/__tests__/e2e/smoke.spec.ts
+            {{- else }}
+            {{- range .Values.e2eTests.testFiles }}
+            /app/{{ . }}
+            {{- end }}
+            {{- end }}
+      resources:
+        {{- toYaml .Values.e2eTests.resources | nindent 8 }}
+      volumeMounts:
+        - name: test-results
+          mountPath: /tmp
+  volumes:
+    - name: test-results
+      emptyDir: {}
+  restartPolicy: Never
+  {{- with .Values.e2eTests.nodeSelector }}
+  nodeSelector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.e2eTests.tolerations }}
+  tolerations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
