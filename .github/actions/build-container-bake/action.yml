@@ -174,6 +174,7 @@ runs:
       id: bake
       uses: docker/bake-action@v6
       with:
+        source: .
         workdir: ${{ inputs.workdir }}
         files: ${{ inputs.files }}
         push: ${{ inputs.push }}
@@ -181,11 +182,9 @@ runs:
           *.platform=${{ inputs.platforms }}
           *.cache-from=type=registry,ref=${{ env.CACHE_TAG }}
           *.cache-from=type=registry,ref=${{ env.PR_CACHE_TAG }}
-          production.target=runner
           production.tags=${{ env.PRODUCTION_TAGS }}
           production.output=type=image,push=${{ inputs.push }},compression=zstd
           production.cache-to=type=registry,ref=${{ env.CACHE_TAG }},mode=max,compression=zstd
-          development.target=development
           development.tags=${{ env.DEVELOPMENT_TAGS }}
           development.output=type=image,push=${{ inputs.push }},compression=zstd
 
