@@ -201,27 +201,19 @@ jobs:
       id-token: write
       attestations: write
     outputs:
-      image-tags: ${{ steps.build.outputs.image }}
-      image-digest: ${{ steps.build.outputs.digest }}
-      dev-image-tags: ${{ steps.build-dev.outputs.image }}
-      dev-image-digest: ${{ steps.build-dev.outputs.digest }}
+      production-image: ${{ steps.build.outputs.production-image }}
+      development-image: ${{ steps.build.outputs.development-image }}
+      cache-image: ${{ steps.build.outputs.cache-image }}
+      main-cache-image: ${{ steps.build.outputs.main-cache-image }}
+      digest: ${{ steps.build.outputs.digest }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build and push development container
-        id: build-dev
-        uses: ./.github/actions/build-container
-        with:
-          registry: ghcr.io
-          image: ${{ github.repository }}/web-dev
-          target: development
-          platforms: 'linux/amd64'
-
-      - name: Build and push production container
+      - name: Build and push containers with Docker Bake
         id: build
-        uses: ./.github/actions/build-container
+        uses: ./.github/actions/build-container-bake
         with:
           registry: ghcr.io
           image: ${{ github.repository }}/web
@@ -264,8 +256,9 @@ jobs:
       - name: Debug - Pre-deployment state  
         run: |
           echo "=== PRE-DEPLOYMENT DEBUG INFO ==="
-          echo "Image tags from build: ${{ needs.build-container.outputs.image-tags }}"
-          echo "Image digest: ${{ needs.build-container.outputs.image-digest }}"
+          echo "Production image: ${{ needs.build-container.outputs.production-image }}"
+          echo "Development image: ${{ needs.build-container.outputs.development-image }}"
+          echo "Image digest: ${{ needs.build-container.outputs.digest }}"
           echo "PR number: ${{ github.event.number }}"
           echo "Namespace: ${{ env.NAMESPACE }}"
           echo "PR tag: ${{ env.PR_TAG }}"
@@ -280,19 +273,10 @@ jobs:
 
       - name: Deploy to Kind cluster using Helm chart
         run: |
-          # Extract the pr tag from the built image
-          FULL_IMAGE_TAG=$(echo '${{ needs.build-container.outputs.image-tags }}' | grep 'pr-' | head -n 1)
-          if [ -z "$FULL_IMAGE_TAG" ]; then
-            echo "No PR tag found in built images, using SHA tag as fallback"
-            FULL_IMAGE_TAG=$(echo '${{ needs.build-container.outputs.image-tags }}' | head -n 1)
-          fi
-
-          # Extract the pr tag from the built development image
-          FULL_DEV_IMAGE_TAG=$(echo '${{ needs.build-container.outputs.dev-image-tags }}' | grep 'pr-' | head -n 1)
-          if [ -z "$FULL_DEV_IMAGE_TAG" ]; then
-            echo "No PR tag found in built dev images, using SHA tag as fallback"
-            FULL_DEV_IMAGE_TAG=$(echo '${{ needs.build-container.outputs.dev-image-tags }}' | head -n 1)
-          fi
+          # Use the production image
+          FULL_IMAGE_TAG="${{ needs.build-container.outputs.production-image }}"
+          # Use the development image
+          FULL_DEV_IMAGE_TAG="${{ needs.build-container.outputs.development-image }}"
 
           echo "Deploying image: $FULL_IMAGE_TAG"
           echo "Development image for tests: $FULL_DEV_IMAGE_TAG"

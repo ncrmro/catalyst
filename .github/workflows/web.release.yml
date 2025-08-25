@@ -37,16 +37,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build and push development container
-        uses: ./.github/actions/build-container
-        with:
-          registry: ${{ env.REGISTRY }}
-          image: ${{ github.repository }}/web-dev
-          target: development
-          platforms: ${{ inputs.platforms || 'linux/amd64' }}
-
-      - name: Build and push production container
-        uses: ./.github/actions/build-container
+      - name: Build and push containers with Docker Bake
+        uses: ./.github/actions/build-container-bake
         with:
           registry: ${{ env.REGISTRY }}
           image: ${{ github.repository }}/web

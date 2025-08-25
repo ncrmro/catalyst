@@ -1,0 +1,122 @@
+name: Build Container with Docker Bake
+description: Build and push Docker container images using Docker Bake with multiple targets and tags
+
+inputs:
+  registry:
+    description: 'Container registry URL'
+    required: true
+    default: 'ghcr.io'
+  image:
+    description: 'Base image name (without registry)'
+    required: true
+  platforms:
+    description: 'Comma-separated list of platforms to build for'
+    required: false
+    default: 'linux/amd64'
+  context:
+    description: 'Build context path'
+    required: false
+    default: './web'
+  dockerfile:
+    description: 'Path to Dockerfile'
+    required: false
+    default: './web/Dockerfile'
+  push:
+    description: 'Whether to push the built images'
+    required: false
+    default: 'true'
+
+outputs:
+  production-image:
+    description: 'Production image name with tag'
+    value: ${{ steps.set-outputs.outputs.production-image }}
+  development-image:
+    description: 'Development image name with tag'
+    value: ${{ steps.set-outputs.outputs.development-image }}
+  cache-image:
+    description: 'Cache image name with tag'
+    value: ${{ steps.set-outputs.outputs.cache-image }}
+  main-cache-image:
+    description: 'Main cache image name with tag'
+    value: ${{ steps.set-outputs.outputs.main-cache-image }}
+  digest:
+    description: 'Image digest'
+    value: ${{ steps.bake.outputs.digest }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set lowercase image name
+      shell: bash
+      run: |
+        echo "IMAGE_NAME=$(echo '${{ inputs.image }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ inputs.registry }}
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+
+    - name: Generate tag suffix
+      shell: bash
+      run: |
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          echo "TAG_SUFFIX=pr-${{ github.event.number }}" >> $GITHUB_ENV
+        elif [ "${{ github.ref_name }}" = "main" ]; then
+          echo "TAG_SUFFIX=main" >> $GITHUB_ENV
+        else
+          echo "TAG_SUFFIX=${{ github.ref_name }}" >> $GITHUB_ENV
+        fi
+
+    - name: Set image tags
+      shell: bash
+      run: |
+        BASE_NAME="${{ inputs.registry }}/${{ env.IMAGE_NAME }}"
+        echo "PRODUCTION_TAG=${BASE_NAME}:${{ env.TAG_SUFFIX }}" >> $GITHUB_ENV
+        echo "DEVELOPMENT_TAG=${BASE_NAME}:${{ env.TAG_SUFFIX }}-dev" >> $GITHUB_ENV
+        echo "CACHE_TAG=${BASE_NAME}:${{ env.TAG_SUFFIX }}-cache" >> $GITHUB_ENV
+        echo "MAIN_CACHE_TAG=${BASE_NAME}:main-cache" >> $GITHUB_ENV
+
+    - name: Build and push with Docker Bake
+      id: bake
+      uses: docker/bake-action@v6
+      with:
+        source: ${{ inputs.context }}
+        push: ${{ inputs.push }}
+        set: |
+          production.context=${{ inputs.context }}
+          production.dockerfile=${{ inputs.dockerfile }}
+          production.platform=${{ inputs.platforms }}
+          production.target=runner
+          production.tags=${{ env.PRODUCTION_TAG }},${{ env.CACHE_TAG }}
+          production.cache-from=type=gha
+          production.cache-to=type=gha,mode=max
+          production.cache-to=type=registry,ref=${{ env.MAIN_CACHE_TAG }},mode=max
+          development.context=${{ inputs.context }}
+          development.dockerfile=${{ inputs.dockerfile }}
+          development.platform=${{ inputs.platforms }}
+          development.target=development
+          development.tags=${{ env.DEVELOPMENT_TAG }}
+          development.cache-from=type=gha
+          development.cache-to=type=gha,mode=max
+
+    - name: Set outputs
+      id: set-outputs
+      shell: bash
+      run: |
+        echo "production-image=${{ env.PRODUCTION_TAG }}" >> $GITHUB_OUTPUT
+        echo "development-image=${{ env.DEVELOPMENT_TAG }}" >> $GITHUB_OUTPUT
+        echo "cache-image=${{ env.CACHE_TAG }}" >> $GITHUB_OUTPUT
+        echo "main-cache-image=${{ env.MAIN_CACHE_TAG }}" >> $GITHUB_OUTPUT
+
+    - name: Generate artifact attestation for production image
+      if: inputs.push == 'true'
+      uses: actions/attest-build-provenance@v1
+      with:
+        subject-name: ${{ env.PRODUCTION_TAG }}
+        subject-digest: ${{ steps.bake.outputs.digest }}
+        push-to-registry: true
