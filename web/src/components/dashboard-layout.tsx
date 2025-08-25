@@ -10,6 +10,7 @@ interface DashboardLayoutProps {
   user?: {
     name?: string | null;
     email?: string | null;
+    admin?: boolean;
   };
 }
 
@@ -83,6 +84,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
           <Sidebar 
             className="h-full" 
             onLinkClick={() => setSidebarOpen(false)}
+            user={user}
           />
         </div>
 
