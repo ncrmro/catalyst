@@ -3,9 +3,9 @@ name: Test Web
 on:
   pull_request:
     paths:
-      - 'web/**'
-      - '.github/actions/build-container-bake/**'
-      - '.github/workflows/web.test.yml'
+      - "web/**"
+      - ".github/actions/build-container-bake/**"
+      - ".github/workflows/web.test.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,9 +25,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: './web/package-lock.json'
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "./web/package-lock.json"
 
       - name: Install dependencies
         run: npm ci
@@ -81,9 +81,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: './web/package-lock.json'
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "./web/package-lock.json"
 
       - name: Install dependencies
         run: npm ci
@@ -139,9 +139,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: './web/package-lock.json'
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "./web/package-lock.json"
 
       - name: Install dependencies
         run: npm ci
@@ -216,8 +216,9 @@ jobs:
         with:
           registry: ghcr.io
           image: ${{ github.repository }}/web
-          platforms: 'linux/amd64'
-          workdir: './web'
+          platforms: "linux/amd64"
+          workdir: "./web"
+          files: "./docker-bake.yml"
 
   preview-environment:
     needs: build-container
@@ -253,7 +254,7 @@ jobs:
           echo "Namespace created successfully"
           kubectl get namespace ${{ env.NAMESPACE }}
 
-      - name: Debug - Pre-deployment state  
+      - name: Debug - Pre-deployment state
         run: |
           echo "=== PRE-DEPLOYMENT DEBUG INFO ==="
           echo "Production image: ${{ needs.build-container.outputs.production-image }}"
@@ -285,19 +286,19 @@ jobs:
           # Extract repository and tag from the full image tag
           IMAGE_REPO=$(echo "$FULL_IMAGE_TAG" | cut -d':' -f1)
           IMAGE_TAG=$(echo "$FULL_IMAGE_TAG" | cut -d':' -f2)
-          
+
           # Extract repository and tag from the full development image tag
           DEV_IMAGE_REPO=$(echo "$FULL_DEV_IMAGE_TAG" | cut -d':' -f1)
           DEV_IMAGE_TAG=$(echo "$FULL_DEV_IMAGE_TAG" | cut -d':' -f2)
-          
+
           echo "Image repository: $IMAGE_REPO"
           echo "Image tag: $IMAGE_TAG"
           echo "Development image repository: $DEV_IMAGE_REPO"
           echo "Development image tag: $DEV_IMAGE_TAG"
-          
+
           # Verify namespace exists
           kubectl get namespace ${{ env.NAMESPACE }}
-          
+
           # Deploy using the nextjs Helm chart
           helm install web-preview-${{ github.event.number }} ./charts/nextjs \
             --namespace ${{ env.NAMESPACE }} \
@@ -394,4 +395,4 @@ jobs:
           name: preview-env-debug-logs-pr-${{ github.event.number }}
           path: |
             /tmp/debug-*.log
-          retention-days: 7 
+          retention-days: 7
