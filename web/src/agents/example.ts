@@ -13,16 +13,16 @@ async function main() {
   try {
     console.log('🤖 Starting Periodic Report Generation...\n');
 
-    // Example 1: Using default configuration (Anthropic)
-    console.log('📊 Generating report with Anthropic...');
-    const anthropicAgent = new PeriodicReportAgent();
+    // Example 1: Using default configuration (OpenAI)
+    console.log('📊 Generating report with OpenAI...');
+    const openaiAgent = new PeriodicReportAgent();
     
     // In a real scenario, you would call generateReport() with proper API keys
-    // const anthropicReport = await anthropicAgent.generateReport();
+    // const openaiReport = await openaiAgent.generateReport();
     
     // For demonstration, let's show the data fetching capabilities
-    const projectsResult = await anthropicAgent.fetchProjects();
-    const clustersResult = await anthropicAgent.fetchClusters();
+    const projectsResult = await openaiAgent.fetchProjects();
+    const clustersResult = await openaiAgent.fetchClusters();
     
     console.log('✅ Projects fetched successfully:', projectsResult.success);
     console.log('📋 Total projects:', projectsResult.data?.total_count || 0);
@@ -33,7 +33,7 @@ async function main() {
     // Example 2: Using GitHub MCP integration
     console.log('🐙 Testing GitHub MCP integration...');
     const agentWithMCP = new PeriodicReportAgent({
-      provider: 'anthropic',
+      provider: 'openai',
       enableGitHubMCP: true,
     });
     
@@ -46,15 +46,15 @@ async function main() {
     });
     console.log();
 
-    // Example 3: Using OpenAI configuration
-    console.log('📊 Configuring OpenAI agent...');
-    const openaiAgent = new PeriodicReportAgent({
-      provider: 'openai',
-      model: 'gpt-4'
+    // Example 3: Using Anthropic configuration
+    console.log('📊 Configuring Anthropic agent...');
+    const anthropicAgent = new PeriodicReportAgent({
+      provider: 'anthropic',
+      model: 'claude-3-sonnet-20240229'
     });
     
-    console.log('✅ OpenAI agent configured successfully');
-    console.log('🔧 Provider:', openaiAgent instanceof PeriodicReportAgent ? 'openai' : 'unknown');
+    console.log('✅ Anthropic agent configured successfully');
+    console.log('🔧 Provider:', anthropicAgent instanceof PeriodicReportAgent ? 'anthropic' : 'unknown');
     console.log();
 
     // Example 4: Show what a generated report structure would look like
@@ -97,8 +97,8 @@ async function main() {
 
     console.log('✨ Periodic Report Agent demonstration completed!');
     console.log('📝 To use with real AI providers, set up your API keys:');
+    console.log('   - OPENAI_API_KEY for OpenAI GPT models (default)');
     console.log('   - ANTHROPIC_API_KEY for Anthropic Claude');
-    console.log('   - OPENAI_API_KEY for OpenAI GPT models');
 
   } catch (error) {
     console.error('❌ Error during report generation:', error);
