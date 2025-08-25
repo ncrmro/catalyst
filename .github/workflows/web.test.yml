@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - 'web/**'
-      - '.github/actions/build-container/**'
+      - '.github/actions/build-container-bake/**'
       - '.github/workflows/web.test.yml'
 
 concurrency:

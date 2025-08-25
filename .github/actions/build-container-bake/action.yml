@@ -102,7 +102,6 @@ runs:
           development.target=development
           development.tags=${{ env.DEVELOPMENT_TAG }}
           development.cache-from=type=gha
-          development.cache-to=type=gha,mode=max
 
     - name: Set outputs
       id: set-outputs
