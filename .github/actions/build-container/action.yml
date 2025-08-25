@@ -46,7 +46,28 @@ runs:
         echo "IMAGE_NAME=$(echo '${{ inputs.image }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
     - name: Set up Docker Buildx
+      id: setup-buildx
       uses: docker/setup-buildx-action@v3
+
+    - name: Cache Docker cache mounts
+      uses: actions/cache@v4
+      id: cache
+      with:
+        path: cache-mount
+        key: docker-cache-mount-${{ github.repository }}-${{ github.sha }}
+        restore-keys: |
+          docker-cache-mount-${{ github.repository }}-
+        save-always: true
+        # Cache for one week (7 days)
+        retention-days: 7
+
+    - name: Restore Docker cache mounts
+      uses: reproducible-containers/buildkit-cache-dance@v3
+      with:
+        builder: ${{ steps.setup-buildx.outputs.name }}
+        cache-dir: cache-mount
+        dockerfile: ${{ inputs.dockerfile }}
+        skip-extraction: ${{ steps.cache.outputs.cache-hit }}
 
     - name: Log in to Container Registry
       uses: docker/login-action@v3
