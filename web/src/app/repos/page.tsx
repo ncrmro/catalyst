@@ -54,7 +54,7 @@ function RepoCard({ repo }: { repo: GitHubRepo }) {
               href={repo.html_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-primary hover:text-primary font-semibold text-lg truncate"
+              className="text-primary hover:text-primary font-semibold text-lg break-words"
             >
               {repo.full_name}
             </a>
