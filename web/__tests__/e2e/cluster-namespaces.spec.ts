@@ -64,7 +64,8 @@ test.describe('Cluster Namespaces Browsing', () => {
     await page.goto('/clusters/kind-preview-cluster/namespaces');
     
     // Verify default namespace card shows correct information
-    const defaultNamespaceCard = page.locator('text=default').locator('..').locator('..');
+    // Use a more specific locator that targets the card container
+    const defaultNamespaceCard = page.locator('.border.border-outline').filter({ has: page.getByRole('heading', { name: 'default' }) });
     await expect(defaultNamespaceCard.getByText('Age')).toBeVisible();
     await expect(defaultNamespaceCard.getByText('Labels')).toBeVisible();
     await expect(defaultNamespaceCard.getByText('Less than 1 day')).toBeVisible();
