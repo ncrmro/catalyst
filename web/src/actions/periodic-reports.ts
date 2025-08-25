@@ -12,13 +12,21 @@ export async function generateLatestPeriodicReport() {
     // Use _auth instead of auth to avoid throwing on unauthenticated users
     const session = await _auth();
     
+    // Enable mock mode in test environments or when API keys are clearly test keys
+    const isTestMode = process.env.NODE_ENV === 'test' || 
+                      process.env.ANTHROPIC_API_KEY === 'test-key-for-e2e' ||
+                      process.env.OPENAI_API_KEY === 'test-key-for-e2e' ||
+                      process.env.GITHUB_REPOS_MODE === 'mocked';
+    
     const report = await generatePeriodicReport({
       accessToken: session?.accessToken,
+      mockMode: isTestMode,
     });
     return {
       success: true,
       data: report,
-      error: null
+      error: null,
+      fallback: isTestMode
     };
   } catch (error) {
     console.error('Failed to generate periodic report:', error);

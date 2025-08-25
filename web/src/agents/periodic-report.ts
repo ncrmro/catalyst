@@ -49,6 +49,7 @@ export interface PeriodicReportOptions {
   enableGitHubMCP?: boolean;
   gitHubMCPApiKey?: string;
   accessToken?: string;
+  mockMode?: boolean; // For testing - returns mock data instead of calling AI API
 }
 
 export class PeriodicReportAgent {
@@ -56,11 +57,13 @@ export class PeriodicReportAgent {
   private model: string;
   private enableGitHubMCP: boolean;
   private gitHubMCPClient?: GitHubMCPClient;
+  private mockMode: boolean;
 
   constructor(options: PeriodicReportOptions = {}) {
     this.provider = options.provider || 'anthropic';
     this.model = options.model || (this.provider === 'anthropic' ? 'claude-3-sonnet-20240229' : 'gpt-4');
     this.enableGitHubMCP = options.enableGitHubMCP ?? true;
+    this.mockMode = options.mockMode ?? false;
     
     if (this.enableGitHubMCP) {
       // Prefer session access token over API key for user-specific GitHub access
@@ -80,6 +83,41 @@ export class PeriodicReportAgent {
   }
 
   async generateReport(): Promise<z.infer<typeof reportSchema>> {
+    // Return mock data in mock mode (for testing)
+    if (this.mockMode) {
+      return {
+        title: "Test Periodic Report (Mock Mode)",
+        summary: "This is a mock report generated for testing purposes when AI API keys are not available or when running in test mode.",
+        projectsAnalysis: {
+          totalProjects: 2,
+          activeEnvironments: 4,
+          inactiveEnvironments: 1,
+          insights: [
+            "Mock data indicates 2 projects are being tracked",
+            "Test environments are simulated as healthy",
+            "This is generated without AI API calls"
+          ]
+        },
+        clustersAnalysis: {
+          totalClusters: 1,
+          insights: [
+            "Mock cluster data shows 1 test cluster",
+            "All mock services are responding normally"
+          ]
+        },
+        recommendations: [
+          "Configure actual AI API keys for real reports",
+          "Run tests in mock mode to avoid API dependencies",
+          "Review mock data generation logic"
+        ],
+        nextSteps: [
+          "Set up production API keys",
+          "Verify real environment connectivity",
+          "Schedule actual periodic reports"
+        ]
+      };
+    }
+
     // Fetch data using the action functions
     const projectsData = await this.fetchProjects();
     const clustersData = await this.fetchClusters();
