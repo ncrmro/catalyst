@@ -218,7 +218,6 @@ jobs:
           image: ${{ github.repository }}/web
           platforms: 'linux/amd64'
           workdir: './web'
-          files: './web/docker-bake.yml'
 
   preview-environment:
     needs: build-container
