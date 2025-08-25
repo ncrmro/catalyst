@@ -162,6 +162,9 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps --no-shell
 
+      - run: ls /home/runner/.cache/ms-playwright/
+      - run: ls /home/runner/.cache/ms-playwright/chromium-1169/
+
       - run: npm run db:migrate
 
       - name: Run Playwright tests
