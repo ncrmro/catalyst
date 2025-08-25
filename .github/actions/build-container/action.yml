@@ -54,9 +54,9 @@ runs:
       id: cache
       with:
         path: cache-mount
-        key: docker-cache-mount-${{ github.repository }}-${{ github.sha }}
+        key: docker-cache-mount-${{ github.repository }}-${{ hashFiles(inputs.dockerfile) }}-${{ inputs.context }}-${{ inputs.target }}-${{ github.sha }}
         restore-keys: |
-          docker-cache-mount-${{ github.repository }}-
+          docker-cache-mount-${{ github.repository }}-${{ hashFiles(inputs.dockerfile) }}-${{ inputs.context }}-${{ inputs.target }}-
         save-always: true
         # Cache for one week (7 days)
         retention-days: 7
