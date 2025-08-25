@@ -1,3 +1,32 @@
+# Docker Bake Action for Optimized Container Builds
+#
+# This action replaces the previous approach of building development and production
+# containers separately, which caused performance issues and cache contention.
+#
+# PROBLEM ADDRESSED:
+# - Slow builds due to duplicate work between dev and prod targets
+# - Cache contention between separate build actions  
+# - Maintenance overhead with duplicate build logic
+#
+# SOLUTION APPROACH:
+# - Single Docker Bake action building both targets simultaneously
+# - Registry-only caching strategy with unified cache reference
+# - zstd compression for optimal performance and storage efficiency
+# - Eliminates GitHub Actions cache to prevent contention
+#
+# CACHE STRATEGY:
+# - Uses only registry cache (type=registry) with 'main-cache' tag
+# - Leverages mode=max so production/runner layers contain development layers
+# - Single cache reference eliminates cache contention between targets
+# - zstd compression applied to all image outputs and cache configurations
+#
+# DESIGN DECISIONS FROM FEEDBACK:
+# - Removed GitHub Actions cache (type=gha) completely per review feedback
+# - Simplified to use only one cache image tag since production layer contains
+#   development layers when using mode=max
+# - Added compression=zstd to all image tags and cache-to configurations
+#   for better performance and storage efficiency
+#
 name: Build Container with Docker Bake
 description: Build and push Docker container images using Docker Bake with multiple targets and tags
 
