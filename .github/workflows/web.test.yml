@@ -126,7 +126,8 @@ jobs:
       - name: Create Kind cluster
         uses: helm/kind-action@v1.10.0
         with:
-          cluster_name: e2e-test-cluster
+          # TODO we need to rename this to be consistant across envirnments but that will also involve updating the e2e tests that look for cluster name/namespace.
+          cluster_name: preview-cluster
           wait: 60s
 
       - name: Export kubeconfig for E2E tests
@@ -161,9 +162,6 @@ jobs:
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps --no-shell
-
-      - run: ls /home/runner/.cache/ms-playwright/
-      - run: ls /home/runner/.cache/ms-playwright/chromium-1169/
 
       - run: npm run db:migrate
 
