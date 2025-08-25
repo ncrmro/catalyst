@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getClusters, ClusterInfo } from '@/actions/clusters';
 import { auth } from '@/auth';
+import Link from 'next/link';
 
 // Mock cluster data for when real data is not available
 const mockClusters = [
@@ -99,6 +100,15 @@ function ClusterCard({ cluster }: { cluster: ExtendedClusterInfo }) {
           </div>
         </div>
       )}
+      
+      <div className="mt-4 flex gap-2">
+        <Link 
+          href={`/clusters/${encodeURIComponent(cluster.name)}/namespaces`}
+          className="flex-1 bg-primary text-on-primary text-center py-2 px-4 rounded-md text-sm font-medium hover:bg-primary-variant transition-colors"
+        >
+          View Namespaces
+        </Link>
+      </div>
     </div>
   );
 }
