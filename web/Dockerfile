@@ -21,7 +21,11 @@ WORKDIR /app
 ENV NODE_ENV=development
 
 # Install Playwright browsers early for better caching
-RUN npx playwright install --with-deps --no-shell
+# PLAYWRIGHT_BROWSERS_PATH=0 - Places binaries to node_modules/playwright-core/.local-browsers (Hermetic install)
+# https://playwright.dev/docs/browsers#hermetic-install
+# Normailly the browser binaries end up in /root/.cache/ms-playwright/ 
+# When the container is ran as nextjs user it can't find the binaries though.
+RUN PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install --with-deps --no-shell
 
 COPY . .
 
