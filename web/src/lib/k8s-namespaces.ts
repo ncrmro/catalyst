@@ -1,5 +1,5 @@
 // Kubernetes namespace management functions
-import { KubeConfig, getCoreV1Api } from './k8s-client';
+import { KubeConfig, getCoreV1Api, getClusterConfig } from './k8s-client';
 
 export interface NamespaceLabels {
   'catalyst/team': string;
@@ -105,6 +105,44 @@ export async function namespaceExists(namespaceName: string): Promise<boolean> {
     if (error instanceof Error && error.message.includes('not found')) {
       return false;
     }
+    throw error;
+  }
+}
+
+/**
+ * List all namespaces for a specific cluster
+ */
+export async function listNamespaces(clusterName?: string): Promise<{name: string; labels?: {[key: string]: string}; creationTimestamp?: string}[]> {
+  try {
+    let kc: KubeConfig;
+    
+    if (clusterName) {
+      // Try to get config for specific cluster
+      const clusterConfig = await getClusterConfig(clusterName);
+      if (clusterConfig) {
+        kc = clusterConfig;
+      } else {
+        throw new Error(`Cluster config not found for: ${clusterName}`);
+      }
+    } else {
+      // Load from default
+      kc = new KubeConfig();
+      await kc.loadFromDefault();
+    }
+    
+    const CoreV1Api = await getCoreV1Api();
+    const k8sApi = kc.makeApiClient(CoreV1Api);
+
+    const response = await k8sApi.listNamespace();
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return response.items.map((ns: any) => ({
+      name: ns.metadata?.name || '',
+      labels: ns.metadata?.labels || {},
+      creationTimestamp: ns.metadata?.creationTimestamp
+    }));
+  } catch (error) {
+    console.error('Error listing namespaces:', error);
     throw error;
   }
 }
