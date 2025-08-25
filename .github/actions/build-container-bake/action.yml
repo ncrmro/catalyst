@@ -189,7 +189,6 @@ runs:
           production.cache-from=type=registry,ref=${{ env.PR_CACHE_TAG }}
           production.cache-to=type=registry,ref=${{ env.CACHE_TAG }},mode=max,compression=zstd
 
-
     - name: Set outputs
       id: set-outputs
       shell: bash
@@ -203,10 +202,11 @@ runs:
         echo "cache-image=${{ env.CACHE_TAG }}" >> $GITHUB_OUTPUT
         echo "pr-cache-image=${{ env.PR_CACHE_TAG }}" >> $GITHUB_OUTPUT
 
-    - name: Generate artifact attestation for production image
-      if: inputs.push == 'true'
-      uses: actions/attest-build-provenance@v1
-      with:
-        subject-name: ${{ steps.set-outputs.outputs.production-image }}
-        subject-digest: ${{ steps.bake.outputs.digest }}
-        push-to-registry: true
+    # TODO we need to read the subject-digest for each of the image build during bake and run this step for each image.
+    # - name: Generate artifact attestation for production image
+    #   if: inputs.push == 'true'
+    #   uses: actions/attest-build-provenance@v1
+    #   with:
+    #     subject-name: ${{ steps.set-outputs.outputs.production-image }}
+    #     subject-digest: ${{ steps.bake.outputs.digest }}
+    #     push-to-registry: true
