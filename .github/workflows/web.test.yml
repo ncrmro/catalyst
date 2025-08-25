@@ -217,6 +217,7 @@ jobs:
           registry: ghcr.io
           image: ${{ github.repository }}/web
           platforms: 'linux/amd64'
+          workdir: './web'
 
   preview-environment:
     needs: build-container
