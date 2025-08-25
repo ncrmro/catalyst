@@ -59,7 +59,7 @@ export class PeriodicReportAgent {
 
   constructor(options: PeriodicReportOptions = {}) {
     this.provider = options.provider || 'openai';
-    this.model = options.model || (this.provider === 'anthropic' ? 'claude-3-sonnet-20240229' : 'gpt-4');
+    this.model = options.model || (this.provider === 'anthropic' ? 'claude-3-sonnet-20240229' : 'gpt-5-mini');
     this.enableGitHubMCP = options.enableGitHubMCP ?? true;
     
     if (this.enableGitHubMCP) {
