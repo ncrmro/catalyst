@@ -204,7 +204,6 @@ jobs:
       production-image: ${{ steps.build.outputs.production-image }}
       development-image: ${{ steps.build.outputs.development-image }}
       cache-image: ${{ steps.build.outputs.cache-image }}
-      main-cache-image: ${{ steps.build.outputs.main-cache-image }}
       digest: ${{ steps.build.outputs.digest }}
 
     steps:

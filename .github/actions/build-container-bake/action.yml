@@ -36,9 +36,6 @@ outputs:
   cache-image:
     description: 'Cache image name with tag'
     value: ${{ steps.set-outputs.outputs.cache-image }}
-  main-cache-image:
-    description: 'Main cache image name with tag'
-    value: ${{ steps.set-outputs.outputs.main-cache-image }}
   digest:
     description: 'Image digest'
     value: ${{ steps.bake.outputs.digest }}
@@ -78,8 +75,7 @@ runs:
         BASE_NAME="${{ inputs.registry }}/${{ env.IMAGE_NAME }}"
         echo "PRODUCTION_TAG=${BASE_NAME}:${{ env.TAG_SUFFIX }}" >> $GITHUB_ENV
         echo "DEVELOPMENT_TAG=${BASE_NAME}:${{ env.TAG_SUFFIX }}-dev" >> $GITHUB_ENV
-        echo "CACHE_TAG=${BASE_NAME}:${{ env.TAG_SUFFIX }}-cache" >> $GITHUB_ENV
-        echo "MAIN_CACHE_TAG=${BASE_NAME}:main-cache" >> $GITHUB_ENV
+        echo "CACHE_TAG=${BASE_NAME}:main-cache" >> $GITHUB_ENV
 
     - name: Build and push with Docker Bake
       id: bake
@@ -92,16 +88,16 @@ runs:
           production.dockerfile=${{ inputs.dockerfile }}
           production.platform=${{ inputs.platforms }}
           production.target=runner
-          production.tags=${{ env.PRODUCTION_TAG }},${{ env.CACHE_TAG }}
-          production.cache-from=type=gha
-          production.cache-to=type=gha,mode=max
-          production.cache-to=type=registry,ref=${{ env.MAIN_CACHE_TAG }},mode=max
+          production.tags=${{ env.PRODUCTION_TAG }}
+          production.output=type=image,push=${{ inputs.push }},compression=zstd
+          production.cache-from=type=registry,ref=${{ env.CACHE_TAG }}
+          production.cache-to=type=registry,ref=${{ env.CACHE_TAG }},mode=max,compression=zstd
           development.context=${{ inputs.context }}
           development.dockerfile=${{ inputs.dockerfile }}
           development.platform=${{ inputs.platforms }}
           development.target=development
           development.tags=${{ env.DEVELOPMENT_TAG }}
-          development.cache-from=type=gha
+          development.output=type=image,push=${{ inputs.push }},compression=zstd
 
     - name: Set outputs
       id: set-outputs
@@ -110,7 +106,6 @@ runs:
         echo "production-image=${{ env.PRODUCTION_TAG }}" >> $GITHUB_OUTPUT
         echo "development-image=${{ env.DEVELOPMENT_TAG }}" >> $GITHUB_OUTPUT
         echo "cache-image=${{ env.CACHE_TAG }}" >> $GITHUB_OUTPUT
-        echo "main-cache-image=${{ env.MAIN_CACHE_TAG }}" >> $GITHUB_OUTPUT
 
     - name: Generate artifact attestation for production image
       if: inputs.push == 'true'
