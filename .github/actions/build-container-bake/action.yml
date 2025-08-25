@@ -1,31 +1,41 @@
-# Docker Bake Action for Optimized Container Builds
+# Docker Bake Action for Multi-Target Container Builds
 #
-# This action replaces the previous approach of building development and production
-# containers separately, which caused performance issues and cache contention.
+# This reusable action builds both development and production container targets
+# simultaneously using Docker Bake with optimized caching and shared configurations.
 #
-# PROBLEM ADDRESSED:
-# - Slow builds due to duplicate work between dev and prod targets
-# - Cache contention between separate build actions  
-# - Maintenance overhead with duplicate build logic
+# USAGE:
+# Build containers for pull requests:
+#   - Produces: image:pr-123 and image:pr-123-dev
+#   - Uses PR-specific and main cache for fast builds
 #
-# SOLUTION APPROACH:
-# - Single Docker Bake action building both targets simultaneously
-# - Registry-only caching strategy with unified cache reference
-# - zstd compression for optimal performance and storage efficiency
-# - Eliminates GitHub Actions cache to prevent contention
+# Build containers for release branches:
+#   - Produces: image:main and image:main-dev (configurable via release-branches)
+#   - Updates main cache for optimal layer sharing
+#   - Supports additional tags via additional-tags input (e.g., semantic versions)
+#
+# Build containers for other branches:
+#   - Produces: image:branch-name and image:branch-name-dev
+#   - Uses main cache for base layers
+#
+# CONVENTIONS:
+# - Production images use the base tag (e.g., image:pr-123)
+# - Development images append '-dev' suffix (e.g., image:pr-123-dev)
+# - Cache images use 'main-cache' tag for optimal layer sharing
+# - All outputs use zstd compression for performance
 #
 # CACHE STRATEGY:
-# - Uses only registry cache (type=registry) with 'main-cache' tag
-# - Leverages mode=max so production/runner layers contain development layers
-# - Single cache reference eliminates cache contention between targets
-# - zstd compression applied to all image outputs and cache configurations
+# - Registry-only caching with 'main-cache' tag
+# - Production target pushes cache with mode=max (contains all layers)
+# - Development and production targets share cache references
+# - Cache is updated on release branches and pull requests
 #
-# DESIGN DECISIONS FROM FEEDBACK:
-# - Removed GitHub Actions cache (type=gha) completely per review feedback
-# - Simplified to use only one cache image tag since production layer contains
-#   development layers when using mode=max
-# - Added compression=zstd to all image tags and cache-to configurations
-#   for better performance and storage efficiency
+# ADDITIONAL TAGS USE CASE:
+# For semantic release workflows, use additional-tags to create version tags:
+#   additional-tags: |
+#     v1.2.3
+#     latest
+# This creates both production (v1.2.3) and development (v1.2.3-dev) variants
+# without creating separate cache tags for each version.
 #
 name: Build Container with Docker Bake
 description: Build and push Docker container images using Docker Bake with multiple targets and tags
@@ -54,6 +64,14 @@ inputs:
     description: 'Whether to push the built images'
     required: false
     default: 'true'
+  release-branches:
+    description: 'Comma-separated list of branches that should be treated as release branches (e.g., "main,staging")'
+    required: false
+    default: 'main'
+  additional-tags:
+    description: 'Additional tags to apply to images (one per line). Each tag creates both production and development variants.'
+    required: false
+    default: ''
 
 outputs:
   production-image:
@@ -93,20 +111,51 @@ runs:
     - name: Generate tag suffix
       shell: bash
       run: |
+        # Convert release-branches to array for checking
+        IFS=',' read -ra RELEASE_BRANCHES <<< "${{ inputs.release-branches }}"
+        IS_RELEASE_BRANCH=false
+        
+        for branch in "${RELEASE_BRANCHES[@]}"; do
+          if [ "${{ github.ref_name }}" = "${branch// /}" ]; then
+            IS_RELEASE_BRANCH=true
+            break
+          fi
+        done
+        
         if [ "${{ github.event_name }}" = "pull_request" ]; then
           echo "TAG_SUFFIX=pr-${{ github.event.number }}" >> $GITHUB_ENV
-        elif [ "${{ github.ref_name }}" = "main" ]; then
-          echo "TAG_SUFFIX=main" >> $GITHUB_ENV
+          echo "IS_RELEASE_BRANCH=false" >> $GITHUB_ENV
+        elif [ "$IS_RELEASE_BRANCH" = "true" ]; then
+          echo "TAG_SUFFIX=${{ github.ref_name }}" >> $GITHUB_ENV
+          echo "IS_RELEASE_BRANCH=true" >> $GITHUB_ENV
         else
           echo "TAG_SUFFIX=${{ github.ref_name }}" >> $GITHUB_ENV
+          echo "IS_RELEASE_BRANCH=false" >> $GITHUB_ENV
         fi
 
     - name: Set image tags
       shell: bash
       run: |
         BASE_NAME="${{ inputs.registry }}/${{ env.IMAGE_NAME }}"
-        echo "PRODUCTION_TAG=${BASE_NAME}:${{ env.TAG_SUFFIX }}" >> $GITHUB_ENV
-        echo "DEVELOPMENT_TAG=${BASE_NAME}:${{ env.TAG_SUFFIX }}-dev" >> $GITHUB_ENV
+        
+        # Primary tags based on branch/PR
+        PRODUCTION_TAGS="${BASE_NAME}:${{ env.TAG_SUFFIX }}"
+        DEVELOPMENT_TAGS="${BASE_NAME}:${{ env.TAG_SUFFIX }}-dev"
+        
+        # Add additional tags if specified
+        if [ -n "${{ inputs.additional-tags }}" ]; then
+          while IFS= read -r tag; do
+            if [ -n "$tag" ]; then
+              # Trim whitespace
+              tag=$(echo "$tag" | xargs)
+              PRODUCTION_TAGS="$PRODUCTION_TAGS,${BASE_NAME}:${tag}"
+              DEVELOPMENT_TAGS="$DEVELOPMENT_TAGS,${BASE_NAME}:${tag}-dev"
+            fi
+          done <<< "${{ inputs.additional-tags }}"
+        fi
+        
+        echo "PRODUCTION_TAGS=$PRODUCTION_TAGS" >> $GITHUB_ENV
+        echo "DEVELOPMENT_TAGS=$DEVELOPMENT_TAGS" >> $GITHUB_ENV
         echo "CACHE_TAG=${BASE_NAME}:main-cache" >> $GITHUB_ENV
         echo "PR_CACHE_TAG=${BASE_NAME}:${{ env.TAG_SUFFIX }}-cache" >> $GITHUB_ENV
 
@@ -122,19 +171,23 @@ runs:
           *.cache-from=type=registry,ref=${{ env.CACHE_TAG }}
           *.cache-from=type=registry,ref=${{ env.PR_CACHE_TAG }}
           production.target=runner
-          production.tags=${{ env.PRODUCTION_TAG }}
+          production.tags=${{ env.PRODUCTION_TAGS }}
           production.output=type=image,push=${{ inputs.push }},compression=zstd
           production.cache-to=type=registry,ref=${{ env.CACHE_TAG }},mode=max,compression=zstd
           development.target=development
-          development.tags=${{ env.DEVELOPMENT_TAG }}
+          development.tags=${{ env.DEVELOPMENT_TAGS }}
           development.output=type=image,push=${{ inputs.push }},compression=zstd
 
     - name: Set outputs
       id: set-outputs
       shell: bash
       run: |
-        echo "production-image=${{ env.PRODUCTION_TAG }}" >> $GITHUB_OUTPUT
-        echo "development-image=${{ env.DEVELOPMENT_TAG }}" >> $GITHUB_OUTPUT
+        # Extract first tag from comma-separated lists for outputs
+        FIRST_PRODUCTION_TAG=$(echo "${{ env.PRODUCTION_TAGS }}" | cut -d',' -f1)
+        FIRST_DEVELOPMENT_TAG=$(echo "${{ env.DEVELOPMENT_TAGS }}" | cut -d',' -f1)
+        
+        echo "production-image=$FIRST_PRODUCTION_TAG" >> $GITHUB_OUTPUT
+        echo "development-image=$FIRST_DEVELOPMENT_TAG" >> $GITHUB_OUTPUT
         echo "cache-image=${{ env.CACHE_TAG }}" >> $GITHUB_OUTPUT
         echo "pr-cache-image=${{ env.PR_CACHE_TAG }}" >> $GITHUB_OUTPUT
 
@@ -142,6 +195,6 @@ runs:
       if: inputs.push == 'true'
       uses: actions/attest-build-provenance@v1
       with:
-        subject-name: ${{ env.PRODUCTION_TAG }}
+        subject-name: ${{ steps.set-outputs.outputs.production-image }}
         subject-digest: ${{ steps.bake.outputs.digest }}
         push-to-registry: true
