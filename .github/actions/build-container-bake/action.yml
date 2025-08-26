@@ -254,9 +254,9 @@ runs:
       id: cache
       with:
         path: cache-mount
-        key: docker-cache-mount-${{ github.repository }}-${{ inputs.workdir }}-${{ github.sha }}
+        key: docker-cache-mount-${{ github.repository }}-${{ inputs.workdir }}-${{ }
         restore-keys: |
-          docker-cache-mount-${{ github.repository }}-${{ hashFiles(inputs.dockerfile) }}-${{ inputs.context }}-${{ inputs.target }}-
+          docker-cache-mount-${{ github.repository }}-${{ inputs.workdir }}-main
 
     - name: Restore Docker cache mounts
       uses: reproducible-containers/buildkit-cache-dance@v3
