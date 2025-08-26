@@ -85,7 +85,7 @@ test.describe('Team Authorization', () => {
     await expect(page.getByRole('heading', { name: 'GitHub Repositories' })).toBeVisible();
 
     // Should show description
-    await expect(page.getByText('Connected repositories from your account and organizations')).toBeVisible();
+    await expect(page.getByText('View and manage your GitHub repositories and organization repos.')).toBeVisible();
 
     // In mocked mode, should show mock repositories
     // In real mode, would depend on GitHub access
