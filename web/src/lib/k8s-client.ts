@@ -241,14 +241,14 @@ export async function getClusters(): Promise<ClusterInfo[]> {
   return kubeConfigRegistry.getClusters();
 }
 
-export async function getClusterConfig(clusterName?: string): Promise<KubeConfig> {
+export async function getClusterConfig(clusterName?: string): Promise<KubeConfig | null> {
   if (clusterName) {
     // Try to get config for specific cluster
     const clusterConfig = await kubeConfigRegistry.getConfigForCluster(clusterName);
     if (clusterConfig) {
       return clusterConfig;
     } else {
-      throw new Error(`Cluster config not found for: ${clusterName}`);
+      return null;
     }
   } else {
     // Try to find any configured cluster, prioritizing production environments
