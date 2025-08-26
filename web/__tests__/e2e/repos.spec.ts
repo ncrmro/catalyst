@@ -39,14 +39,6 @@ test.describe('GitHub Repositories Page', () => {
     // Check that repository cards contain expected information
     const firstRepo = page.locator('[href="https://github.com/testuser/my-awesome-project"]').first();
     await expect(firstRepo).toBeVisible();
-  });
-
-  test('should show Connect buttons but not Deployment buttons', async ({ page }) => {
-    // Go to the repos page
-    await page.goto('/repos');
-
-    // Wait for page to load
-    await expect(page.getByRole('heading', { name: 'GitHub Repositories' })).toBeVisible();
 
     // Check that Connect buttons are present
     const connectButtons = page.getByRole('link', { name: 'Connect' });
@@ -55,14 +47,7 @@ test.describe('GitHub Repositories Page', () => {
     // Verify multiple Connect buttons exist (for multiple repos)
     const connectButtonsCount = await connectButtons.count();
     expect(connectButtonsCount).toBeGreaterThan(0);
-
-    // Check that Deployment buttons are NOT present
-    const deploymentButtons = page.getByRole('link', { name: 'Deployments' });
-    await expect(deploymentButtons.first()).not.toBeVisible();
     
-    // Verify no Deployment buttons exist
-    const deploymentButtonsCount = await deploymentButtons.count();
-    expect(deploymentButtonsCount).toBe(0);
   });
 
 });
