@@ -6,6 +6,8 @@
 
 import { db, projects, repos, projectsRepos } from '@/db';
 import { eq } from 'drizzle-orm';
+import { auth } from '@/auth';
+import { Octokit } from '@octokit/rest';
 
 export interface ProjectEnvironment {
   id: string;
@@ -373,4 +375,488 @@ function getMockEnvironmentsForProject(projectName: string): ProjectEnvironment[
   }
 
   return baseEnvironments;
+}
+
+/**
+ * Fetch individual project by ID
+ */
+export async function fetchProjectById(projectId: string): Promise<Project | null> {
+  try {
+    // First try to get from real database
+    if (process.env.MOCKED !== '1') {
+      const projectData = await db
+        .select({
+          project: projects,
+          repo: repos,
+          projectRepo: projectsRepos,
+        })
+        .from(projects)
+        .leftJoin(projectsRepos, eq(projects.id, projectsRepos.projectId))
+        .leftJoin(repos, eq(projectsRepos.repoId, repos.id))
+        .where(eq(projects.id, projectId));
+
+      if (projectData.length > 0) {
+        const firstRow = projectData[0];
+        if (firstRow.project) {
+          const project: Project = {
+            id: firstRow.project.id,
+            name: firstRow.project.name,
+            full_name: firstRow.project.fullName,
+            description: firstRow.project.description,
+            owner: {
+              login: firstRow.project.ownerLogin,
+              type: (firstRow.project.ownerType as 'User' | 'Organization') || 'User',
+              avatar_url: firstRow.project.ownerAvatarUrl || '',
+            },
+            repositories: [],
+            environments: [],
+            preview_environments_count: firstRow.project.previewEnvironmentsCount || 0,
+            created_at: firstRow.project.createdAt.toISOString(),
+            updated_at: firstRow.project.updatedAt.toISOString(),
+          };
+
+          // Collect repositories
+          const repoMap = new Map<number, ProjectRepo>();
+          for (const row of projectData) {
+            if (row.repo && row.projectRepo && row.repo.githubId) {
+              repoMap.set(row.repo.githubId, {
+                id: row.repo.githubId,
+                name: row.repo.name,
+                full_name: row.repo.fullName,
+                url: row.repo.url,
+                primary: row.projectRepo.isPrimary || false,
+              });
+            }
+          }
+
+          project.repositories = Array.from(repoMap.values());
+          project.environments = getMockEnvironmentsForProject(project.name);
+
+          return project;
+        }
+      }
+    }
+
+    // Fallback to mock data
+    const mockData = getMockProjectsData();
+    return mockData.projects.find(p => p.id === projectId) || null;
+  } catch (error) {
+    console.error('Error fetching project by ID:', error);
+    
+    // Fallback to mock data
+    const mockData = getMockProjectsData();
+    return mockData.projects.find(p => p.id === projectId) || null;
+  }
+}
+
+/**
+ * Fetch pull requests for a specific project across all its repositories
+ */
+export async function fetchProjectPullRequests(projectId: string): Promise<import('@/actions/reports').PullRequest[]> {
+  try {
+    const project = await fetchProjectById(projectId);
+    if (!project) {
+      return [];
+    }
+
+    // Check if we should return mocked data
+    const mocked = process.env.MOCKED;
+    const reposMode = process.env.GITHUB_REPOS_MODE;
+    
+    if (mocked === '1' || reposMode === 'mocked') {
+      console.log('Returning mocked pull requests data for project', projectId);
+      // Return mock pull requests filtered by project repositories
+      const allMockPRs = getMockPullRequestsData();
+      const projectRepoNames = project.repositories.map(repo => repo.full_name);
+      
+      return allMockPRs.filter(pr => 
+        projectRepoNames.some(repoName => pr.repository.includes(repoName.split('/')[1]))
+      );
+    }
+
+    // Fetch real pull requests from GitHub API
+    console.log('Fetching real pull requests for project', projectId);
+    return await fetchRealPullRequests(project.repositories);
+  } catch (error) {
+    console.error('Error fetching project pull requests:', error);
+    return [];
+  }
+}
+
+/**
+ * Fetch priority issues for a specific project across all its repositories
+ */
+export async function fetchProjectIssues(projectId: string): Promise<import('@/actions/reports').Issue[]> {
+  try {
+    const project = await fetchProjectById(projectId);
+    if (!project) {
+      return [];
+    }
+
+    // Check if we should return mocked data
+    const mocked = process.env.MOCKED;
+    const reposMode = process.env.GITHUB_REPOS_MODE;
+    
+    if (mocked === '1' || reposMode === 'mocked') {
+      console.log('Returning mocked issues data for project', projectId);
+      // Return mock issues filtered by project repositories
+      const allMockIssues = getMockIssuesData();
+      const projectRepoNames = project.repositories.map(repo => repo.full_name);
+      
+      return allMockIssues.filter(issue => 
+        projectRepoNames.some(repoName => issue.repository.includes(repoName.split('/')[1]))
+      );
+    }
+
+    // Fetch real issues from GitHub API
+    console.log('Fetching real issues for project', projectId);
+    return await fetchRealIssues(project.repositories);
+  } catch (error) {
+    console.error('Error fetching project issues:', error);
+    return [];
+  }
+}
+
+/**
+ * Fetch real pull requests from GitHub API for given repositories
+ */
+async function fetchRealPullRequests(repositories: ProjectRepo[]): Promise<import('@/actions/reports').PullRequest[]> {
+  const session = await auth();
+  
+  if (!session?.accessToken) {
+    console.warn('No GitHub access token found for fetching pull requests');
+    return [];
+  }
+
+  const octokit = new Octokit({
+    auth: session.accessToken,
+  });
+
+  const allPullRequests: import('@/actions/reports').PullRequest[] = [];
+
+  for (const repo of repositories) {
+    try {
+      const [owner, repoName] = repo.full_name.split('/');
+      if (!owner || !repoName) {
+        console.warn(`Invalid repository name format: ${repo.full_name}`);
+        continue;
+      }
+
+      const { data: prs } = await octokit.rest.pulls.list({
+        owner,
+        repo: repoName,
+        state: 'open',
+        per_page: 100,
+        sort: 'updated',
+        direction: 'desc',
+      });
+
+      for (const pr of prs) {
+        // Determine priority based on labels (simple heuristic)
+        const labels = pr.labels.map(label => typeof label === 'string' ? label : label.name || '');
+        let priority: 'high' | 'medium' | 'low' = 'medium';
+        if (labels.some(label => label.toLowerCase().includes('urgent') || label.toLowerCase().includes('critical'))) {
+          priority = 'high';
+        } else if (labels.some(label => label.toLowerCase().includes('minor') || label.toLowerCase().includes('low'))) {
+          priority = 'low';
+        }
+
+        // Determine status based on review state and draft status
+        let status: 'draft' | 'ready' | 'changes_requested' = 'ready';
+        if (pr.draft) {
+          status = 'draft';
+        } else {
+          // Check for requested changes in reviews (this is a simplified check)
+          try {
+            const { data: reviews } = await octokit.rest.pulls.listReviews({
+              owner,
+              repo: repoName,
+              pull_number: pr.number,
+            });
+            
+            if (reviews.some(review => review.state === 'CHANGES_REQUESTED')) {
+              status = 'changes_requested';
+            }
+          } catch (error) {
+            console.warn(`Could not fetch reviews for PR ${pr.number}:`, error);
+          }
+        }
+
+        allPullRequests.push({
+          id: pr.id,
+          title: pr.title,
+          number: pr.number,
+          author: pr.user?.login || 'unknown',
+          author_avatar: pr.user?.avatar_url || '',
+          repository: repoName,
+          url: pr.html_url,
+          created_at: pr.created_at,
+          updated_at: pr.updated_at,
+          comments_count: 0, // Comments count would need separate API calls for accurate count
+          priority,
+          status,
+        });
+      }
+    } catch (error) {
+      console.warn(`Could not fetch pull requests for repository ${repo.full_name}:`, error);
+    }
+  }
+
+  return allPullRequests;
+}
+
+/**
+ * Fetch real issues from GitHub API for given repositories
+ */
+async function fetchRealIssues(repositories: ProjectRepo[]): Promise<import('@/actions/reports').Issue[]> {
+  const session = await auth();
+  
+  if (!session?.accessToken) {
+    console.warn('No GitHub access token found for fetching issues');
+    return [];
+  }
+
+  const octokit = new Octokit({
+    auth: session.accessToken,
+  });
+
+  const allIssues: import('@/actions/reports').Issue[] = [];
+
+  for (const repo of repositories) {
+    try {
+      const [owner, repoName] = repo.full_name.split('/');
+      if (!owner || !repoName) {
+        console.warn(`Invalid repository name format: ${repo.full_name}`);
+        continue;
+      }
+
+      const { data: issues } = await octokit.rest.issues.listForRepo({
+        owner,
+        repo: repoName,
+        state: 'open',
+        per_page: 100,
+        sort: 'updated',
+        direction: 'desc',
+        // Only get issues, not pull requests
+        filter: 'all',
+      });
+
+      for (const issue of issues) {
+        // Skip pull requests (they show up in issues API)
+        if (issue.pull_request) {
+          continue;
+        }
+
+        const labels = issue.labels.map(label => typeof label === 'string' ? label : label.name || '');
+        
+        // Determine priority based on labels
+        let priority: 'high' | 'medium' | 'low' = 'medium';
+        if (labels.some(label => label.toLowerCase().includes('urgent') || label.toLowerCase().includes('critical') || label.toLowerCase().includes('high'))) {
+          priority = 'high';
+        } else if (labels.some(label => label.toLowerCase().includes('minor') || label.toLowerCase().includes('low'))) {
+          priority = 'low';
+        }
+
+        // Determine effort estimate based on labels
+        let effort_estimate: 'small' | 'medium' | 'large' = 'medium';
+        if (labels.some(label => label.toLowerCase().includes('small') || label.toLowerCase().includes('quick'))) {
+          effort_estimate = 'small';
+        } else if (labels.some(label => label.toLowerCase().includes('large') || label.toLowerCase().includes('epic'))) {
+          effort_estimate = 'large';
+        }
+
+        // Determine type based on labels
+        let type: 'bug' | 'feature' | 'improvement' | 'idea' = 'improvement';
+        if (labels.some(label => label.toLowerCase().includes('bug') || label.toLowerCase().includes('defect'))) {
+          type = 'bug';
+        } else if (labels.some(label => label.toLowerCase().includes('feature') || label.toLowerCase().includes('enhancement'))) {
+          type = 'feature';
+        } else if (labels.some(label => label.toLowerCase().includes('idea') || label.toLowerCase().includes('proposal'))) {
+          type = 'idea';
+        }
+
+        allIssues.push({
+          id: issue.id,
+          title: issue.title,
+          number: issue.number,
+          repository: repoName,
+          url: issue.html_url,
+          created_at: issue.created_at,
+          updated_at: issue.updated_at,
+          labels,
+          priority,
+          effort_estimate,
+          type,
+        });
+      }
+    } catch (error) {
+      console.warn(`Could not fetch issues for repository ${repo.full_name}:`, error);
+    }
+  }
+
+  return allIssues;
+}
+
+/**
+ * Mock pull requests data for development
+ */
+function getMockPullRequestsData(): import('@/actions/reports').PullRequest[] {
+  return [
+    {
+      id: 1,
+      title: "Add user authentication system",
+      number: 42,
+      author: "jdoe",
+      author_avatar: "https://github.com/identicons/jdoe.png",
+      repository: "foo-frontend",
+      url: "https://github.com/jdoe/foo-frontend/pull/42",
+      created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      comments_count: 5,
+      priority: 'high' as const,
+      status: 'ready' as const,
+    },
+    {
+      id: 2,
+      title: "Fix responsive design issues on mobile",
+      number: 38,
+      author: "alice",
+      author_avatar: "https://github.com/identicons/alice.png",
+      repository: "foo-frontend",
+      url: "https://github.com/jdoe/foo-frontend/pull/38",
+      created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+      comments_count: 12,
+      priority: 'medium' as const,
+      status: 'changes_requested' as const,
+    },
+    {
+      id: 3,
+      title: "Optimize database queries for better performance",
+      number: 67,
+      author: "bob",
+      author_avatar: "https://github.com/identicons/bob.png",
+      repository: "foo-backend",
+      url: "https://github.com/jdoe/foo-backend/pull/67",
+      created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      comments_count: 8,
+      priority: 'high' as const,
+      status: 'ready' as const,
+    },
+    {
+      id: 4,
+      title: "Add rate limiting middleware",
+      number: 23,
+      author: "carol",
+      author_avatar: "https://github.com/identicons/carol.png",
+      repository: "bar-api",
+      url: "https://github.com/jdoe/bar-api/pull/23",
+      created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 0.5 * 24 * 60 * 60 * 1000).toISOString(),
+      comments_count: 3,
+      priority: 'medium' as const,
+      status: 'draft' as const,
+    },
+    {
+      id: 5,
+      title: "Update React components to use hooks",
+      number: 15,
+      author: "dave",
+      author_avatar: "https://github.com/identicons/dave.png",
+      repository: "bar-web",
+      url: "https://github.com/jdoe/bar-web/pull/15",
+      created_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      comments_count: 7,
+      priority: 'low' as const,
+      status: 'ready' as const,
+    },
+  ];
+}
+
+/**
+ * Mock issues data for development
+ */
+function getMockIssuesData(): import('@/actions/reports').Issue[] {
+  return [
+    {
+      id: 101,
+      title: "Memory leak in background job processor",
+      number: 178,
+      repository: "foo-backend",
+      url: "https://github.com/jdoe/foo-backend/issues/178",
+      created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      labels: ["bug", "critical", "backend"],
+      priority: 'high' as const,
+      effort_estimate: 'large' as const,
+      type: 'bug' as const,
+    },
+    {
+      id: 102,
+      title: "Add dark mode support to UI",
+      number: 145,
+      repository: "foo-frontend",
+      url: "https://github.com/jdoe/foo-frontend/issues/145",
+      created_at: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+      labels: ["enhancement", "ui", "frontend"],
+      priority: 'medium' as const,
+      effort_estimate: 'medium' as const,
+      type: 'feature' as const,
+    },
+    {
+      id: 103,
+      title: "Implement caching layer for API responses",
+      number: 89,
+      repository: "bar-api",
+      url: "https://github.com/jdoe/bar-api/issues/89",
+      created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      labels: ["performance", "api", "backend"],
+      priority: 'high' as const,
+      effort_estimate: 'large' as const,
+      type: 'improvement' as const,
+    },
+    {
+      id: 104,
+      title: "Add integration tests for payment flow",
+      number: 56,
+      repository: "foo-backend",
+      url: "https://github.com/jdoe/foo-backend/issues/56",
+      created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      labels: ["testing", "integration", "payment"],
+      priority: 'medium' as const,
+      effort_estimate: 'medium' as const,
+      type: 'improvement' as const,
+    },
+    {
+      id: 105,
+      title: "Explore using WebSockets for real-time updates",
+      number: 203,
+      repository: "bar-web",
+      url: "https://github.com/jdoe/bar-web/issues/203",
+      created_at: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+      labels: ["research", "websockets", "realtime"],
+      priority: 'low' as const,
+      effort_estimate: 'large' as const,
+      type: 'idea' as const,
+    },
+    {
+      id: 106,
+      title: "Fix Docker container startup issues",
+      number: 67,
+      repository: "foo-shared",
+      url: "https://github.com/jdoe/foo-shared/issues/67",
+      created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      labels: ["bug", "docker", "infrastructure"],
+      priority: 'high' as const,
+      effort_estimate: 'small' as const,
+      type: 'bug' as const,
+    },
+  ];
 }

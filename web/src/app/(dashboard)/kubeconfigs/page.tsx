@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import DashboardLayout from '@/components/dashboard-layout';
 
 // Mock kubeconfig data that would be suitable for GitHub Actions and buildx
 const generateMockKubeconfig = (clusterName: string = 'catalyst-cluster') => {
@@ -63,8 +62,7 @@ export default function KubeconfigsPage() {
   };
 
   return (
-    <DashboardLayout>
-      <div className="max-w-6xl mx-auto">
+    <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-on-background">Kubernetes Configurations</h1>
@@ -202,6 +200,5 @@ docker buildx build --builder k8s-builder \\
           </p>
         </div>
       </div>
-    </DashboardLayout>
-  );
-}
+    );
+  }

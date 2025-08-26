@@ -82,6 +82,24 @@ cd web
 npm test
 ```
 
+### E2E Testing
+
+Run end-to-end tests with Playwright:
+
+```bash
+npm run test:e2e
+```
+
+#### Smoke Tests for Helm Deployments
+
+A simplified smoke test suite is available for testing deployed applications:
+
+```bash
+npm run test:e2e -- __tests__/e2e/smoke.spec.ts
+```
+
+These smoke tests can be run against deployed services using the development image that contains all necessary test dependencies.
+
 The test suite includes comprehensive coverage of:
 - GitHub App registration endpoints
 - Webhook event processing
@@ -116,3 +134,4 @@ The project includes GitHub Actions workflows:
 - [Next.js Documentation](https://nextjs.org/docs)
 - [GitHub Apps Documentation](https://docs.github.com/en/developers/apps)
 - [GitHub Webhooks Guide](https://docs.github.com/en/developers/webhooks-and-events/webhooks)
+

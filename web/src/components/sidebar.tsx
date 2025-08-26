@@ -7,6 +7,7 @@ interface SidebarNavItem {
   href: string;
   label: string;
   icon?: string;
+  adminOnly?: boolean;
 }
 
 const navItems: SidebarNavItem[] = [
@@ -15,23 +16,32 @@ const navItems: SidebarNavItem[] = [
   { href: "/teams", label: "Teams", icon: "👥" },
   { href: "/kubeconfigs", label: "Kubeconfigs", icon: "⚙️" },
   { href: "/infrastructure", label: "Infrastructure", icon: "🏗️" },
+  { href: "/clusters", label: "Clusters", icon: "☸️", adminOnly: true },
 ];
 
 interface SidebarProps {
   className?: string;
   onLinkClick?: () => void;
+  user?: {
+    admin?: boolean;
+  };
 }
 
-export default function Sidebar({ className = "", onLinkClick }: SidebarProps) {
+export default function Sidebar({ className = "", onLinkClick, user }: SidebarProps) {
   const pathname = usePathname();
 
   return (
     <nav className={`bg-surface border-r border-outline h-full ${className}`}>
       <div className="p-6">
-        <h2 className="text-lg font-semibold text-on-surface mb-6">Navigation</h2>
+        <h3 className="text-lg font-semibold text-on-surface mb-6">Navigation</h3>
         
         <ul className="space-y-2">
           {navItems.map((item) => {
+            // Skip admin-only items if user is not an admin
+            if (item.adminOnly && !user?.admin) {
+              return null;
+            }
+            
             const isActive = pathname === item.href;
             
             return (

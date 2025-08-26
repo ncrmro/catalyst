@@ -28,16 +28,16 @@ export default async function ConnectRepoPage({ params }: ConnectRepoPageProps) 
   const projectsData = await fetchProjects();
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Connect Repository</h1>
-          <p className="mt-4 text-lg text-gray-600">
+          <h1 className="text-3xl font-bold text-on-background">Connect Repository</h1>
+          <p className="mt-4 text-lg text-on-surface-variant">
             Connect <span className="font-semibold">{repo.full_name}</span> to a project
           </p>
         </div>
 
-        <div className="bg-white shadow-sm border rounded-lg p-6 mb-8">
+        <div className="bg-surface shadow-sm border border-outline rounded-lg p-6 mb-8">
           <div className="flex items-center gap-4">
             <Image 
               src={repo.owner.avatar_url} 
@@ -47,14 +47,14 @@ export default async function ConnectRepoPage({ params }: ConnectRepoPageProps) 
               className="w-12 h-12 rounded-full"
             />
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">{repo.full_name}</h2>
+              <h2 className="text-xl font-semibold text-on-surface">{repo.full_name}</h2>
               {repo.description && (
-                <p className="text-gray-600">{repo.description}</p>
+                <p className="text-on-surface-variant">{repo.description}</p>
               )}
-              <div className="flex items-center gap-4 text-sm text-gray-500 mt-2">
+              <div className="flex items-center gap-4 text-sm text-on-surface-variant mt-2">
                 {repo.language && (
                   <span className="flex items-center gap-1">
-                    <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
+                    <span className="w-3 h-3 bg-primary rounded-full"></span>
                     {repo.language}
                   </span>
                 )}

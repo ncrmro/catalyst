@@ -10,6 +10,7 @@ interface DashboardLayoutProps {
   user?: {
     name?: string | null;
     email?: string | null;
+    admin?: boolean;
   };
 }
 
@@ -44,9 +45,9 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
                 </svg>
               </button>
               
-              <h1 className="catalyst-title text-xl md:text-2xl font-bold text-on-surface">
+              <span className="catalyst-title text-xl md:text-2xl font-bold text-on-surface">
                 Catalyst
-              </h1>
+              </span>
               <span className="hidden sm:block text-sm text-on-surface-variant">
                 Development Platform
               </span>
@@ -83,6 +84,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
           <Sidebar 
             className="h-full" 
             onLinkClick={() => setSidebarOpen(false)}
+            user={user}
           />
         </div>
 
