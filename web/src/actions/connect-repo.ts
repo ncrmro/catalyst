@@ -2,6 +2,7 @@
 
 import { db, projects, repos, projectsRepos } from '@/db';
 import { eq } from 'drizzle-orm';
+import { getUserPrimaryTeamId } from '@/lib/team-auth';
 
 interface GitHubRepo {
   id: number;
@@ -106,6 +107,12 @@ async function connectRepoToProjectReal(request: ConnectRepoRequest): Promise<Co
   try {
     const { repoId, connectionType, projectName, projectId, description, isPrimary, repo } = request;
 
+    // Get the user's primary team ID
+    const userTeamId = await getUserPrimaryTeamId();
+    if (!userTeamId) {
+      return { success: false, error: 'User must be a member of at least one team' };
+    }
+
     let finalProjectId: string;
 
     if (connectionType === 'new') {
@@ -121,6 +128,7 @@ async function connectRepoToProjectReal(request: ConnectRepoRequest): Promise<Co
         ownerLogin: repo.owner.login,
         ownerType: repo.owner.type,
         ownerAvatarUrl: repo.owner.avatar_url,
+        teamId: userTeamId,
       }).returning();
 
       finalProjectId = newProject[0].id;
@@ -157,6 +165,7 @@ async function connectRepoToProjectReal(request: ConnectRepoRequest): Promise<Co
         ownerLogin: repo.owner.login,
         ownerType: repo.owner.type,
         ownerAvatarUrl: repo.owner.avatar_url,
+        teamId: userTeamId,
       }).returning();
 
       repoRecord = newRepo;

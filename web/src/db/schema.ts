@@ -142,6 +142,9 @@ export const repos = pgTable("repo", {
   ownerLogin: text("owner_login").notNull(),
   ownerType: text("owner_type").notNull(), // 'User' | 'Organization'
   ownerAvatarUrl: text("owner_avatar_url"),
+  teamId: text("team_id")
+    .notNull()
+    .references(() => teams.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   pushedAt: timestamp("pushed_at", { mode: "date" }),
@@ -157,6 +160,9 @@ export const projects = pgTable("project", {
   ownerLogin: text("owner_login").notNull(),
   ownerType: text("owner_type").notNull(), // 'User' | 'Organization'
   ownerAvatarUrl: text("owner_avatar_url"),
+  teamId: text("team_id")
+    .notNull()
+    .references(() => teams.id, { onDelete: "cascade" }),
   previewEnvironmentsCount: integer("preview_environments_count").notNull().default(0),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
