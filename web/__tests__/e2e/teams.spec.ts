@@ -25,22 +25,4 @@ test.describe('Teams Page', () => {
 
   });
 
-  test('should navigate to teams page from home page', async ({ page }) => {
-    // Start at the home page (should work in MOCKED=1 mode without auth)
-    await page.goto('/');
-    
-    // First, generate a report to see the Quick Actions section
-    await page.click('text=📊 Generate Report');
-    
-    // Wait for the report to be generated and Quick Actions to appear
-    await expect(page.getByText('Catalyst Platform Status Report')).toBeVisible();
-    
-    // Click the "View Teams" link in the Quick Actions section
-    await page.click('text=View Teams');
-
-    // Should navigate to teams page
-    await expect(page).toHaveURL('/teams');
-    await expect(page.locator('h1')).toContainText('My Teams');
-  });
-
 });

@@ -2,6 +2,9 @@
 
 import { generatePeriodicReport } from '@/agents/periodic-report';
 import { _auth } from '@/auth';
+import { db, periodicReports } from '@/db';
+import { desc } from 'drizzle-orm';
+import { revalidatePath } from 'next/cache';
 
 /**
  * Server action to generate and fetch a periodic report using the periodic report agent
@@ -15,6 +18,21 @@ export async function generateLatestPeriodicReport() {
     const report = await generatePeriodicReport({
       accessToken: session?.accessToken,
     });
+
+    // Save the report to the database
+    await db.insert(periodicReports).values({
+      title: report.title,
+      summary: report.summary,
+      projectsAnalysis: JSON.stringify(report.projectsAnalysis),
+      clustersAnalysis: JSON.stringify(report.clustersAnalysis),
+      recommendations: JSON.stringify(report.recommendations),
+      nextSteps: JSON.stringify(report.nextSteps),
+      isFallback: false,
+    });
+
+    // Revalidate the home page to show the new report
+    revalidatePath('/');
+
     return {
       success: true,
       data: report,
@@ -58,12 +76,82 @@ export async function generateLatestPeriodicReport() {
         "Implement automated environment cleanup policies"
       ]
     };
+
+    // Save the fallback report to the database
+    await db.insert(periodicReports).values({
+      title: fallbackReport.title,
+      summary: fallbackReport.summary,
+      projectsAnalysis: JSON.stringify(fallbackReport.projectsAnalysis),
+      clustersAnalysis: JSON.stringify(fallbackReport.clustersAnalysis),
+      recommendations: JSON.stringify(fallbackReport.recommendations),
+      nextSteps: JSON.stringify(fallbackReport.nextSteps),
+      isFallback: true,
+    });
+
+    // Revalidate the home page to show the new report
+    revalidatePath('/');
     
     return {
       success: true,
       data: fallbackReport,
       error: null,
       fallback: true
+    };
+  }
+}
+
+/**
+ * Server action for form submission to generate a report (doesn't return data)
+ */
+export async function generateReportAction() {
+  await generateLatestPeriodicReport();
+  // Revalidate to show the updated page
+  revalidatePath('/');
+}
+
+/**
+ * Get the latest periodic report from the database
+ */
+export async function getLatestPeriodicReport() {
+  try {
+    const [latestReport] = await db
+      .select()
+      .from(periodicReports)
+      .orderBy(desc(periodicReports.createdAt))
+      .limit(1);
+
+    if (!latestReport) {
+      return {
+        success: true,
+        data: null,
+        error: null
+      };
+    }
+
+    // Parse the JSON fields back to objects
+    const report = {
+      id: latestReport.id,
+      title: latestReport.title,
+      summary: latestReport.summary,
+      projectsAnalysis: JSON.parse(latestReport.projectsAnalysis),
+      clustersAnalysis: JSON.parse(latestReport.clustersAnalysis),
+      recommendations: JSON.parse(latestReport.recommendations),
+      nextSteps: JSON.parse(latestReport.nextSteps),
+      isFallback: latestReport.isFallback,
+      createdAt: latestReport.createdAt,
+    };
+
+    return {
+      success: true,
+      data: report,
+      error: null
+    };
+  } catch (error) {
+    console.error('Failed to fetch latest periodic report:', error);
+    return {
+      success: false,
+      data: null,
+      error: error instanceof Error ? error.message : 'Failed to fetch report'
     };
   }
 }

@@ -1,10 +1,8 @@
-'use client';
-
-import { useState } from 'react';
 import Link from 'next/link';
-import { generateLatestPeriodicReport } from '@/actions/periodic-reports';
+import { generateReportAction, getLatestPeriodicReport } from '@/actions/periodic-reports';
 
 interface PeriodicReport {
+  id: string;
   title: string;
   summary: string;
   projectsAnalysis: {
@@ -19,75 +17,61 @@ interface PeriodicReport {
   };
   recommendations: string[];
   nextSteps: string[];
+  isFallback: boolean;
+  createdAt: Date;
 }
 
 interface ReportGeneratorProps {
   className?: string;
 }
 
-export default function ReportGenerator({ className = '' }: ReportGeneratorProps) {
-  const [periodicReport, setPeriodicReport] = useState<PeriodicReport | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isFallback, setIsFallback] = useState(false);
+function GenerateReportButton() {
+  return (
+    <form action={generateReportAction}>
+      <button
+        type="submit"
+        className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+      >
+        📊 Generate Report
+      </button>
+    </form>
+  );
+}
 
-  const handleGenerateReport = async () => {
-    setIsLoading(true);
-    setError(null);
+function RegenerateReportButton() {
+  return (
+    <form action={generateReportAction}>
+      <button
+        type="submit"
+        className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+      >
+        🔄 Regenerate
+      </button>
+    </form>
+  );
+}
+
+export default async function ReportGenerator({ className = '' }: ReportGeneratorProps) {
+  try {
+    const reportResult = await getLatestPeriodicReport();
     
-    try {
-      const result = await generateLatestPeriodicReport();
-      if (result.success) {
-        setPeriodicReport(result.data);
-        setIsFallback(result.fallback || false);
-      } else {
-        setError(result.error || 'Failed to generate report');
-        setPeriodicReport(null);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate periodic report');
-      setPeriodicReport(null);
-    } finally {
-      setIsLoading(false);
+    // Show error state if there was an error fetching the report
+    if (!reportResult.success) {
+      return (
+        <div className={`bg-error-container border border-outline rounded-lg p-6 ${className}`}>
+          <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full mx-auto mb-4">
+            <span className="text-red-600 text-xl">⚠️</span>
+          </div>
+          <h2 className="text-lg font-semibold text-on-error-container mb-2 text-center">Error Loading Dashboard</h2>
+          <p className="text-on-error-container text-center mb-4">{reportResult.error}</p>
+          <div className="text-center">
+            <GenerateReportButton />
+          </div>
+        </div>
+      );
     }
-  };
 
-  // Show error state
-  if (error) {
-    return (
-      <div className={`bg-error-container border border-outline rounded-lg p-6 ${className}`}>
-        <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full mx-auto mb-4">
-          <span className="text-red-600 text-xl">⚠️</span>
-        </div>
-        <h2 className="text-lg font-semibold text-on-error-container mb-2 text-center">Error Loading Dashboard</h2>
-        <p className="text-on-error-container text-center mb-4">{error}</p>
-        <div className="text-center">
-          <button
-            onClick={handleGenerateReport}
-            disabled={isLoading}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Show loading state
-  if (isLoading) {
-    return (
-      <div className={`bg-surface border border-outline rounded-lg p-8 text-center ${className}`}>
-        <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-        <h3 className="text-lg font-medium text-on-surface mb-2">Generating Report...</h3>
-        <p className="text-on-surface-variant max-w-md mx-auto">
-          Please wait while we analyze your projects and generate insights.
-        </p>
-      </div>
-    );
-  }
+    const periodicReport = reportResult.data;
 
   // Show report if available
   if (periodicReport) {
@@ -97,18 +81,12 @@ export default function ReportGenerator({ className = '' }: ReportGeneratorProps
           <div>
             <h2 className="text-2xl font-bold text-on-surface mb-2">{periodicReport.title}</h2>
             <p className="text-on-surface-variant">
-              Generated on {new Date().toLocaleDateString()}
-              {isFallback && " • Demo Mode (Configure API keys for full functionality)"}
+              Generated on {periodicReport.createdAt.toLocaleDateString()}
+              {periodicReport.isFallback && " • Demo Mode (Configure API keys for full functionality)"}
             </p>
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={handleGenerateReport}
-              disabled={isLoading}
-              className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-secondary-container hover:text-on-secondary-container disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              🔄 Regenerate
-            </button>
+            <RegenerateReportButton />
             <Link
               href="/reports"
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
@@ -144,7 +122,7 @@ export default function ReportGenerator({ className = '' }: ReportGeneratorProps
           <div>
             <h3 className="text-lg font-semibold text-on-surface mb-4">Projects Insights</h3>
             <div className="space-y-3">
-              {periodicReport.projectsAnalysis.insights.map((insight, index) => (
+              {periodicReport.projectsAnalysis.insights.map((insight: string, index: number) => (
                 <div key={index} className="border border-outline rounded-lg p-3 bg-gray-50">
                   <p className="text-sm text-on-surface">{insight}</p>
                 </div>
@@ -156,7 +134,7 @@ export default function ReportGenerator({ className = '' }: ReportGeneratorProps
           <div>
             <h3 className="text-lg font-semibold text-on-surface mb-4">Clusters Insights</h3>
             <div className="space-y-3">
-              {periodicReport.clustersAnalysis.insights.map((insight, index) => (
+              {periodicReport.clustersAnalysis.insights.map((insight: string, index: number) => (
                 <div key={index} className="border border-outline rounded-lg p-3 bg-gray-50">
                   <p className="text-sm text-on-surface">{insight}</p>
                 </div>
@@ -169,7 +147,7 @@ export default function ReportGenerator({ className = '' }: ReportGeneratorProps
         <div className="mb-6">
           <h3 className="text-lg font-semibold text-on-surface mb-4">Recommendations</h3>
           <div className="space-y-2">
-            {periodicReport.recommendations.map((recommendation, index) => (
+            {periodicReport.recommendations.map((recommendation: string, index: number) => (
               <div key={index} className="flex items-start">
                 <span className="text-blue-600 mr-2">•</span>
                 <p className="text-sm text-on-surface">{recommendation}</p>
@@ -182,7 +160,7 @@ export default function ReportGenerator({ className = '' }: ReportGeneratorProps
         <div className="mb-6">
           <h3 className="text-lg font-semibold text-on-surface mb-4">Next Steps</h3>
           <div className="space-y-2">
-            {periodicReport.nextSteps.map((step, index) => (
+            {periodicReport.nextSteps.map((step: string, index: number) => (
               <div key={index} className="flex items-start">
                 <span className="text-green-600 mr-2">→</span>
                 <p className="text-sm text-on-surface">{step}</p>
@@ -235,13 +213,22 @@ export default function ReportGenerator({ className = '' }: ReportGeneratorProps
       <p className="text-on-surface-variant max-w-md mx-auto mb-6">
         Click the button below to generate a comprehensive report with insights into your project status and development priorities.
       </p>
-      <button
-        onClick={handleGenerateReport}
-        disabled={isLoading}
-        className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-      >
-        📊 Generate Report
-      </button>
+      <GenerateReportButton />
     </div>
   );
+  } catch (error) {
+    // Fallback if database connection fails
+    return (
+      <div className={`bg-surface border border-outline rounded-lg p-8 text-center ${className}`}>
+        <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <span className="text-gray-400 text-3xl">📊</span>
+        </div>
+        <h3 className="text-lg font-medium text-on-surface mb-2">Generate Project Report</h3>
+        <p className="text-on-surface-variant max-w-md mx-auto mb-6">
+          Click the button below to generate a comprehensive report with insights into your project status and development priorities.
+        </p>
+        <GenerateReportButton />
+      </div>
+    );
+  }
 }

@@ -182,3 +182,18 @@ export const projectsRepos = pgTable(
     },
   ]
 )
+
+export const periodicReports = pgTable("periodic_reports", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  title: text("title").notNull(),
+  summary: text("summary").notNull(),
+  projectsAnalysis: text("projects_analysis").notNull(), // JSON string
+  clustersAnalysis: text("clusters_analysis").notNull(), // JSON string
+  recommendations: text("recommendations").notNull(), // JSON string of array
+  nextSteps: text("next_steps").notNull(), // JSON string of array
+  isFallback: boolean("is_fallback").notNull().default(false),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+})
