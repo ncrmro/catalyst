@@ -1,8 +1,13 @@
 import { test, expect } from '@playwright/test';
+import { loginWithDevPassword } from './helpers';
 
 test.describe('Home Page', () => {
+  test.beforeEach(async ({ page }, testInfo) => {
+    await loginWithDevPassword(page, testInfo);
+  });
+
   test('should navigate to teams page from home page', async ({ page }) => {
-    // Start at the home page (should work in MOCKED=1 mode without auth)
+    // Go to the home page
     await page.goto('/');
     
     // Check if there's already a report generated or if we need to generate one
@@ -12,8 +17,8 @@ test.describe('Home Page', () => {
     // If no report exists, generate one first
     if (await generateButton.isVisible()) {
       await generateButton.click();
-      // Wait for the report to be generated
-      await expect(reportTitle).toBeVisible();
+      // Wait for the report to be generated (with longer timeout for server action)
+      await expect(reportTitle).toBeVisible({ timeout: 15000 });
     } else {
       // Report already exists, just wait for it to be visible
       await expect(reportTitle).toBeVisible();
