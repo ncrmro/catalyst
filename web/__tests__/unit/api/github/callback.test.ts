@@ -1,5 +1,5 @@
 import { createMocks } from 'node-mocks-http';
-import { GET } from '../../../src/app/api/github/callback/route';
+import { GET } from '../../../../src/app/api/github/callback/route';
 
 describe('/api/github/callback', () => {
   describe('GET', () => {

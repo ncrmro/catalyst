@@ -1,4 +1,4 @@
-import { fetchReports, fetchReportById, fetchLatestReport } from '../../src/actions/reports';
+import { fetchReports, fetchReportById, fetchLatestReport } from '../../../src/actions/reports';
 
 describe('Reports Actions', () => {
   test('should fetch all reports', async () => {

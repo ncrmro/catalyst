@@ -12,17 +12,17 @@ jest.mock('@ai-sdk/openai', () => ({
 }));
 
 // Mock the actions
-jest.mock('../../src/actions/projects', () => ({
+jest.mock('../../../src/actions/projects', () => ({
   fetchProjects: jest.fn()
 }));
 
-jest.mock('../../src/actions/clusters', () => ({
+jest.mock('../../../src/actions/clusters', () => ({
   getClusters: jest.fn()
 }));
 
-import { PeriodicReportAgent, generatePeriodicReport } from '../../src/agents/periodic-report';
-import { fetchProjects } from '../../src/actions/projects';
-import { getClusters } from '../../src/actions/clusters';
+import { PeriodicReportAgent, generatePeriodicReport } from '../../../src/agents/periodic-report';
+import { fetchProjects } from '../../../src/actions/projects';
+import { getClusters } from '../../../src/actions/clusters';
 import { generateObject } from 'ai';
 
 describe('PeriodicReportAgent', () => {
