@@ -38,6 +38,9 @@ export async function createProjectNamespace(options: CreateNamespaceOptions, cl
   
   // Initialize Kubernetes client using the proper cluster configuration
   const kc = await getClusterConfig(clusterName);
+  if (!kc) {
+    throw new Error(`Kubernetes cluster configuration not found${clusterName ? ` for cluster: ${clusterName}` : '. No clusters available.'}`);
+  }
   
   const CoreV1Api = await getCoreV1Api();
   const k8sApi = kc.makeApiClient(CoreV1Api);
@@ -93,6 +96,9 @@ export async function createProjectNamespace(options: CreateNamespaceOptions, cl
 export async function namespaceExists(namespaceName: string, clusterName?: string): Promise<boolean> {
   try {
     const kc = await getClusterConfig(clusterName);
+    if (!kc) {
+      throw new Error(`Kubernetes cluster configuration not found${clusterName ? ` for cluster: ${clusterName}` : '. No clusters available.'}`);
+    }
     
     const CoreV1Api = await getCoreV1Api();
     const k8sApi = kc.makeApiClient(CoreV1Api);
@@ -113,6 +119,9 @@ export async function namespaceExists(namespaceName: string, clusterName?: strin
 export async function listNamespaces(clusterName?: string): Promise<{name: string; labels?: {[key: string]: string}; creationTimestamp?: string}[]> {
   try {
     const kc = await getClusterConfig(clusterName);
+    if (!kc) {
+      throw new Error(`Kubernetes cluster configuration not found${clusterName ? ` for cluster: ${clusterName}` : '. No clusters available.'}`);
+    }
     
     const CoreV1Api = await getCoreV1Api();
     const k8sApi = kc.makeApiClient(CoreV1Api);
@@ -136,6 +145,9 @@ export async function listNamespaces(clusterName?: string): Promise<{name: strin
  */
 export async function deleteNamespace(namespaceName: string, clusterName?: string): Promise<void> {
   const kc = await getClusterConfig(clusterName);
+  if (!kc) {
+    throw new Error(`Kubernetes cluster configuration not found${clusterName ? ` for cluster: ${clusterName}` : '. No clusters available.'}`);
+  }
   
   const CoreV1Api = await getCoreV1Api();
   const k8sApi = kc.makeApiClient(CoreV1Api);
