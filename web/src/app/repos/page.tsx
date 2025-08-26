@@ -1,4 +1,5 @@
 import { fetchGitHubRepos } from '@/actions/repos.github';
+import { getRepositoryConnectionStatus } from '@/actions/repos.connected';
 import Image from 'next/image';
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
@@ -37,7 +38,7 @@ interface GitHubOrganization {
   description: string | null;
 }
 
-function RepoCard({ repo }: { repo: GitHubRepo }) {
+function RepoCard({ repo, isConnected }: { repo: GitHubRepo; isConnected: boolean }) {
   return (
     <div className="bg-surface border border-outline rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-4">
@@ -63,6 +64,11 @@ function RepoCard({ repo }: { repo: GitHubRepo }) {
                 Private
               </span>
             )}
+            {isConnected && (
+              <span className="bg-primary-container text-on-primary-container text-xs px-2 py-1 rounded-full flex-shrink-0">
+                Connected
+              </span>
+            )}
           </div>
           
           {repo.description && (
@@ -83,12 +89,21 @@ function RepoCard({ repo }: { repo: GitHubRepo }) {
           </div>
         </div>
         <div className="flex-shrink-0 flex gap-2">
-          <Link 
-            href={`/repos/${repo.id}/connect`}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-on-primary bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors"
-          >
-            Connect
-          </Link>
+          {isConnected ? (
+            <Link 
+              href={`/projects`}
+              className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-primary-container hover:text-on-primary-container focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors"
+            >
+              Manage Project
+            </Link>
+          ) : (
+            <Link 
+              href={`/repos/${repo.id}/connect`}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-on-primary bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors"
+            >
+              Connect
+            </Link>
+          )}
           <Link 
             href={`/repos/${repo.id}/deployments`}
             className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-primary-container hover:text-on-primary-container focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors"
@@ -103,10 +118,12 @@ function RepoCard({ repo }: { repo: GitHubRepo }) {
 
 function OrganizationSection({ 
   organization, 
-  repos 
+  repos,
+  connectionStatus
 }: { 
   organization: GitHubOrganization;
   repos: GitHubRepo[];
+  connectionStatus: Record<number, boolean>;
 }) {
   return (
     <div className="mb-8">
@@ -128,7 +145,11 @@ function OrganizationSection({
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {repos.map((repo) => (
-          <RepoCard key={repo.id} repo={repo} />
+          <RepoCard 
+            key={repo.id} 
+            repo={repo} 
+            isConnected={(connectionStatus && connectionStatus[repo.id]) || false}
+          />
         ))}
       </div>
     </div>
@@ -164,6 +185,22 @@ export default async function ReposPage() {
   } catch (err) {
     error = err instanceof Error ? err.message : 'Failed to fetch repositories';
     reposData = null;
+  }
+
+  // Fetch connection status for all repositories
+  let connectionStatus: Record<number, boolean> = {};
+  if (reposData) {
+    try {
+      const allRepos = [
+        ...reposData.user_repos,
+        ...Object.values(reposData.org_repos).flat()
+      ];
+      const allRepoIds = allRepos.map(repo => repo.id);
+      connectionStatus = await getRepositoryConnectionStatus(allRepoIds);
+    } catch (err) {
+      console.warn('Failed to fetch repository connection status:', err);
+      // Continue with empty connection status (all will show as unconnected)
+    }
   }
 
   if (error) {
@@ -215,6 +252,19 @@ export default async function ReposPage() {
   const totalRepos = reposData.user_repos.length + 
     Object.values(reposData.org_repos).reduce((sum, repos) => sum + repos.length, 0);
 
+  // Separate connected and unconnected repositories
+  const allRepos = [
+    ...reposData.user_repos,
+    ...Object.values(reposData.org_repos).flat()
+  ];
+  
+  const connectedRepos = allRepos.filter(repo => connectionStatus && connectionStatus[repo.id]);
+  const availableRepos = allRepos.filter(repo => !connectionStatus || !connectionStatus[repo.id]);
+  
+  // Separate user repos
+  const connectedUserRepos = reposData.user_repos.filter(repo => connectionStatus && connectionStatus[repo.id]);
+  const availableUserRepos = reposData.user_repos.filter(repo => !connectionStatus || !connectionStatus[repo.id]);
+
   return (
     <DashboardLayout user={session.user}>
       <div className="space-y-6">
@@ -222,43 +272,103 @@ export default async function ReposPage() {
         <div>
           <h1 className="text-3xl font-bold text-on-background mb-2">GitHub Repositories</h1>
           <p className="text-on-surface-variant">
-            Connected repositories from your account and organizations
+            View and manage your GitHub repositories and organization repos.
           </p>
           <p className="text-sm text-on-surface-variant mt-2">
             {totalRepos} repositories across {reposData.organizations.length + 1} accounts
+            {connectedRepos.length > 0 && (
+              <span className="text-primary"> • {connectedRepos.length} connected</span>
+            )}
           </p>
         </div>
 
-        {/* User Repositories */}
-        {reposData.user_repos.length > 0 && (
-          <div className="bg-surface border border-outline rounded-lg p-6 shadow-sm">
-            <h2 className="text-2xl font-semibold text-on-surface mb-6">Your Repositories</h2>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {reposData.user_repos.map((repo) => (
-                <RepoCard key={repo.id} repo={repo} />
-              ))}
+        {/* Connected Repositories Section */}
+        {connectedRepos.length > 0 && (
+          <div className="bg-primary-container/10 border border-primary-container rounded-lg p-6 shadow-sm">
+            <div className="flex items-center gap-2 mb-6">
+              <span className="text-primary text-xl">🔗</span>
+              <h2 className="text-2xl font-semibold text-on-surface">Connected Repositories</h2>
+              <span className="bg-primary-container text-on-primary-container text-sm px-2 py-1 rounded-full">
+                {connectedRepos.length}
+              </span>
             </div>
+            
+            {/* Connected User Repositories */}
+            {connectedUserRepos.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-lg font-medium text-on-surface mb-4">Your Repositories</h3>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {connectedUserRepos.map((repo) => (
+                    <RepoCard 
+                      key={repo.id} 
+                      repo={repo} 
+                      isConnected={true}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Connected Organization Repositories */}
+            {reposData.organizations.map((org) => {
+              const orgRepos = (reposData.org_repos[org.login] || []).filter(repo => connectionStatus && connectionStatus[repo.id]);
+              if (orgRepos.length === 0) return null;
+              
+              return (
+                <div key={org.id} className="mb-8">
+                  <OrganizationSection 
+                    organization={org} 
+                    repos={orgRepos}
+                    connectionStatus={connectionStatus || {}}
+                  />
+                </div>
+              );
+            })}
           </div>
         )}
 
-        {/* Organization Repositories */}
-        {reposData.organizations.length > 0 && (
+        {/* Available Repositories Section */}
+        {availableRepos.length > 0 && (
           <div className="bg-surface border border-outline rounded-lg p-6 shadow-sm">
-            <h2 className="text-2xl font-semibold text-on-surface mb-6">Organization Repositories</h2>
-            <div className="space-y-8">
-              {reposData.organizations.map((org) => {
-                const orgRepos = reposData.org_repos[org.login] || [];
-                if (orgRepos.length === 0) return null;
-                
-                return (
-                  <OrganizationSection 
-                    key={org.id} 
-                    organization={org} 
-                    repos={orgRepos} 
-                  />
-                );
-              })}
+            <div className="flex items-center gap-2 mb-6">
+              <span className="text-on-surface-variant text-xl">📦</span>
+              <h2 className="text-2xl font-semibold text-on-surface">Available Repositories</h2>
+              <span className="bg-surface-variant text-on-surface-variant text-sm px-2 py-1 rounded-full">
+                {availableRepos.length}
+              </span>
             </div>
+            
+            {/* Available User Repositories */}
+            {availableUserRepos.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-lg font-medium text-on-surface mb-4">Your Repositories</h3>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {availableUserRepos.map((repo) => (
+                    <RepoCard 
+                      key={repo.id} 
+                      repo={repo} 
+                      isConnected={false}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Available Organization Repositories */}
+            {reposData.organizations.map((org) => {
+              const orgRepos = (reposData.org_repos[org.login] || []).filter(repo => !connectionStatus[repo.id]);
+              if (orgRepos.length === 0) return null;
+              
+              return (
+                <div key={org.id} className="mb-8">
+                  <OrganizationSection 
+                    organization={org} 
+                    repos={orgRepos}
+                    connectionStatus={connectionStatus}
+                  />
+                </div>
+              );
+            })}
           </div>
         )}
 
