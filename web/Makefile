@@ -1,5 +1,12 @@
 # DC normally is docker compose, but podman compose is used if available
-DC:=docker-compose $(DC_ARGS)
+DC:=docker compose $(DC_ARGS)
+
+.PHONY: help
+help: ## Show this help message
+	@echo 'Usage: make <target>'
+	@echo ''
+	@echo 'Targets:'
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 
 build: ## Build all services
@@ -19,8 +26,20 @@ destroy: ## Clean all services
 dbshell: ## Connect to PostgreSQL database shell
 	$(DC) exec db psql -U postgres -d catalyst
 
-ci:
-	$(DC) run --env NODE_ENV=production --rm -it app pnpm run lint
+ci: ## Run comprehensive CI tests (unit, integration, and e2e)
+	@echo "Running comprehensive CI tests..."
+	@echo "1. Running linter..."
+	npm run lint
+	@echo "2. Running unit and integration tests..."
+	npm test
+	@echo "3. Running e2e tests..."
+	npm run test:e2e
+	@echo "All tests completed successfully!"
+
+ci-docker: ## Run comprehensive CI tests in Docker (unit, integration, and e2e)
+	$(DC) run --env NODE_ENV=production --rm -it app npm run lint
+	$(DC) run --env NODE_ENV=production --rm -it app npm test
+	$(DC) run --no-deps e2e
 
 e2e: ## Run e2e tests in Docker
 	$(DC) run --no-deps --no-deps e2e
