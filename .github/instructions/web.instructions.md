@@ -24,7 +24,7 @@ It has already been started.
 
 # Testing
 
-Always run `npm run lint` and `npm run test:e2e` before making your final commit.
+Always run `make ci` before making your final commit. This command runs unit tests, integration tests, linting, and e2e tests to ensure comprehensive validation.
 
 #  Development guidelines
 
