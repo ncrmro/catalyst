@@ -1,9 +1,16 @@
-import { db, repos, projects, projectsRepos } from '@/db';
+import { db, repos, projects, projectsRepos, teams } from '@/db';
 
 /**
  * Seed the database with sample data for development and testing
  */
 export async function seedDatabase() {
+  // Get the first available team to assign to seeded data
+  const firstTeam = await db.select().from(teams).limit(1);
+  if (firstTeam.length === 0) {
+    throw new Error('Cannot seed database: No teams found. Please create at least one team first.');
+  }
+  const teamId = firstTeam[0].id;
+
   // Insert sample repositories
   const repoData = [
     {
@@ -20,6 +27,7 @@ export async function seedDatabase() {
       ownerLogin: 'jdoe',
       ownerType: 'User',
       ownerAvatarUrl: 'https://github.com/identicons/jdoe.png',
+      teamId,
       pushedAt: new Date('2024-01-21T14:30:00Z'),
     },
     {
@@ -36,6 +44,7 @@ export async function seedDatabase() {
       ownerLogin: 'jdoe',
       ownerType: 'User',
       ownerAvatarUrl: 'https://github.com/identicons/jdoe.png',
+      teamId,
       pushedAt: new Date('2024-01-21T12:15:00Z'),
     },
     {
@@ -52,6 +61,7 @@ export async function seedDatabase() {
       ownerLogin: 'jdoe',
       ownerType: 'User',
       ownerAvatarUrl: 'https://github.com/identicons/jdoe.png',
+      teamId,
       pushedAt: new Date('2024-01-20T16:45:00Z'),
     },
     {
@@ -68,6 +78,7 @@ export async function seedDatabase() {
       ownerLogin: 'jdoe',
       ownerType: 'User',
       ownerAvatarUrl: 'https://github.com/identicons/jdoe.png',
+      teamId,
       pushedAt: new Date('2024-01-21T10:20:00Z'),
     },
     {
@@ -84,6 +95,7 @@ export async function seedDatabase() {
       ownerLogin: 'jdoe',
       ownerType: 'User',
       ownerAvatarUrl: 'https://github.com/identicons/jdoe.png',
+      teamId,
       pushedAt: new Date('2024-01-21T09:30:00Z'),
     },
     {
@@ -100,6 +112,7 @@ export async function seedDatabase() {
       ownerLogin: 'awesome-org',
       ownerType: 'Organization',
       ownerAvatarUrl: 'https://github.com/identicons/awesome-org.png',
+      teamId,
       pushedAt: new Date('2024-01-20T18:00:00Z'),
     },
   ];
@@ -115,6 +128,7 @@ export async function seedDatabase() {
       ownerLogin: 'jdoe',
       ownerType: 'User',
       ownerAvatarUrl: 'https://github.com/identicons/jdoe.png',
+      teamId,
       previewEnvironmentsCount: 7,
       createdAt: new Date('2023-11-15T10:00:00Z'),
       updatedAt: new Date('2024-01-21T14:30:00Z'),
@@ -126,6 +140,7 @@ export async function seedDatabase() {
       ownerLogin: 'jdoe',
       ownerType: 'User',
       ownerAvatarUrl: 'https://github.com/identicons/jdoe.png',
+      teamId,
       previewEnvironmentsCount: 3,
       createdAt: new Date('2023-10-20T15:30:00Z'),
       updatedAt: new Date('2024-01-21T11:45:00Z'),
@@ -137,6 +152,7 @@ export async function seedDatabase() {
       ownerLogin: 'awesome-org',
       ownerType: 'Organization',
       ownerAvatarUrl: 'https://github.com/identicons/awesome-org.png',
+      teamId,
       previewEnvironmentsCount: 12,
       createdAt: new Date('2023-08-10T08:15:00Z'),
       updatedAt: new Date('2024-01-20T19:20:00Z'),
