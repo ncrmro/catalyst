@@ -75,21 +75,21 @@ export function ConnectRepoForm({ repo, existingProjects }: ConnectRepoFormProps
   };
 
   return (
-    <div className="bg-white shadow-sm border rounded-lg p-6">
+    <div className="bg-surface shadow-sm border border-outline rounded-lg p-6">
       <form onSubmit={handleSubmit} className="space-y-6">
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-red-800">{error}</p>
+          <div className="bg-error-container border border-error rounded-lg p-4">
+            <p className="text-on-error-container">{error}</p>
           </div>
         )}
 
         {/* Connection Type Selection */}
         <div>
-          <legend className="text-lg font-medium text-gray-900 mb-4">
+          <legend className="text-lg font-medium text-on-surface mb-4">
             How would you like to connect this repository?
           </legend>
           <div className="space-y-3">
-            <label className="flex items-start gap-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
+            <label className="flex items-start gap-3 p-4 border border-outline rounded-lg cursor-pointer hover:bg-secondary-container hover:text-on-secondary-container transition-colors">
               <input
                 type="radio"
                 name="connectionType"
@@ -99,14 +99,14 @@ export function ConnectRepoForm({ repo, existingProjects }: ConnectRepoFormProps
                 className="mt-1"
               />
               <div>
-                <div className="font-medium text-gray-900">Create a new project</div>
-                <div className="text-sm text-gray-600">
+                <div className="font-medium text-on-surface">Create a new project</div>
+                <div className="text-sm text-on-surface-variant">
                   Start a new project using this repository as the foundation
                 </div>
               </div>
             </label>
 
-            <label className="flex items-start gap-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
+            <label className="flex items-start gap-3 p-4 border border-outline rounded-lg cursor-pointer hover:bg-secondary-container hover:text-on-secondary-container transition-colors">
               <input
                 type="radio"
                 name="connectionType"
@@ -117,8 +117,8 @@ export function ConnectRepoForm({ repo, existingProjects }: ConnectRepoFormProps
                 disabled={existingProjects.length === 0}
               />
               <div>
-                <div className="font-medium text-gray-900">Add to existing project</div>
-                <div className="text-sm text-gray-600">
+                <div className="font-medium text-on-surface">Add to existing project</div>
+                <div className="text-sm text-on-surface-variant">
                   {existingProjects.length === 0 
                     ? 'No existing projects available'
                     : 'Connect this repository to one of your existing projects'
@@ -131,11 +131,11 @@ export function ConnectRepoForm({ repo, existingProjects }: ConnectRepoFormProps
 
         {/* New Project Form */}
         {connectionType === 'new' && (
-          <div className="space-y-4 p-4 border rounded-lg bg-blue-50">
-            <h3 className="font-medium text-gray-900">New Project Details</h3>
+          <div className="space-y-4 p-4 border border-outline rounded-lg bg-primary-container">
+            <h3 className="font-medium text-on-primary-container">New Project Details</h3>
             
             <div>
-              <label htmlFor="projectName" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="projectName" className="block text-sm font-medium text-on-primary-container mb-1">
                 Project Name
               </label>
               <input
@@ -143,13 +143,13 @@ export function ConnectRepoForm({ repo, existingProjects }: ConnectRepoFormProps
                 id="projectName"
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-outline rounded-md bg-surface text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 required
               />
             </div>
 
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="description" className="block text-sm font-medium text-on-primary-container mb-1">
                 Description (optional)
               </label>
               <textarea
@@ -157,7 +157,7 @@ export function ConnectRepoForm({ repo, existingProjects }: ConnectRepoFormProps
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-outline rounded-md bg-surface text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
               />
             </div>
           </div>
@@ -165,18 +165,18 @@ export function ConnectRepoForm({ repo, existingProjects }: ConnectRepoFormProps
 
         {/* Existing Project Selection */}
         {connectionType === 'existing' && existingProjects.length > 0 && (
-          <div className="space-y-4 p-4 border rounded-lg bg-green-50">
-            <h3 className="font-medium text-gray-900">Select Project</h3>
+          <div className="space-y-4 p-4 border border-outline rounded-lg bg-secondary-container">
+            <h3 className="font-medium text-on-secondary-container">Select Project</h3>
             
             <div>
-              <label htmlFor="existingProject" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="existingProject" className="block text-sm font-medium text-on-secondary-container mb-1">
                 Choose an existing project
               </label>
               <select
                 id="existingProject"
                 value={selectedProjectId}
                 onChange={(e) => setSelectedProjectId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-outline rounded-md bg-surface text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 required
               >
                 <option value="">Select a project...</option>
@@ -199,21 +199,21 @@ export function ConnectRepoForm({ repo, existingProjects }: ConnectRepoFormProps
               onChange={(e) => setIsPrimary(e.target.checked)}
               className="rounded"
             />
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-on-surface">
               Set as primary repository
             </span>
           </label>
-          <p className="text-xs text-gray-600 mt-1">
+          <p className="text-xs text-on-surface-variant mt-1">
             The primary repository will be used for main deployments and environments
           </p>
         </div>
 
         {/* Submit Button */}
-        <div className="flex items-center justify-between pt-4 border-t">
+        <div className="flex items-center justify-between pt-4 border-t border-outline">
           <button
             type="button"
             onClick={() => router.push('/repos')}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="px-4 py-2 text-sm font-medium text-on-surface bg-surface border border-outline rounded-md hover:bg-secondary-container hover:text-on-secondary-container transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
           >
             Cancel
           </button>
@@ -221,7 +221,7 @@ export function ConnectRepoForm({ repo, existingProjects }: ConnectRepoFormProps
           <button
             type="submit"
             disabled={isSubmitting || (connectionType === 'existing' && !selectedProjectId)}
-            className="px-6 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2 text-sm font-medium text-on-primary bg-primary border border-transparent rounded-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? 'Connecting...' : 'Connect Repository'}
           </button>
