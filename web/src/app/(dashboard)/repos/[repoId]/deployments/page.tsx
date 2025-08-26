@@ -1,7 +1,6 @@
 import { fetchGitHubRepos } from '@/actions/repos.github';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
-import DashboardLayout from '@/components/dashboard-layout';
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
@@ -52,8 +51,7 @@ export default async function DeploymentPage({ params }: DeploymentPageProps) {
   }
 
   return (
-    <DashboardLayout user={session.user}>
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header Section */}
         <div>
           <div className="flex items-center gap-4 mb-4">
@@ -113,6 +111,5 @@ export default async function DeploymentPage({ params }: DeploymentPageProps) {
         {/* Deployment Configuration Form */}
         <DeploymentConfigForm repo={repo} />
       </div>
-    </DashboardLayout>
-  );
-}
+    );
+  }

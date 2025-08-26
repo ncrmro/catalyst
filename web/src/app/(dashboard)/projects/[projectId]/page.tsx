@@ -4,8 +4,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
-import DashboardLayout from '@/components/dashboard-layout';
-import { auth } from '@/auth';
 
 function getPriorityColor(priority: 'high' | 'medium' | 'low') {
   switch (priority) {
@@ -164,7 +162,6 @@ export async function generateMetadata({ params }: ProjectPageProps): Promise<Me
 }
 
 export default async function ProjectPage({ params }: ProjectPageProps) {
-  const session = await auth();
   const { projectId } = await params;
   
   let project: Project | null;
@@ -190,10 +187,9 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   }
 
   return (
-    <DashboardLayout user={session.user}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Header */}
+      <div className="mb-8">
           <Link
             href="/projects"
             className="inline-flex items-center text-primary hover:opacity-80 mb-4"
@@ -349,6 +345,5 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           </div>
         </div>
       </div>
-    </DashboardLayout>
-  );
-}
+    );
+  }

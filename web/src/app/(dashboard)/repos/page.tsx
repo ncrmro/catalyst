@@ -4,7 +4,6 @@ import Image from 'next/image';
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
-import DashboardLayout from "@/components/dashboard-layout";
 import Link from 'next/link';
 
 export const metadata: Metadata = {
@@ -199,47 +198,43 @@ export default async function ReposPage() {
 
   if (error) {
     return (
-      <DashboardLayout user={session.user}>
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold text-on-background mb-2">GitHub Repositories</h1>
-            <p className="text-on-surface-variant">
-              View and manage your GitHub repositories and organization repos.
-            </p>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-on-background mb-2">GitHub Repositories</h1>
+          <p className="text-on-surface-variant">
+            View and manage your GitHub repositories and organization repos.
+          </p>
+        </div>
+        
+        <div className="bg-error-container border border-outline rounded-lg p-6">
+          <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full mx-auto mb-4">
+            <span className="text-red-600 text-xl">⚠️</span>
           </div>
-          
-          <div className="bg-error-container border border-outline rounded-lg p-6">
-            <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full mx-auto mb-4">
-              <span className="text-red-600 text-xl">⚠️</span>
-            </div>
-            <h2 className="text-lg font-semibold text-on-error-container mb-2 text-center">Error Loading Repositories</h2>
-            <p className="text-on-error-container text-center">{error}</p>
-            <div className="mt-4 text-sm text-on-error-container text-center">
-              <p>To view repositories, set MOCKED=1 or GITHUB_REPOS_MODE=mocked in your environment.</p>
-            </div>
+          <h2 className="text-lg font-semibold text-on-error-container mb-2 text-center">Error Loading Repositories</h2>
+          <p className="text-on-error-container text-center">{error}</p>
+          <div className="mt-4 text-sm text-on-error-container text-center">
+            <p>To view repositories, set MOCKED=1 or GITHUB_REPOS_MODE=mocked in your environment.</p>
           </div>
         </div>
-      </DashboardLayout>
+      </div>
     );
   }
 
   if (!reposData) {
     return (
-      <DashboardLayout user={session.user}>
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold text-on-background mb-2">GitHub Repositories</h1>
-            <p className="text-on-surface-variant">
-              View and manage your GitHub repositories and organization repos.
-            </p>
-          </div>
-          
-          <div className="bg-surface border border-outline rounded-lg p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-on-surface-variant">Loading repositories...</p>
-          </div>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-on-background mb-2">GitHub Repositories</h1>
+          <p className="text-on-surface-variant">
+            View and manage your GitHub repositories and organization repos.
+          </p>
         </div>
-      </DashboardLayout>
+        
+        <div className="bg-surface border border-outline rounded-lg p-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-on-surface-variant">Loading repositories...</p>
+        </div>
+      </div>
     );
   }
 
@@ -260,8 +255,7 @@ export default async function ReposPage() {
   const availableUserRepos = reposData.user_repos.filter(repo => !connectionStatus || !connectionStatus[repo.id]);
 
   return (
-    <DashboardLayout user={session.user}>
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header Section */}
         <div>
           <h1 className="text-3xl font-bold text-on-background mb-2">GitHub Repositories</h1>
@@ -387,6 +381,5 @@ export default async function ReposPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
-  );
-}
+    );
+  }
