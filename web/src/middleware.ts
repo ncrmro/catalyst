@@ -4,7 +4,7 @@ import NextAuth from "next-auth";
  const { auth: middleware } = NextAuth(authConfig)
 
 export default middleware((req) => {
-  console.log('Middleware invoked', req.nextUrl.pathname);
+  console.debug('Middleware invoked', req.nextUrl.pathname);
   if (!req.auth && req.nextUrl.pathname !== "/login") {
     const newUrl = new URL("/login", req.nextUrl.origin)
     return Response.redirect(newUrl)
