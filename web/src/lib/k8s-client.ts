@@ -120,16 +120,68 @@ export class KubeConfig {
     // Will be initialized when needed
   }
 
+  /**
+   * Configure TLS settings based on cluster type and environment
+   */
+  private configureTLS() {
+    if (!this._kc) {
+      return;
+    }
+
+    try {
+      const cluster = this._kc.getCurrentCluster();
+      if (!cluster) {
+        return;
+      }
+
+      const serverUrl = cluster.server;
+      
+      // Detect local development environments
+      const isLocalCluster = 
+        serverUrl?.includes('localhost') ||
+        serverUrl?.includes('127.0.0.1') ||
+        serverUrl?.includes('kind-') ||
+        serverUrl?.startsWith('http://') ||
+        process.env.NODE_ENV === 'development';
+
+      // Check for explicit environment variable override
+      const skipTLSVerifyEnv = process.env.KUBE_SKIP_TLS_VERIFY;
+      let skipTLSVerify = false;
+
+      if (skipTLSVerifyEnv !== undefined) {
+        // Explicit override from environment
+        skipTLSVerify = skipTLSVerifyEnv.toLowerCase() === 'true';
+      } else if (isLocalCluster) {
+        // Auto-detect for local clusters
+        skipTLSVerify = true;
+      }
+
+      if (skipTLSVerify && cluster) {
+        // Disable TLS verification for local/development clusters
+        cluster.skipTLSVerify = true;
+        console.log('TLS verification disabled for local Kubernetes cluster');
+      } else {
+        console.log('TLS verification enabled for Kubernetes cluster');
+      }
+    } catch (error) {
+      console.warn('Failed to configure TLS settings:', error instanceof Error ? error.message : 'Unknown error');
+    }
+  }
+
   async loadFromDefault() {
     const k8sModule = await loadKubernetesClient();
     this._kc = new k8sModule.KubeConfig();
-    return this._kc.loadFromDefault();
+    this._kc.loadFromDefault();
+    this.configureTLS();
+    return this._kc;
   }
 
   async loadFromString(kubeConfigString: string) {
     const k8sModule = await loadKubernetesClient();
     this._kc = new k8sModule.KubeConfig();
-    return this._kc.loadFromString(kubeConfigString);
+    this._kc.loadFromString(kubeConfigString);
+    this.configureTLS();
+    return this._kc;
   }
 
   async loadFromEnvVar(envVarName: string) {
@@ -189,8 +241,45 @@ export async function getClusters(): Promise<ClusterInfo[]> {
   return kubeConfigRegistry.getClusters();
 }
 
-export async function getClusterConfig(clusterName: string): Promise<KubeConfig | null> {
-  return kubeConfigRegistry.getConfigForCluster(clusterName);
+export async function getClusterConfig(clusterName?: string): Promise<KubeConfig | null> {
+  if (clusterName) {
+    // Try to get config for specific cluster
+    const clusterConfig = await kubeConfigRegistry.getConfigForCluster(clusterName);
+    if (clusterConfig) {
+      return clusterConfig;
+    } else {
+      return null;
+    }
+  } else {
+    // Try to find any configured cluster, prioritizing production environments
+    const clusters = await getClusters();
+    let selectedConfig: KubeConfig | null = null;
+    
+    if (clusters.length > 0) {
+      // Look for production-like cluster names first
+      const productionClusterNames = ['PRODUCTION', 'PROD', 'PRIMARY', 'MAIN'];
+      for (const prodName of productionClusterNames) {
+        selectedConfig = await kubeConfigRegistry.getConfigForCluster(prodName);
+        if (selectedConfig) break;
+      }
+      
+      // If no production cluster found, use the first available cluster
+      if (!selectedConfig && clusters.length > 0) {
+        const firstCluster = clusters[0];
+        const clusterKey = firstCluster.source.replace('KUBECONFIG_', '');
+        selectedConfig = await kubeConfigRegistry.getConfigForCluster(clusterKey);
+      }
+    }
+    
+    if (selectedConfig) {
+      return selectedConfig;
+    } else {
+      // Fallback to creating a new config if no registered configs exist
+      const kc = new KubeConfig();
+      await kc.loadFromDefault();
+      return kc;
+    }
+  }
 }
 
 // For testing purposes
