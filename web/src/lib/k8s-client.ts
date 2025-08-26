@@ -123,13 +123,17 @@ export class KubeConfig {
   async loadFromDefault() {
     const k8sModule = await loadKubernetesClient();
     this._kc = new k8sModule.KubeConfig();
-    return this._kc.loadFromDefault();
+    this._kc.loadFromDefault();
+    this.configureTLS();
+    return this._kc;
   }
 
   async loadFromString(kubeConfigString: string) {
     const k8sModule = await loadKubernetesClient();
     this._kc = new k8sModule.KubeConfig();
-    return this._kc.loadFromString(kubeConfigString);
+    this._kc.loadFromString(kubeConfigString);
+    this.configureTLS();
+    return this._kc;
   }
 
   async loadFromEnvVar(envVarName: string) {
