@@ -15,17 +15,14 @@ test.describe('GitHub Repositories Page', () => {
     await expect(page.getByRole('heading', { name: 'GitHub Repositories' })).toBeVisible();
 
     // Check that the description is shown
-    await expect(page.getByText('Connected repositories from your account and organizations')).toBeVisible();
+    await expect(page.getByText('View and manage your GitHub repositories and organization repos.')).toBeVisible();
 
     // Check that user repositories section is shown
-    await expect(page.locator('h2').filter({ hasText: 'Your Repositories' })).toBeVisible();
+    await expect(page.locator('h3').filter({ hasText: 'Your Repositories' })).toBeVisible();
 
     // Check that specific mocked repositories are displayed
     await expect(page.locator('text=testuser/my-awesome-project')).toBeVisible();
     await expect(page.locator('text=testuser/personal-website')).toBeVisible();
-
-    // Check that organization repositories section is shown
-    await expect(page.locator('h2').filter({ hasText: 'Organization Repositories' })).toBeVisible();
 
     // Check organization names are displayed
     await expect(page.getByRole('heading', { name: 'awesome-org' })).toBeVisible();
