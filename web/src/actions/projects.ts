@@ -10,6 +10,12 @@ import { auth } from '@/auth';
 import { Octokit } from '@octokit/rest';
 import { getUserTeamIds } from '@/lib/team-auth';
 
+type ProjectQueryResult = {
+  project: typeof projects.$inferSelect;
+  repo: typeof repos.$inferSelect | null;
+  projectRepo: typeof projectsRepos.$inferSelect | null;
+}[];
+
 export interface ProjectEnvironment {
   id: string;
   name: string;
@@ -245,7 +251,7 @@ export async function fetchProjects(): Promise<ProjectsData> {
     const userTeamIds = await getUserTeamIds();
     
     // First, try to fetch from database, filtering by team membership
-    let projectsFromDb;
+    let projectsFromDb: ProjectQueryResult;
     
     if (userTeamIds.length > 0) {
       // Fetch projects where teamId is in user's teams
