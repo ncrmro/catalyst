@@ -2,14 +2,12 @@ import { test, expect } from '@playwright/test';
 import { loginWithDevPassword, generateUserCredentials } from './helpers';
 
 test.describe('Team Authorization', () => {
-  test('should only show projects that belong to user teams', async ({ page }) => {
-    // Login as a regular user
-    const testInfo = {
-      workerIndex: 0,
-      title: 'team auth test'
-    } as any;
-    
+  test.beforeEach(async ({ page }, testInfo) => {
+    // Login as a regular user for most tests
     await loginWithDevPassword(page, testInfo, 'user');
+  });
+
+  test('should only show projects that belong to user teams', async ({ page }) => {
 
     // Navigate to projects page
     await page.goto('/projects');
@@ -37,12 +35,6 @@ test.describe('Team Authorization', () => {
   });
 
   test('should prevent access to projects from other teams', async ({ page }) => {
-    const testInfo = {
-      workerIndex: 1,
-      title: 'team auth isolation test'
-    } as any;
-    
-    await loginWithDevPassword(page, testInfo, 'user');
 
     // Try to navigate to a specific project that might not belong to this user's teams
     // This is a generic test - in a real scenario, we'd need to know specific project IDs
@@ -71,12 +63,6 @@ test.describe('Team Authorization', () => {
   });
 
   test('should show repos page regardless of team authorization', async ({ page }) => {
-    const testInfo = {
-      workerIndex: 2,
-      title: 'repos access test'
-    } as any;
-    
-    await loginWithDevPassword(page, testInfo, 'user');
 
     // Navigate to repos page - this should work as it fetches from GitHub directly
     await page.goto('/repos');
@@ -99,12 +85,6 @@ test.describe('Team Authorization', () => {
   });
 
   test('should show teams page with user teams', async ({ page }) => {
-    const testInfo = {
-      workerIndex: 3,
-      title: 'teams page test'
-    } as any;
-    
-    await loginWithDevPassword(page, testInfo, 'user');
 
     // Navigate to teams page
     await page.goto('/teams');
@@ -124,12 +104,12 @@ test.describe('Team Authorization', () => {
     console.log(`User is member of ${teamCount} teams`);
   });
 
-  test('admin user should have appropriate access', async ({ page }) => {
-    const testInfo = {
-      workerIndex: 4,
-      title: 'admin access test'
-    } as any;
+  test('admin user should have appropriate access', async ({ page }, testInfo) => {
+    // Override the beforeEach by logging in as an admin user
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Sign out' }).click();
     
+    // Login as admin user
     await loginWithDevPassword(page, testInfo, 'admin');
 
     // Navigate to projects page
