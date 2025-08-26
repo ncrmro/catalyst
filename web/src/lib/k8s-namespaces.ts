@@ -1,5 +1,5 @@
 // Kubernetes namespace management functions
-import { KubeConfig, getCoreV1Api, getClusterConfig } from './k8s-client';
+import { getCoreV1Api, getClusterConfig } from './k8s-client';
 
 export interface NamespaceLabels {
   'catalyst/team': string;
@@ -37,45 +37,7 @@ export async function createProjectNamespace(options: CreateNamespaceOptions, cl
   const { team, project, environment } = options;
   
   // Initialize Kubernetes client using the proper cluster configuration
-  let kc: KubeConfig;
-  
-  if (clusterName) {
-    // Try to get config for specific cluster
-    const clusterConfig = await getClusterConfig(clusterName);
-    if (clusterConfig) {
-      kc = clusterConfig;
-    } else {
-      throw new Error(`Cluster config not found for: ${clusterName}`);
-    }
-  } else {
-    // Try to find any configured cluster, prioritizing production environments
-    const clusters = await import('./k8s-client').then(m => m.getClusters());
-    let selectedConfig: KubeConfig | null = null;
-    
-    if (clusters.length > 0) {
-      // Look for production-like cluster names first
-      const productionClusterNames = ['PRODUCTION', 'PROD', 'PRIMARY', 'MAIN'];
-      for (const prodName of productionClusterNames) {
-        selectedConfig = await getClusterConfig(prodName);
-        if (selectedConfig) break;
-      }
-      
-      // If no production cluster found, use the first available cluster
-      if (!selectedConfig && clusters.length > 0) {
-        const firstCluster = clusters[0];
-        const clusterKey = firstCluster.source.replace('KUBECONFIG_', '');
-        selectedConfig = await getClusterConfig(clusterKey);
-      }
-    }
-    
-    if (selectedConfig) {
-      kc = selectedConfig;
-    } else {
-      // Fallback to creating a new config if no registered configs exist
-      kc = new KubeConfig();
-      await kc.loadFromDefault();
-    }
-  }
+  const kc = await getClusterConfig(clusterName);
   
   const CoreV1Api = await getCoreV1Api();
   const k8sApi = kc.makeApiClient(CoreV1Api);
@@ -130,45 +92,7 @@ export async function createProjectNamespace(options: CreateNamespaceOptions, cl
  */
 export async function namespaceExists(namespaceName: string, clusterName?: string): Promise<boolean> {
   try {
-    let kc: KubeConfig;
-    
-    if (clusterName) {
-      // Try to get config for specific cluster
-      const clusterConfig = await getClusterConfig(clusterName);
-      if (clusterConfig) {
-        kc = clusterConfig;
-      } else {
-        throw new Error(`Cluster config not found for: ${clusterName}`);
-      }
-    } else {
-      // Try to find any configured cluster, prioritizing production environments
-      const clusters = await import('./k8s-client').then(m => m.getClusters());
-      let selectedConfig: KubeConfig | null = null;
-      
-      if (clusters.length > 0) {
-        // Look for production-like cluster names first
-        const productionClusterNames = ['PRODUCTION', 'PROD', 'PRIMARY', 'MAIN'];
-        for (const prodName of productionClusterNames) {
-          selectedConfig = await getClusterConfig(prodName);
-          if (selectedConfig) break;
-        }
-        
-        // If no production cluster found, use the first available cluster
-        if (!selectedConfig && clusters.length > 0) {
-          const firstCluster = clusters[0];
-          const clusterKey = firstCluster.source.replace('KUBECONFIG_', '');
-          selectedConfig = await getClusterConfig(clusterKey);
-        }
-      }
-      
-      if (selectedConfig) {
-        kc = selectedConfig;
-      } else {
-        // Fallback to creating a new config if no registered configs exist
-        kc = new KubeConfig();
-        await kc.loadFromDefault();
-      }
-    }
+    const kc = await getClusterConfig(clusterName);
     
     const CoreV1Api = await getCoreV1Api();
     const k8sApi = kc.makeApiClient(CoreV1Api);
@@ -188,21 +112,7 @@ export async function namespaceExists(namespaceName: string, clusterName?: strin
  */
 export async function listNamespaces(clusterName?: string): Promise<{name: string; labels?: {[key: string]: string}; creationTimestamp?: string}[]> {
   try {
-    let kc: KubeConfig;
-    
-    if (clusterName) {
-      // Try to get config for specific cluster
-      const clusterConfig = await getClusterConfig(clusterName);
-      if (clusterConfig) {
-        kc = clusterConfig;
-      } else {
-        throw new Error(`Cluster config not found for: ${clusterName}`);
-      }
-    } else {
-      // Load from default
-      kc = new KubeConfig();
-      await kc.loadFromDefault();
-    }
+    const kc = await getClusterConfig(clusterName);
     
     const CoreV1Api = await getCoreV1Api();
     const k8sApi = kc.makeApiClient(CoreV1Api);
@@ -225,45 +135,7 @@ export async function listNamespaces(clusterName?: string): Promise<{name: strin
  * Delete namespace (for cleanup in tests)
  */
 export async function deleteNamespace(namespaceName: string, clusterName?: string): Promise<void> {
-  let kc: KubeConfig;
-  
-  if (clusterName) {
-    // Try to get config for specific cluster
-    const clusterConfig = await getClusterConfig(clusterName);
-    if (clusterConfig) {
-      kc = clusterConfig;
-    } else {
-      throw new Error(`Cluster config not found for: ${clusterName}`);
-    }
-  } else {
-    // Try to find any configured cluster, prioritizing production environments
-    const clusters = await import('./k8s-client').then(m => m.getClusters());
-    let selectedConfig: KubeConfig | null = null;
-    
-    if (clusters.length > 0) {
-      // Look for production-like cluster names first
-      const productionClusterNames = ['PRODUCTION', 'PROD', 'PRIMARY', 'MAIN'];
-      for (const prodName of productionClusterNames) {
-        selectedConfig = await getClusterConfig(prodName);
-        if (selectedConfig) break;
-      }
-      
-      // If no production cluster found, use the first available cluster
-      if (!selectedConfig && clusters.length > 0) {
-        const firstCluster = clusters[0];
-        const clusterKey = firstCluster.source.replace('KUBECONFIG_', '');
-        selectedConfig = await getClusterConfig(clusterKey);
-      }
-    }
-    
-    if (selectedConfig) {
-      kc = selectedConfig;
-    } else {
-      // Fallback to creating a new config if no registered configs exist
-      kc = new KubeConfig();
-      await kc.loadFromDefault();
-    }
-  }
+  const kc = await getClusterConfig(clusterName);
   
   const CoreV1Api = await getCoreV1Api();
   const k8sApi = kc.makeApiClient(CoreV1Api);

@@ -241,8 +241,45 @@ export async function getClusters(): Promise<ClusterInfo[]> {
   return kubeConfigRegistry.getClusters();
 }
 
-export async function getClusterConfig(clusterName: string): Promise<KubeConfig | null> {
-  return kubeConfigRegistry.getConfigForCluster(clusterName);
+export async function getClusterConfig(clusterName?: string): Promise<KubeConfig> {
+  if (clusterName) {
+    // Try to get config for specific cluster
+    const clusterConfig = await kubeConfigRegistry.getConfigForCluster(clusterName);
+    if (clusterConfig) {
+      return clusterConfig;
+    } else {
+      throw new Error(`Cluster config not found for: ${clusterName}`);
+    }
+  } else {
+    // Try to find any configured cluster, prioritizing production environments
+    const clusters = await getClusters();
+    let selectedConfig: KubeConfig | null = null;
+    
+    if (clusters.length > 0) {
+      // Look for production-like cluster names first
+      const productionClusterNames = ['PRODUCTION', 'PROD', 'PRIMARY', 'MAIN'];
+      for (const prodName of productionClusterNames) {
+        selectedConfig = await kubeConfigRegistry.getConfigForCluster(prodName);
+        if (selectedConfig) break;
+      }
+      
+      // If no production cluster found, use the first available cluster
+      if (!selectedConfig && clusters.length > 0) {
+        const firstCluster = clusters[0];
+        const clusterKey = firstCluster.source.replace('KUBECONFIG_', '');
+        selectedConfig = await kubeConfigRegistry.getConfigForCluster(clusterKey);
+      }
+    }
+    
+    if (selectedConfig) {
+      return selectedConfig;
+    } else {
+      // Fallback to creating a new config if no registered configs exist
+      const kc = new KubeConfig();
+      await kc.loadFromDefault();
+      return kc;
+    }
+  }
 }
 
 // For testing purposes
