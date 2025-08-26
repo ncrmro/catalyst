@@ -37,8 +37,8 @@ ci: ## Run comprehensive CI tests (unit, integration, and e2e)
 	@echo "All tests completed successfully!"
 
 ci-docker: ## Run comprehensive CI tests in Docker (unit, integration, and e2e)
-	$(DC) run --env NODE_ENV=production --rm -it app pnpm run lint
-	$(DC) run --env NODE_ENV=production --rm -it app pnpm test
+	$(DC) run --env NODE_ENV=production --rm -it app npm run lint
+	$(DC) run --env NODE_ENV=production --rm -it app npm test
 	$(DC) run --no-deps e2e
 
 e2e: ## Run e2e tests in Docker
