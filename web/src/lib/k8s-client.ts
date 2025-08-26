@@ -120,6 +120,54 @@ export class KubeConfig {
     // Will be initialized when needed
   }
 
+  /**
+   * Configure TLS settings based on cluster type and environment
+   */
+  private configureTLS() {
+    if (!this._kc) {
+      return;
+    }
+
+    try {
+      const cluster = this._kc.getCurrentCluster();
+      if (!cluster) {
+        return;
+      }
+
+      const serverUrl = cluster.server;
+      
+      // Detect local development environments
+      const isLocalCluster = 
+        serverUrl?.includes('localhost') ||
+        serverUrl?.includes('127.0.0.1') ||
+        serverUrl?.includes('kind-') ||
+        serverUrl?.startsWith('http://') ||
+        process.env.NODE_ENV === 'development';
+
+      // Check for explicit environment variable override
+      const skipTLSVerifyEnv = process.env.KUBE_SKIP_TLS_VERIFY;
+      let skipTLSVerify = false;
+
+      if (skipTLSVerifyEnv !== undefined) {
+        // Explicit override from environment
+        skipTLSVerify = skipTLSVerifyEnv.toLowerCase() === 'true';
+      } else if (isLocalCluster) {
+        // Auto-detect for local clusters
+        skipTLSVerify = true;
+      }
+
+      if (skipTLSVerify && cluster) {
+        // Disable TLS verification for local/development clusters
+        cluster.skipTLSVerify = true;
+        console.log('TLS verification disabled for local Kubernetes cluster');
+      } else {
+        console.log('TLS verification enabled for Kubernetes cluster');
+      }
+    } catch (error) {
+      console.warn('Failed to configure TLS settings:', error instanceof Error ? error.message : 'Unknown error');
+    }
+  }
+
   async loadFromDefault() {
     const k8sModule = await loadKubernetesClient();
     this._kc = new k8sModule.KubeConfig();
