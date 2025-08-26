@@ -33,7 +33,7 @@ export default function Sidebar({ className = "", onLinkClick, user }: SidebarPr
   return (
     <nav className={`bg-surface border-r border-outline h-full ${className}`}>
       <div className="p-6">
-        <h2 className="text-lg font-semibold text-on-surface mb-6">Navigation</h2>
+        <h3 className="text-lg font-semibold text-on-surface mb-6">Navigation</h3>
         
         <ul className="space-y-2">
           {navItems.map((item) => {
