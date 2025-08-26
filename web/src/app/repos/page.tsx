@@ -104,12 +104,6 @@ function RepoCard({ repo, isConnected }: { repo: GitHubRepo; isConnected: boolea
               Connect
             </Link>
           )}
-          <Link 
-            href={`/repos/${repo.id}/deployments`}
-            className="inline-flex items-center px-4 py-2 border border-outline text-sm font-medium rounded-md text-on-surface bg-surface hover:bg-primary-container hover:text-on-primary-container focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors"
-          >
-            Deployments
-          </Link>
         </div>
       </div>
     </div>

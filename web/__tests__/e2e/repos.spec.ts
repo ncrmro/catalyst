@@ -39,6 +39,15 @@ test.describe('GitHub Repositories Page', () => {
     // Check that repository cards contain expected information
     const firstRepo = page.locator('[href="https://github.com/testuser/my-awesome-project"]').first();
     await expect(firstRepo).toBeVisible();
+
+    // Check that Connect buttons are present
+    const connectButtons = page.getByRole('link', { name: 'Connect' });
+    await expect(connectButtons.first()).toBeVisible();
+    
+    // Verify multiple Connect buttons exist (for multiple repos)
+    const connectButtonsCount = await connectButtons.count();
+    expect(connectButtonsCount).toBeGreaterThan(0);
+    
   });
 
 });
