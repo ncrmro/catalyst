@@ -5,7 +5,7 @@
  */
 
 import { db, projects, repos, projectsRepos } from '@/db';
-import { eq, inArray, isNull, or } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { Octokit } from '@octokit/rest';
 import { getUserTeamIds } from '@/lib/team-auth';
@@ -248,7 +248,7 @@ export async function fetchProjects(): Promise<ProjectsData> {
     let projectsFromDb;
     
     if (userTeamIds.length > 0) {
-      // Fetch projects where teamId is in user's teams OR teamId is null (legacy projects)
+      // Fetch projects where teamId is in user's teams
       projectsFromDb = await db
         .select({
           project: projects,
@@ -258,22 +258,10 @@ export async function fetchProjects(): Promise<ProjectsData> {
         .from(projects)
         .leftJoin(projectsRepos, eq(projects.id, projectsRepos.projectId))
         .leftJoin(repos, eq(projectsRepos.repoId, repos.id))
-        .where(or(
-          inArray(projects.teamId, userTeamIds),
-          isNull(projects.teamId)
-        ));
+        .where(inArray(projects.teamId, userTeamIds));
     } else {
-      // If user has no teams, only show projects with null teamId (legacy projects)
-      projectsFromDb = await db
-        .select({
-          project: projects,
-          repo: repos,
-          projectRepo: projectsRepos,
-        })
-        .from(projects)
-        .leftJoin(projectsRepos, eq(projects.id, projectsRepos.projectId))
-        .leftJoin(repos, eq(projectsRepos.repoId, repos.id))
-        .where(isNull(projects.teamId));
+      // If user has no teams, they have no projects
+      projectsFromDb = [];
     }
 
     if (projectsFromDb.length === 0) {
