@@ -3,7 +3,7 @@
 import { auth } from "@/auth"
 import { db } from "@/db"
 import { teams, teamsMemberships } from "@/db/schema"
-import { eq } from "drizzle-orm"
+import { eq, and } from "drizzle-orm"
 
 /**
  * Get all team IDs that the current user is a member of
@@ -50,8 +50,10 @@ export async function isUserTeamMember(teamId: string): Promise<boolean> {
     const membership = await db
       .select()
       .from(teamsMemberships)
-      .where(eq(teamsMemberships.userId, session.user.id))
-      .where(eq(teamsMemberships.teamId, teamId))
+      .where(and(
+        eq(teamsMemberships.userId, session.user.id),
+        eq(teamsMemberships.teamId, teamId)
+      ))
       .limit(1)
 
     return membership.length > 0
@@ -77,8 +79,10 @@ export async function isUserTeamAdminOrOwner(teamId: string): Promise<boolean> {
         role: teamsMemberships.role,
       })
       .from(teamsMemberships)
-      .where(eq(teamsMemberships.userId, session.user.id))
-      .where(eq(teamsMemberships.teamId, teamId))
+      .where(and(
+        eq(teamsMemberships.userId, session.user.id),
+        eq(teamsMemberships.teamId, teamId)
+      ))
       .limit(1)
 
     if (membership.length === 0) {
@@ -119,5 +123,31 @@ export async function getUserTeamsWithDetails() {
   } catch (error) {
     console.error('Error fetching user teams with details:', error)
     return []
+  }
+}
+
+/**
+ * Get the user's primary team ID (first team they're a member of)
+ */
+export async function getUserPrimaryTeamId(): Promise<string | null> {
+  const session = await auth()
+  
+  if (!session?.user?.id) {
+    return null
+  }
+
+  try {
+    const userTeam = await db
+      .select({
+        teamId: teamsMemberships.teamId,
+      })
+      .from(teamsMemberships)
+      .where(eq(teamsMemberships.userId, session.user.id))
+      .limit(1)
+
+    return userTeam.length > 0 ? userTeam[0].teamId : null
+  } catch (error) {
+    console.error('Error fetching user primary team ID:', error)
+    return null
   }
 }

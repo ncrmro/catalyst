@@ -143,6 +143,7 @@ export const repos = pgTable("repo", {
   ownerType: text("owner_type").notNull(), // 'User' | 'Organization'
   ownerAvatarUrl: text("owner_avatar_url"),
   teamId: text("team_id")
+    .notNull()
     .references(() => teams.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
@@ -160,6 +161,7 @@ export const projects = pgTable("project", {
   ownerType: text("owner_type").notNull(), // 'User' | 'Organization'
   ownerAvatarUrl: text("owner_avatar_url"),
   teamId: text("team_id")
+    .notNull()
     .references(() => teams.id, { onDelete: "cascade" }),
   previewEnvironmentsCount: integer("preview_environments_count").notNull().default(0),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
