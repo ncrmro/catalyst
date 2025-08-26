@@ -6,16 +6,16 @@
 # USAGE:
 # Build containers for pull requests:
 #   - Produces: image:pr-123 and image:pr-123-dev
-#   - Uses PR-specific and main cache for fast builds
+#   - Uses PR-specific and specified branch caches for fast builds
 #
 # Build containers for release branches:
 #   - Produces: image:main and image:main-dev (configurable via release-branches)
-#   - Updates main cache for optimal layer sharing
+#   - Updates specified branch cache for optimal layer sharing (defaults to main)
 #   - Supports additional tags via additional-tags input (e.g., semantic versions)
 #
 # Build containers for other branches:
 #   - Produces: image:branch-name and image:branch-name-dev
-#   - Uses main cache for base layers
+#   - Uses specified branch caches for base layers
 #
 # Use with docker-bake files in subdirectories:
 #   - Set workdir input to the directory containing docker-bake.yml
@@ -25,14 +25,15 @@
 # CONVENTIONS:
 # - Production images use the base tag (e.g., image:pr-123)
 # - Development images append '-dev' suffix (e.g., image:pr-123-dev)
-# - Cache images use 'main-cache' tag for optimal layer sharing
+# - Production cache images use '<branch>-cache' tag for layer sharing
+# - Development cache images use '<branch>-dev-cache' tag for layer sharing
 # - All outputs use zstd compression for performance
 #
 # CACHE STRATEGY:
-# - Registry-only caching with 'main-cache' tag
-# - Production target pushes cache with mode=max (contains all layers)
-# - Development and production targets share cache references
-# - Cache is updated on release branches and pull requests
+# - Uses branch-specific cache tags for both production and development images
+# - Release branches update their own respective caches
+# - PR builds read from release branch caches and update PR-specific caches
+# - All cache entries use mode=max and zstd compression for optimal sharing
 #
 # ADDITIONAL TAGS USE CASE:
 # For semantic release workflows, use additional-tags to create version tags:
@@ -41,6 +42,11 @@
 #     latest
 # This creates both production (v1.2.3) and development (v1.2.3-dev) variants
 # without creating separate cache tags for each version.
+#
+# BRANCH CACHING:
+# - All release branches (defined in release-branches) create/update their own caches
+# - PRs read from release branch caches and create their own PR-specific caches
+# - Other branches read from release branch caches but don't update any cache
 #
 # FILES INPUT USE CASE:
 # To use an existing docker-bake.yml file instead of inline configurations:
@@ -94,9 +100,15 @@ outputs:
   cache-image:
     description: 'Cache image name with tag'
     value: ${{ steps.set-outputs.outputs.cache-image }}
+  dev-cache-image:
+    description: 'Development cache image name with tag'
+    value: ${{ steps.set-outputs.outputs.dev-cache-image }}
   pr-cache-image:
     description: 'PR cache image name with tag'
     value: ${{ steps.set-outputs.outputs.pr-cache-image }}
+  pr-dev-cache-image:
+    description: 'PR development cache image name with tag'
+    value: ${{ steps.set-outputs.outputs.pr-dev-cache-image }}
   digest:
     description: 'Image digest'
     value: ${{ steps.bake.outputs.digest }}
@@ -176,8 +188,75 @@ runs:
         
         echo "PRODUCTION_TAGS=$PRODUCTION_TAGS" >> $GITHUB_ENV
         echo "DEVELOPMENT_TAGS=$DEVELOPMENT_TAGS" >> $GITHUB_ENV
-        echo "CACHE_TAG=${BASE_NAME}:main-cache" >> $GITHUB_ENV
         echo "PR_CACHE_TAG=${BASE_NAME}:${{ env.TAG_SUFFIX }}-cache" >> $GITHUB_ENV
+
+    - name: Generate cache configuration
+      shell: bash
+      run: |
+        # Setup variables
+        BASE_NAME="${{ inputs.registry }}/${{ env.IMAGE_NAME }}"
+        declare -a CACHE_FROM_ENTRIES=()
+        CACHE_TO_PROD=""
+        CACHE_TO_DEV=""
+        CURRENT_BRANCH="${{ github.ref_name }}"
+        IS_RELEASE_BRANCH=false
+
+        # Convert release-branches to array for checking
+        IFS=',' read -ra RELEASE_BRANCHES <<< "${{ inputs.release-branches }}"
+        
+        echo "Configuring cache for branch: $CURRENT_BRANCH"
+        
+        # Add all release branch caches as cache sources for both targets
+        for branch in "${RELEASE_BRANCHES[@]}"; do
+          branch=$(echo "$branch" | xargs)
+          if [ -n "$branch" ]; then
+            # Cache tag definitions
+            BRANCH_CACHE_TAG="${BASE_NAME}:${branch}-cache"
+            BRANCH_DEV_CACHE_TAG="${BASE_NAME}:${branch}-dev-cache"
+            
+            # Check if current branch is a release branch
+            if [ "$branch" = "$CURRENT_BRANCH" ]; then
+              IS_RELEASE_BRANCH=true
+              CURRENT_CACHE_TAG="$BRANCH_CACHE_TAG"
+              CURRENT_DEV_CACHE_TAG="$BRANCH_DEV_CACHE_TAG"
+            fi
+            
+            # Add all release branch caches as sources
+            CACHE_FROM_ENTRIES+=("development.cache-from=type=registry,ref=$BRANCH_DEV_CACHE_TAG")
+            CACHE_FROM_ENTRIES+=("development.cache-from=type=registry,ref=$BRANCH_CACHE_TAG")
+            CACHE_FROM_ENTRIES+=("production.cache-from=type=registry,ref=$BRANCH_CACHE_TAG")
+            CACHE_FROM_ENTRIES+=("production.cache-from=type=registry,ref=$BRANCH_DEV_CACHE_TAG")
+          fi
+        done
+
+        # Set cache destinations based on PR or branch type
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          # PR-specific caches
+          PR_CACHE_TAG="${BASE_NAME}:${{ env.TAG_SUFFIX }}-cache"
+          PR_DEV_CACHE_TAG="${BASE_NAME}:${{ env.TAG_SUFFIX }}-dev-cache"
+          
+          # Add PR cache to sources
+          CACHE_FROM_ENTRIES+=("development.cache-from=type=registry,ref=$PR_DEV_CACHE_TAG")
+          CACHE_FROM_ENTRIES+=("development.cache-from=type=registry,ref=$PR_CACHE_TAG")
+          CACHE_FROM_ENTRIES+=("production.cache-from=type=registry,ref=$PR_CACHE_TAG")
+          CACHE_FROM_ENTRIES+=("production.cache-from=type=registry,ref=$PR_DEV_CACHE_TAG")
+          
+          # Set cache destination for PR builds
+          CACHE_TO_PROD="production.cache-to=type=registry,ref=$PR_CACHE_TAG,mode=max,compression=zstd"
+          CACHE_TO_DEV="development.cache-to=type=registry,ref=$PR_DEV_CACHE_TAG,mode=max,compression=zstd"
+        elif [ "$IS_RELEASE_BRANCH" = "true" ]; then
+          # For release branches, update their caches
+          CACHE_TO_PROD="production.cache-to=type=registry,ref=$CURRENT_CACHE_TAG,mode=max,compression=zstd"
+          CACHE_TO_DEV="development.cache-to=type=registry,ref=$CURRENT_DEV_CACHE_TAG,mode=max,compression=zstd"
+        fi
+        
+        # Convert array to string and save to environment
+        CACHE_FROM_STRING=$(printf "%s\n" "${CACHE_FROM_ENTRIES[@]}")
+        echo "CACHE_FROM_TAGS<<EOF" >> $GITHUB_ENV
+        echo "$CACHE_FROM_STRING" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+        echo "CACHE_TO_PROD=$CACHE_TO_PROD" >> $GITHUB_ENV
+        echo "CACHE_TO_DEV=$CACHE_TO_DEV" >> $GITHUB_ENV
 
     - name: Build and push with Docker Bake
       id: bake
@@ -190,26 +269,33 @@ runs:
         set: |
           development.tags=${{ env.DEVELOPMENT_TAGS }}
           development.output=type=registry,push=${{ inputs.push }},compression=zstd
-          development.cache-from=type=registry,ref=${{ env.CACHE_TAG }}
-          development.cache-from=type=registry,ref=${{ env.PR_CACHE_TAG }}
+          ${{ env.CACHE_FROM_TAGS }}
           production.tags=${{ env.PRODUCTION_TAGS }}
           production.output=type=registry,push=${{ inputs.push }},compression=zstd
-          production.cache-from=type=registry,ref=${{ env.CACHE_TAG }}
-          production.cache-from=type=registry,ref=${{ env.PR_CACHE_TAG }}
-          production.cache-to=type=registry,ref=${{ env.CACHE_TAG }},mode=max,compression=zstd
+          ${{ env.CACHE_TO_PROD }}
+          ${{ env.CACHE_TO_DEV }}
 
     - name: Set outputs
       id: set-outputs
       shell: bash
       run: |
+        BASE_NAME="${{ inputs.registry }}/${{ env.IMAGE_NAME }}"
         # Extract first tag from comma-separated lists for outputs
         FIRST_PRODUCTION_TAG=$(echo "${{ env.PRODUCTION_TAGS }}" | cut -d',' -f1)
         FIRST_DEVELOPMENT_TAG=$(echo "${{ env.DEVELOPMENT_TAGS }}" | cut -d',' -f1)
         
+        # Get the first branch from release-branches for main cache
+        FIRST_BRANCH=$(echo "${{ inputs.release-branches }}" | cut -d',' -f1 | xargs)
+        CACHE_TAG="${BASE_NAME}:${FIRST_BRANCH}-cache"
+        DEV_CACHE_TAG="${BASE_NAME}:${FIRST_BRANCH}-dev-cache"
+        PR_DEV_CACHE_TAG="${BASE_NAME}:${{ env.TAG_SUFFIX }}-dev-cache"
+        
         echo "production-image=$FIRST_PRODUCTION_TAG" >> $GITHUB_OUTPUT
         echo "development-image=$FIRST_DEVELOPMENT_TAG" >> $GITHUB_OUTPUT
-        echo "cache-image=${{ env.CACHE_TAG }}" >> $GITHUB_OUTPUT
+        echo "cache-image=$CACHE_TAG" >> $GITHUB_OUTPUT
+        echo "dev-cache-image=$DEV_CACHE_TAG" >> $GITHUB_OUTPUT
         echo "pr-cache-image=${{ env.PR_CACHE_TAG }}" >> $GITHUB_OUTPUT
+        echo "pr-dev-cache-image=$PR_DEV_CACHE_TAG" >> $GITHUB_OUTPUT
 
     # TODO we need to read the subject-digest for each of the image build during bake and run this step for each image.
     # - name: Generate artifact attestation for production image

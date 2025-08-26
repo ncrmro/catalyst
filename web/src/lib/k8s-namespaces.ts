@@ -1,5 +1,5 @@
 // Kubernetes namespace management functions
-import { KubeConfig, getCoreV1Api, getClusterConfig } from './k8s-client';
+import { getCoreV1Api, getClusterConfig } from './k8s-client';
 
 export interface NamespaceLabels {
   'catalyst/team': string;
@@ -33,12 +33,14 @@ export function generateNamespaceName(team: string, project: string, environment
 /**
  * Create Kubernetes namespace with catalyst labels
  */
-export async function createProjectNamespace(options: CreateNamespaceOptions): Promise<NamespaceResult> {
+export async function createProjectNamespace(options: CreateNamespaceOptions, clusterName?: string): Promise<NamespaceResult> {
   const { team, project, environment } = options;
   
-  // Initialize Kubernetes client
-  const kc = new KubeConfig();
-  await kc.loadFromDefault();
+  // Initialize Kubernetes client using the proper cluster configuration
+  const kc = await getClusterConfig(clusterName);
+  if (!kc) {
+    throw new Error(`Kubernetes cluster configuration not found${clusterName ? ` for cluster: ${clusterName}` : '. No clusters available.'}`);
+  }
   
   const CoreV1Api = await getCoreV1Api();
   const k8sApi = kc.makeApiClient(CoreV1Api);
@@ -91,10 +93,12 @@ export async function createProjectNamespace(options: CreateNamespaceOptions): P
 /**
  * Check if namespace exists
  */
-export async function namespaceExists(namespaceName: string): Promise<boolean> {
+export async function namespaceExists(namespaceName: string, clusterName?: string): Promise<boolean> {
   try {
-    const kc = new KubeConfig();
-    await kc.loadFromDefault();
+    const kc = await getClusterConfig(clusterName);
+    if (!kc) {
+      throw new Error(`Kubernetes cluster configuration not found${clusterName ? ` for cluster: ${clusterName}` : '. No clusters available.'}`);
+    }
     
     const CoreV1Api = await getCoreV1Api();
     const k8sApi = kc.makeApiClient(CoreV1Api);
@@ -114,20 +118,9 @@ export async function namespaceExists(namespaceName: string): Promise<boolean> {
  */
 export async function listNamespaces(clusterName?: string): Promise<{name: string; labels?: {[key: string]: string}; creationTimestamp?: string}[]> {
   try {
-    let kc: KubeConfig;
-    
-    if (clusterName) {
-      // Try to get config for specific cluster
-      const clusterConfig = await getClusterConfig(clusterName);
-      if (clusterConfig) {
-        kc = clusterConfig;
-      } else {
-        throw new Error(`Cluster config not found for: ${clusterName}`);
-      }
-    } else {
-      // Load from default
-      kc = new KubeConfig();
-      await kc.loadFromDefault();
+    const kc = await getClusterConfig(clusterName);
+    if (!kc) {
+      throw new Error(`Kubernetes cluster configuration not found${clusterName ? ` for cluster: ${clusterName}` : '. No clusters available.'}`);
     }
     
     const CoreV1Api = await getCoreV1Api();
@@ -150,9 +143,11 @@ export async function listNamespaces(clusterName?: string): Promise<{name: strin
 /**
  * Delete namespace (for cleanup in tests)
  */
-export async function deleteNamespace(namespaceName: string): Promise<void> {
-  const kc = new KubeConfig();
-  await kc.loadFromDefault();
+export async function deleteNamespace(namespaceName: string, clusterName?: string): Promise<void> {
+  const kc = await getClusterConfig(clusterName);
+  if (!kc) {
+    throw new Error(`Kubernetes cluster configuration not found${clusterName ? ` for cluster: ${clusterName}` : '. No clusters available.'}`);
+  }
   
   const CoreV1Api = await getCoreV1Api();
   const k8sApi = kc.makeApiClient(CoreV1Api);
