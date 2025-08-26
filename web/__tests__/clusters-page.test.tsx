@@ -52,8 +52,8 @@ describe('Clusters Page', () => {
     });
 
     // Import fresh module
-    delete require.cache[require.resolve('../src/app/clusters/page')];
-    const ClustersPage = require('../src/app/clusters/page').default;
+    delete require.cache[require.resolve('../src/app/(dashboard)/clusters/page')];
+    const ClustersPage = require('../src/app/(dashboard)/clusters/page').default;
     
     await ClustersPage();
     
@@ -71,8 +71,8 @@ describe('Clusters Page', () => {
     });
 
     // Import fresh module
-    delete require.cache[require.resolve('../src/app/clusters/page')];
-    const ClustersPage = require('../src/app/clusters/page').default;
+    delete require.cache[require.resolve('../src/app/(dashboard)/clusters/page')];
+    const ClustersPage = require('../src/app/(dashboard)/clusters/page').default;
     
     await ClustersPage();
     
