@@ -5,16 +5,9 @@
  */
 
 import { db, projects, repos, projectsRepos } from '@/db';
-import { eq, inArray } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { Octokit } from '@octokit/rest';
-import { getUserTeamIds } from '@/lib/team-auth';
-
-type ProjectQueryResult = {
-  project: typeof projects.$inferSelect;
-  repo: typeof repos.$inferSelect | null;
-  projectRepo: typeof projectsRepos.$inferSelect | null;
-}[];
 
 export interface ProjectEnvironment {
   id: string;
@@ -247,28 +240,16 @@ export async function fetchProjects(): Promise<ProjectsData> {
   }
 
   try {
-    // Get user's team IDs for authorization
-    const userTeamIds = await getUserTeamIds();
-    
-    // First, try to fetch from database, filtering by team membership
-    let projectsFromDb: ProjectQueryResult;
-    
-    if (userTeamIds.length > 0) {
-      // Fetch projects where teamId is in user's teams
-      projectsFromDb = await db
-        .select({
-          project: projects,
-          repo: repos,
-          projectRepo: projectsRepos,
-        })
-        .from(projects)
-        .leftJoin(projectsRepos, eq(projects.id, projectsRepos.projectId))
-        .leftJoin(repos, eq(projectsRepos.repoId, repos.id))
-        .where(inArray(projects.teamId, userTeamIds));
-    } else {
-      // If user has no teams, they have no projects
-      projectsFromDb = [];
-    }
+    // First, try to fetch from database
+    const projectsFromDb = await db
+      .select({
+        project: projects,
+        repo: repos,
+        projectRepo: projectsRepos,
+      })
+      .from(projects)
+      .leftJoin(projectsRepos, eq(projects.id, projectsRepos.projectId))
+      .leftJoin(repos, eq(projectsRepos.repoId, repos.id));
 
     if (projectsFromDb.length === 0) {
       console.log('No projects found in database, returning mocked data');
@@ -403,9 +384,6 @@ export async function fetchProjectById(projectId: string): Promise<Project | nul
   try {
     // First try to get from real database
     if (process.env.MOCKED !== '1') {
-      // Get user's team IDs for authorization
-      const userTeamIds = await getUserTeamIds();
-      
       const projectData = await db
         .select({
           project: projects,
@@ -420,12 +398,6 @@ export async function fetchProjectById(projectId: string): Promise<Project | nul
       if (projectData.length > 0) {
         const firstRow = projectData[0];
         if (firstRow.project) {
-          // Check if user has access to this project through team membership
-          // Allow access if teamId is null (legacy projects) or user is in the team
-          if (firstRow.project.teamId && !userTeamIds.includes(firstRow.project.teamId)) {
-            return null; // User doesn't have access to this project
-          }
-          
           const project: Project = {
             id: firstRow.project.id,
             name: firstRow.project.name,
