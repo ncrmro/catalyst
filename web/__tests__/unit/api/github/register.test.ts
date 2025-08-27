@@ -1,5 +1,5 @@
 import { createMocks } from 'node-mocks-http';
-import { GET, POST } from '../../../src/app/api/github/register/route';
+import { GET, POST } from '../../../../src/app/api/github/register/route';
 
 describe('/api/github/register', () => {
   beforeEach(() => {

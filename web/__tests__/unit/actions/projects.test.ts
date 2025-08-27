@@ -1,4 +1,4 @@
-import { fetchProjects } from '../../src/actions/projects';
+import { fetchProjects } from '../../../src/actions/projects';
 
 describe('fetchProjects', () => {
   test('should return mocked projects data', async () => {

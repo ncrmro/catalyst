@@ -8,7 +8,20 @@ const createJestConfig = nextJest({
 // Add any custom config to be passed to Jest
 const customJestConfig = {
   testEnvironment: 'node',
-  testMatch: ['**/__tests__/**/*.test.js', '**/__tests__/**/*.test.ts', '**/__tests__/**/*.test.tsx'],
+  testMatch: [
+    '**/__tests__/unit/**/*.test.js', 
+    '**/__tests__/unit/**/*.test.ts', 
+    '**/__tests__/unit/**/*.test.tsx',
+    '**/__tests__/integration/**/*.test.js', 
+    '**/__tests__/integration/**/*.test.ts', 
+    '**/__tests__/integration/**/*.test.tsx',
+    '**/__tests__/components/**/*.test.js', 
+    '**/__tests__/components/**/*.test.ts', 
+    '**/__tests__/components/**/*.test.tsx',
+    '**/__tests__/e2e/**/*.test.js', 
+    '**/__tests__/e2e/**/*.test.ts', 
+    '**/__tests__/e2e/**/*.test.tsx'
+  ],
   collectCoverageFrom: [
     'src/**/*.{js,jsx,ts,tsx}',
     '!src/**/*.d.ts',
