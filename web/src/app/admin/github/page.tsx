@@ -1,20 +1,8 @@
-import { getAllInstallations } from "@/lib/github";
+import { getGitHubAppInstallations } from "@/actions/github-app";
 import Image from "next/image";
 
-// Use a simpler approach with the actual API response
-async function getInstallations() {
-  try {
-    const installations = await getAllInstallations();
-    // Filter out any installations with null accounts for safety
-    return installations.filter(installation => installation.account !== null);
-  } catch (error) {
-    console.error('Error fetching installations:', error);
-    return [];
-  }
-}
-
 export default async function AdminGitHubPage() {
-  const installations = await getInstallations();
+  const installations = await getGitHubAppInstallations();
 
   return (
     <div className="space-y-6">
