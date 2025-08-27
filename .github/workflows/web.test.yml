@@ -12,8 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint-unit:
-    name: Lint and Unit Tests
+  quick:
+    name: Quick Tests
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -38,6 +38,9 @@ jobs:
 
       - name: Run unit tests
         run: npm run test:unit
+
+      - name: Run component tests
+        run: npm run test:components
 
   integration:
     name: Integration Tests
@@ -93,7 +96,7 @@ jobs:
       - run: npm run db:migrate
 
       - name: Run integration tests
-        run: npm test
+        run: npm test:integration
         env:
           NODE_ENV: test
           KUBECONFIG_PRIMARY: ${{ env.KUBECONFIG_PRIMARY }}
