@@ -78,4 +78,51 @@ test.describe('Cluster Namespaces Browsing', () => {
     // Should get 404 page
     await expect(page.getByText('404')).toBeVisible();
   });
+
+  test('should make namespace cards clickable and navigate to namespace detail page', async ({ page }) => {
+    // Navigate to clusters page
+    await page.goto('/clusters');
+    
+    // Click View Namespaces button
+    await page.getByRole('link', { name: 'View Namespaces' }).click();
+    
+    // Wait for namespaces to load
+    await expect(page.getByRole('heading', { name: 'default' })).toBeVisible();
+    
+    // Click on the default namespace card
+    await page.getByRole('heading', { name: 'default' }).click();
+    
+    // Should navigate to the namespace detail page
+    await expect(page.getByRole('heading', { name: 'Namespace: default' })).toBeVisible();
+    await expect(page.getByText('Resources in the default namespace')).toBeVisible();
+    
+    // Should have a back link
+    await expect(page.getByRole('link', { name: '← Back to Namespaces' })).toBeVisible();
+    
+    // Should show pods section
+    await expect(page.getByRole('heading', { name: 'Pods' })).toBeVisible();
+  });
+
+  test('should navigate back from namespace detail to namespaces page', async ({ page }) => {
+    // Navigate directly to namespace detail page
+    await page.goto('/clusters/kind-preview-cluster/namespaces/default');
+    
+    // Verify we're on the namespace detail page
+    await expect(page.getByRole('heading', { name: 'Namespace: default' })).toBeVisible();
+    
+    // Click back to namespaces
+    await page.getByRole('link', { name: '← Back to Namespaces' }).click();
+    
+    // Should be back on namespaces page
+    await expect(page.getByRole('heading', { name: /Namespaces - / })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'default' })).toBeVisible();
+  });
+
+  test('should handle non-existent namespace gracefully', async ({ page }) => {
+    // Try to navigate to non-existent namespace
+    await page.goto('/clusters/kind-preview-cluster/namespaces/non-existent-namespace');
+    
+    // Should get 404 page
+    await expect(page.getByText('404')).toBeVisible();
+  });
 });
