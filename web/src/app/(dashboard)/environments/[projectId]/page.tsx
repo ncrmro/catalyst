@@ -1,4 +1,3 @@
-'use server';
 
 import { configureProjectEnvironments } from '@/actions/environments';
 import { fetchProjectById } from '@/actions/projects';
