@@ -377,14 +377,29 @@ describe('/api/github/webhook', () => {
         error: 'Failed to create namespace'
       });
 
+      // Mock GitHub octokit for commenting
+      const mockCreateComment = jest.fn().mockResolvedValue({});
+      mockGetInstallationOctokit.mockResolvedValue({
+        rest: {
+          issues: {
+            createComment: mockCreateComment
+          }
+        }
+      } as any);
+
       const payload = {
         action: 'opened',
+        installation: { id: 12345 },
         pull_request: {
           number: 42,
           title: 'Test PR',
           user: { login: 'testuser' }
         },
-        repository: { full_name: 'user/repo' }
+        repository: { 
+          full_name: 'user/repo',
+          owner: { login: 'user' },
+          name: 'repo'
+        }
       };
       const payloadString = JSON.stringify(payload);
       const signature = createSignature(payloadString, mockWebhookSecret);
