@@ -6,9 +6,15 @@ import Link from 'next/link';
 
 interface NamespaceCardProps {
   namespace: NamespaceInfo;
+  clusterName: string;
 }
 
-function NamespaceCard({ namespace }: NamespaceCardProps) {
+interface NamespaceCardProps {
+  namespace: NamespaceInfo;
+  clusterName: string;
+}
+
+function NamespaceCard({ namespace, clusterName }: NamespaceCardProps) {
   const age = namespace.creationTimestamp ? 
     Math.floor((Date.now() - new Date(namespace.creationTimestamp).getTime()) / (1000 * 60 * 60 * 24)) : 0;
   
@@ -16,17 +22,21 @@ function NamespaceCard({ namespace }: NamespaceCardProps) {
     (namespace.labels['catalyst/team'] || namespace.labels['catalyst/project']);
 
   return (
-    <div className="border border-outline rounded-lg p-6 bg-surface shadow-sm">
-      <div className="flex justify-between items-start mb-4">
-        <h3 className="text-xl font-semibold text-on-surface">
-          {namespace.name}
-        </h3>
-        {isCatalystNamespace && (
-          <span className="text-xs bg-primary-container text-on-primary-container px-2 py-1 rounded">
-            Catalyst
-          </span>
-        )}
-      </div>
+    <Link 
+      href={`/clusters/${encodeURIComponent(clusterName)}/namespaces/${encodeURIComponent(namespace.name)}`}
+      className="block"
+    >
+      <div className="border border-outline rounded-lg p-6 bg-surface shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+        <div className="flex justify-between items-start mb-4">
+          <h3 className="text-xl font-semibold text-on-surface">
+            {namespace.name}
+          </h3>
+          {isCatalystNamespace && (
+            <span className="text-xs bg-primary-container text-on-primary-container px-2 py-1 rounded">
+              Catalyst
+            </span>
+          )}
+        </div>
       
       <div className="grid grid-cols-1 gap-2">
         <div>
@@ -58,7 +68,8 @@ function NamespaceCard({ namespace }: NamespaceCardProps) {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </Link>
   );
 }
 
@@ -144,7 +155,7 @@ export default async function ClusterNamespacesPage({ params }: PageProps) {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {namespaces.map((namespace) => (
-                <NamespaceCard key={namespace.name} namespace={namespace} />
+                <NamespaceCard key={namespace.name} namespace={namespace} clusterName={decodedClusterName} />
               ))}
             </div>
             
