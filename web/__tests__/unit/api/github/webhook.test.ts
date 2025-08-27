@@ -1,14 +1,14 @@
 import { createMocks } from 'node-mocks-http';
-import { POST } from '../../../src/app/api/github/webhook/route';
+import { POST } from '../../../../src/app/api/github/webhook/route';
 import crypto from 'crypto';
 
 // Mock the Kubernetes action
-jest.mock('../../../src/actions/kubernetes', () => ({
+jest.mock('../../../../src/actions/kubernetes', () => ({
   createKubernetesNamespace: jest.fn(),
   deleteKubernetesNamespace: jest.fn()
 }));
 
-import { createKubernetesNamespace, deleteKubernetesNamespace } from '../../../src/actions/kubernetes';
+import { createKubernetesNamespace, deleteKubernetesNamespace } from '../../../../src/actions/kubernetes';
 
 describe('/api/github/webhook', () => {
   const mockWebhookSecret = 'test-webhook-secret';

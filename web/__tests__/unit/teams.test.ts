@@ -1,5 +1,5 @@
 // Mock the database module
-jest.mock('../src/db', () => ({
+jest.mock('../../src/db', () => ({
   db: {
     select: jest.fn().mockReturnValue({
       from: jest.fn().mockReturnValue({
@@ -16,7 +16,7 @@ jest.mock('../src/db', () => ({
   }
 }))
 
-jest.mock('../src/db/schema', () => ({
+jest.mock('../../src/db/schema', () => ({
   users: {},
   teams: {},
   teamsMemberships: {}
@@ -40,7 +40,7 @@ describe('Team Creation', () => {
         avatar_url: 'https://example.com/avatar.jpg'
       }
 
-      const { db } = require('../src/db')
+      const { db } = require('../../src/db')
       const mockUserId = 'new-user-uuid'
       const mockTeamId = 'new-team-uuid'
       
@@ -92,7 +92,7 @@ describe('Team Creation', () => {
           if (profile?.email) {
             try {
               const { eq } = require('drizzle-orm')
-              const { users, teams, teamsMemberships } = require('../src/db/schema')
+              const { users, teams, teamsMemberships } = require('../../src/db/schema')
               
               // Check if user exists
               const existingUser = await db.select().from(users).where(eq(users.email, profile.email)).limit(1)
@@ -169,7 +169,7 @@ describe('Team Creation', () => {
         avatar_url: 'https://example.com/avatar.jpg'
       }
 
-      const { db } = require('../src/db')
+      const { db } = require('../../src/db')
       const mockUserId = 'existing-user-uuid'
       
       // Mock that user already exists
@@ -189,7 +189,7 @@ describe('Team Creation', () => {
           if (profile?.email) {
             try {
               const { eq } = require('drizzle-orm')
-              const { users, teams, teamsMemberships } = require('../src/db/schema')
+              const { users, teams, teamsMemberships } = require('../../src/db/schema')
               
               // Check if user exists
               const existingUser = await db.select().from(users).where(eq(users.email, profile.email)).limit(1)
@@ -260,7 +260,7 @@ describe('Team Creation', () => {
         avatar_url: 'https://example.com/avatar.jpg'
       }
 
-      const { db } = require('../src/db')
+      const { db } = require('../../src/db')
       const mockUserId = 'new-user-uuid'
       const mockTeamId = 'new-team-uuid'
       
@@ -306,7 +306,7 @@ describe('Team Creation', () => {
           if (profile?.email) {
             try {
               const { eq } = require('drizzle-orm')
-              const { users, teams, teamsMemberships } = require('../src/db/schema')
+              const { users, teams, teamsMemberships } = require('../../src/db/schema')
               
               const existingUser = await db.select().from(users).where(eq(users.email, profile.email)).limit(1)
               

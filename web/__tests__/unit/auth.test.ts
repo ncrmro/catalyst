@@ -1,5 +1,5 @@
 // Mock the database module
-jest.mock('../src/db', () => ({
+jest.mock('../../src/db', () => ({
   db: {
     select: jest.fn().mockReturnValue({
       from: jest.fn().mockReturnValue({
@@ -14,7 +14,7 @@ jest.mock('../src/db', () => ({
   }
 }))
 
-jest.mock('../src/db/schema', () => ({
+jest.mock('../../src/db/schema', () => ({
   users: {}
 }))
 
@@ -40,7 +40,7 @@ describe('JWT Authentication', () => {
         avatar_url: 'https://example.com/avatar.jpg'
       }
 
-      const { db } = require('../src/db')
+      const { db } = require('../../src/db')
       const mockDatabaseUserId = 'uuid-database-user-id'
       
       // Mock that user doesn't exist initially (empty array), then return created user
@@ -71,7 +71,7 @@ describe('JWT Authentication', () => {
           if (profile?.email) {
             try {
               const { eq } = require('drizzle-orm')
-              const { users } = require('../src/db/schema')
+              const { users } = require('../../src/db/schema')
               
               const existingUser = await db.select().from(users).where(eq(users.email, profile.email)).limit(1)
               
@@ -146,7 +146,7 @@ describe('JWT Authentication', () => {
         avatar_url: 'https://example.com/avatar.jpg'
       }
 
-      const { db } = require('../src/db')
+      const { db } = require('../../src/db')
       const mockDatabaseUserId = 'existing-user-database-id'
       
       // Mock that user exists - both calls should return the same user
@@ -166,7 +166,7 @@ describe('JWT Authentication', () => {
           if (profile?.email) {
             try {
               const { eq } = require('drizzle-orm')
-              const { users } = require('../src/db/schema')
+              const { users } = require('../../src/db/schema')
               
               const existingUser = await db.select().from(users).where(eq(users.email, profile.email)).limit(1)
               
@@ -218,7 +218,7 @@ describe('JWT Authentication', () => {
         // no email
       }
 
-      const { db } = require('../src/db')
+      const { db } = require('../../src/db')
 
       const jwtCallback = async (params: any) => {
         const { token, account, profile } = params
@@ -228,7 +228,7 @@ describe('JWT Authentication', () => {
           if (profile?.email) {
             try {
               const { eq } = require('drizzle-orm')
-              const { users } = require('../src/db/schema')
+              const { users } = require('../../src/db/schema')
               
               const existingUser = await db.select().from(users).where(eq(users.email, profile.email)).limit(1)
               

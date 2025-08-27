@@ -1,7 +1,7 @@
-import { fetchGitHubRepos } from '../../src/actions/repos.github';
+import { fetchGitHubRepos } from '../../../src/actions/repos.github';
 
 // Mock the auth function to avoid Next Auth import issues
-jest.mock('../../src/auth', () => ({
+jest.mock('../../../src/auth', () => ({
   auth: jest.fn()
 }));
 
@@ -10,7 +10,7 @@ jest.mock('@octokit/rest', () => ({
   Octokit: jest.fn()
 }));
 
-import { auth } from '../../src/auth';
+import { auth } from '../../../src/auth';
 import { Octokit } from '@octokit/rest';
 const mockAuth = auth as jest.MockedFunction<typeof auth>;
 const MockOctokit = Octokit as jest.MockedClass<typeof Octokit>;

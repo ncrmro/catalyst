@@ -30,9 +30,13 @@ ci: ## Run comprehensive CI tests (unit, integration, and e2e)
 	@echo "Running comprehensive CI tests..."
 	@echo "1. Running linter..."
 	npm run lint
-	@echo "2. Running unit and integration tests..."
-	npm test
-	@echo "3. Running e2e tests..."
+	@echo "2. Running unit tests..."
+	npm run test:unit
+	@echo "3. Running integration tests..."
+	npm run test:integration
+	@echo "4. Running component tests..."
+	npm run test:components
+	@echo "5. Running e2e tests..."
 	npm run test:e2e
 	@echo "All tests completed successfully!"
 

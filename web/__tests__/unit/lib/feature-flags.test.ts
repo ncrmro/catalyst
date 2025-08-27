@@ -1,4 +1,4 @@
-import { FF, isFeatureEnabled, useFeatureFlags } from '../../src/lib/feature-flags';
+import { FF, isFeatureEnabled, useFeatureFlags } from '../../../src/lib/feature-flags';
 
 // Mock process.env for testing
 const originalEnv = process.env;
@@ -23,7 +23,7 @@ describe('Feature Flags', () => {
       process.env.NOT_FF_VARIABLE = '1';
       
       // Re-import to get fresh instance with new env vars
-      const { FF: freshFF } = require('../../src/lib/feature-flags');
+      const { FF: freshFF } = require('../../../src/lib/feature-flags');
       
       expect(freshFF.USER_CLUSTERS).toBe(true);
       expect(freshFF.ADVANCED_FEATURES).toBe(false);
@@ -39,7 +39,7 @@ describe('Feature Flags', () => {
         }
       });
       
-      const { FF: freshFF } = require('../../src/lib/feature-flags');
+      const { FF: freshFF } = require('../../../src/lib/feature-flags');
       
       expect(Object.keys(freshFF)).toHaveLength(0);
     });
@@ -53,7 +53,7 @@ describe('Feature Flags', () => {
       process.env.FF_TEST_STRING = 'true';
       process.env.FF_TEST_NUMBER = '2';
       
-      const { FF: freshFF } = require('../../src/lib/feature-flags');
+      const { FF: freshFF } = require('../../../src/lib/feature-flags');
       
       expect(freshFF.TEST_TRUE).toBe(true);
       expect(freshFF.TEST_FALSE).toBe(false);
@@ -73,7 +73,7 @@ describe('Feature Flags', () => {
       process.env.FF_DEV_STRING = 'true';
       process.env.FF_DEV_NUMBER = '2';
       
-      const { FF: freshFF } = require('../../src/lib/feature-flags');
+      const { FF: freshFF } = require('../../../src/lib/feature-flags');
       
       expect(freshFF.DEV_EXPLICIT_TRUE).toBe(true);
       expect(freshFF.DEV_EXPLICIT_FALSE).toBe(false);
@@ -90,7 +90,7 @@ describe('Feature Flags', () => {
       process.env.FF_PROD_EMPTY = '';
       process.env.FF_PROD_STRING = 'true';
       
-      const { FF: freshFF } = require('../../src/lib/feature-flags');
+      const { FF: freshFF } = require('../../../src/lib/feature-flags');
       
       expect(freshFF.PROD_TRUE).toBe(true);
       expect(freshFF.PROD_FALSE).toBe(false);
@@ -103,7 +103,7 @@ describe('Feature Flags', () => {
     it('should return true for enabled features', () => {
       process.env.FF_ENABLED_FEATURE = '1';
       
-      const { isFeatureEnabled: freshIsFeatureEnabled } = require('../../src/lib/feature-flags');
+      const { isFeatureEnabled: freshIsFeatureEnabled } = require('../../../src/lib/feature-flags');
       
       expect(freshIsFeatureEnabled('ENABLED_FEATURE')).toBe(true);
     });
@@ -111,20 +111,20 @@ describe('Feature Flags', () => {
     it('should return false for disabled features', () => {
       process.env.FF_DISABLED_FEATURE = '0';
       
-      const { isFeatureEnabled: freshIsFeatureEnabled } = require('../../src/lib/feature-flags');
+      const { isFeatureEnabled: freshIsFeatureEnabled } = require('../../../src/lib/feature-flags');
       
       expect(freshIsFeatureEnabled('DISABLED_FEATURE')).toBe(false);
     });
 
     it('should return false for non-existent features in production', () => {
       process.env.NODE_ENV = 'production';
-      const { isFeatureEnabled: freshIsFeatureEnabled } = require('../../src/lib/feature-flags');
+      const { isFeatureEnabled: freshIsFeatureEnabled } = require('../../../src/lib/feature-flags');
       expect(freshIsFeatureEnabled('NON_EXISTENT')).toBe(false);
     });
 
     it('should return true for non-existent features in development', () => {
       process.env.NODE_ENV = 'development';
-      const { isFeatureEnabled: freshIsFeatureEnabled } = require('../../src/lib/feature-flags');
+      const { isFeatureEnabled: freshIsFeatureEnabled } = require('../../../src/lib/feature-flags');
       expect(freshIsFeatureEnabled('NON_EXISTENT')).toBe(true);
     });
   });
@@ -133,7 +133,7 @@ describe('Feature Flags', () => {
     it('should return the FF object', () => {
       process.env.FF_HOOK_TEST = '1';
       
-      const { useFeatureFlags: freshUseFeatureFlags, FF: freshFF } = require('../../src/lib/feature-flags');
+      const { useFeatureFlags: freshUseFeatureFlags, FF: freshFF } = require('../../../src/lib/feature-flags');
       
       const flags = freshUseFeatureFlags();
       expect(flags).toBe(freshFF);
