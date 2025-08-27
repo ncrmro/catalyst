@@ -74,9 +74,8 @@ export default async function EnvironmentsPage({ params }: EnvironmentsPageProps
               <div className="flex-1">
                 <div className="font-semibold text-on-surface text-lg mb-2">Preview Environment</div>
                 <div className="text-on-surface-variant text-sm mb-3">
-                  Perfect for getting started! When you push code changes, we&apos;ll automatically create a pull request 
-                  in your repository. Once the pull request is reviewed and merged to your default branch, 
-                  it will be automatically deployed after passing all tests.
+                  Perfect for getting started! When you create a pull request, we&apos;ll automatically create a preview 
+                  environment for testing your changes. The preview environment is cleaned up after the PR is merged or closed.
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   <span className="bg-success-container text-on-success-container px-2 py-1 rounded-full">
