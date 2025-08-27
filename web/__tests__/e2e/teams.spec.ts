@@ -29,8 +29,8 @@ test.describe('Teams Page', () => {
     // Start at the home page (should work in MOCKED=1 mode without auth)
     await page.goto('/');
     
-    // Click the "View Teams" link in the Quick Actions section
-    await page.click('text=View Teams');
+    // Click the "Teams" link in the navigation menu
+    await page.click('nav a[href="/teams"]');
 
     // Should navigate to teams page
     await expect(page).toHaveURL('/teams');
