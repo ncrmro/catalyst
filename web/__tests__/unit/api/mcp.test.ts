@@ -123,7 +123,6 @@ describe('/api/mcp', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json, text/event-stream',
           'Authorization': `Bearer ${validApiKey}`
         },
         body: {
@@ -142,18 +141,13 @@ describe('/api/mcp', () => {
       });
 
       const response = await POST(req);
-      const responseText = await response.text();
-      
-      console.log('Response status:', response.status);
-      console.log('Response text:', responseText);
+      const result = await response.json();
       
       expect(response.status).toBe(200);
-      expect(responseText).toBeTruthy();
-      
-      // Try to parse as JSON to ensure it's valid JSON-RPC
-      const result = JSON.parse(responseText);
       expect(result).toHaveProperty('jsonrpc', '2.0');
       expect(result).toHaveProperty('id', 1);
+      expect(result.result).toHaveProperty('serverInfo');
+      expect(result.result.serverInfo.name).toBe('catalyst-projects-server');
     });
 
     it('should list tools including get_projects', async () => {
@@ -161,7 +155,6 @@ describe('/api/mcp', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json, text/event-stream',
           'Authorization': `Bearer ${validApiKey}`
         },
         body: {
@@ -172,19 +165,54 @@ describe('/api/mcp', () => {
       });
 
       const response = await POST(req);
-      const responseText = await response.text();
+      const result = await response.json();
       
       expect(response.status).toBe(200);
-      
-      const result = JSON.parse(responseText);
       expect(result).toHaveProperty('jsonrpc', '2.0');
       expect(result).toHaveProperty('id', 2);
+      expect(result.result).toHaveProperty('tools');
       
-      if (result.result && result.result.tools) {
-        const getProjectsTool = result.result.tools.find((tool: any) => tool.name === 'get_projects');
-        expect(getProjectsTool).toBeDefined();
-        expect(getProjectsTool).toHaveProperty('title', 'Get Projects');
-      }
+      const getProjectsTool = result.result.tools.find((tool: any) => tool.name === 'get_projects');
+      expect(getProjectsTool).toBeDefined();
+      expect(getProjectsTool).toHaveProperty('title', 'Get Projects');
+      expect(getProjectsTool).toHaveProperty('description', 'Retrieve all projects for the current user');
+    });
+
+    it('should call get_projects tool and return project data', async () => {
+      const req = createMockRequest({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${validApiKey}`
+        },
+        body: {
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: {
+            name: 'get_projects',
+            arguments: {}
+          },
+          id: 3
+        }
+      });
+
+      const response = await POST(req);
+      const result = await response.json();
+      
+      expect(response.status).toBe(200);
+      expect(result).toHaveProperty('jsonrpc', '2.0');
+      expect(result).toHaveProperty('id', 3);
+      expect(result.result).toHaveProperty('content');
+      expect(result.result.content).toHaveLength(1);
+      expect(result.result.content[0]).toHaveProperty('type', 'text');
+      
+      // Parse the project data
+      const projectData = JSON.parse(result.result.content[0].text);
+      expect(projectData).toHaveProperty('projects');
+      expect(projectData).toHaveProperty('total_count');
+      expect(projectData.projects).toHaveLength(1);
+      expect(projectData.projects[0]).toHaveProperty('id', 'test-project-1');
+      expect(projectData.projects[0]).toHaveProperty('name', 'test-project');
     });
   });
 
@@ -206,8 +234,13 @@ describe('/api/mcp', () => {
       });
 
       const response = await GET(req);
+      const result = await response.json();
       
-      expect(response.status).toBe(405); // Method not allowed in stateless mode
+      expect(response.status).toBe(200);
+      expect(result).toHaveProperty('name', 'catalyst-projects-server');
+      expect(result).toHaveProperty('version', '1.0.0');
+      expect(result).toHaveProperty('tools');
+      expect(result.tools).toContain('get_projects');
     });
 
     it('should handle DELETE request with authentication', async () => {
@@ -222,7 +255,7 @@ describe('/api/mcp', () => {
       const result = await response.json();
       
       expect(response.status).toBe(200);
-      expect(result.result.message).toContain('stateless mode');
+      expect(result.result.message).toContain('Session cleanup not needed in stateless mode');
     });
   });
 
