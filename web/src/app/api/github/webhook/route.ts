@@ -1,6 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { Octokit } from '@octokit/rest';
 import { createKubernetesNamespace, deleteKubernetesNamespace } from '../../../../actions/kubernetes';
+
+/**
+ * Create a comment on a GitHub pull request
+ */
+async function createPullRequestComment(
+  owner: string,
+  repo: string,
+  pullNumber: number,
+  body: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Get GitHub token from environment
+    const githubToken = process.env.GITHUB_TOKEN || process.env.GITHUB_ACCESS_TOKEN;
+    
+    if (!githubToken) {
+      console.warn('No GitHub token available for commenting. Set GITHUB_TOKEN or GITHUB_ACCESS_TOKEN environment variable.');
+      return { success: false, error: 'No GitHub token available' };
+    }
+
+    const octokit = new Octokit({
+      auth: githubToken,
+    });
+
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: pullNumber, // PRs and issues use the same endpoint
+      body,
+    });
+
+    console.log(`Comment created on PR ${pullNumber} in ${owner}/${repo}`);
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`Failed to comment on PR ${pullNumber} in ${owner}/${repo}:`, errorMessage);
+    return { success: false, error: errorMessage };
+  }
+}
 
 /**
  * GitHub App Webhook Endpoint
@@ -165,6 +204,14 @@ async function handlePullRequestEvent(payload: {
       const [owner, repo] = repository.full_name.split('/');
       const environment = `gh-pr-${pull_request.number}`;
       
+      // Create comment on the PR
+      const commentResult = await createPullRequestComment(
+        owner,
+        repo,
+        pull_request.number,
+        'hello from catalyst'
+      );
+      
       const namespaceResult = await createKubernetesNamespace(owner, repo, environment);
       
       if (namespaceResult.success) {
@@ -173,7 +220,8 @@ async function handlePullRequestEvent(payload: {
           success: true,
           message: `Pull request ${action} processed and namespace created`,
           pr_number: pull_request.number,
-          namespace: namespaceResult.namespace
+          namespace: namespaceResult.namespace,
+          comment_created: commentResult.success
         });
       } else {
         console.error(`Failed to create namespace for PR ${pull_request.number}:`, namespaceResult.error);
@@ -181,7 +229,8 @@ async function handlePullRequestEvent(payload: {
           success: true,
           message: `Pull request ${action} processed but namespace creation failed`,
           pr_number: pull_request.number,
-          namespace_error: namespaceResult.error
+          namespace_error: namespaceResult.error,
+          comment_created: commentResult.success
         });
       }
     } catch (error) {

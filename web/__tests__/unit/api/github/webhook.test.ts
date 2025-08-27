@@ -8,21 +8,37 @@ jest.mock('../../../../src/actions/kubernetes', () => ({
   deleteKubernetesNamespace: jest.fn()
 }));
 
+// Mock the Octokit/rest module
+jest.mock('@octokit/rest', () => ({
+  Octokit: jest.fn().mockImplementation(() => ({
+    rest: {
+      issues: {
+        createComment: jest.fn()
+      }
+    }
+  }))
+}));
+
 import { createKubernetesNamespace, deleteKubernetesNamespace } from '../../../../src/actions/kubernetes';
+import { Octokit } from '@octokit/rest';
 
 describe('/api/github/webhook', () => {
   const mockWebhookSecret = 'test-webhook-secret';
+  const mockGithubToken = 'test-github-token';
   const mockCreateKubernetesNamespace = createKubernetesNamespace as jest.MockedFunction<typeof createKubernetesNamespace>;
   const mockDeleteKubernetesNamespace = deleteKubernetesNamespace as jest.MockedFunction<typeof deleteKubernetesNamespace>;
+  const mockOctokit = Octokit as jest.MockedClass<typeof Octokit>;
 
   beforeEach(() => {
     process.env.GITHUB_WEBHOOK_SECRET = mockWebhookSecret;
+    process.env.GITHUB_TOKEN = mockGithubToken;
     // Reset all mocks
     jest.clearAllMocks();
   });
 
   afterEach(() => {
     delete process.env.GITHUB_WEBHOOK_SECRET;
+    delete process.env.GITHUB_TOKEN;
   });
 
   function createSignature(payload: string, secret: string): string {
@@ -135,7 +151,7 @@ describe('/api/github/webhook', () => {
       });
     });
 
-    it('should handle pull_request opened event with namespace creation', async () => {
+    it('should handle pull_request opened event with namespace creation and comment', async () => {
       // Mock successful namespace creation
       mockCreateKubernetesNamespace.mockResolvedValue({
         success: true,
@@ -150,6 +166,16 @@ describe('/api/github/webhook', () => {
           created: true
         }
       });
+
+      // Mock successful comment creation
+      const mockCreateComment = jest.fn().mockResolvedValue({});
+      mockOctokit.mockImplementation(() => ({
+        rest: {
+          issues: {
+            createComment: mockCreateComment
+          }
+        }
+      }) as any);
 
       const payload = {
         action: 'opened',
@@ -192,11 +218,20 @@ describe('/api/github/webhook', () => {
             'catalyst/environment': 'gh-pr-42'
           },
           created: true
-        }
+        },
+        comment_created: true
       });
 
       // Verify namespace creation was called with correct parameters
       expect(mockCreateKubernetesNamespace).toHaveBeenCalledWith('user', 'repo', 'gh-pr-42');
+      
+      // Verify comment was created
+      expect(mockCreateComment).toHaveBeenCalledWith({
+        owner: 'user',
+        repo: 'repo',
+        issue_number: 42,
+        body: 'hello from catalyst'
+      });
     });
 
     it('should handle pull_request closed event with namespace deletion', async () => {
@@ -346,6 +381,16 @@ describe('/api/github/webhook', () => {
         error: 'Failed to create namespace'
       });
 
+      // Mock successful comment creation
+      const mockCreateComment = jest.fn().mockResolvedValue({});
+      mockOctokit.mockImplementation(() => ({
+        rest: {
+          issues: {
+            createComment: mockCreateComment
+          }
+        }
+      }) as any);
+
       const payload = {
         action: 'opened',
         pull_request: {
@@ -379,10 +424,78 @@ describe('/api/github/webhook', () => {
         success: true,
         message: 'Pull request opened processed but namespace creation failed',
         pr_number: 42,
-        namespace_error: 'Failed to create namespace'
+        namespace_error: 'Failed to create namespace',
+        comment_created: true
       });
 
       // Verify namespace creation was called
+      expect(mockCreateKubernetesNamespace).toHaveBeenCalledWith('user', 'repo', 'gh-pr-42');
+      
+      // Verify comment was still created even though namespace creation failed
+      expect(mockCreateComment).toHaveBeenCalledWith({
+        owner: 'user',
+        repo: 'repo',
+        issue_number: 42,
+        body: 'hello from catalyst'
+      });
+    });
+
+    it('should handle pull_request opened event when GitHub token is not available', async () => {
+      // Remove GitHub token from environment
+      delete process.env.GITHUB_TOKEN;
+
+      // Mock successful namespace creation
+      mockCreateKubernetesNamespace.mockResolvedValue({
+        success: true,
+        message: 'Namespace created successfully',
+        namespace: {
+          name: 'user-repo-gh-pr-42',
+          labels: {
+            'catalyst/team': 'user',
+            'catalyst/project': 'repo', 
+            'catalyst/environment': 'gh-pr-42'
+          },
+          created: true
+        }
+      });
+
+      const payload = {
+        action: 'opened',
+        pull_request: {
+          number: 42,
+          title: 'Test PR',
+          user: { login: 'testuser' }
+        },
+        repository: { full_name: 'user/repo' }
+      };
+      const payloadString = JSON.stringify(payload);
+      const signature = createSignature(payloadString, mockWebhookSecret);
+
+      const { req } = createMocks({
+        method: 'POST',
+        headers: {
+          'x-github-event': 'pull_request',
+          'x-github-delivery': 'test-delivery-123',
+          'x-hub-signature-256': signature,
+          'content-type': 'application/json'
+        },
+        body: payloadString,
+      });
+
+      req.text = jest.fn().mockResolvedValue(payloadString);
+
+      const response = await POST(req as any);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toMatchObject({
+        success: true,
+        message: 'Pull request opened processed and namespace created',
+        pr_number: 42,
+        comment_created: false // Should be false when no token is available
+      });
+
+      // Verify namespace creation was still called
       expect(mockCreateKubernetesNamespace).toHaveBeenCalledWith('user', 'repo', 'gh-pr-42');
     });
 
