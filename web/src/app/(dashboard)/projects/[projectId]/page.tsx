@@ -260,7 +260,15 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-on-surface-variant">{repo.full_name}</p>
+                <p className="text-sm text-on-surface-variant mb-3">{repo.full_name}</p>
+                <div className="flex gap-2">
+                  <Link
+                    href={`/projects/${project.id}/workloads/${repo.id}`}
+                    className="text-xs text-primary hover:opacity-80 px-2 py-1 border border-primary rounded"
+                  >
+                    Manage Workloads
+                  </Link>
+                </div>
               </div>
             ))}
           </div>

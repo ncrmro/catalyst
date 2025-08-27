@@ -28,7 +28,8 @@ export interface ProjectEnvironment {
 }
 
 export interface ProjectRepo {
-  id: number;
+  id: string; // This should match the database UUID, not GitHub ID
+  githubId: number; // The original GitHub repository ID
   name: string;
   full_name: string;
   url: string;
@@ -75,21 +76,24 @@ function getMockProjectsData(): ProjectsData {
         },
         repositories: [
           {
-            id: 1001,
+            id: 'repo-uuid-1001',
+            githubId: 1001,
             name: 'foo-frontend',
             full_name: 'jdoe/foo-frontend',
             url: 'https://github.com/jdoe/foo-frontend',
             primary: true
           },
           {
-            id: 1002,
+            id: 'repo-uuid-1002',
+            githubId: 1002,
             name: 'foo-backend',
             full_name: 'jdoe/foo-backend',
             url: 'https://github.com/jdoe/foo-backend',
             primary: false
           },
           {
-            id: 1003,
+            id: 'repo-uuid-1003',
+            githubId: 1003,
             name: 'foo-shared',
             full_name: 'jdoe/foo-shared',
             url: 'https://github.com/jdoe/foo-shared',
@@ -141,14 +145,16 @@ function getMockProjectsData(): ProjectsData {
         },
         repositories: [
           {
-            id: 2001,
+            id: 'repo-uuid-2001',
+            githubId: 2001,
             name: 'bar-api',
             full_name: 'jdoe/bar-api',
             url: 'https://github.com/jdoe/bar-api',
             primary: true
           },
           {
-            id: 2002,
+            id: 'repo-uuid-2002',
+            githubId: 2002,
             name: 'bar-web',
             full_name: 'jdoe/bar-web',
             url: 'https://github.com/jdoe/bar-web',
@@ -199,7 +205,8 @@ function getMockProjectsData(): ProjectsData {
         },
         repositories: [
           {
-            id: 3001,
+            id: 'repo-uuid-3001',
+            githubId: 3001,
             name: 'analytics-dashboard',
             full_name: 'jdoe/analytics-dashboard',
             url: 'https://github.com/jdoe/analytics-dashboard',
@@ -313,10 +320,11 @@ export async function fetchProjects(): Promise<ProjectsData> {
         const project = projectMap.get(projectData.id)!;
         
         // Check if this repository is already added (prevent duplicates)
-        const existingRepo = project.repositories.find(r => r.id === repoData.githubId);
+        const existingRepo = project.repositories.find(r => r.githubId === repoData.githubId);
         if (!existingRepo) {
           project.repositories.push({
-            id: repoData.githubId,
+            id: repoData.id, // Use the database UUID, not GitHub ID
+            githubId: repoData.githubId,
             name: repoData.name,
             full_name: repoData.fullName,
             url: repoData.url,
@@ -448,7 +456,8 @@ export async function fetchProjectById(projectId: string): Promise<Project | nul
           for (const row of projectData) {
             if (row.repo && row.projectRepo && row.repo.githubId) {
               repoMap.set(row.repo.githubId, {
-                id: row.repo.githubId,
+                id: row.repo.id, // Use the database UUID, not GitHub ID
+                githubId: row.repo.githubId,
                 name: row.repo.name,
                 full_name: row.repo.fullName,
                 url: row.repo.url,

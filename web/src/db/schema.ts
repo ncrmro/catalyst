@@ -217,3 +217,35 @@ export const projectEnvironments = pgTable(
     },
   ]
 )
+
+export const projectWorkloads = pgTable(
+  "project_workloads",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    repoId: text("repo_id")
+      .notNull()
+      .references(() => repos.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    rootPath: text("root_path").notNull().default("."),
+    deploymentType: text("deployment_type").notNull().default("dockerfile"),
+    dockerfilePath: text("dockerfile_path").default("./Dockerfile"),
+    helmChartPath: text("helm_chart_path"),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (projectWorkloads) => [
+    {
+      uniqueComposite: unique().on(
+        projectWorkloads.projectId,
+        projectWorkloads.repoId,
+        projectWorkloads.name
+      ),
+    },
+  ]
+)
