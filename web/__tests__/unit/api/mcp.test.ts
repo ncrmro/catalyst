@@ -26,6 +26,40 @@ jest.mock('../../../src/actions/projects', () => ({
   })
 }));
 
+// Mock the authentication functions
+jest.mock('../../../src/lib/mcp-auth', () => ({
+  validateApiKey: jest.fn((authHeader: string | null) => {
+    if (!authHeader) return false;
+    const token = authHeader.replace('Bearer ', '');
+    return token === (process.env.MCP_API_KEY || 'catalyst-mcp-key-2024');
+  }),
+  getAuthenticatedUser: jest.fn().mockResolvedValue({
+    id: 'test-user-id',
+    email: 'test@example.com',
+    name: 'Test User',
+    teams: [
+      { id: 'team-1', name: 'Test Team', role: 'admin' },
+      { id: 'team-2', name: 'Another Team', role: 'member' }
+    ],
+    projects: [
+      { id: 'project-1', name: 'Test Project', full_name: 'testuser/test-project' }
+    ]
+  })
+}));
+
+// Mock the namespace functions
+jest.mock('../../../src/lib/mcp-namespaces', () => ({
+  getNamespacesForUser: jest.fn().mockResolvedValue([
+    { name: 'default', labels: {}, creationTimestamp: '2024-01-01T00:00:00Z' },
+    { name: 'test-namespace', labels: { 'catalyst/team': 'team-1' }, creationTimestamp: '2024-01-01T00:00:00Z' }
+  ]),
+  getNamespaceDetails: jest.fn().mockResolvedValue({
+    name: 'test-namespace',
+    labels: { 'catalyst/team': 'team-1' },
+    creationTimestamp: '2024-01-01T00:00:00Z'
+  })
+}));
+
 function createMockRequest(options: {
   method: string;
   headers?: Record<string, string>;
@@ -147,7 +181,7 @@ describe('/api/mcp', () => {
       expect(result).toHaveProperty('jsonrpc', '2.0');
       expect(result).toHaveProperty('id', 1);
       expect(result.result).toHaveProperty('serverInfo');
-      expect(result.result.serverInfo.name).toBe('catalyst-projects-server');
+      expect(result.result.serverInfo.name).toBe('catalyst-mcp-server');
     });
 
     it('should list tools including get_projects', async () => {
@@ -174,6 +208,12 @@ describe('/api/mcp', () => {
       
       const getProjectsTool = result.result.tools.find((tool: any) => tool.name === 'get_projects');
       expect(getProjectsTool).toBeDefined();
+      
+      const getNamespacesTool = result.result.tools.find((tool: any) => tool.name === 'getNamespaces');
+      expect(getNamespacesTool).toBeDefined();
+      
+      const getNamespaceTool = result.result.tools.find((tool: any) => tool.name === 'getNamespace');
+      expect(getNamespaceTool).toBeDefined();
       expect(getProjectsTool).toHaveProperty('title', 'Get Projects');
       expect(getProjectsTool).toHaveProperty('description', 'Retrieve all projects for the current user');
     });
@@ -214,6 +254,75 @@ describe('/api/mcp', () => {
       expect(projectData.projects[0]).toHaveProperty('id', 'test-project-1');
       expect(projectData.projects[0]).toHaveProperty('name', 'test-project');
     });
+    it('should call getNamespaces tool and return namespace data', async () => {
+      const req = createMockRequest({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${validApiKey}`
+        },
+        body: {
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: {
+            name: 'getNamespaces',
+            arguments: {
+              clusterName: 'test-cluster'
+            }
+          },
+          id: 4
+        }
+      });
+
+      const response = await POST(req);
+      const result = await response.json();
+      
+      expect(response.status).toBe(200);
+      expect(result).toHaveProperty('jsonrpc', '2.0');
+      expect(result).toHaveProperty('id', 4);
+      expect(result.result).toHaveProperty('content');
+      expect(result.result.content[0].type).toBe('text');
+      
+      const responseData = JSON.parse(result.result.content[0].text);
+      expect(responseData).toHaveProperty('success', true);
+      expect(responseData).toHaveProperty('namespaces');
+      expect(responseData).toHaveProperty('count');
+    });
+
+    it('should call getNamespace tool and return namespace details', async () => {
+      const req = createMockRequest({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${validApiKey}`
+        },
+        body: {
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: {
+            name: 'getNamespace',
+            arguments: {
+              namespace: 'test-namespace',
+              clusterName: 'test-cluster'
+            }
+          },
+          id: 5
+        }
+      });
+
+      const response = await POST(req);
+      const result = await response.json();
+      
+      expect(response.status).toBe(200);
+      expect(result).toHaveProperty('jsonrpc', '2.0');
+      expect(result).toHaveProperty('id', 5);
+      expect(result.result).toHaveProperty('content');
+      
+      const responseData = JSON.parse(result.result.content[0].text);
+      expect(responseData).toHaveProperty('success', true);
+      expect(responseData).toHaveProperty('namespace');
+    });
+
   });
 
   describe('HTTP Methods', () => {
@@ -237,10 +346,12 @@ describe('/api/mcp', () => {
       const result = await response.json();
       
       expect(response.status).toBe(200);
-      expect(result).toHaveProperty('name', 'catalyst-projects-server');
+      expect(result).toHaveProperty('name', 'catalyst-mcp-server');
       expect(result).toHaveProperty('version', '1.0.0');
       expect(result).toHaveProperty('tools');
       expect(result.tools).toContain('get_projects');
+      expect(result.tools).toContain('getNamespaces');
+      expect(result.tools).toContain('getNamespace');
     });
 
     it('should handle DELETE request with authentication', async () => {

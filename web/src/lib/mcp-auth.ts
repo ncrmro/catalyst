@@ -1,5 +1,3 @@
-'use server';
-
 import { auth } from '@/auth';
 import { fetchUserTeams } from '@/actions/teams';
 import { fetchProjects } from '@/actions/projects';
@@ -24,7 +22,7 @@ export interface McpUser {
 const STATIC_API_KEY = process.env.MCP_API_KEY || 'catalyst-mcp-key-2024';
 
 /**
- * Validate API key from request
+ * Validate API key from request (not a server action)
  */
 export function validateApiKey(authHeader: string | null): boolean {
   if (!authHeader) return false;
@@ -37,6 +35,8 @@ export function validateApiKey(authHeader: string | null): boolean {
  * Get authenticated user with teams and projects for MCP context
  */
 export async function getAuthenticatedUser(): Promise<McpUser | null> {
+  'use server';
+  
   try {
     const session = await auth();
     if (!session?.user) {
@@ -44,21 +44,21 @@ export async function getAuthenticatedUser(): Promise<McpUser | null> {
     }
 
     // Fetch user's teams and projects
-    const [teams, projects] = await Promise.all([
+    const [teams, projectsData] = await Promise.all([
       fetchUserTeams(),
       fetchProjects()
     ]);
 
     return {
       id: session.user.id,
-      email: session.user.email,
-      name: session.user.name,
+      email: session.user.email || null,
+      name: session.user.name || null,
       teams: teams.map(team => ({
         id: team.id,
         name: team.name,
         role: team.role
       })),
-      projects: projects.map(project => ({
+      projects: projectsData.projects.map(project => ({
         id: project.id,
         name: project.name,
         full_name: project.full_name
