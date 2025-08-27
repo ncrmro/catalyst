@@ -15,7 +15,10 @@ describe('Kubernetes Deploy Nginx Integration Test - Success Cases', () => {
       const response = await GET();
       const data = await response.json();
 
-      // Only test success path - if cluster is available, deployment should succeed
+      // Test response structure regardless of cluster availability
+      expect(data).toHaveProperty('success');
+      expect(typeof data.success).toBe('boolean');
+
       if (data.success) {
         expect(response.status).toBe(200);
         expect(data.message).toBe('Nginx deployment created successfully');
@@ -27,9 +30,9 @@ describe('Kubernetes Deploy Nginx Integration Test - Success Cases', () => {
 
         console.log('Integration test: Deployment created successfully:', data.deployment.name);
       } else {
-        // Skip test if cluster is not available
-        console.log('Skipping success test - cluster not available:', data.error);
-        return;
+        expect(data).toHaveProperty('error');
+        expect(typeof data.error).toBe('string');
+        console.log('Integration test: Cluster not available, error handled correctly:', data.error);
       }
     });
 
@@ -41,13 +44,19 @@ describe('Kubernetes Deploy Nginx Integration Test - Success Cases', () => {
 
       const successfulResponses = responseData.filter((data: any) => data.success);
       
+      // Test basic response structure for all responses
+      responseData.forEach((data: any) => {
+        expect(data).toHaveProperty('success');
+        expect(typeof data.success).toBe('boolean');
+      });
+      
       if (successfulResponses.length > 1) {
         const deploymentNames = successfulResponses.map((data: any) => data.deployment.name);
         const uniqueNames = new Set(deploymentNames);
         expect(uniqueNames.size).toBe(deploymentNames.length);
         console.log('Integration test: All deployment names are unique:', deploymentNames);
       } else {
-        console.log('Skipping unique names test - insufficient successful deployments');
+        console.log('Integration test: Only', successfulResponses.length, 'successful deployments - uniqueness test limited');
       }
     });
 
@@ -58,19 +67,26 @@ describe('Kubernetes Deploy Nginx Integration Test - Success Cases', () => {
       const data = await response.json();
       const responseTime = Date.now() - startTime;
 
+      // Test response time regardless of success/failure
+      expect(responseTime).toBeLessThan(30000); // 30 seconds for any response
+      expect(data).toHaveProperty('success');
+      expect(typeof data.success).toBe('boolean');
+      
       if (data.success) {
-        // Successful deployments should be reasonably fast
-        expect(responseTime).toBeLessThan(30000); // 30 seconds for real deployment
         expect(response.status).toBe(200);
         console.log(`Integration test: Successful deployment in ${responseTime}ms`);
       } else {
-        console.log('Skipping timing test - deployment not successful');
+        console.log(`Integration test: Error response in ${responseTime}ms`);
       }
     });
 
     it('should return consistent success response structure', async () => {
       const response = await GET();
       const data = await response.json();
+
+      // Test basic structure that should always be present
+      expect(data).toHaveProperty('success');
+      expect(typeof data.success).toBe('boolean');
 
       if (data.success) {
         // Verify success case structure
@@ -82,7 +98,10 @@ describe('Kubernetes Deploy Nginx Integration Test - Success Cases', () => {
         expect(data.deployment).toHaveProperty('timestamp');
         console.log('Integration test: Success response structure is correct');
       } else {
-        console.log('Skipping structure test - deployment not successful');
+        // Verify error case structure
+        expect(data).toHaveProperty('error');
+        expect(typeof data.error).toBe('string');
+        console.log('Integration test: Error response structure is correct');
       }
     });
   });

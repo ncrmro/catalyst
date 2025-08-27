@@ -7,85 +7,76 @@ describe('Database Projects Integration - Project Structure Validation', () => {
   beforeAll(async () => {
     // Fetch data once for all tests in this suite
     testResult = await fetchProjects();
-    
-    // Skip all tests if no projects are available
-    if (testResult.projects.length === 0) {
-      console.log('Skipping project structure tests - no projects in database');
-    }
   });
 
   test('should validate project structure when projects exist', async () => {
-    // Skip if no projects
-    if (testResult.projects.length === 0) {
-      console.log('Skipping: No projects available for structure validation');
-      return;
+    // Test basic result structure regardless of data availability
+    expect(testResult).toHaveProperty('projects');
+    expect(Array.isArray(testResult.projects)).toBe(true);
+    
+    if (testResult.projects.length > 0) {
+      const project = testResult.projects[0];
+      
+      // Validate project structure
+      expect(project).toHaveProperty('id');
+      expect(project).toHaveProperty('name');
+      expect(project).toHaveProperty('full_name');
+      expect(project).toHaveProperty('owner');
+      expect(project).toHaveProperty('repositories');
+      expect(project).toHaveProperty('environments');
+      
+      // Validate owner structure
+      expect(project.owner).toHaveProperty('login');
+      expect(project.owner).toHaveProperty('type');
+      expect(['User', 'Organization']).toContain(project.owner.type);
+      
+      // Validate repositories and environments are arrays
+      expect(Array.isArray(project.repositories)).toBe(true);
+      expect(Array.isArray(project.environments)).toBe(true);
+    } else {
+      console.log('Integration test: No projects available for detailed structure validation');
     }
-
-    const project = testResult.projects[0];
-    
-    // Validate project structure
-    expect(project).toHaveProperty('id');
-    expect(project).toHaveProperty('name');
-    expect(project).toHaveProperty('full_name');
-    expect(project).toHaveProperty('owner');
-    expect(project).toHaveProperty('repositories');
-    expect(project).toHaveProperty('environments');
-    
-    // Validate owner structure
-    expect(project.owner).toHaveProperty('login');
-    expect(project.owner).toHaveProperty('type');
-    expect(['User', 'Organization']).toContain(project.owner.type);
-    
-    // Validate repositories and environments are arrays
-    expect(Array.isArray(project.repositories)).toBe(true);
-    expect(Array.isArray(project.environments)).toBe(true);
   });
 
   test('should validate repository structure when repositories exist', async () => {
-    // Skip if no projects
-    if (testResult.projects.length === 0) {
-      console.log('Skipping: No projects available');
-      return;
-    }
+    // Test basic structure
+    expect(testResult).toHaveProperty('projects');
+    expect(Array.isArray(testResult.projects)).toBe(true);
 
     // Find a project with repositories
     const projectWithRepos = testResult.projects.find((p: any) => p.repositories.length > 0);
     
-    if (!projectWithRepos) {
-      console.log('Skipping: No projects with repositories found');
-      return;
+    if (projectWithRepos) {
+      const repo = projectWithRepos.repositories[0];
+      expect(repo).toHaveProperty('id');
+      expect(repo).toHaveProperty('name');
+      expect(repo).toHaveProperty('full_name');
+      expect(repo).toHaveProperty('url');
+      expect(repo).toHaveProperty('primary');
+      expect(typeof repo.primary).toBe('boolean');
+    } else {
+      console.log('Integration test: No projects with repositories found for repository structure validation');
     }
-
-    const repo = projectWithRepos.repositories[0];
-    expect(repo).toHaveProperty('id');
-    expect(repo).toHaveProperty('name');
-    expect(repo).toHaveProperty('full_name');
-    expect(repo).toHaveProperty('url');
-    expect(repo).toHaveProperty('primary');
-    expect(typeof repo.primary).toBe('boolean');
   });
 
   test('should validate environment structure when environments exist', async () => {
-    // Skip if no projects
-    if (testResult.projects.length === 0) {
-      console.log('Skipping: No projects available');
-      return;
-    }
+    // Test basic structure
+    expect(testResult).toHaveProperty('projects');
+    expect(Array.isArray(testResult.projects)).toBe(true);
 
     // Find a project with environments
     const projectWithEnvs = testResult.projects.find((p: any) => p.environments.length > 0);
     
-    if (!projectWithEnvs) {
-      console.log('Skipping: No projects with environments found');
-      return;
+    if (projectWithEnvs) {
+      const env = projectWithEnvs.environments[0];
+      expect(env).toHaveProperty('id');
+      expect(env).toHaveProperty('name');
+      expect(env).toHaveProperty('type');
+      expect(env).toHaveProperty('status');
+      expect(['branch_push', 'cron']).toContain(env.type);
+      expect(['active', 'inactive', 'deploying']).toContain(env.status);
+    } else {
+      console.log('Integration test: No projects with environments found for environment structure validation');
     }
-
-    const env = projectWithEnvs.environments[0];
-    expect(env).toHaveProperty('id');
-    expect(env).toHaveProperty('name');
-    expect(env).toHaveProperty('type');
-    expect(env).toHaveProperty('status');
-    expect(['branch_push', 'cron']).toContain(env.type);
-    expect(['active', 'inactive', 'deploying']).toContain(env.status);
   });
 });

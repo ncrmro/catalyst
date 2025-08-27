@@ -14,14 +14,22 @@ describe('/health/readiness - Success Cases', () => {
     const response = await GET();
     const data = await response.json();
     
-    // Only test success path
+    // Test response structure regardless of success/failure
+    expect(data).toHaveProperty('success');
+    expect(typeof data.success).toBe('boolean');
+    expect(data).toHaveProperty('message');
+    expect(typeof data.message).toBe('string');
+    
+    // If successful, verify success-specific properties
     if (data.success) {
       expect(data.message).toBe('Database connection successful');
       expect(data).toHaveProperty('result');
       expect(response.status).toBe(200);
       console.log('Integration test: Database connection successful');
     } else {
-      console.log('Skipping success test - database not available:', data.message);
+      // If not successful, verify error-specific properties
+      expect(data).toHaveProperty('error');
+      console.log('Integration test: Database connection failed:', data.message);
     }
   });
 
@@ -29,14 +37,18 @@ describe('/health/readiness - Success Cases', () => {
     const response = await GET();
     const data = await response.json();
     
+    // Test basic structure that should always be present
+    expect(data).toHaveProperty('success');
+    expect(typeof data.success).toBe('boolean');
+    expect(data).toHaveProperty('message');
+    expect(typeof data.message).toBe('string');
+    
     if (data.success) {
-      expect(data).toHaveProperty('success', true);
-      expect(data).toHaveProperty('message');
       expect(data).toHaveProperty('result');
-      expect(typeof data.message).toBe('string');
       console.log('Integration test: Success response structure is correct');
     } else {
-      console.log('Skipping structure test - database not available');
+      expect(data).toHaveProperty('error');
+      console.log('Integration test: Error response structure is correct');
     }
   });
 });
