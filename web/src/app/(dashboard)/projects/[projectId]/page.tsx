@@ -316,41 +316,71 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
 
         {/* Environments Section */}
         <div className="mb-8">
-          <h2 className="text-2xl font-semibold text-on-surface mb-6">Environments</h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {project.environments.map((env) => (
-              <div key={env.id} className="bg-surface border border-outline rounded-lg p-4 shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium text-on-surface">{env.name}</h3>
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    env.status === 'active' ? 'bg-success-container text-on-success-container' :
-                    env.status === 'deploying' ? 'bg-warning-container text-on-warning-container' :
-                    'bg-surface-variant text-on-surface-variant'
-                  }`}>
-                    {env.status}
-                  </span>
-                </div>
-                <p className="text-sm text-on-surface-variant mb-2">
-                  Type: {env.type === 'branch_push' ? `Branch: ${env.branch}` : `Cron: ${env.cron_schedule}`}
-                </p>
-                {env.url && (
-                  <a 
-                    href={env.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-primary hover:opacity-80"
-                  >
-                    View Environment →
-                  </a>
-                )}
-                {env.last_deployed && (
-                  <p className="text-xs text-on-surface-variant mt-2">
-                    Last deployed: {new Date(env.last_deployed).toLocaleDateString()}
-                  </p>
-                )}
-              </div>
-            ))}
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-semibold text-on-surface">Environments</h2>
+            {project.environments.length > 0 && (
+              <Link
+                href={`/environments/${projectId}`}
+                className="px-4 py-2 text-sm font-medium text-on-primary bg-primary border border-transparent rounded-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+              >
+                Add Environment
+              </Link>
+            )}
           </div>
+          
+          {project.environments.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {project.environments.map((env) => (
+                <div key={env.id} className="bg-surface border border-outline rounded-lg p-4 shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-medium text-on-surface">{env.name}</h3>
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      env.status === 'active' ? 'bg-success-container text-on-success-container' :
+                      env.status === 'deploying' ? 'bg-warning-container text-on-warning-container' :
+                      'bg-surface-variant text-on-surface-variant'
+                    }`}>
+                      {env.status}
+                    </span>
+                  </div>
+                  <p className="text-sm text-on-surface-variant mb-2">
+                    Type: {env.type === 'branch_push' ? `Branch: ${env.branch}` : `Cron: ${env.cron_schedule}`}
+                  </p>
+                  {env.url && (
+                    <a 
+                      href={env.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:opacity-80"
+                    >
+                      View Environment →
+                    </a>
+                  )}
+                  {env.last_deployed && (
+                    <p className="text-xs text-on-surface-variant mt-2">
+                      Last deployed: {new Date(env.last_deployed).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-warning-container/20 border border-warning rounded-lg p-8 text-center">
+              <div className="w-16 h-16 bg-warning-container rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-on-warning-container text-2xl">⚙️</span>
+              </div>
+              <h3 className="text-lg font-medium text-on-surface mb-2">No environments configured</h3>
+              <p className="text-on-surface-variant mb-6">
+                Set up your first deployment environment to start deploying your application. 
+                We recommend starting with a preview environment for testing.
+              </p>
+              <Link
+                href={`/environments/${projectId}`}
+                className="inline-flex items-center px-6 py-3 text-base font-medium text-on-primary bg-primary border border-transparent rounded-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+              >
+                Set up Environment →
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     );
