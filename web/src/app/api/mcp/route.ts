@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { validateApiKey } from '@/lib/mcp-auth';
+import { validateApiKey, McpUser } from '@/lib/mcp-auth';
 import { getNamespacesForUser, getNamespaceDetails } from '@/lib/mcp-namespaces';
 import { z } from 'zod';
 
@@ -22,13 +22,13 @@ server.registerTool(
   },
   async (args, context) => {
     // Get user from context (we'll pass it through)
-    const user = (context as { user?: { id: string; email: string | null } })?.user;
+    const user = (context as { user?: McpUser })?.user;
     if (!user) {
       throw new Error('Authentication required');
     }
 
     const { clusterName } = args;
-    const namespaces = await getNamespacesForUser(user.id, clusterName);
+    const namespaces = await getNamespacesForUser(user, clusterName);
 
     return {
       content: [
@@ -59,13 +59,13 @@ server.registerTool(
   },
   async (args, context) => {
     // Get user from context
-    const user = (context as { user?: { id: string; email: string | null } })?.user;
+    const user = (context as { user?: McpUser })?.user;
     if (!user) {
       throw new Error('Authentication required');
     }
 
     const { namespace, resources, clusterName } = args;
-    const namespaceDetails = await getNamespaceDetails(namespace, resources, clusterName);
+    const namespaceDetails = await getNamespaceDetails(namespace, user, resources, clusterName);
 
     if (!namespaceDetails) {
       return {
@@ -98,7 +98,7 @@ server.registerTool(
 /**
  * Simple middleware to handle authentication and user context
  */
-async function withAuth(request: NextRequest, handler: (user: { id: string; email: string | null }) => Promise<Response>) {
+async function withAuth(request: NextRequest, handler: (user: McpUser) => Promise<Response>) {
   // Extract Bearer token from Authorization header
   const authHeader = request.headers.get('authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
         switch (name) {
           case 'getNamespaces': {
             const { clusterName } = args || {};
-            const namespaces = await getNamespacesForUser(user.id, clusterName);
+            const namespaces = await getNamespacesForUser(user, clusterName);
 
             return NextResponse.json({
               content: [
@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
               }, { status: 400 });
             }
 
-            const namespaceDetails = await getNamespaceDetails(namespace, resources, clusterName);
+            const namespaceDetails = await getNamespaceDetails(namespace, user, resources, clusterName);
 
             if (!namespaceDetails) {
               return NextResponse.json({

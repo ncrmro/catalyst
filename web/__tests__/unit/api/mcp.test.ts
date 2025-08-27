@@ -174,7 +174,14 @@ describe('MCP API Route - Unit Tests', () => {
       expect(result.namespaces).toEqual(mockNamespaces);
       expect(result.count).toBe(2);
       
-      expect(mockGetNamespacesForUser).toHaveBeenCalledWith('user-1', undefined);
+      expect(mockGetNamespacesForUser).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'user-1',
+          email: 'test@example.com',
+          name: 'Test User'
+        }),
+        undefined
+      );
     });
 
     it('should call getNamespaces with cluster name', async () => {
@@ -224,7 +231,14 @@ describe('MCP API Route - Unit Tests', () => {
       expect(result.namespaces).toEqual(mockNamespaces);
       expect(result.count).toBe(1);
       
-      expect(mockGetNamespacesForUser).toHaveBeenCalledWith('user-1', 'production');
+      expect(mockGetNamespacesForUser).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'user-1',
+          email: 'test@example.com',
+          name: 'Test User'
+        }),
+        'production'
+      );
     });
   });
 
@@ -317,7 +331,16 @@ describe('MCP API Route - Unit Tests', () => {
       expect(result.success).toBe(true);
       expect(result.namespace).toEqual(mockNamespaceDetails);
       
-      expect(mockGetNamespaceDetails).toHaveBeenCalledWith('test-namespace', undefined, undefined);
+      expect(mockGetNamespaceDetails).toHaveBeenCalledWith(
+        'test-namespace',
+        expect.objectContaining({
+          id: 'user-1',
+          email: 'test@example.com',
+          name: 'Test User'
+        }),
+        undefined,
+        undefined
+      );
     });
 
     it('should return error when namespace does not exist', async () => {
@@ -362,7 +385,16 @@ describe('MCP API Route - Unit Tests', () => {
       expect(result.success).toBe(false);
       expect(result.error).toBe("Namespace 'non-existent' not found");
       
-      expect(mockGetNamespaceDetails).toHaveBeenCalledWith('non-existent', undefined, undefined);
+      expect(mockGetNamespaceDetails).toHaveBeenCalledWith(
+        'non-existent',
+        expect.objectContaining({
+          id: 'user-1',
+          email: 'test@example.com',
+          name: 'Test User'
+        }),
+        undefined,
+        undefined
+      );
     });
 
     it('should handle optional resources and cluster name parameters', async () => {
@@ -421,6 +453,11 @@ describe('MCP API Route - Unit Tests', () => {
       
       expect(mockGetNamespaceDetails).toHaveBeenCalledWith(
         'test-namespace',
+        expect.objectContaining({
+          id: 'user-1',
+          email: 'test@example.com',
+          name: 'Test User'
+        }),
         ['pods', 'services'],
         'test-cluster'
       );

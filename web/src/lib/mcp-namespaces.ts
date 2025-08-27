@@ -2,21 +2,38 @@
 
 import { listNamespaces } from '@/lib/k8s-namespaces';
 import { NamespaceInfo } from '@/actions/namespaces';
+import { McpUser } from '@/lib/mcp-auth';
 
 /**
  * Get namespaces that a specific user can access based on their team memberships
  */
-export async function getNamespacesForUser(userId: string, clusterName?: string): Promise<NamespaceInfo[]> {
+export async function getNamespacesForUser(user: McpUser, clusterName?: string): Promise<NamespaceInfo[]> {
   try {
     // Get all namespaces
     const allNamespaces = await listNamespaces(clusterName);
     
-    // Get user's team IDs - we'll simulate this since we don't have full session context
-    // In a real implementation, this would use the user's actual team memberships
+    // Get user's team names for filtering
+    const userTeamNames = user.teams.map(team => team.name.toLowerCase());
     
-    // For now, return all namespaces since we don't have the user context
-    // In a production system, you'd filter based on the user's team labels
-    return allNamespaces;
+    // Filter namespaces based on catalyst/team label
+    const accessibleNamespaces = allNamespaces.filter(namespace => {
+      // If the namespace has no labels, only allow if user is admin/has access to default namespaces
+      if (!namespace.labels) {
+        // For system namespaces like 'default', 'kube-system', allow access
+        return ['default', 'kube-system', 'kube-public', 'kube-node-lease'].includes(namespace.name);
+      }
+
+      // Check if namespace has catalyst/team label matching user's teams
+      const namespaceTeam = namespace.labels['catalyst/team'];
+      if (namespaceTeam) {
+        return userTeamNames.includes(namespaceTeam.toLowerCase());
+      }
+
+      // For namespaces without catalyst/team label, allow access to system namespaces
+      return ['default', 'kube-system', 'kube-public', 'kube-node-lease'].includes(namespace.name);
+    });
+    
+    return accessibleNamespaces;
   } catch (error) {
     console.error('Error fetching namespaces for user:', error);
     return [];
@@ -25,9 +42,18 @@ export async function getNamespacesForUser(userId: string, clusterName?: string)
 
 /**
  * Get details for a specific namespace with optional resource information
+ * Only returns namespace details if the user has access to it
  */
-export async function getNamespaceDetails(namespaceName: string, resources?: string[], clusterName?: string) {
+export async function getNamespaceDetails(namespaceName: string, user: McpUser, resources?: string[], clusterName?: string) {
   try {
+    // First check if user has access to this namespace
+    const accessibleNamespaces = await getNamespacesForUser(user, clusterName);
+    const hasAccess = accessibleNamespaces.some(ns => ns.name === namespaceName);
+    
+    if (!hasAccess) {
+      return null;
+    }
+
     // Get all namespaces to find the specific one
     const allNamespaces = await listNamespaces(clusterName);
     const namespace = allNamespaces.find(ns => ns.name === namespaceName);

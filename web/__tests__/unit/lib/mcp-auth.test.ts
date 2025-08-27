@@ -8,33 +8,59 @@ describe('MCP Auth - Unit Tests', () => {
   });
 
   describe('getFirstUser', () => {
-    it('should return the first user when found', async () => {
+    it('should return the first user with teams and projects when found', async () => {
       // Mock the database at the module level
       jest.doMock('@/db', () => ({
         db: {
-          select: jest.fn().mockReturnValue({
-            from: jest.fn().mockReturnValue({
-              orderBy: jest.fn().mockReturnValue({
-                limit: jest.fn().mockResolvedValue([{
-                  id: 'user-1',
-                  name: 'First User',
-                  email: 'first@example.com',
-                  emailVerified: null,
-                  image: null,
-                  admin: false,
+          select: jest.fn()
+            .mockReturnValueOnce({
+              from: jest.fn().mockReturnValue({
+                orderBy: jest.fn().mockReturnValue({
+                  limit: jest.fn().mockResolvedValue([{
+                    id: 'user-1',
+                    name: 'First User',
+                    email: 'first@example.com',
+                    emailVerified: null,
+                    image: null,
+                    admin: false,
+                  }]),
+                }),
+              }),
+            })
+            .mockReturnValueOnce({
+              from: jest.fn().mockReturnValue({
+                innerJoin: jest.fn().mockReturnValue({
+                  where: jest.fn().mockResolvedValue([{
+                    teamId: 'team-1',
+                    teamName: 'Test Team',
+                    role: 'owner',
+                  }]),
+                }),
+              }),
+            })
+            .mockReturnValueOnce({
+              from: jest.fn().mockReturnValue({
+                where: jest.fn().mockResolvedValue([{
+                  id: 'project-1',
+                  name: 'Test Project',
+                  teamId: 'team-1',
                 }]),
               }),
             }),
-          }),
         },
       }));
       
       jest.doMock('drizzle-orm', () => ({
         asc: jest.fn(),
+        eq: jest.fn(),
+        inArray: jest.fn(),
       }));
       
       jest.doMock('@/db/schema', () => ({
         users: { id: 'users.id' },
+        teams: { id: 'teams.id', name: 'teams.name' },
+        teamsMemberships: { teamId: 'teamsMemberships.teamId', userId: 'teamsMemberships.userId', role: 'teamsMemberships.role' },
+        projects: { id: 'projects.id', name: 'projects.name', teamId: 'projects.teamId' },
       }));
 
       const { getFirstUser } = await import('@/lib/mcp-auth');
@@ -44,9 +70,16 @@ describe('MCP Auth - Unit Tests', () => {
         id: 'user-1',
         name: 'First User',
         email: 'first@example.com',
-        emailVerified: null,
-        image: null,
-        admin: false,
+        teams: [{
+          id: 'team-1',
+          name: 'Test Team',
+          role: 'owner',
+        }],
+        projects: [{
+          id: 'project-1',
+          name: 'Test Project',
+          teamId: 'team-1',
+        }],
       });
     });
 
@@ -135,29 +168,55 @@ describe('MCP Auth - Unit Tests', () => {
       
       jest.doMock('@/db', () => ({
         db: {
-          select: jest.fn().mockReturnValue({
-            from: jest.fn().mockReturnValue({
-              orderBy: jest.fn().mockReturnValue({
-                limit: jest.fn().mockResolvedValue([{
-                  id: 'user-1',
-                  name: 'First User',
-                  email: 'first@example.com',
-                  emailVerified: null,
-                  image: null,
-                  admin: false,
+          select: jest.fn()
+            .mockReturnValueOnce({
+              from: jest.fn().mockReturnValue({
+                orderBy: jest.fn().mockReturnValue({
+                  limit: jest.fn().mockResolvedValue([{
+                    id: 'user-1',
+                    name: 'First User',
+                    email: 'first@example.com',
+                    emailVerified: null,
+                    image: null,
+                    admin: false,
+                  }]),
+                }),
+              }),
+            })
+            .mockReturnValueOnce({
+              from: jest.fn().mockReturnValue({
+                innerJoin: jest.fn().mockReturnValue({
+                  where: jest.fn().mockResolvedValue([{
+                    teamId: 'team-1',
+                    teamName: 'Test Team',
+                    role: 'owner',
+                  }]),
+                }),
+              }),
+            })
+            .mockReturnValueOnce({
+              from: jest.fn().mockReturnValue({
+                where: jest.fn().mockResolvedValue([{
+                  id: 'project-1',
+                  name: 'Test Project',
+                  teamId: 'team-1',
                 }]),
               }),
             }),
-          }),
         },
       }));
       
       jest.doMock('drizzle-orm', () => ({
         asc: jest.fn(),
+        eq: jest.fn(),
+        inArray: jest.fn(),
       }));
       
       jest.doMock('@/db/schema', () => ({
         users: { id: 'users.id' },
+        teams: { id: 'teams.id', name: 'teams.name' },
+        teamsMemberships: { teamId: 'teamsMemberships.teamId', userId: 'teamsMemberships.userId', role: 'teamsMemberships.role' },
+        projects: { id: 'projects.id', name: 'projects.name', teamId: 'projects.teamId' },
       }));
 
       const { validateApiKey } = await import('@/lib/mcp-auth');
@@ -167,9 +226,16 @@ describe('MCP Auth - Unit Tests', () => {
         id: 'user-1',
         name: 'First User',
         email: 'first@example.com',
-        emailVerified: null,
-        image: null,
-        admin: false,
+        teams: [{
+          id: 'team-1',
+          name: 'Test Team',
+          role: 'owner',
+        }],
+        projects: [{
+          id: 'project-1',
+          name: 'Test Project',
+          teamId: 'team-1',
+        }],
       });
     });
 
