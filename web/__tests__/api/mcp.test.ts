@@ -1,36 +1,11 @@
 import { describe, expect, it, beforeEach, jest } from '@jest/globals';
 import { NextRequest } from 'next/server';
 
-// Mock the dependencies before importing the handler
-jest.mock('@/lib/mcp-auth', () => ({
-  validateApiKey: jest.fn(),
-}));
-
-jest.mock('@/lib/mcp-namespaces', () => ({
-  getNamespacesForUser: jest.fn(),
-  getNamespaceDetails: jest.fn(),
-}));
-
-// Import after mocking
-import { POST } from '@/app/api/mcp/route';
-
-const mockValidateApiKey = jest.fn();
-const mockGetNamespacesForUser = jest.fn();
-const mockGetNamespaceDetails = jest.fn();
-
-// Replace the mocked functions
-jest.doMock('@/lib/mcp-auth', () => ({
-  validateApiKey: mockValidateApiKey,
-}));
-
-jest.doMock('@/lib/mcp-namespaces', () => ({
-  getNamespacesForUser: mockGetNamespacesForUser,
-  getNamespaceDetails: mockGetNamespaceDetails,
-}));
-
 describe('/api/mcp', () => {
+  // We'll use dynamic imports and mocking per test
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.resetModules();
   });
 
   const createRequest = (body: any, headers: Record<string, string> = {}) => {
@@ -48,6 +23,17 @@ describe('/api/mcp', () => {
 
   describe('Authentication', () => {
     it('should reject requests without authorization header', async () => {
+      // Mock dependencies
+      jest.doMock('@/lib/mcp-auth', () => ({
+        validateApiKey: jest.fn(),
+      }));
+
+      jest.doMock('@/lib/mcp-namespaces', () => ({
+        getNamespacesForUser: jest.fn(),
+        getNamespaceDetails: jest.fn(),
+      }));
+
+      const { POST } = await import('@/app/api/mcp/route');
       const req = createRequest({ method: 'tools/list' });
       const response = await POST(req);
       
@@ -56,6 +42,17 @@ describe('/api/mcp', () => {
     });
 
     it('should reject requests with invalid bearer token format', async () => {
+      // Mock dependencies
+      jest.doMock('@/lib/mcp-auth', () => ({
+        validateApiKey: jest.fn(),
+      }));
+
+      jest.doMock('@/lib/mcp-namespaces', () => ({
+        getNamespacesForUser: jest.fn(),
+        getNamespaceDetails: jest.fn(),
+      }));
+
+      const { POST } = await import('@/app/api/mcp/route');
       const req = createRequest(
         { method: 'tools/list' },
         { authorization: 'InvalidFormat token' }
@@ -67,8 +64,19 @@ describe('/api/mcp', () => {
     });
 
     it('should reject requests with invalid API key', async () => {
-      mockValidateApiKey.mockResolvedValue(null);
-      
+      const mockValidateApiKey = jest.fn().mockResolvedValue(null);
+
+      // Mock dependencies
+      jest.doMock('@/lib/mcp-auth', () => ({
+        validateApiKey: mockValidateApiKey,
+      }));
+
+      jest.doMock('@/lib/mcp-namespaces', () => ({
+        getNamespacesForUser: jest.fn(),
+        getNamespaceDetails: jest.fn(),
+      }));
+
+      const { POST } = await import('@/app/api/mcp/route');
       const req = createRequest(
         { method: 'tools/list' },
         { authorization: 'Bearer invalid-key' }
@@ -82,8 +90,8 @@ describe('/api/mcp', () => {
   });
 
   describe('tools/list', () => {
-    beforeEach(() => {
-      mockValidateApiKey.mockResolvedValue({
+    it('should return list of available tools', async () => {
+      const mockValidateApiKey = jest.fn().mockResolvedValue({
         id: 'user-1',
         name: 'Test User',
         email: 'test@example.com',
@@ -91,9 +99,18 @@ describe('/api/mcp', () => {
         image: null,
         admin: false,
       });
-    });
 
-    it('should return list of available tools', async () => {
+      // Mock dependencies
+      jest.doMock('@/lib/mcp-auth', () => ({
+        validateApiKey: mockValidateApiKey,
+      }));
+
+      jest.doMock('@/lib/mcp-namespaces', () => ({
+        getNamespacesForUser: jest.fn(),
+        getNamespaceDetails: jest.fn(),
+      }));
+
+      const { POST } = await import('@/app/api/mcp/route');
       const req = createRequest(
         { method: 'tools/list' },
         { authorization: 'Bearer valid-key' }
@@ -111,24 +128,35 @@ describe('/api/mcp', () => {
   });
 
   describe('tools/call - getNamespaces', () => {
-    beforeEach(() => {
-      mockValidateApiKey.mockResolvedValue({
+    it('should call getNamespaces without cluster name', async () => {
+      const mockUser = {
         id: 'user-1',
         name: 'Test User',
         email: 'test@example.com',
         emailVerified: null,
         image: null,
         admin: false,
-      });
-    });
+      };
 
-    it('should call getNamespaces without cluster name', async () => {
       const mockNamespaces = [
         { name: 'default', labels: {}, creationTimestamp: '2023-01-01T00:00:00Z' },
         { name: 'kube-system', labels: {}, creationTimestamp: '2023-01-01T00:00:00Z' },
       ];
-      mockGetNamespacesForUser.mockResolvedValue(mockNamespaces);
 
+      const mockValidateApiKey = jest.fn().mockResolvedValue(mockUser);
+      const mockGetNamespacesForUser = jest.fn().mockResolvedValue(mockNamespaces);
+
+      // Mock dependencies
+      jest.doMock('@/lib/mcp-auth', () => ({
+        validateApiKey: mockValidateApiKey,
+      }));
+
+      jest.doMock('@/lib/mcp-namespaces', () => ({
+        getNamespacesForUser: mockGetNamespacesForUser,
+        getNamespaceDetails: jest.fn(),
+      }));
+
+      const { POST } = await import('@/app/api/mcp/route');
       const req = createRequest(
         {
           method: 'tools/call',
@@ -156,11 +184,33 @@ describe('/api/mcp', () => {
     });
 
     it('should call getNamespaces with cluster name', async () => {
+      const mockUser = {
+        id: 'user-1',
+        name: 'Test User',
+        email: 'test@example.com',
+        emailVerified: null,
+        image: null,
+        admin: false,
+      };
+
       const mockNamespaces = [
         { name: 'production-ns', labels: { environment: 'production' }, creationTimestamp: '2023-01-01T00:00:00Z' },
       ];
-      mockGetNamespacesForUser.mockResolvedValue(mockNamespaces);
 
+      const mockValidateApiKey = jest.fn().mockResolvedValue(mockUser);
+      const mockGetNamespacesForUser = jest.fn().mockResolvedValue(mockNamespaces);
+
+      // Mock dependencies
+      jest.doMock('@/lib/mcp-auth', () => ({
+        validateApiKey: mockValidateApiKey,
+      }));
+
+      jest.doMock('@/lib/mcp-namespaces', () => ({
+        getNamespacesForUser: mockGetNamespacesForUser,
+        getNamespaceDetails: jest.fn(),
+      }));
+
+      const { POST } = await import('@/app/api/mcp/route');
       const req = createRequest(
         {
           method: 'tools/call',
@@ -186,18 +236,29 @@ describe('/api/mcp', () => {
   });
 
   describe('tools/call - getNamespace', () => {
-    beforeEach(() => {
-      mockValidateApiKey.mockResolvedValue({
+    it('should return error if namespace parameter is missing', async () => {
+      const mockUser = {
         id: 'user-1',
         name: 'Test User',
         email: 'test@example.com',
         emailVerified: null,
         image: null,
         admin: false,
-      });
-    });
+      };
 
-    it('should return error if namespace parameter is missing', async () => {
+      const mockValidateApiKey = jest.fn().mockResolvedValue(mockUser);
+
+      // Mock dependencies
+      jest.doMock('@/lib/mcp-auth', () => ({
+        validateApiKey: mockValidateApiKey,
+      }));
+
+      jest.doMock('@/lib/mcp-namespaces', () => ({
+        getNamespacesForUser: jest.fn(),
+        getNamespaceDetails: jest.fn(),
+      }));
+
+      const { POST } = await import('@/app/api/mcp/route');
       const req = createRequest(
         {
           method: 'tools/call',
@@ -216,13 +277,35 @@ describe('/api/mcp', () => {
     });
 
     it('should return namespace details when namespace exists', async () => {
+      const mockUser = {
+        id: 'user-1',
+        name: 'Test User',
+        email: 'test@example.com',
+        emailVerified: null,
+        image: null,
+        admin: false,
+      };
+
       const mockNamespaceDetails = {
         name: 'test-namespace',
         labels: { environment: 'test' },
         creationTimestamp: '2023-01-01T00:00:00Z',
       };
-      mockGetNamespaceDetails.mockResolvedValue(mockNamespaceDetails);
 
+      const mockValidateApiKey = jest.fn().mockResolvedValue(mockUser);
+      const mockGetNamespaceDetails = jest.fn().mockResolvedValue(mockNamespaceDetails);
+
+      // Mock dependencies
+      jest.doMock('@/lib/mcp-auth', () => ({
+        validateApiKey: mockValidateApiKey,
+      }));
+
+      jest.doMock('@/lib/mcp-namespaces', () => ({
+        getNamespacesForUser: jest.fn(),
+        getNamespaceDetails: mockGetNamespaceDetails,
+      }));
+
+      const { POST } = await import('@/app/api/mcp/route');
       const req = createRequest(
         {
           method: 'tools/call',
@@ -247,8 +330,29 @@ describe('/api/mcp', () => {
     });
 
     it('should return error when namespace does not exist', async () => {
-      mockGetNamespaceDetails.mockResolvedValue(null);
+      const mockUser = {
+        id: 'user-1',
+        name: 'Test User',
+        email: 'test@example.com',
+        emailVerified: null,
+        image: null,
+        admin: false,
+      };
 
+      const mockValidateApiKey = jest.fn().mockResolvedValue(mockUser);
+      const mockGetNamespaceDetails = jest.fn().mockResolvedValue(null);
+
+      // Mock dependencies
+      jest.doMock('@/lib/mcp-auth', () => ({
+        validateApiKey: mockValidateApiKey,
+      }));
+
+      jest.doMock('@/lib/mcp-namespaces', () => ({
+        getNamespacesForUser: jest.fn(),
+        getNamespaceDetails: mockGetNamespaceDetails,
+      }));
+
+      const { POST } = await import('@/app/api/mcp/route');
       const req = createRequest(
         {
           method: 'tools/call',
@@ -272,6 +376,15 @@ describe('/api/mcp', () => {
     });
 
     it('should handle optional resources and cluster name parameters', async () => {
+      const mockUser = {
+        id: 'user-1',
+        name: 'Test User',
+        email: 'test@example.com',
+        emailVerified: null,
+        image: null,
+        admin: false,
+      };
+
       const mockNamespaceDetails = {
         name: 'test-namespace',
         labels: { environment: 'test' },
@@ -279,8 +392,21 @@ describe('/api/mcp', () => {
         requestedResources: ['pods', 'services'],
         message: 'Resource details not implemented yet',
       };
-      mockGetNamespaceDetails.mockResolvedValue(mockNamespaceDetails);
 
+      const mockValidateApiKey = jest.fn().mockResolvedValue(mockUser);
+      const mockGetNamespaceDetails = jest.fn().mockResolvedValue(mockNamespaceDetails);
+
+      // Mock dependencies
+      jest.doMock('@/lib/mcp-auth', () => ({
+        validateApiKey: mockValidateApiKey,
+      }));
+
+      jest.doMock('@/lib/mcp-namespaces', () => ({
+        getNamespacesForUser: jest.fn(),
+        getNamespaceDetails: mockGetNamespaceDetails,
+      }));
+
+      const { POST } = await import('@/app/api/mcp/route');
       const req = createRequest(
         {
           method: 'tools/call',
@@ -313,18 +439,29 @@ describe('/api/mcp', () => {
   });
 
   describe('Unknown tools', () => {
-    beforeEach(() => {
-      mockValidateApiKey.mockResolvedValue({
+    it('should return error for unknown tool', async () => {
+      const mockUser = {
         id: 'user-1',
         name: 'Test User',
         email: 'test@example.com',
         emailVerified: null,
         image: null,
         admin: false,
-      });
-    });
+      };
 
-    it('should return error for unknown tool', async () => {
+      const mockValidateApiKey = jest.fn().mockResolvedValue(mockUser);
+
+      // Mock dependencies
+      jest.doMock('@/lib/mcp-auth', () => ({
+        validateApiKey: mockValidateApiKey,
+      }));
+
+      jest.doMock('@/lib/mcp-namespaces', () => ({
+        getNamespacesForUser: jest.fn(),
+        getNamespaceDetails: jest.fn(),
+      }));
+
+      const { POST } = await import('@/app/api/mcp/route');
       const req = createRequest(
         {
           method: 'tools/call',
@@ -344,18 +481,29 @@ describe('/api/mcp', () => {
   });
 
   describe('Other MCP requests', () => {
-    beforeEach(() => {
-      mockValidateApiKey.mockResolvedValue({
+    it('should handle other MCP methods', async () => {
+      const mockUser = {
         id: 'user-1',
         name: 'Test User',
         email: 'test@example.com',
         emailVerified: null,
         image: null,
         admin: false,
-      });
-    });
+      };
 
-    it('should handle other MCP methods', async () => {
+      const mockValidateApiKey = jest.fn().mockResolvedValue(mockUser);
+
+      // Mock dependencies
+      jest.doMock('@/lib/mcp-auth', () => ({
+        validateApiKey: mockValidateApiKey,
+      }));
+
+      jest.doMock('@/lib/mcp-namespaces', () => ({
+        getNamespacesForUser: jest.fn(),
+        getNamespaceDetails: jest.fn(),
+      }));
+
+      const { POST } = await import('@/app/api/mcp/route');
       const req = createRequest(
         { method: 'some/other', params: {} },
         { authorization: 'Bearer valid-key' }
