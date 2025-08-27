@@ -3,7 +3,7 @@
  */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import KubeconfigCore from '../../src/components/kubeconfig-core';
+import KubeconfigCore from '../../../src/components/kubeconfig-core';
 
 // Mock navigator.clipboard
 const mockWriteText = jest.fn();

@@ -1,5 +1,5 @@
 // Mock the database module
-jest.mock('../src/db', () => ({
+jest.mock('../../src/db', () => ({
   db: {
     select: jest.fn().mockReturnValue({
       from: jest.fn().mockReturnValue({
@@ -30,7 +30,7 @@ jest.mock('../src/db', () => ({
   }
 }))
 
-jest.mock('../src/db/schema', () => ({
+jest.mock('../../src/db/schema', () => ({
   users: {},
   teams: {},
   teamsMemberships: {}
@@ -47,7 +47,7 @@ describe('Admin Authentication', () => {
 
   describe('Credentials Provider - Admin Status', () => {
     it('should create admin user when password is "admin"', async () => {
-      const { db } = require('../src/db')
+      const { db } = require('../../src/db')
       
       // Mock user doesn't exist
       db.select.mockReturnValue({
@@ -89,7 +89,7 @@ describe('Admin Authentication', () => {
     })
 
     it('should create regular user when password is "password"', async () => {
-      const { db } = require('../src/db')
+      const { db } = require('../../src/db')
       
       // Mock user doesn't exist
       db.select.mockReturnValue({
@@ -131,7 +131,7 @@ describe('Admin Authentication', () => {
     })
 
     it('should update existing user admin status when password type changes', async () => {
-      const { db } = require('../src/db')
+      const { db } = require('../../src/db')
       
       // Mock existing user with admin=false
       db.select.mockReturnValue({
@@ -174,7 +174,7 @@ describe('Admin Authentication', () => {
 
   describe('JWT Callback - Admin Status', () => {
     it('should include admin status in JWT token', async () => {
-      const { db } = require('../src/db')
+      const { db } = require('../../src/db')
       
       // Mock existing user with admin status
       db.select.mockReturnValue({
