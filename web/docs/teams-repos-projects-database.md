@@ -54,6 +54,19 @@ Junction table for many-to-many relationship between projects and repositories.
 
 **Primary Key:** Composite key on (project_id, repo_id)
 
+#### 4. `project_environments` Table
+Junction table for project-repository environment configurations.
+
+**Columns:**
+- `project_id` (text, FK) - References projects.id
+- `repo_id` (text, FK) - References repos.id  
+- `environment` (text) - Environment name (e.g., "production", "staging", "pr-1")
+- `latest_deployment` (text, nullable) - Latest deployment identifier or version
+- `created_at` (timestamp) - Record creation time
+- `updated_at` (timestamp) - Record last update time
+
+**Primary Key:** Composite key on (project_id, repo_id)
+
 ## Relationships
 
 - **Projects ↔ Repositories**: Many-to-many relationship through `projects_repos` table
@@ -136,7 +149,7 @@ npm run db:studio    # Open Drizzle Studio
 
 ## Future Enhancements
 
-1. **Environments Table**: Create proper environments table to replace mock data
+1. **Environments Table**: ~~Create proper environments table to replace mock data~~ ✅ **COMPLETED** - `project_environments` table created
 2. **Teams Table**: Add teams/organizations table for more complex ownership
 3. **Permissions**: Add role-based access control
 4. **Webhooks**: Integration with GitHub webhooks for automatic updates
@@ -145,6 +158,7 @@ npm run db:studio    # Open Drizzle Studio
 ## Migration Files
 
 - `drizzle/0001_amusing_diamondback.sql` - Initial creation of repos, projects, and projects_repos tables
+- `drizzle/0006_neat_rockslide.sql` - Added project_environments table
 
 ## Performance Considerations
 

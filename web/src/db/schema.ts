@@ -188,3 +188,26 @@ export const projectsRepos = pgTable(
     },
   ]
 )
+
+export const projectEnvironments = pgTable(
+  "project_environments",
+  {
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    repoId: text("repo_id")
+      .notNull()
+      .references(() => repos.id, { onDelete: "cascade" }),
+    environment: text("environment").notNull(),
+    latestDeployment: text("latest_deployment"),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (projectEnvironments) => [
+    {
+      pk: primaryKey({
+        columns: [projectEnvironments.projectId, projectEnvironments.repoId],
+      }),
+    },
+  ]
+)
