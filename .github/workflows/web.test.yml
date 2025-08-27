@@ -96,7 +96,7 @@ jobs:
       - run: npm run db:migrate
 
       - name: Run integration tests
-        run: npm test:integration
+        run: npm run test:integration 
         env:
           NODE_ENV: test
           KUBECONFIG_PRIMARY: ${{ env.KUBECONFIG_PRIMARY }}
