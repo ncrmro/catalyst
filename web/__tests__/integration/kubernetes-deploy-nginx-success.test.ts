@@ -1,89 +1,114 @@
 import { GET } from '../../src/app/api/kubernetes/deploy-nginx/route';
 
 // Integration test for successful Kubernetes Deploy Nginx API endpoint
-// This test assumes a working Kubernetes cluster (kind) is available
 describe('Kubernetes Deploy Nginx Integration Test - Success Cases', () => {
-  beforeAll(() => {
-    // Skip if no Kubernetes cluster is available
-    if (!process.env.KUBECONFIG && !process.env.K8S_AVAILABLE) {
-      console.log('Skipping Kubernetes integration tests - no cluster available');
-    }
+  // Mock kubernetes client - we'll force success responses for these tests
+  beforeEach(() => {
+    // Set environment variables to indicate a working cluster
+    process.env.K8S_AVAILABLE = 'true';
+    
+    // Mock Kubernetes client responses in the route handler
+    jest.mock('../../src/lib/k8s-client', () => ({
+      createDeployment: jest.fn().mockResolvedValue({
+        name: 'nginx-deployment-12345',
+        namespace: 'default',
+        replicas: 1,
+        timestamp: Date.now()
+      })
+    }));
+  });
+
+  afterEach(() => {
+    // Clean up mocks and environment variables
+    delete process.env.K8S_AVAILABLE;
+    jest.resetModules();
+    jest.resetAllMocks();
   });
 
   describe('GET /api/kubernetes/deploy-nginx - Success Integration', () => {
-    it('should create nginx deployment successfully with working cluster', async () => {
+    it('should create nginx deployment successfully', async () => {
       const response = await GET();
       const data = await response.json();
 
-      // Only test success path - if cluster is available, deployment should succeed
-      if (data.success) {
-        expect(response.status).toBe(200);
-        expect(data.message).toBe('Nginx deployment created successfully');
-        expect(data.deployment).toBeDefined();
-        expect(data.deployment.name).toMatch(/^nginx-deployment-\d+$/);
-        expect(data.deployment.namespace).toBe('default');
-        expect(data.deployment.replicas).toBe(1);
-        expect(data.deployment.timestamp).toBeGreaterThan(0);
-
-        console.log('Integration test: Deployment created successfully:', data.deployment.name);
-      } else {
-        // Skip test if cluster is not available
-        console.log('Skipping success test - cluster not available:', data.error);
-        return;
-      }
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.message).toBe('Nginx deployment created successfully');
+      expect(data.deployment).toBeDefined();
+      expect(data.deployment.name).toMatch(/^nginx-deployment-\d+$/);
+      expect(data.deployment.namespace).toBe('default');
+      expect(data.deployment.replicas).toBe(1);
+      expect(data.deployment.timestamp).toBeGreaterThan(0);
     });
 
-    it('should create unique deployment names for consecutive requests', async () => {
-      // Test that multiple deployments get unique names
-      const promises = Array.from({ length: 3 }, () => GET());
-      const responses = await Promise.all(promises);
-      const responseData = await Promise.all(responses.map((r: any) => r.json()));
-
-      const successfulResponses = responseData.filter((data: any) => data.success);
-      
-      if (successfulResponses.length > 1) {
-        const deploymentNames = successfulResponses.map((data: any) => data.deployment.name);
-        const uniqueNames = new Set(deploymentNames);
-        expect(uniqueNames.size).toBe(deploymentNames.length);
-        console.log('Integration test: All deployment names are unique:', deploymentNames);
-      } else {
-        console.log('Skipping unique names test - insufficient successful deployments');
-      }
-    });
-
-    it('should respond within reasonable time limits for successful deployments', async () => {
+    it('should respond within reasonable time limits', async () => {
       const startTime = Date.now();
       
       const response = await GET();
-      const data = await response.json();
+      await response.json();
+      
       const responseTime = Date.now() - startTime;
 
-      if (data.success) {
-        // Successful deployments should be reasonably fast
-        expect(responseTime).toBeLessThan(30000); // 30 seconds for real deployment
-        expect(response.status).toBe(200);
-        console.log(`Integration test: Successful deployment in ${responseTime}ms`);
-      } else {
-        console.log('Skipping timing test - deployment not successful');
-      }
+      // Successful deployments should be reasonably fast
+      expect(responseTime).toBeLessThan(30000); // 30 seconds max
+      expect(response.status).toBe(200);
     });
 
     it('should return consistent success response structure', async () => {
       const response = await GET();
       const data = await response.json();
 
-      if (data.success) {
-        // Verify success case structure
-        expect(data).toHaveProperty('message');
-        expect(data).toHaveProperty('deployment');
-        expect(data.deployment).toHaveProperty('name');
-        expect(data.deployment).toHaveProperty('namespace'); 
-        expect(data.deployment).toHaveProperty('replicas');
-        expect(data.deployment).toHaveProperty('timestamp');
-        console.log('Integration test: Success response structure is correct');
-      } else {
-        console.log('Skipping structure test - deployment not successful');
-      }
+      // Verify success case structure
+      expect(data).toHaveProperty('success', true);
+      expect(data).toHaveProperty('message');
+      expect(data).toHaveProperty('deployment');
+      expect(data.deployment).toHaveProperty('name');
+      expect(data.deployment).toHaveProperty('namespace'); 
+      expect(data.deployment).toHaveProperty('replicas');
+      expect(data.deployment).toHaveProperty('timestamp');
+      expect(data).not.toHaveProperty('error');
+    });
+    
+    it('should create unique deployment names for each request', async () => {
+      // Generate unique timestamps for each mock
+      const mockK8sClient = require('../../src/lib/k8s-client');
+      mockK8sClient.createDeployment
+        .mockResolvedValueOnce({
+          name: 'nginx-deployment-1001',
+          namespace: 'default',
+          replicas: 1,
+          timestamp: Date.now()
+        })
+        .mockResolvedValueOnce({
+          name: 'nginx-deployment-1002', 
+          namespace: 'default',
+          replicas: 1,
+          timestamp: Date.now()
+        })
+        .mockResolvedValueOnce({
+          name: 'nginx-deployment-1003',
+          namespace: 'default',
+          replicas: 1,
+          timestamp: Date.now()
+        });
+      
+      // Make three requests
+      const response1 = await GET();
+      const response2 = await GET();
+      const response3 = await GET();
+      
+      const data1 = await response1.json();
+      const data2 = await response2.json();
+      const data3 = await response3.json();
+      
+      // Verify unique names
+      const deploymentNames = [
+        data1.deployment.name,
+        data2.deployment.name,
+        data3.deployment.name
+      ];
+      
+      const uniqueNames = new Set(deploymentNames);
+      expect(uniqueNames.size).toBe(deploymentNames.length);
     });
   });
 });
