@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createKubernetesNamespace, deleteKubernetesNamespace } from '../../../../actions/kubernetes';
+import { getInstallationOctokit } from '../../../../lib/github';
 
 /**
  * GitHub App Webhook Endpoint
@@ -143,14 +144,19 @@ function handlePushEvent(payload: {
  */
 async function handlePullRequestEvent(payload: {
   action: string;
+  installation: { id: number };
   pull_request: {
     number: number;
     title: string;
     user: { login: string };
   };
-  repository: { full_name: string };
+  repository: { 
+    full_name: string;
+    owner: { login: string };
+    name: string;
+  };
 }) {
-  const { action, pull_request, repository } = payload;
+  const { action, installation, pull_request, repository } = payload;
   
   console.log(`Pull request ${action} in ${repository.full_name}`, {
     pr_number: pull_request.number,
@@ -164,6 +170,20 @@ async function handlePullRequestEvent(payload: {
       // Extract team and project from repository full_name (owner/repo)
       const [owner, repo] = repository.full_name.split('/');
       const environment = `gh-pr-${pull_request.number}`;
+      
+      // Comment on the PR with "hello from catalyst"
+      try {
+        const octokit = await getInstallationOctokit(installation.id);
+        await octokit.rest.issues.createComment({
+          owner: repository.owner.login,
+          repo: repository.name,
+          issue_number: pull_request.number,
+          body: 'hello from catalyst',
+        });
+        console.log(`Comment added to PR ${pull_request.number} in ${repository.full_name}`);
+      } catch (commentError) {
+        console.error(`Failed to comment on PR ${pull_request.number}:`, commentError);
+      }
       
       const namespaceResult = await createKubernetesNamespace(owner, repo, environment);
       
