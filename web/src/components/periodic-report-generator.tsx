@@ -111,9 +111,6 @@ export default function PeriodicReportGenerator({ className = "" }: PeriodicRepo
 
   // Show the generated report
   // At this point, report is guaranteed to be non-null
-  if (!report) {
-    return null;
-  }
   
   return (
     <div className={`bg-surface border border-outline rounded-lg p-4 md:p-8 shadow-sm ${className}`}>
