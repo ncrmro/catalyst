@@ -17,6 +17,7 @@ const navItems: SidebarNavItem[] = [
   { href: "/kubeconfigs", label: "Kubeconfigs", icon: "⚙️" },
   { href: "/infrastructure", label: "Infrastructure", icon: "🏗️" },
   { href: "/clusters", label: "Clusters", icon: "☸️", adminOnly: true },
+  { href: "/admin/github", label: "GitHub App", icon: "📱", adminOnly: true },
 ];
 
 interface SidebarProps {
