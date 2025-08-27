@@ -5,6 +5,7 @@ import {
   text,
   primaryKey,
   integer,
+  unique,
 } from "drizzle-orm/pg-core"
 import type { AdapterAccountType } from "@auth/core/adapters"
  
@@ -185,6 +186,34 @@ export const projectsRepos = pgTable(
       pk: primaryKey({
         columns: [projectsRepos.projectId, projectsRepos.repoId],
       }),
+    },
+  ]
+)
+
+export const projectEnvironments = pgTable(
+  "project_environments",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    repoId: text("repo_id")
+      .notNull()
+      .references(() => repos.id, { onDelete: "cascade" }),
+    environment: text("environment").notNull(),
+    latestDeployment: text("latest_deployment"),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (projectEnvironments) => [
+    {
+      uniqueComposite: unique().on(
+        projectEnvironments.projectId,
+        projectEnvironments.repoId,
+        projectEnvironments.environment
+      ),
     },
   ]
 )

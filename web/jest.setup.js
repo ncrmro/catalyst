@@ -41,6 +41,15 @@ jest.mock('@/db', () => ({
   projects: {},
   repos: {},
   projectsRepos: {},
+  projectEnvironments: {
+    id: { name: 'id', type: 'text' },
+    projectId: { name: 'project_id', type: 'text' },
+    repoId: { name: 'repo_id', type: 'text' },
+    environment: { name: 'environment', type: 'text' },
+    latestDeployment: { name: 'latest_deployment', type: 'text' },
+    createdAt: { name: 'created_at', type: 'timestamp' },
+    updatedAt: { name: 'updated_at', type: 'timestamp' },
+  },
 }));
 
 // Set environment variables for testing
