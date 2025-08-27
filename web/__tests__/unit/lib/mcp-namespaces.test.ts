@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach, jest } from '@jest/globals';
 
-describe('MCP Namespaces', () => {
+describe('MCP Namespaces - Unit Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.resetModules();
@@ -14,14 +14,17 @@ describe('MCP Namespaces', () => {
         { name: 'user-project-prod', labels: { 'catalyst/team': 'user' }, creationTimestamp: '2023-01-01T00:00:00Z' },
       ];
 
+      const mockListNamespaces = jest.fn().mockResolvedValue(mockNamespaces);
+
       jest.doMock('@/lib/k8s-namespaces', () => ({
-        listNamespaces: jest.fn().mockResolvedValue(mockNamespaces),
+        listNamespaces: mockListNamespaces,
       }));
 
       const { getNamespacesForUser } = await import('@/lib/mcp-namespaces');
       const result = await getNamespacesForUser('user-1');
 
       expect(result).toEqual(mockNamespaces);
+      expect(mockListNamespaces).toHaveBeenCalledWith(undefined);
     });
 
     it('should return namespaces for specific cluster', async () => {
@@ -29,19 +32,24 @@ describe('MCP Namespaces', () => {
         { name: 'prod-namespace', labels: { environment: 'production' }, creationTimestamp: '2023-01-01T00:00:00Z' },
       ];
 
+      const mockListNamespaces = jest.fn().mockResolvedValue(mockNamespaces);
+
       jest.doMock('@/lib/k8s-namespaces', () => ({
-        listNamespaces: jest.fn().mockResolvedValue(mockNamespaces),
+        listNamespaces: mockListNamespaces,
       }));
 
       const { getNamespacesForUser } = await import('@/lib/mcp-namespaces');
       const result = await getNamespacesForUser('user-1', 'production');
 
       expect(result).toEqual(mockNamespaces);
+      expect(mockListNamespaces).toHaveBeenCalledWith('production');
     });
 
     it('should return empty array on error', async () => {
+      const mockListNamespaces = jest.fn().mockRejectedValue(new Error('Kubernetes error'));
+
       jest.doMock('@/lib/k8s-namespaces', () => ({
-        listNamespaces: jest.fn().mockRejectedValue(new Error('Kubernetes error')),
+        listNamespaces: mockListNamespaces,
       }));
 
       const { getNamespacesForUser } = await import('@/lib/mcp-namespaces');
@@ -58,8 +66,10 @@ describe('MCP Namespaces', () => {
         { name: 'target-ns', labels: { environment: 'test' }, creationTimestamp: '2023-01-02T00:00:00Z' },
       ];
 
+      const mockListNamespaces = jest.fn().mockResolvedValue(mockNamespaces);
+
       jest.doMock('@/lib/k8s-namespaces', () => ({
-        listNamespaces: jest.fn().mockResolvedValue(mockNamespaces),
+        listNamespaces: mockListNamespaces,
       }));
 
       const { getNamespaceDetails } = await import('@/lib/mcp-namespaces');
@@ -77,8 +87,10 @@ describe('MCP Namespaces', () => {
         { name: 'default', labels: {}, creationTimestamp: '2023-01-01T00:00:00Z' },
       ];
 
+      const mockListNamespaces = jest.fn().mockResolvedValue(mockNamespaces);
+
       jest.doMock('@/lib/k8s-namespaces', () => ({
-        listNamespaces: jest.fn().mockResolvedValue(mockNamespaces),
+        listNamespaces: mockListNamespaces,
       }));
 
       const { getNamespaceDetails } = await import('@/lib/mcp-namespaces');
@@ -92,8 +104,10 @@ describe('MCP Namespaces', () => {
         { name: 'target-ns', labels: { environment: 'test' }, creationTimestamp: '2023-01-02T00:00:00Z' },
       ];
 
+      const mockListNamespaces = jest.fn().mockResolvedValue(mockNamespaces);
+
       jest.doMock('@/lib/k8s-namespaces', () => ({
-        listNamespaces: jest.fn().mockResolvedValue(mockNamespaces),
+        listNamespaces: mockListNamespaces,
       }));
 
       const { getNamespaceDetails } = await import('@/lib/mcp-namespaces');
@@ -113,8 +127,10 @@ describe('MCP Namespaces', () => {
         { name: 'prod-ns', labels: { environment: 'production' }, creationTimestamp: '2023-01-02T00:00:00Z' },
       ];
 
+      const mockListNamespaces = jest.fn().mockResolvedValue(mockNamespaces);
+
       jest.doMock('@/lib/k8s-namespaces', () => ({
-        listNamespaces: jest.fn().mockResolvedValue(mockNamespaces),
+        listNamespaces: mockListNamespaces,
       }));
 
       const { getNamespaceDetails } = await import('@/lib/mcp-namespaces');
@@ -128,8 +144,10 @@ describe('MCP Namespaces', () => {
     });
 
     it('should return null on error', async () => {
+      const mockListNamespaces = jest.fn().mockRejectedValue(new Error('Kubernetes error'));
+
       jest.doMock('@/lib/k8s-namespaces', () => ({
-        listNamespaces: jest.fn().mockRejectedValue(new Error('Kubernetes error')),
+        listNamespaces: mockListNamespaces,
       }));
 
       const { getNamespaceDetails } = await import('@/lib/mcp-namespaces');

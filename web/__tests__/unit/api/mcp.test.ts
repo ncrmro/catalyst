@@ -1,8 +1,7 @@
 import { describe, expect, it, beforeEach, jest } from '@jest/globals';
 import { NextRequest } from 'next/server';
 
-describe('/api/mcp', () => {
-  // We'll use dynamic imports and mocking per test
+describe('MCP API Route - Unit Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.resetModules();
@@ -23,7 +22,6 @@ describe('/api/mcp', () => {
 
   describe('Authentication', () => {
     it('should reject requests without authorization header', async () => {
-      // Mock dependencies
       jest.doMock('@/lib/mcp-auth', () => ({
         validateApiKey: jest.fn(),
       }));
@@ -42,7 +40,6 @@ describe('/api/mcp', () => {
     });
 
     it('should reject requests with invalid bearer token format', async () => {
-      // Mock dependencies
       jest.doMock('@/lib/mcp-auth', () => ({
         validateApiKey: jest.fn(),
       }));
@@ -66,7 +63,6 @@ describe('/api/mcp', () => {
     it('should reject requests with invalid API key', async () => {
       const mockValidateApiKey = jest.fn().mockResolvedValue(null);
 
-      // Mock dependencies
       jest.doMock('@/lib/mcp-auth', () => ({
         validateApiKey: mockValidateApiKey,
       }));
@@ -100,7 +96,6 @@ describe('/api/mcp', () => {
         admin: false,
       });
 
-      // Mock dependencies
       jest.doMock('@/lib/mcp-auth', () => ({
         validateApiKey: mockValidateApiKey,
       }));
@@ -146,7 +141,6 @@ describe('/api/mcp', () => {
       const mockValidateApiKey = jest.fn().mockResolvedValue(mockUser);
       const mockGetNamespacesForUser = jest.fn().mockResolvedValue(mockNamespaces);
 
-      // Mock dependencies
       jest.doMock('@/lib/mcp-auth', () => ({
         validateApiKey: mockValidateApiKey,
       }));
@@ -200,7 +194,6 @@ describe('/api/mcp', () => {
       const mockValidateApiKey = jest.fn().mockResolvedValue(mockUser);
       const mockGetNamespacesForUser = jest.fn().mockResolvedValue(mockNamespaces);
 
-      // Mock dependencies
       jest.doMock('@/lib/mcp-auth', () => ({
         validateApiKey: mockValidateApiKey,
       }));
@@ -248,7 +241,6 @@ describe('/api/mcp', () => {
 
       const mockValidateApiKey = jest.fn().mockResolvedValue(mockUser);
 
-      // Mock dependencies
       jest.doMock('@/lib/mcp-auth', () => ({
         validateApiKey: mockValidateApiKey,
       }));
@@ -295,7 +287,6 @@ describe('/api/mcp', () => {
       const mockValidateApiKey = jest.fn().mockResolvedValue(mockUser);
       const mockGetNamespaceDetails = jest.fn().mockResolvedValue(mockNamespaceDetails);
 
-      // Mock dependencies
       jest.doMock('@/lib/mcp-auth', () => ({
         validateApiKey: mockValidateApiKey,
       }));
@@ -342,7 +333,6 @@ describe('/api/mcp', () => {
       const mockValidateApiKey = jest.fn().mockResolvedValue(mockUser);
       const mockGetNamespaceDetails = jest.fn().mockResolvedValue(null);
 
-      // Mock dependencies
       jest.doMock('@/lib/mcp-auth', () => ({
         validateApiKey: mockValidateApiKey,
       }));
@@ -396,7 +386,6 @@ describe('/api/mcp', () => {
       const mockValidateApiKey = jest.fn().mockResolvedValue(mockUser);
       const mockGetNamespaceDetails = jest.fn().mockResolvedValue(mockNamespaceDetails);
 
-      // Mock dependencies
       jest.doMock('@/lib/mcp-auth', () => ({
         validateApiKey: mockValidateApiKey,
       }));
@@ -451,7 +440,6 @@ describe('/api/mcp', () => {
 
       const mockValidateApiKey = jest.fn().mockResolvedValue(mockUser);
 
-      // Mock dependencies
       jest.doMock('@/lib/mcp-auth', () => ({
         validateApiKey: mockValidateApiKey,
       }));
@@ -493,7 +481,6 @@ describe('/api/mcp', () => {
 
       const mockValidateApiKey = jest.fn().mockResolvedValue(mockUser);
 
-      // Mock dependencies
       jest.doMock('@/lib/mcp-auth', () => ({
         validateApiKey: mockValidateApiKey,
       }));

@@ -1,15 +1,9 @@
 import { describe, expect, it, beforeEach, jest } from '@jest/globals';
 
-describe('MCP Auth', () => {
-  // We'll mock the functions directly within each test
-  let mockGetFirstUser: jest.MockedFunction<any>;
-  let mockValidateApiKey: jest.MockedFunction<any>;
-
+describe('MCP Auth - Unit Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     delete process.env.MCP_API_KEY;
-    
-    // Reset the modules
     jest.resetModules();
   });
 
