@@ -12,7 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-web:
+  lint-unit:
+    name: Lint and Unit Tests
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -35,10 +36,11 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
-      - name: Build Next.js
-        run: npm run build
+      - name: Run unit tests
+        run: npm run test:unit
 
   integration:
+    name: Integration Tests
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -97,6 +99,7 @@ jobs:
           KUBECONFIG_PRIMARY: ${{ env.KUBECONFIG_PRIMARY }}
 
   e2e:
+    name: E2E Tests
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -195,6 +198,7 @@ jobs:
           retention-days: 30
 
   build-container:
+    name: Build Container Images
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -222,6 +226,7 @@ jobs:
           files: "./docker-bake.yml"
 
   preview-environment:
+    name: Deploy Preview Environment
     needs: build-container
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
