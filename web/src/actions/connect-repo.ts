@@ -3,6 +3,7 @@
 import { db, projects, repos, projectsRepos } from '@/db';
 import { eq } from 'drizzle-orm';
 import { getUserPrimaryTeamId } from '@/lib/team-auth';
+import { debug } from '@/lib/debug';
 
 interface GitHubRepo {
   id: number;
@@ -63,7 +64,7 @@ export async function connectRepoToProject(request: ConnectRepoRequest): Promise
         // Simulate creating a new project
         const newProjectId = `proj-${Date.now()}`;
         
-        console.log('Mock: Creating new project', {
+        debug('Mock: Creating new project', {
           projectId: newProjectId,
           name: projectName,
           fullName: `${repo.owner.login}/${projectName}`,
@@ -79,7 +80,7 @@ export async function connectRepoToProject(request: ConnectRepoRequest): Promise
         }
 
         // Simulate adding repo to existing project
-        console.log('Mock: Adding repository to existing project', {
+        debug('Mock: Adding repository to existing project', {
           projectId,
           repoId,
           isPrimary

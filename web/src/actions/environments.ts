@@ -1,5 +1,7 @@
 'use server';
 
+import { debug } from '@/lib/debug';
+
 /**
  * Server actions for configuring project environments
  */
@@ -12,7 +14,7 @@ export async function configureProjectEnvironments(formData: FormData) {
     const projectId = formData.get('projectId') as string;
     const environmentType = formData.get('environmentType') as string;
 
-    console.log('Configuring environment for project:', {
+    debug('Configuring environment for project:', {
       projectId,
       environmentType,
       timestamp: new Date().toISOString(),
@@ -26,7 +28,7 @@ export async function configureProjectEnvironments(formData: FormData) {
     // - Setting up monitoring and logging
     // - Creating infrastructure resources
 
-    console.log(`Success: ${environmentType} environment configuration started for project ${projectId}`);
+    debug(`Success: ${environmentType} environment configuration started for project ${projectId}`);
   } catch (error) {
     console.error('Error configuring environment:', error);
   }

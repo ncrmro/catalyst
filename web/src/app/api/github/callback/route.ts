@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { debug } from '../../../../lib/debug';
 
 /**
  * GitHub App OAuth Callback Endpoint
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
  * Handle successful app installation
  */
 function handleInstallation(installationId: string, state: string | null) {
-  console.log('GitHub App installed successfully', {
+  debug('GitHub App installed successfully', {
     installation_id: installationId,
     state: state
   });
@@ -80,7 +81,7 @@ function handleInstallation(installationId: string, state: string | null) {
  * Handle installation request (when app needs approval)
  */
 function handleInstallationRequest(installationId: string, state: string | null) {
-  console.log('GitHub App installation requested', {
+  debug('GitHub App installation requested', {
     installation_id: installationId,
     state: state
   });
@@ -103,7 +104,7 @@ function handleInstallationRequest(installationId: string, state: string | null)
  * Handle installation update
  */
 function handleInstallationUpdate(installationId: string, state: string | null) {
-  console.log('GitHub App installation updated', {
+  debug('GitHub App installation updated', {
     installation_id: installationId,
     state: state
   });
@@ -129,7 +130,7 @@ function handleGenericCallback(
   state: string | null,
   code: string | null
 ) {
-  console.log('GitHub OAuth callback received', {
+  debug('GitHub OAuth callback received', {
     installation_id: installationId,
     setup_action: setupAction,
     state: state,

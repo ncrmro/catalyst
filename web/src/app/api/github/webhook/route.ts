@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createKubernetesNamespace, deleteKubernetesNamespace } from '../../../../actions/kubernetes';
+import { debug } from '../../../../lib/debug';
 
 /**
  * GitHub App Webhook Endpoint
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
       case 'pull_request':
         return await handlePullRequestEvent(payload);
       default:
-        console.log(`Received unhandled event: ${event}`);
+        debug(`Received unhandled event: ${event}`);
         return NextResponse.json({ 
           success: true, 
           message: `Event ${event} received but not handled`,
@@ -78,7 +79,7 @@ function handleInstallationEvent(payload: {
 }) {
   const { action, installation, sender } = payload;
   
-  console.log(`Installation ${action} by ${sender.login}`, {
+  debug(`Installation ${action} by ${sender.login}`, {
     installation_id: installation.id,
     account: installation.account.login,
     permissions: installation.permissions
@@ -102,7 +103,7 @@ function handleInstallationRepositoriesEvent(payload: {
 }) {
   const { action, installation, repositories_added, repositories_removed } = payload;
   
-  console.log(`Installation repositories ${action}`, {
+  debug(`Installation repositories ${action}`, {
     installation_id: installation.id,
     added: repositories_added?.length || 0,
     removed: repositories_removed?.length || 0
@@ -125,7 +126,7 @@ function handlePushEvent(payload: {
 }) {
   const { repository, commits, pusher } = payload;
   
-  console.log(`Push to ${repository.full_name}`, {
+  debug(`Push to ${repository.full_name}`, {
     commits_count: commits.length,
     pusher: pusher.name,
     ref: payload.ref
@@ -152,7 +153,7 @@ async function handlePullRequestEvent(payload: {
 }) {
   const { action, pull_request, repository } = payload;
   
-  console.log(`Pull request ${action} in ${repository.full_name}`, {
+  debug(`Pull request ${action} in ${repository.full_name}`, {
     pr_number: pull_request.number,
     title: pull_request.title,
     author: pull_request.user.login
@@ -168,7 +169,7 @@ async function handlePullRequestEvent(payload: {
       const namespaceResult = await createKubernetesNamespace(owner, repo, environment);
       
       if (namespaceResult.success) {
-        console.log(`Namespace created for PR ${pull_request.number}:`, namespaceResult.namespace?.name);
+        debug(`Namespace created for PR ${pull_request.number}:`, namespaceResult.namespace?.name);
         return NextResponse.json({
           success: true,
           message: `Pull request ${action} processed and namespace created`,
@@ -205,7 +206,7 @@ async function handlePullRequestEvent(payload: {
       const deleteResult = await deleteKubernetesNamespace(owner, repo, environment);
       
       if (deleteResult.success) {
-        console.log(`Namespace deleted for PR ${pull_request.number}:`, deleteResult.namespaceName);
+        debug(`Namespace deleted for PR ${pull_request.number}:`, deleteResult.namespaceName);
         return NextResponse.json({
           success: true,
           message: `Pull request ${action} processed and namespace deleted`,

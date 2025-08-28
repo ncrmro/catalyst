@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { KubeConfig, getAppsV1Api } from '../../../../lib/k8s-client';
+import { debug } from '../../../../lib/debug';
 
 export async function GET() {
   try {
@@ -89,7 +90,7 @@ export async function GET() {
       body: deployment
     });
 
-    console.log(`Nginx deployment created: ${deploymentName}`, {
+    debug(`Nginx deployment created: ${deploymentName}`, {
       name: response.metadata?.name,
       namespace: response.metadata?.namespace,
       replicas: response.spec?.replicas,

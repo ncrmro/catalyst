@@ -2,6 +2,7 @@
 
 import { auth } from '@/auth';
 import { Octokit } from '@octokit/rest';
+import { debug } from '@/lib/debug';
 
 /**
  * Server action to fetch GitHub repositories for the current user and organizations
@@ -251,14 +252,14 @@ export async function fetchGitHubRepos(): Promise<ReposData> {
   const mocked = process.env.MOCKED;
   const reposMode = process.env.GITHUB_REPOS_MODE;
   
-  console.log('Environment check - MOCKED:', mocked, 'GITHUB_REPOS_MODE:', reposMode);
+  debug('Environment check - MOCKED:', mocked, 'GITHUB_REPOS_MODE:', reposMode);
   
   if (mocked === '1' || reposMode === 'mocked') {
-    console.log('Returning mocked GitHub repos data');
+    debug('Returning mocked GitHub repos data');
     return getMockReposData();
   }
 
   // For non-mocked environments, fetch real data from GitHub API
-  console.log('Fetching real GitHub repos data');
+  debug('Fetching real GitHub repos data');
   return await fetchRealGitHubRepos();
 }

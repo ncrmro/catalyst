@@ -8,6 +8,7 @@ import { db, projects, repos, projectsRepos } from '@/db';
 import { eq, inArray } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { Octokit } from '@octokit/rest';
+import { debug } from '@/lib/debug';
 import { getUserTeamIds } from '@/lib/team-auth';
 
 type ProjectQueryResult = {
@@ -242,7 +243,7 @@ export async function fetchProjects(): Promise<ProjectsData> {
   const mocked = process.env.MOCKED;
   
   if (mocked === '1') {
-    console.log('Returning mocked projects data');
+    debug('Returning mocked projects data');
     return getMockProjectsData();
   }
 
@@ -271,7 +272,7 @@ export async function fetchProjects(): Promise<ProjectsData> {
     }
 
     if (projectsFromDb.length === 0) {
-      console.log('No projects found in database, returning mocked data');
+      debug('No projects found in database, returning mocked data');
       return getMockProjectsData();
     }
 
@@ -342,7 +343,7 @@ export async function fetchProjects(): Promise<ProjectsData> {
       return getMockProjectsData();
     }
 
-    console.log(`Returning ${validProjects.length} projects from database`);
+    debug(`Returning ${validProjects.length} projects from database`);
     return {
       projects: validProjects,
       total_count: validProjects.length,
@@ -350,7 +351,7 @@ export async function fetchProjects(): Promise<ProjectsData> {
 
   } catch (error) {
     console.error('Error fetching projects from database:', error);
-    console.log('Falling back to mocked data');
+    debug('Falling back to mocked data');
     return getMockProjectsData();
   }
 }
@@ -492,7 +493,7 @@ export async function fetchProjectPullRequests(projectId: string): Promise<impor
     const reposMode = process.env.GITHUB_REPOS_MODE;
     
     if (mocked === '1' || reposMode === 'mocked') {
-      console.log('Returning mocked pull requests data for project', projectId);
+      debug('Returning mocked pull requests data for project', projectId);
       // Return mock pull requests filtered by project repositories
       const allMockPRs = getMockPullRequestsData();
       const projectRepoNames = project.repositories.map(repo => repo.full_name);
@@ -503,7 +504,7 @@ export async function fetchProjectPullRequests(projectId: string): Promise<impor
     }
 
     // Fetch real pull requests from GitHub API
-    console.log('Fetching real pull requests for project', projectId);
+    debug('Fetching real pull requests for project', projectId);
     return await fetchRealPullRequests(project.repositories);
   } catch (error) {
     console.error('Error fetching project pull requests:', error);
@@ -526,7 +527,7 @@ export async function fetchProjectIssues(projectId: string): Promise<import('@/a
     const reposMode = process.env.GITHUB_REPOS_MODE;
     
     if (mocked === '1' || reposMode === 'mocked') {
-      console.log('Returning mocked issues data for project', projectId);
+      debug('Returning mocked issues data for project', projectId);
       // Return mock issues filtered by project repositories
       const allMockIssues = getMockIssuesData();
       const projectRepoNames = project.repositories.map(repo => repo.full_name);
@@ -537,7 +538,7 @@ export async function fetchProjectIssues(projectId: string): Promise<import('@/a
     }
 
     // Fetch real issues from GitHub API
-    console.log('Fetching real issues for project', projectId);
+    debug('Fetching real issues for project', projectId);
     return await fetchRealIssues(project.repositories);
   } catch (error) {
     console.error('Error fetching project issues:', error);
