@@ -161,7 +161,9 @@ export function getClusterAudience(clusterName?: string): string {
   const defaultAudience = `https://${clusterName || 'cluster'}.example.com`;
   
   // Check for environment variable first
-  const envVar = clusterName ? `CLUSTER_OIDC_AUDIENCE_${clusterName.toUpperCase()}` : 'CLUSTER_OIDC_AUDIENCE';
+  const envVar = clusterName
+    ? `CLUSTER_OIDC_AUDIENCE_${clusterName.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`
+    : 'CLUSTER_OIDC_AUDIENCE';
   const configuredAudience = process.env[envVar];
   
   return configuredAudience || defaultAudience;
