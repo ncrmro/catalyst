@@ -41,7 +41,7 @@ export function ClusterCard({ cluster }: ClusterCardProps) {
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to toggle GitHub OIDC');
         // Reset the checkbox state on error
-        setGithubOIDCEnabled(githubOIDCEnabled);
+        setGithubOIDCEnabled(!newValue);
       }
     });
   };
