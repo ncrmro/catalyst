@@ -159,13 +159,9 @@ describe('/api/github/webhook', () => {
       });
 
       // Mock GitHub octokit for commenting
-      const mockCreateComment = jest.fn().mockResolvedValue({});
+      const mockRequest = jest.fn().mockResolvedValue({});
       mockGetInstallationOctokit.mockResolvedValue({
-        rest: {
-          issues: {
-            createComment: mockCreateComment
-          }
-        }
+        request: mockRequest
       } as any);
 
       const payload = {
@@ -222,7 +218,7 @@ describe('/api/github/webhook', () => {
       
       // Verify GitHub comment was created
       expect(mockGetInstallationOctokit).toHaveBeenCalledWith(12345);
-      expect(mockCreateComment).toHaveBeenCalledWith({
+      expect(mockRequest).toHaveBeenCalledWith('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
         owner: 'user',
         repo: 'repo',
         issue_number: 42,
@@ -378,13 +374,9 @@ describe('/api/github/webhook', () => {
       });
 
       // Mock GitHub octokit for commenting
-      const mockCreateComment = jest.fn().mockResolvedValue({});
+      const mockRequest = jest.fn().mockResolvedValue({});
       mockGetInstallationOctokit.mockResolvedValue({
-        rest: {
-          issues: {
-            createComment: mockCreateComment
-          }
-        }
+        request: mockRequest
       } as any);
 
       const payload = {

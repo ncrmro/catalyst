@@ -174,7 +174,7 @@ async function handlePullRequestEvent(payload: {
       // Comment on the PR with "hello from catalyst"
       try {
         const octokit = await getInstallationOctokit(installation.id);
-        await octokit.rest.issues.createComment({
+        await octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
           owner: repository.owner.login,
           repo: repository.name,
           issue_number: pull_request.number,
