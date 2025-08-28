@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
-import { getClusters, ClusterInfo } from '@/actions/clusters';
+import { getClusters, getGitHubOIDCStatus, ClusterInfo } from '@/actions/clusters';
 import { auth } from '@/auth';
-import Link from 'next/link';
+import { ClusterCard } from '@/components/ClusterCard';
 
 // Mock cluster data for when real data is not available
 const mockClusters = [
@@ -32,86 +32,9 @@ interface ExtendedClusterInfo extends ClusterInfo {
   allocatedCPU?: string;
   allocatedMemory?: string;
   allocatedStorage?: string;
+  githubOIDCEnabled?: boolean;
 }
 
-function ClusterCard({ cluster }: { cluster: ExtendedClusterInfo }) {
-  const isRealCluster = !!(cluster.endpoint && cluster.source);
-  
-  return (
-    <div className="border border-outline rounded-lg p-6 bg-surface shadow-sm">
-      <div className="flex justify-between items-start mb-4">
-        <h3 className="text-xl font-semibold text-on-surface capitalize">
-          {cluster.name}
-        </h3>
-        {isRealCluster && (
-          <span className="text-xs bg-primary-container text-on-primary-container px-2 py-1 rounded">
-            {cluster.source}
-          </span>
-        )}
-      </div>
-      
-      {isRealCluster && (
-        <div className="mb-4">
-          <p className="text-sm text-on-surface-variant">Endpoint</p>
-          <p className="text-sm font-mono text-on-surface break-all">{cluster.endpoint}</p>
-        </div>
-      )}
-      
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <p className="text-sm text-on-surface-variant">Cost per Month</p>
-          <p className="text-lg font-medium text-secondary">{cluster.costPerMonth || 'N/A'}</p>
-        </div>
-        
-        <div>
-          <p className="text-sm text-on-surface-variant">Nodes</p>
-          <p className="text-lg font-medium text-on-surface">
-            {cluster.currentNodes && cluster.maxNodes ? `${cluster.currentNodes} / ${cluster.maxNodes}` : 'N/A'}
-          </p>
-        </div>
-        
-        <div>
-          <p className="text-sm text-on-surface-variant">CPU</p>
-          <p className="text-lg font-medium text-on-surface">{cluster.allocatedCPU || 'N/A'}</p>
-        </div>
-        
-        <div>
-          <p className="text-sm text-on-surface-variant">Memory</p>
-          <p className="text-lg font-medium text-on-surface">{cluster.allocatedMemory || 'N/A'}</p>
-        </div>
-        
-        <div className="col-span-2">
-          <p className="text-sm text-on-surface-variant">Storage</p>
-          <p className="text-lg font-medium text-on-surface">{cluster.allocatedStorage || 'N/A'}</p>
-        </div>
-      </div>
-      
-      {cluster.currentNodes && cluster.maxNodes && (
-        <div className="mt-4 bg-primary-container rounded p-3">
-          <div className="flex justify-between text-sm text-on-primary-container">
-            <span>Node Utilization:</span>
-            <span>{Math.round((cluster.currentNodes / cluster.maxNodes) * 100)}%</span>
-          </div>
-          <div className="w-full bg-outline rounded-full h-2 mt-1">
-            <div 
-              className="bg-primary h-2 rounded-full" 
-              style={{ width: `${(cluster.currentNodes / cluster.maxNodes) * 100}%` }}
-            ></div>
-          </div>
-        </div>
-      )}
-      
-      <div className="mt-4 flex gap-2">
-        <Link 
-          href={`/clusters/${encodeURIComponent(cluster.name)}/namespaces`}
-          className="flex-1 bg-primary text-on-primary text-center py-2 px-4 rounded-md text-sm font-medium hover:bg-primary-variant transition-colors"
-        >
-          View Namespaces
-        </Link>
-      </div>
-    </div>
-  );
-}
 
 export default async function ClustersPage() {
   // Check if user is authenticated and has admin privileges
@@ -125,15 +48,46 @@ export default async function ClustersPage() {
   let clusters: ExtendedClusterInfo[] = [];
   try {
     const realClusters = await getClusters();
-    clusters = realClusters;
+    
+    // Fetch GitHub OIDC status for each cluster
+    const clustersWithOIDC = await Promise.all(
+      realClusters.map(async (cluster) => {
+        let githubOIDCEnabled = false;
+        try {
+          // Only check OIDC status for real clusters
+          if (cluster.endpoint && cluster.source) {
+            githubOIDCEnabled = await getGitHubOIDCStatus(cluster.name);
+          }
+        } catch (error) {
+          console.warn(`Failed to get GitHub OIDC status for cluster ${cluster.name}:`, error);
+        }
+        
+        return {
+          ...cluster,
+          githubOIDCEnabled
+        };
+      })
+    );
+    
+    clusters = clustersWithOIDC;
   } catch (error) {
     console.warn('Failed to load real cluster data, using mock data:', error);
-    clusters = mockClusters.map(cluster => ({ ...cluster, endpoint: '', source: 'mock' }));
+    clusters = mockClusters.map(cluster => ({ 
+      ...cluster, 
+      endpoint: '', 
+      source: 'mock',
+      githubOIDCEnabled: false 
+    }));
   }
 
   // If no clusters found, use mock data
   if (clusters.length === 0) {
-    clusters = mockClusters.map(cluster => ({ ...cluster, endpoint: '', source: 'mock' }));
+    clusters = mockClusters.map(cluster => ({ 
+      ...cluster, 
+      endpoint: '', 
+      source: 'mock',
+      githubOIDCEnabled: false 
+    }));
   }
 
   const hasRealClusters = clusters.some(cluster => cluster.source !== 'mock');
