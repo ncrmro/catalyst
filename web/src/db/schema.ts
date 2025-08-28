@@ -217,3 +217,45 @@ export const projectEnvironments = pgTable(
     },
   ]
 )
+
+/**
+ * Project Manifests Table
+ * 
+ * Tracks manifest files within repositories that provide hints about project type
+ * and deployment configuration. The `path` field points to a specific file somewhere
+ * in the repository that indicates how the project should be set up for development
+ * and deployment environments.
+ * 
+ * Projects can have multiple manifests, each providing different deployment hints:
+ * - Dockerfile: Indicates containerization capabilities
+ * - Chart.yaml: Kubernetes Helm package configuration
+ * - package.json: JavaScript/Node.js package configuration
+ * - Cargo.toml: Rust package configuration
+ * - Project.toml: Python/Julia package configuration  
+ * - Gemfile: Ruby/Rails package configuration
+ * 
+ * These manifest files help the system automatically detect project types and
+ * suggest appropriate deployment strategies when users haven't explicitly
+ * configured deployment settings.
+ */
+export const projectManifests = pgTable(
+  "project_manifests",
+  {
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    repoId: text("repo_id")
+      .notNull()
+      .references(() => repos.id, { onDelete: "cascade" }),
+    path: text("path").notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (projectManifests) => [
+    {
+      pk: primaryKey({
+        columns: [projectManifests.projectId, projectManifests.repoId, projectManifests.path],
+      }),
+    },
+  ]
+)
