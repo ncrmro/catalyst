@@ -73,12 +73,12 @@ export async function isGitHubOIDCEnabled(clusterName?: string): Promise<boolean
     
     try {
       // Try to get the AuthenticationConfiguration resource
-      await customObjectsApi.getClusterCustomObject(
-        'authentication.k8s.io',
-        'v1beta1',
-        'authenticationconfigurations',
-        configName
-      );
+      await customObjectsApi.getClusterCustomObject({
+        group: 'authentication.k8s.io',
+        version: 'v1beta1',
+        plural: 'authenticationconfigurations',
+        name: configName
+      });
       
       // If we get here without error, the configuration exists
       return true;
@@ -138,12 +138,12 @@ export async function enableGitHubOIDC(options: GitHubOIDCOptions, clusterName?:
       ...authConfig
     };
 
-    await customObjectsApi.createClusterCustomObject(
-      'authentication.k8s.io',
-      'v1beta1',
-      'authenticationconfigurations',
-      resource
-    );
+    await customObjectsApi.createClusterCustomObject({
+      group: 'authentication.k8s.io',
+      version: 'v1beta1',
+      plural: 'authenticationconfigurations',
+      body: resource
+    });
 
     console.log(`GitHub OIDC AuthenticationConfiguration created successfully: ${configName}`, {
       cluster: clusterName || 'default',
@@ -189,12 +189,12 @@ export async function disableGitHubOIDC(clusterName?: string): Promise<GitHubOID
     const customObjectsApi = kc.makeApiClient(CustomObjectsApi);
 
     // Delete the AuthenticationConfiguration resource
-    await customObjectsApi.deleteClusterCustomObject(
-      'authentication.k8s.io',
-      'v1beta1',
-      'authenticationconfigurations',
-      configName
-    );
+    await customObjectsApi.deleteClusterCustomObject({
+      group: 'authentication.k8s.io',
+      version: 'v1beta1',
+      plural: 'authenticationconfigurations',
+      name: configName
+    });
 
     console.log(`GitHub OIDC AuthenticationConfiguration deleted successfully: ${configName}`, {
       cluster: clusterName || 'default'

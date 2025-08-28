@@ -47,7 +47,7 @@ export function ClusterCard({ cluster }: ClusterCardProps) {
   };
 
   return (
-    <div className="border border-outline rounded-lg p-6 bg-surface shadow-sm">
+    <div className="border border-outline rounded-lg p-6 bg-surface shadow-sm" data-testid="cluster-card">
       <div className="flex justify-between items-start mb-4">
         <h3 className="text-xl font-semibold text-on-surface capitalize">
           {cluster.name}
@@ -68,7 +68,7 @@ export function ClusterCard({ cluster }: ClusterCardProps) {
 
       {/* GitHub OIDC Section */}
       {isRealCluster && (
-        <div className="mb-4 p-3 bg-primary-container/50 rounded-md">
+        <div className="mb-4 p-3 bg-primary-container/50 rounded-md" data-testid="github-oidc-section">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-on-surface">GitHub OIDC</p>
