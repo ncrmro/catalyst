@@ -104,7 +104,18 @@ test.describe('Projects Pages', () => {
 
       // Verify environments section shows environment information
       const envsSection = page.locator('h2:has-text("Environments")').locator('..');
-      await expect(envsSection.locator('text=/active|inactive|deploying/').first()).toBeVisible(); // Should have status badges
+      
+      // The environments section should always be visible
+      await expect(envsSection).toBeVisible();
+      
+      // Check if project has environments - should either have status badges OR "No environments configured"
+      const hasStatusBadges = await envsSection.locator('text=/active|inactive|deploying/').count() > 0;
+      const hasNoEnvMessage = await envsSection.locator('text=No environments configured').count() > 0;
+      const hasAddEnvButton = await envsSection.locator('a:has-text("Add Environment")').count() > 0;
+      const hasSetupEnvButton = await envsSection.locator('a:has-text("Set up Environment")').count() > 0;
+      
+      // Project should have either environments (status badges + add button) OR no-environment setup
+      expect(hasStatusBadges || hasNoEnvMessage || hasAddEnvButton || hasSetupEnvButton).toBe(true);
     } else {
       console.log('No projects available for section test');
     }
@@ -162,6 +173,119 @@ test.describe('Projects Pages', () => {
       }
     } else {
       console.log('No projects available for external links test');
+    }
+  });
+
+  test('should show environment setup banner when no environments exist', async ({ page }) => {
+    await page.goto('/projects');
+    await page.waitForLoadState('networkidle');
+
+    const projectCards = page.locator('[data-testid^="project-card-"]');
+    const projectCount = await projectCards.count();
+
+    if (projectCount > 0) {
+      // Navigate to a project
+      await projectCards.first().click();
+      await page.waitForLoadState('networkidle');
+
+      // Check if the project has environments or not by looking for the banner
+      const noEnvBanner = page.locator('text=No environments configured');
+      const hasNoEnvBanner = await noEnvBanner.count() > 0;
+
+      if (hasNoEnvBanner) {
+        // Project has no environments - should show setup banner
+        await expect(page.locator('text=No environments configured')).toBeVisible();
+        await expect(page.locator('text=Set up your first deployment environment')).toBeVisible();
+        
+        // Should have "Set up Environment" link
+        const setupLink = page.locator('a:has-text("Set up Environment")');
+        await expect(setupLink).toBeVisible();
+        await expect(setupLink).toHaveAttribute('href', new RegExp(`/environments/[^/]+$`));
+        
+        // Should NOT have "Add Environment" button
+        await expect(page.locator('button:has-text("Add Environment"), a:has-text("Add Environment")')).not.toBeVisible();
+      } else {
+        console.log('Project has environments - skipping no-environment test');
+      }
+    } else {
+      console.log('No projects available for environment setup test');
+    }
+  });
+
+  test('should show add environment button when environments exist', async ({ page }) => {
+    await page.goto('/projects');
+    await page.waitForLoadState('networkidle');
+
+    const projectCards = page.locator('[data-testid^="project-card-"]');
+    const projectCount = await projectCards.count();
+
+    if (projectCount > 0) {
+      // Navigate to a project
+      await projectCards.first().click();
+      await page.waitForLoadState('networkidle');
+
+      // Check if the project has environments by looking for the Add Environment button
+      const addEnvButton = page.locator('a:has-text("Add Environment")');
+      const hasAddEnvButton = await addEnvButton.count() > 0;
+
+      if (hasAddEnvButton) {
+        // Project has environments - should show add environment button
+        await expect(addEnvButton).toBeVisible();
+        await expect(addEnvButton).toHaveAttribute('href', new RegExp(`/environments/[^/]+$`));
+        
+        // Should NOT show the no-environments banner
+        await expect(page.locator('text=No environments configured')).not.toBeVisible();
+        await expect(page.locator('text=Set up Environment')).not.toBeVisible();
+      } else {
+        console.log('Project has no environments - skipping existing-environment test');
+      }
+    } else {
+      console.log('No projects available for environment add test');
+    }
+  });
+
+  test('should navigate to environment setup page correctly', async ({ page }) => {
+    await page.goto('/projects');
+    await page.waitForLoadState('networkidle');
+
+    const projectCards = page.locator('[data-testid^="project-card-"]');
+    const projectCount = await projectCards.count();
+
+    if (projectCount > 0) {
+      // Navigate to a project
+      await projectCards.first().click();
+      await page.waitForLoadState('networkidle');
+
+      // Find either "Set up Environment" or "Add Environment" link
+      const setupLink = page.locator('a:has-text("Set up Environment")');
+      const addLink = page.locator('a:has-text("Add Environment")');
+      
+      let linkToClick = null;
+      if (await setupLink.isVisible()) {
+        linkToClick = setupLink;
+      } else if (await addLink.isVisible()) {
+        linkToClick = addLink;
+      }
+
+      if (linkToClick) {
+        // Click the environment setup/add link
+        await linkToClick.click();
+        await page.waitForLoadState('networkidle');
+
+        // Should navigate to environment setup page
+        await expect(page).toHaveURL(new RegExp(`/environments/[^/]+$`));
+        await expect(page.locator('h1:has-text("Configure Environments")')).toBeVisible();
+        await expect(page.locator('text=Choose Your First Environment')).toBeVisible();
+        
+        // Should have radio buttons for environment types
+        await expect(page.locator('input[name="environmentType"][value="preview"]')).toBeVisible();
+        await expect(page.locator('input[name="environmentType"][value="production"]')).toBeVisible();
+        await expect(page.locator('input[name="environmentType"][value="staging"]')).toBeVisible();
+      } else {
+        console.log('No environment setup links found');
+      }
+    } else {
+      console.log('No projects available for environment navigation test');
     }
   });
 
