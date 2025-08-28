@@ -251,11 +251,7 @@ export const projectManifests = pgTable(
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },
-  (projectManifests) => [
-    {
-      pk: primaryKey({
-        columns: [projectManifests.projectId, projectManifests.repoId, projectManifests.path],
-      }),
-    },
+  (table) => [
+    primaryKey({ columns: [table.projectId, table.repoId, table.path]}),
   ]
 )
