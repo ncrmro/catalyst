@@ -9,10 +9,12 @@ import {
 // Mock the k8s-client module
 jest.mock('../../src/lib/k8s-client', () => ({
   getClusterConfig: jest.fn(),
+  getCustomObjectsApi: jest.fn(),
 }));
 
-import { getClusterConfig } from '../../src/lib/k8s-client';
+import { getClusterConfig, getCustomObjectsApi } from '../../src/lib/k8s-client';
 const mockGetClusterConfig = getClusterConfig as jest.MockedFunction<typeof getClusterConfig>;
+const mockGetCustomObjectsApi = getCustomObjectsApi as jest.MockedFunction<typeof getCustomObjectsApi>;
 
 describe('k8s-github-oidc', () => {
   beforeEach(() => {
@@ -76,23 +78,52 @@ describe('k8s-github-oidc', () => {
   });
 
   describe('isGitHubOIDCEnabled', () => {
-    it('should return false by default', async () => {
+    it('should return false when no cluster config available', async () => {
       mockGetClusterConfig.mockResolvedValue(null);
       const enabled = await isGitHubOIDCEnabled();
       expect(enabled).toBe(false);
     });
 
-    it('should return false for specific cluster', async () => {
-      mockGetClusterConfig.mockResolvedValue(null);
+    it('should return false when configuration does not exist', async () => {
+      const mockKubeConfig = { makeApiClient: jest.fn() };
+      const mockCustomObjectsApi = {
+        getClusterCustomObject: jest.fn().mockRejectedValue({ code: 404 }),
+      };
+      
+      mockGetClusterConfig.mockResolvedValue(mockKubeConfig as any);
+      mockGetCustomObjectsApi.mockResolvedValue(() => mockCustomObjectsApi);
+      mockKubeConfig.makeApiClient.mockReturnValue(mockCustomObjectsApi);
+      
       const enabled = await isGitHubOIDCEnabled('test-cluster');
       expect(enabled).toBe(false);
+    });
+
+    it('should return true when configuration exists', async () => {
+      const mockKubeConfig = { makeApiClient: jest.fn() };
+      const mockCustomObjectsApi = {
+        getClusterCustomObject: jest.fn().mockResolvedValue({}),
+      };
+      
+      mockGetClusterConfig.mockResolvedValue(mockKubeConfig as any);
+      mockGetCustomObjectsApi.mockResolvedValue(() => mockCustomObjectsApi);
+      mockKubeConfig.makeApiClient.mockReturnValue(mockCustomObjectsApi);
+      
+      const enabled = await isGitHubOIDCEnabled('test-cluster');
+      expect(enabled).toBe(true);
     });
   });
 
   describe('enableGitHubOIDC', () => {
     it('should return success result', async () => {
       const mockKubeConfig = { makeApiClient: jest.fn() };
+      const mockCustomObjectsApi = {
+        getClusterCustomObject: jest.fn().mockRejectedValue({ code: 404 }),
+        createClusterCustomObject: jest.fn().mockResolvedValue({}),
+      };
+      
       mockGetClusterConfig.mockResolvedValue(mockKubeConfig as any);
+      mockGetCustomObjectsApi.mockResolvedValue(() => mockCustomObjectsApi);
+      mockKubeConfig.makeApiClient.mockReturnValue(mockCustomObjectsApi);
       
       const result = await enableGitHubOIDC({
         clusterAudience: 'https://test.cluster.example.com'
@@ -102,6 +133,27 @@ describe('k8s-github-oidc', () => {
         name: 'github-oidc-auth',
         created: true,
         exists: false
+      });
+    });
+
+    it('should return exists result if configuration already exists', async () => {
+      const mockKubeConfig = { makeApiClient: jest.fn() };
+      const mockCustomObjectsApi = {
+        getClusterCustomObject: jest.fn().mockResolvedValue({}),
+      };
+      
+      mockGetClusterConfig.mockResolvedValue(mockKubeConfig as any);
+      mockGetCustomObjectsApi.mockResolvedValue(() => mockCustomObjectsApi);
+      mockKubeConfig.makeApiClient.mockReturnValue(mockCustomObjectsApi);
+      
+      const result = await enableGitHubOIDC({
+        clusterAudience: 'https://test.cluster.example.com'
+      });
+
+      expect(result).toEqual({
+        name: 'github-oidc-auth',
+        created: false,
+        exists: true
       });
     });
 
@@ -117,7 +169,33 @@ describe('k8s-github-oidc', () => {
   describe('disableGitHubOIDC', () => {
     it('should return success result', async () => {
       const mockKubeConfig = { makeApiClient: jest.fn() };
+      const mockCustomObjectsApi = {
+        getClusterCustomObject: jest.fn().mockResolvedValue({}),
+        deleteClusterCustomObject: jest.fn().mockResolvedValue({}),
+      };
+      
       mockGetClusterConfig.mockResolvedValue(mockKubeConfig as any);
+      mockGetCustomObjectsApi.mockResolvedValue(() => mockCustomObjectsApi);
+      mockKubeConfig.makeApiClient.mockReturnValue(mockCustomObjectsApi);
+      
+      const result = await disableGitHubOIDC();
+
+      expect(result).toEqual({
+        name: 'github-oidc-auth',
+        created: false,
+        exists: false
+      });
+    });
+
+    it('should return not exists result if configuration does not exist', async () => {
+      const mockKubeConfig = { makeApiClient: jest.fn() };
+      const mockCustomObjectsApi = {
+        getClusterCustomObject: jest.fn().mockRejectedValue({ code: 404 }),
+      };
+      
+      mockGetClusterConfig.mockResolvedValue(mockKubeConfig as any);
+      mockGetCustomObjectsApi.mockResolvedValue(() => mockCustomObjectsApi);
+      mockKubeConfig.makeApiClient.mockReturnValue(mockCustomObjectsApi);
       
       const result = await disableGitHubOIDC();
 

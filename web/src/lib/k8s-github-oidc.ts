@@ -1,5 +1,5 @@
 // Kubernetes GitHub OIDC Authentication Configuration management functions
-import { getClusterConfig } from './k8s-client';
+import { getClusterConfig, getCustomObjectsApi } from './k8s-client';
 
 export interface GitHubOIDCOptions {
   clusterAudience: string; // e.g., "https://your.cluster.aud"
@@ -64,16 +64,32 @@ export async function isGitHubOIDCEnabled(clusterName?: string): Promise<boolean
       return false;
     }
 
-    // For now, we'll check if there's an AuthenticationConfiguration
-    // In a real implementation, this would query the actual Kubernetes API
-    // to check for existing AuthenticationConfiguration resources
+    // Create a custom API client for AuthenticationConfiguration
+    // Since this is a beta API, we need to use the custom objects API
+    const CustomObjectsApi = await getCustomObjectsApi();
+    const customObjectsApi = kc.makeApiClient(CustomObjectsApi);
+
+    const configName = 'github-oidc-auth';
     
-    // This is a placeholder implementation
-    // In practice, we would need to use a custom API client to check for 
-    // authentication.k8s.io/v1beta1 resources, which may not be available
-    // in the standard client libraries
-    
-    return false; // Default to false for now
+    try {
+      // Try to get the AuthenticationConfiguration resource
+      await customObjectsApi.getClusterCustomObject(
+        'authentication.k8s.io',
+        'v1beta1',
+        'authenticationconfigurations',
+        configName
+      );
+      
+      // If we get here without error, the configuration exists
+      return true;
+    } catch (error) {
+      // If it's a 404 error, the resource doesn't exist
+      if (error && typeof error === 'object' && 'code' in error && error.code === 404) {
+        return false;
+      }
+      // Re-throw other errors
+      throw error;
+    }
   } catch (error) {
     console.warn('Failed to check GitHub OIDC status:', error instanceof Error ? error.message : 'Unknown error');
     return false;
@@ -93,21 +109,46 @@ export async function enableGitHubOIDC(options: GitHubOIDCOptions, clusterName?:
   const authConfig = generateGitHubOIDCConfig(options);
 
   try {
-    // Note: The AuthenticationConfiguration is a beta API and may not be available
-    // in the standard Kubernetes client libraries. In a real implementation,
-    // this would require custom API calls or kubectl commands.
-    
-    // For now, we'll simulate the creation and log the configuration
-    console.log('GitHub OIDC AuthenticationConfiguration would be created:', {
-      name: configName,
-      config: authConfig,
-      cluster: clusterName || 'default'
-    });
+    // Check if the configuration already exists
+    const exists = await isGitHubOIDCEnabled(clusterName);
+    if (exists) {
+      console.log(`GitHub OIDC AuthenticationConfiguration already exists: ${configName}`);
+      return {
+        name: configName,
+        created: false,
+        exists: true
+      };
+    }
 
-    // In a real implementation, you would:
-    // 1. Use kubectl or a custom API client to apply the AuthenticationConfiguration
-    // 2. Configure the kube-apiserver to use this authentication configuration
-    // 3. Restart the kube-apiserver with the --authentication-config flag
+    // Create a custom API client for AuthenticationConfiguration
+    const CustomObjectsApi = await getCustomObjectsApi();
+    const customObjectsApi = kc.makeApiClient(CustomObjectsApi);
+
+    // Create the AuthenticationConfiguration resource
+    const resource = {
+      apiVersion: 'authentication.k8s.io/v1beta1',
+      kind: 'AuthenticationConfiguration',
+      metadata: {
+        name: configName,
+        labels: {
+          'app.kubernetes.io/managed-by': 'catalyst-web-app',
+          'catalyst/component': 'github-oidc-auth'
+        }
+      },
+      ...authConfig
+    };
+
+    await customObjectsApi.createClusterCustomObject(
+      'authentication.k8s.io',
+      'v1beta1',
+      'authenticationconfigurations',
+      resource
+    );
+
+    console.log(`GitHub OIDC AuthenticationConfiguration created successfully: ${configName}`, {
+      cluster: clusterName || 'default',
+      audience: options.clusterAudience
+    });
 
     return {
       name: configName,
@@ -132,11 +173,30 @@ export async function disableGitHubOIDC(clusterName?: string): Promise<GitHubOID
   const configName = 'github-oidc-auth';
 
   try {
-    // In a real implementation, this would remove the AuthenticationConfiguration
-    // and potentially restart the kube-apiserver
-    
-    console.log('GitHub OIDC AuthenticationConfiguration would be removed:', {
-      name: configName,
+    // Check if the configuration exists
+    const exists = await isGitHubOIDCEnabled(clusterName);
+    if (!exists) {
+      console.log(`GitHub OIDC AuthenticationConfiguration does not exist: ${configName}`);
+      return {
+        name: configName,
+        created: false,
+        exists: false
+      };
+    }
+
+    // Create a custom API client for AuthenticationConfiguration
+    const CustomObjectsApi = await getCustomObjectsApi();
+    const customObjectsApi = kc.makeApiClient(CustomObjectsApi);
+
+    // Delete the AuthenticationConfiguration resource
+    await customObjectsApi.deleteClusterCustomObject(
+      'authentication.k8s.io',
+      'v1beta1',
+      'authenticationconfigurations',
+      configName
+    );
+
+    console.log(`GitHub OIDC AuthenticationConfiguration deleted successfully: ${configName}`, {
       cluster: clusterName || 'default'
     });
 

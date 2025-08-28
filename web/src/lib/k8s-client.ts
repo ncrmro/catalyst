@@ -282,6 +282,11 @@ export async function getClusterConfig(clusterName?: string): Promise<KubeConfig
   }
 }
 
+export async function getCustomObjectsApi() {
+  const k8sModule = await loadKubernetesClient();
+  return k8sModule.CustomObjectsApi;
+}
+
 // For testing purposes
 export function resetKubeConfigRegistry() {
   kubeConfigRegistry.reset();
