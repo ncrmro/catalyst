@@ -16,7 +16,7 @@ describe('k8s-github-oidc Integration Test', () => {
     
     // Skip if no Kubernetes cluster is available
     if (!process.env.KUBECONFIG && !process.env.K8S_AVAILABLE) {
-      console.log('Skipping Kubernetes integration tests - no cluster available');
+      throw new Error("KUBECONFIG must be available during integration tests")
     }
   });
 
