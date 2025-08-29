@@ -50,6 +50,13 @@
       "when": 1756263660873,
       "tag": "0006_chubby_hercules",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1756420221844,
+      "tag": "0007_perfect_redwing",
+      "breakpoints": true
     }
   ]
 }
