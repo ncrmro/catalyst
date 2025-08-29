@@ -14,7 +14,6 @@ jest.mock('../../src/lib/k8s-client', () => ({
 
 import { getClusterConfig, getCustomObjectsApi } from '../../src/lib/k8s-client';
 const mockGetClusterConfig = getClusterConfig as jest.MockedFunction<typeof getClusterConfig>;
-const mockGe
 
 describe('k8s-github-oidc', () => {
   beforeEach(() => {
