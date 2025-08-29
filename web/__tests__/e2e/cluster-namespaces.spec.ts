@@ -60,8 +60,14 @@ test.describe('Cluster Namespaces Browsing', () => {
   });
 
   test('should display namespace cards with proper information', async ({ page }) => {
-    // Navigate directly to namespaces page
-    await page.goto('/clusters/kind-preview-cluster/namespaces');
+    // TODO: In the future, implement direct navigation when we have a reliable way to handle 
+    // different cluster names across environments
+    
+    // Start from clusters page and navigate to the first cluster
+    await page.goto('/clusters');
+    
+    // Click View Namespaces button on the first cluster
+    await page.getByRole('link', { name: 'View Namespaces' }).first().click();
     
     // Verify default namespace card shows correct information
     // Use a more specific locator that targets the card container
@@ -104,8 +110,20 @@ test.describe('Cluster Namespaces Browsing', () => {
   });
 
   test('should navigate back from namespace detail to namespaces page', async ({ page }) => {
-    // Navigate directly to namespace detail page
-    await page.goto('/clusters/kind-preview-cluster/namespaces/default');
+    // TODO: In the future, implement direct navigation when we have a reliable way to handle 
+    // different cluster names across environments
+    
+    // Start from clusters page and navigate to the first cluster
+    await page.goto('/clusters');
+    
+    // Click View Namespaces button on the first cluster
+    await page.getByRole('link', { name: 'View Namespaces' }).first().click();
+    
+    // Wait for namespaces to load
+    await expect(page.getByRole('heading', { name: 'default' })).toBeVisible();
+    
+    // Click on the default namespace card
+    await page.getByRole('heading', { name: 'default' }).click();
     
     // Verify we're on the namespace detail page
     await expect(page.getByRole('heading', { name: 'Namespace: default' })).toBeVisible();
@@ -119,8 +137,18 @@ test.describe('Cluster Namespaces Browsing', () => {
   });
 
   test('should handle non-existent namespace gracefully', async ({ page }) => {
-    // Try to navigate to non-existent namespace
-    await page.goto('/clusters/kind-preview-cluster/namespaces/non-existent-namespace');
+    // TODO: In the future, implement direct navigation when we have a reliable way to handle 
+    // different cluster names across environments
+    
+    // Start from clusters page and navigate to the first cluster
+    await page.goto('/clusters');
+    
+    // Click View Namespaces button on the first cluster
+    await page.getByRole('link', { name: 'View Namespaces' }).first().click();
+    
+    // Navigate to a non-existent namespace by appending to the current URL
+    const currentUrl = page.url();
+    await page.goto(`${currentUrl}/non-existent-namespace`);
     
     // Should get 404 page
     await expect(page.getByText('404')).toBeVisible();
