@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { loginWithDevPassword } from './helpers';
+import { loginAndSeedForE2E } from './helpers';
 
 test.describe('Projects Pages', () => {
   test.beforeEach(async ({ page }, testInfo) => {
-    await loginWithDevPassword(page, testInfo);
+    await loginAndSeedForE2E(page, testInfo);
   });
 
   test('should display projects list page', async ({ page }) => {
