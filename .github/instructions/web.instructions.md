@@ -22,6 +22,16 @@ The local development server allows loging in with just a password. The password
 
 It has already been started.
 
+# Database / Migrations
+
+When making changes to the database schema:
+
+1. **Edit the schema**: Modify `src/db/schema.ts` to add/modify tables, columns, etc.
+2. **Generate migrations**: Run `npm run db:generate` to create migration files from schema changes
+3. **Apply migrations**: Run `npm run db:migrate` to apply the migrations to the database
+
+**Important**: Do not manually add migration files to the `drizzle/` folder or edit existing migration files. Always use `npm run db:generate` to create migrations from schema changes.
+
 # Testing
 
 Always run `make ci` before making your final commit. This command runs unit tests, integration tests, linting, and e2e tests to ensure comprehensive validation.

@@ -149,17 +149,17 @@ export default function PeriodicReportGenerator({ className = "" }: PeriodicRepo
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-6">
-        <div className="bg-blue-50 rounded-lg p-4">
-          <div className="text-2xl font-bold text-blue-600">{report.projectsAnalysis.totalProjects}</div>
-          <div className="text-sm text-blue-800">Total Projects</div>
+        <div className="bg-primary-container rounded-lg p-4">
+          <div className="text-2xl font-bold text-on-primary-container">{report.projectsAnalysis.totalProjects}</div>
+          <div className="text-sm text-on-primary-container">Total Projects</div>
         </div>
-        <div className="bg-green-50 rounded-lg p-4">
-          <div className="text-2xl font-bold text-green-600">{report.projectsAnalysis.activeEnvironments}</div>
-          <div className="text-sm text-green-800">Active Environments</div>
+        <div className="bg-secondary-container rounded-lg p-4">
+          <div className="text-2xl font-bold text-on-secondary-container">{report.projectsAnalysis.activeEnvironments}</div>
+          <div className="text-sm text-on-secondary-container">Active Environments</div>
         </div>
-        <div className="bg-purple-50 rounded-lg p-4">
-          <div className="text-2xl font-bold text-purple-600">{report.clustersAnalysis.totalClusters}</div>
-          <div className="text-sm text-purple-800">Total Clusters</div>
+        <div className="bg-tertiary-container rounded-lg p-4">
+          <div className="text-2xl font-bold text-on-tertiary-container">{report.clustersAnalysis.totalClusters}</div>
+          <div className="text-sm text-on-tertiary-container">Total Clusters</div>
         </div>
       </div>
 
@@ -169,7 +169,7 @@ export default function PeriodicReportGenerator({ className = "" }: PeriodicRepo
           <h3 className="text-lg font-semibold text-on-surface mb-4">Projects Insights</h3>
           <div className="space-y-3">
             {report.projectsAnalysis.insights.map((insight, index) => (
-              <div key={index} className="border border-outline rounded-lg p-3 bg-gray-50">
+              <div key={index} className="border border-outline rounded-lg p-3 bg-surface">
                 <p className="text-sm text-on-surface">{insight}</p>
               </div>
             ))}
@@ -181,7 +181,7 @@ export default function PeriodicReportGenerator({ className = "" }: PeriodicRepo
           <h3 className="text-lg font-semibold text-on-surface mb-4">Clusters Insights</h3>
           <div className="space-y-3">
             {report.clustersAnalysis.insights.map((insight, index) => (
-              <div key={index} className="border border-outline rounded-lg p-3 bg-gray-50">
+              <div key={index} className="border border-outline rounded-lg p-3 bg-surface">
                 <p className="text-sm text-on-surface">{insight}</p>
               </div>
             ))}
