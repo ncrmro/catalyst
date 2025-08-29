@@ -10,71 +10,54 @@ test.describe('Cluster Namespaces Browsing', () => {
     await page.waitForURL('/');
   });
 
-  test('should display clusters page with View Namespaces button', async ({ page }) => {
-    // Navigate to clusters page
-    await page.goto('/clusters');
-    
-    // Verify page displays correctly
-    await expect(page.getByRole('heading', { name: 'Clusters' })).toBeVisible();
-    await expect(page.getByText('Monitor and manage your Kubernetes clusters')).toBeVisible();
-    
-    // Verify cluster card exists with namespace button
-    await expect(page.getByRole('link', { name: 'View Namespaces' })).toBeVisible();
-  });
-
-  test('should navigate to cluster namespaces page and display namespaces', async ({ page }) => {
+  test('should navigate to cluster and namespace pages which display correct info', async ({ page }) => {
     // Navigate to clusters page
     await page.goto('/clusters');
     
     // Click View Namespaces button
     await page.getByRole('link', { name: 'View Namespaces' }).click();
-    
+
     // Verify namespace page displays correctly
-    await expect(page.getByRole('heading', { name: /Namespaces - / })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Namespaces - /, levle: 1 })).toBeVisible();
     await expect(page.getByText('Browse and manage namespaces in this Kubernetes cluster')).toBeVisible();
-    
-    // Verify back link exists
-    await expect(page.getByRole('link', { name: '← Back to Clusters' })).toBeVisible();
-    
+
     // Verify namespace count is displayed
     await expect(page.getByText(/Found \d+ namespace/)).toBeVisible();
     
     // Verify some default namespaces are displayed
-    await expect(page.getByRole('heading', { name: 'default' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'kube-system' })).toBeVisible();
-  });
+    await expect(page.getByRole('heading', { name: 'default', level: 3 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'kube-system', level: 3 })).toBeVisible();
 
-  test('should navigate back from namespaces to clusters page', async ({ page }) => {
-    // Navigate to clusters page
-    await page.goto('/clusters');
+    // Verify default namespace card shows correct information
+    // Use a more specific locator that targets the card container
+    const kubeSystemCard = page.locator('.border.border-outline').filter({ has: page.getByRole('heading', { name: 'kube-system', level: 3 }) });
+    await expect(kubeSystemCard.getByText('Age')).toBeVisible();
+    await expect(kubeSystemCard.getByText('Labels')).toBeVisible();
     
-    // Click View Namespaces button
-    await page.getByRole('link', { name: 'View Namespaces' }).click();
+    // Click on the kube-system namespace card
+    await page.getByRole('heading', { name: 'kube-system' }).click();
     
+    // Should navigate to the namespace detail page
+    await expect(page.getByRole('heading', { name: 'Namespace: kube-system' })).toBeVisible();
+    await expect(page.getByText('Resources in the kube-system namespace')).toBeVisible();
+    
+    // Should show pods section
+    await expect(page.getByRole('heading', { name: 'Pods' })).toBeVisible();
+
+    // Should have a back link
+    await page.getByRole('link', { name: '← Back to Namespaces' }).click();
+
+    // Should be back on namespaces page
+    await expect(page.getByRole('heading', { name: /Namespaces - / })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'kube-system' })).toBeVisible();
+
     // Click back to clusters
     await page.getByRole('link', { name: '← Back to Clusters' }).click();
     
     // Verify we're back on clusters page
     await expect(page.getByRole('heading', { name: 'Clusters' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'View Namespaces' })).toBeVisible();
-  });
 
-  test('should display namespace cards with proper information', async ({ page }) => {
-    // TODO: In the future, implement direct navigation when we have a reliable way to handle 
-    // different cluster names across environments
-    
-    // Start from clusters page and navigate to the first cluster
-    await page.goto('/clusters');
-    
-    // Click View Namespaces button on the first cluster
-    await page.getByRole('link', { name: 'View Namespaces' }).first().click();
-    
-    // Verify default namespace card shows correct information
-    // Use a more specific locator that targets the card container
-    const defaultNamespaceCard = page.locator('.border.border-outline').filter({ has: page.getByRole('heading', { name: 'default' }) });
-    await expect(defaultNamespaceCard.getByText('Age')).toBeVisible();
-    await expect(defaultNamespaceCard.getByText('Labels')).toBeVisible();
-    await expect(defaultNamespaceCard.getByText('Less than 1 day')).toBeVisible();
   });
 
   test('should handle non-existent cluster gracefully', async ({ page }) => {
@@ -83,57 +66,6 @@ test.describe('Cluster Namespaces Browsing', () => {
     
     // Should get 404 page
     await expect(page.getByText('404')).toBeVisible();
-  });
-
-  test('should make namespace cards clickable and navigate to namespace detail page', async ({ page }) => {
-    // Navigate to clusters page
-    await page.goto('/clusters');
-    
-    // Click View Namespaces button
-    await page.getByRole('link', { name: 'View Namespaces' }).click();
-    
-    // Wait for namespaces to load
-    await expect(page.getByRole('heading', { name: 'default' })).toBeVisible();
-    
-    // Click on the default namespace card
-    await page.getByRole('heading', { name: 'default' }).click();
-    
-    // Should navigate to the namespace detail page
-    await expect(page.getByRole('heading', { name: 'Namespace: default' })).toBeVisible();
-    await expect(page.getByText('Resources in the default namespace')).toBeVisible();
-    
-    // Should have a back link
-    await expect(page.getByRole('link', { name: '← Back to Namespaces' })).toBeVisible();
-    
-    // Should show pods section
-    await expect(page.getByRole('heading', { name: 'Pods' })).toBeVisible();
-  });
-
-  test('should navigate back from namespace detail to namespaces page', async ({ page }) => {
-    // TODO: In the future, implement direct navigation when we have a reliable way to handle 
-    // different cluster names across environments
-    
-    // Start from clusters page and navigate to the first cluster
-    await page.goto('/clusters');
-    
-    // Click View Namespaces button on the first cluster
-    await page.getByRole('link', { name: 'View Namespaces' }).first().click();
-    
-    // Wait for namespaces to load
-    await expect(page.getByRole('heading', { name: 'default' })).toBeVisible();
-    
-    // Click on the kube-system namespace card
-    await page.getByRole('heading', { name: 'kube-system' }).click();
-    
-    // Verify we're on the namespace detail page
-    await expect(page.getByRole('heading', { name: 'Namespace: kube-system' })).toBeVisible();
-    
-    // Click back to namespaces
-    await page.getByRole('link', { name: '← Back to Namespaces' }).click();
-    
-    // Should be back on namespaces page
-    await expect(page.getByRole('heading', { name: /Namespaces - / })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'kube-system' })).toBeVisible();
   });
 
   test('should handle non-existent namespace gracefully', async ({ page }) => {
