@@ -17,7 +17,7 @@ export function ProjectManifestsForm({ projectId, repositories, manifests: initi
   const [manifests, setManifests] = useState<ProjectManifest[]>(initialManifests);
   const [formData, setFormData] = useState<CreateProjectManifestRequest>({
     projectId,
-    repoId: repositories[0]?.id.toString() || '',
+    repoId: repositories[0]?.id || '',
     path: '',
   });
 
@@ -40,7 +40,7 @@ export function ProjectManifestsForm({ projectId, repositories, manifests: initi
       
       setFormData({
         projectId,
-        repoId: repositories[0]?.id.toString() || '',
+        repoId: repositories[0]?.id || '',
         path: '',
       });
     } catch (err) {
@@ -87,7 +87,7 @@ export function ProjectManifestsForm({ projectId, repositories, manifests: initi
   };
 
   const getRepositoryName = (repoId: string) => {
-    const repo = repositories.find(r => r.id.toString() === repoId);
+    const repo = repositories.find(r => r.id === repoId);
     return repo ? repo.name : 'Unknown Repository';
   };
 
@@ -159,7 +159,7 @@ export function ProjectManifestsForm({ projectId, repositories, manifests: initi
                 required
               >
                 {repositories.map((repo) => (
-                  <option key={repo.id} value={repo.id.toString()}>
+                  <option key={repo.id} value={repo.id}>
                     {repo.name} {repo.primary ? '(primary)' : ''}
                   </option>
                 ))}

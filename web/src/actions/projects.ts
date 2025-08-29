@@ -28,7 +28,7 @@ export interface ProjectEnvironment {
 }
 
 export interface ProjectRepo {
-  id: number;
+  id: string;
   name: string;
   full_name: string;
   url: string;
@@ -75,21 +75,21 @@ function getMockProjectsData(): ProjectsData {
         },
         repositories: [
           {
-            id: 1001,
+            id: 'repo-1001',
             name: 'foo-frontend',
             full_name: 'jdoe/foo-frontend',
             url: 'https://github.com/jdoe/foo-frontend',
             primary: true
           },
           {
-            id: 1002,
+            id: 'repo-1002',
             name: 'foo-backend',
             full_name: 'jdoe/foo-backend',
             url: 'https://github.com/jdoe/foo-backend',
             primary: false
           },
           {
-            id: 1003,
+            id: 'repo-1003',
             name: 'foo-shared',
             full_name: 'jdoe/foo-shared',
             url: 'https://github.com/jdoe/foo-shared',
@@ -141,14 +141,14 @@ function getMockProjectsData(): ProjectsData {
         },
         repositories: [
           {
-            id: 2001,
+            id: 'repo-2001',
             name: 'bar-api',
             full_name: 'jdoe/bar-api',
             url: 'https://github.com/jdoe/bar-api',
             primary: true
           },
           {
-            id: 2002,
+            id: 'repo-2002',
             name: 'bar-web',
             full_name: 'jdoe/bar-web',
             url: 'https://github.com/jdoe/bar-web',
@@ -199,7 +199,7 @@ function getMockProjectsData(): ProjectsData {
         },
         repositories: [
           {
-            id: 3001,
+            id: 'repo-3001',
             name: 'analytics-dashboard',
             full_name: 'jdoe/analytics-dashboard',
             url: 'https://github.com/jdoe/analytics-dashboard',
@@ -312,14 +312,14 @@ export async function fetchProjects(): Promise<ProjectsData> {
       }
 
       // Add repository if it exists and is valid
-      if (repoData && projectRepoData && repoData.githubId && repoData.name && repoData.fullName) {
+      if (repoData && projectRepoData && repoData.id && repoData.name && repoData.fullName) {
         const project = projectMap.get(projectData.id)!;
         
         // Check if this repository is already added (prevent duplicates)
-        const existingRepo = project.repositories.find(r => r.id === repoData.githubId);
+        const existingRepo = project.repositories.find(r => r.id === repoData.id);
         if (!existingRepo) {
           project.repositories.push({
-            id: repoData.githubId,
+            id: repoData.id,
             name: repoData.name,
             full_name: repoData.fullName,
             url: repoData.url,
@@ -450,11 +450,11 @@ export async function fetchProjectById(projectId: string): Promise<Project | nul
           };
 
           // Collect repositories
-          const repoMap = new Map<number, ProjectRepo>();
+          const repoMap = new Map<string, ProjectRepo>();
           for (const row of projectData) {
-            if (row.repo && row.projectRepo && row.repo.githubId) {
-              repoMap.set(row.repo.githubId, {
-                id: row.repo.githubId,
+            if (row.repo && row.projectRepo && row.repo.id) {
+              repoMap.set(row.repo.id, {
+                id: row.repo.id,
                 name: row.repo.name,
                 full_name: row.repo.fullName,
                 url: row.repo.url,
