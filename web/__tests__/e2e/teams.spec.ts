@@ -29,6 +29,12 @@ test.describe('Teams Page', () => {
     // Start at the home page (should work in MOCKED=1 mode without auth)
     await page.goto('/');
     
+    // First generate a report to see the Quick Actions section
+    await page.click('text=Generate Report');
+    
+    // Wait for the report to be generated and displayed
+    await expect(page.locator('text=Quick Actions')).toBeVisible({ timeout: 30000 });
+    
     // Click the "View Teams" link in the Quick Actions section
     await page.click('text=View Teams');
 

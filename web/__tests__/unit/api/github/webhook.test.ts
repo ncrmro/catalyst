@@ -8,12 +8,19 @@ jest.mock('../../../../src/actions/kubernetes', () => ({
   deleteKubernetesNamespace: jest.fn()
 }));
 
+// Mock the GitHub library
+jest.mock('../../../../src/lib/github', () => ({
+  getInstallationOctokit: jest.fn()
+}));
+
 import { createKubernetesNamespace, deleteKubernetesNamespace } from '../../../../src/actions/kubernetes';
+import { getInstallationOctokit } from '../../../../src/lib/github';
 
 describe('/api/github/webhook', () => {
   const mockWebhookSecret = 'test-webhook-secret';
   const mockCreateKubernetesNamespace = createKubernetesNamespace as jest.MockedFunction<typeof createKubernetesNamespace>;
   const mockDeleteKubernetesNamespace = deleteKubernetesNamespace as jest.MockedFunction<typeof deleteKubernetesNamespace>;
+  const mockGetInstallationOctokit = getInstallationOctokit as jest.MockedFunction<typeof getInstallationOctokit>;
 
   beforeEach(() => {
     process.env.GITHUB_WEBHOOK_SECRET = mockWebhookSecret;
@@ -151,14 +158,25 @@ describe('/api/github/webhook', () => {
         }
       });
 
+      // Mock GitHub octokit for commenting
+      const mockRequest = jest.fn().mockResolvedValue({});
+      mockGetInstallationOctokit.mockResolvedValue({
+        request: mockRequest
+      } as any);
+
       const payload = {
         action: 'opened',
+        installation: { id: 12345 },
         pull_request: {
           number: 42,
           title: 'Test PR',
           user: { login: 'testuser' }
         },
-        repository: { full_name: 'user/repo' }
+        repository: { 
+          full_name: 'user/repo',
+          owner: { login: 'user' },
+          name: 'repo'
+        }
       };
       const payloadString = JSON.stringify(payload);
       const signature = createSignature(payloadString, mockWebhookSecret);
@@ -197,6 +215,15 @@ describe('/api/github/webhook', () => {
 
       // Verify namespace creation was called with correct parameters
       expect(mockCreateKubernetesNamespace).toHaveBeenCalledWith('user', 'repo', 'gh-pr-42');
+      
+      // Verify GitHub comment was created
+      expect(mockGetInstallationOctokit).toHaveBeenCalledWith(12345);
+      expect(mockRequest).toHaveBeenCalledWith('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
+        owner: 'user',
+        repo: 'repo',
+        issue_number: 42,
+        body: 'hello from catalyst'
+      });
     });
 
     it('should handle pull_request closed event with namespace deletion', async () => {
@@ -346,14 +373,25 @@ describe('/api/github/webhook', () => {
         error: 'Failed to create namespace'
       });
 
+      // Mock GitHub octokit for commenting
+      const mockRequest = jest.fn().mockResolvedValue({});
+      mockGetInstallationOctokit.mockResolvedValue({
+        request: mockRequest
+      } as any);
+
       const payload = {
         action: 'opened',
+        installation: { id: 12345 },
         pull_request: {
           number: 42,
           title: 'Test PR',
           user: { login: 'testuser' }
         },
-        repository: { full_name: 'user/repo' }
+        repository: { 
+          full_name: 'user/repo',
+          owner: { login: 'user' },
+          name: 'repo'
+        }
       };
       const payloadString = JSON.stringify(payload);
       const signature = createSignature(payloadString, mockWebhookSecret);

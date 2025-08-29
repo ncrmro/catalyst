@@ -14,7 +14,7 @@ jest.mock('../../src/lib/k8s-client', () => ({
 
 import { getClusterConfig, getCustomObjectsApi } from '../../src/lib/k8s-client';
 const mockGetClusterConfig = getClusterConfig as jest.MockedFunction<typeof getClusterConfig>;
-const mockGetCustomObjectsApi = getCustomObjectsApi as jest.MockedFunction<typeof getCustomObjectsApi>;
+const mockGe
 
 describe('k8s-github-oidc', () => {
   beforeEach(() => {
@@ -110,6 +110,11 @@ describe('k8s-github-oidc', () => {
       
       const enabled = await isGitHubOIDCEnabled('test-cluster');
       expect(enabled).toBe(true);
+    });
+    it('should return false for specific cluster', async () => {
+      mockGetClusterConfig.mockResolvedValue(null);
+      const enabled = await isGitHubOIDCEnabled('test-cluster');
+      expect(enabled).toBe(false);
     });
   });
 

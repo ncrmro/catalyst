@@ -90,6 +90,7 @@ export async function isGitHubOIDCEnabled(clusterName?: string): Promise<boolean
       // Re-throw other errors
       throw error;
     }
+
   } catch (error) {
     console.warn('Failed to check GitHub OIDC status:', error instanceof Error ? error.message : 'Unknown error');
     return false;
@@ -149,6 +150,7 @@ export async function enableGitHubOIDC(options: GitHubOIDCOptions, clusterName?:
       cluster: clusterName || 'default',
       audience: options.clusterAudience
     });
+
 
     return {
       name: configName,
