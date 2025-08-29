@@ -70,7 +70,31 @@ npm run test:watch
 
 # Run comprehensive CI tests
 make ci
+
+# Run with coverage
+npm run test:coverage                # All Jest tests with coverage
+npm run test:coverage:unit          # Unit tests with coverage
+npm run test:coverage:integration   # Integration tests with coverage
+npm run test:coverage:components    # Component tests with coverage
+npm run test:e2e:coverage          # E2E tests with coverage
+npm run coverage:report             # Complete coverage report
+npm run coverage:merge              # Merge coverage from all sources
+
+# CI with coverage
+make ci-coverage
 ```
+
+## Test Coverage
+
+The project uses Istanbul with Jest and Playwright for comprehensive code coverage:
+
+- **Coverage Tools**: Istanbul (built into Jest) + Playwright V8 coverage
+- **Reports**: HTML, LCOV, JSON, and text formats
+- **Thresholds**: 25% statements, 20% branches, 25% functions/lines
+- **Merge**: Combines coverage from all test types
+- **CI Integration**: Automatic coverage collection and reporting
+
+See [Test Coverage Guide](docs/test-coverage.md) for complete documentation.
 
 ## Testing Principles
 

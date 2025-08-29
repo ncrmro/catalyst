@@ -82,6 +82,26 @@ cd web
 npm test
 ```
 
+### Test Coverage
+
+The application includes comprehensive test coverage using Istanbul with Jest and Playwright:
+
+```bash
+# Run all tests with coverage
+npm run coverage:report
+
+# Individual coverage reports
+npm run test:coverage:unit          # Unit tests
+npm run test:coverage:integration   # Integration tests
+npm run test:coverage:components    # Component tests
+npm run test:e2e:coverage          # E2E tests
+
+# Combined coverage with CI
+make ci-coverage
+```
+
+Coverage reports are generated in `web/coverage/` with HTML, LCOV, and JSON formats. See [Test Coverage Guide](web/docs/test-coverage.md) for detailed documentation.
+
 ### E2E Testing
 
 Run end-to-end tests with Playwright:
