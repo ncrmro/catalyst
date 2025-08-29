@@ -1,5 +1,7 @@
 import { fetchProjectById, fetchProjectPullRequests, fetchProjectIssues, type Project } from '@/actions/projects';
+import { fetchProjectManifests, type ProjectManifest } from '@/actions/project-manifests';
 import { type PullRequest, type Issue } from '@/actions/reports';
+import { ProjectManifestsForm } from '@/components/projects/project-manifests-form';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -167,19 +169,22 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   let project: Project | null;
   let pullRequests: PullRequest[];
   let issues: Issue[];
+  let manifests: ProjectManifest[];
   let error: string | null = null;
 
   try {
-    [project, pullRequests, issues] = await Promise.all([
+    [project, pullRequests, issues, manifests] = await Promise.all([
       fetchProjectById(projectId),
       fetchProjectPullRequests(projectId),
-      fetchProjectIssues(projectId)
+      fetchProjectIssues(projectId),
+      fetchProjectManifests(projectId)
     ]);
   } catch (err) {
     error = err instanceof Error ? err.message : 'Failed to fetch project data';
     project = null;
     pullRequests = [];
     issues = [];
+    manifests = [];
   }
 
   if (error || !project) {
@@ -304,6 +309,19 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
               <p className="text-on-surface-variant">No high-priority issues found across project repositories.</p>
             </div>
           )}
+        </div>
+
+        {/* Environment Templates Section */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-semibold text-on-surface mb-6">Environment Templates</h2>
+          <p className="text-on-surface-variant mb-6">
+            Define Dockerfile paths, Helm charts, and other manifest files that provide deployment configuration hints for this project.
+          </p>
+          <ProjectManifestsForm 
+            projectId={projectId}
+            repositories={project.repositories}
+            manifests={manifests}
+          />
         </div>
 
         {/* Environments Section */}
