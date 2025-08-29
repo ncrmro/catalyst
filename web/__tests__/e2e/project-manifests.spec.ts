@@ -15,107 +15,105 @@ test.describe('Project Environment Templates', () => {
     const projectCards = page.locator('[data-testid^="project-card-"]');
     const projectCount = await projectCards.count();
 
-    if (projectCount > 0) {
-      // Navigate to the first project
-      await projectCards.first().click();
-      await page.waitForLoadState('networkidle');
+    // Ensure we have projects to test with
+    expect(projectCount).toBeGreaterThan(0);
 
-      // Verify we're on a project page
-      await expect(page.getByText('Back to Projects')).toBeVisible();
+    // Navigate to the first project
+    await projectCards.first().click();
+    await page.waitForLoadState('networkidle');
 
-      // Find and verify the Environment Templates section exists
-      const templatesSection = page.locator('h2:has-text("Environment Templates")');
-      await expect(templatesSection).toBeVisible();
+    // Verify we're on a project page
+    await expect(page.getByText('Back to Projects')).toBeVisible();
 
-      // Verify the section description is present
-      await expect(page.getByText('Define Dockerfile paths, Helm charts, and other manifest files')).toBeVisible();
+    // Find and verify the Environment Templates section exists
+    const templatesSection = page.locator('h2:has-text("Environment Templates")');
+    await expect(templatesSection).toBeVisible();
 
-      // Find the form to add templates
-      const addTemplateSection = page.locator('h4:has-text("Add Environment Template")').locator('..');
-      await expect(addTemplateSection).toBeVisible();
+    // Verify the section description is present
+    await expect(page.getByText('Define Dockerfile paths, Helm charts, and other manifest files')).toBeVisible();
 
-      // Verify form elements are present
-      const repositorySelect = addTemplateSection.locator('select#repoId');
-      const pathInput = addTemplateSection.locator('input#path');
-      const addButton = addTemplateSection.locator('button:has-text("Add Environment Template")');
+    // Find the form to add templates
+    const addTemplateSection = page.locator('h4:has-text("Add Environment Template")').locator('..');
+    await expect(addTemplateSection).toBeVisible();
 
-      await expect(repositorySelect).toBeVisible();
-      await expect(pathInput).toBeVisible();
-      await expect(addButton).toBeVisible();
+    // Verify form elements are present
+    const repositorySelect = addTemplateSection.locator('select#repoId');
+    const pathInput = addTemplateSection.locator('input#path');
+    const addButton = addTemplateSection.locator('button:has-text("Add Environment Template")');
 
-      // Test adding a Dockerfile template
-      await pathInput.fill('Dockerfile');
-      await addButton.click();
+    await expect(repositorySelect).toBeVisible();
+    await expect(pathInput).toBeVisible();
+    await expect(addButton).toBeVisible();
+
+    // Test adding a Dockerfile template
+    await pathInput.fill('Dockerfile');
+    await addButton.click();
+
+    // Wait for success message
+    await expect(page.getByText('Environment template added successfully!')).toBeVisible();
+
+    // Verify the Dockerfile template appears in the current templates
+    const dockerfileTemplate = page.locator('text=🐳 Dockerfile').first();
+    await expect(dockerfileTemplate).toBeVisible();
+
+    // Verify repository information is shown
+    await expect(page.locator('div:has-text("Repository:")').first()).toBeVisible();
+
+    // Clear the form and add a Helm chart template
+    await pathInput.fill('Chart.yaml');
+    await addButton.click();
+
+    // Wait for success message
+    await expect(page.getByText('Environment template added successfully!')).toBeVisible();
+
+    // Verify the Helm chart template appears
+    const helmTemplate = page.locator('text=⎈ Helm Chart').first();
+    await expect(helmTemplate).toBeVisible();
+
+    // Verify both templates are now listed in the Current Environment Templates section
+    const currentTemplatesSection = page.locator('h4:has-text("Current Environment Templates")').locator('..');
+    await expect(currentTemplatesSection).toBeVisible();
+
+    // Count the number of templates shown (should be at least 2)
+    const templateCards = currentTemplatesSection.locator('div[class*="bg-surface border border-outline rounded-lg p-4"]');
+    const templateCount = await templateCards.count();
+    expect(templateCount).toBeGreaterThanOrEqual(2);
+
+    // Test deleting one of the templates
+    const deleteButtons = page.locator('button:has-text("Delete")');
+    const deleteButtonCount = await deleteButtons.count();
+    
+    if (deleteButtonCount > 0) {
+      // Set up dialog handler for confirmation
+      page.on('dialog', async dialog => {
+        expect(dialog.type()).toBe('confirm');
+        expect(dialog.message()).toContain('Are you sure you want to delete this environment template?');
+        await dialog.accept();
+      });
+
+      // Click the first delete button
+      await deleteButtons.first().click();
 
       // Wait for success message
-      await expect(page.getByText('Environment template added successfully!')).toBeVisible();
+      await expect(page.getByText('Environment template deleted successfully!')).toBeVisible();
 
-      // Verify the Dockerfile template appears in the current templates
-      const dockerfileTemplate = page.locator('text=🐳 Dockerfile').first();
-      await expect(dockerfileTemplate).toBeVisible();
-
-      // Verify repository information is shown
-      await expect(page.locator('div:has-text("Repository:")').first()).toBeVisible();
-
-      // Clear the form and add a Helm chart template
-      await pathInput.fill('Chart.yaml');
-      await addButton.click();
-
-      // Wait for success message
-      await expect(page.getByText('Environment template added successfully!')).toBeVisible();
-
-      // Verify the Helm chart template appears
-      const helmTemplate = page.locator('text=⎈ Helm Chart').first();
-      await expect(helmTemplate).toBeVisible();
-
-      // Verify both templates are now listed in the Current Environment Templates section
-      const currentTemplatesSection = page.locator('h4:has-text("Current Environment Templates")').locator('..');
-      await expect(currentTemplatesSection).toBeVisible();
-
-      // Count the number of templates shown (should be at least 2)
-      const templateCards = currentTemplatesSection.locator('div[class*="bg-surface border border-outline rounded-lg p-4"]');
-      const templateCount = await templateCards.count();
-      expect(templateCount).toBeGreaterThanOrEqual(2);
-
-      // Test deleting one of the templates
-      const deleteButtons = page.locator('button:has-text("Delete")');
-      const deleteButtonCount = await deleteButtons.count();
-      
-      if (deleteButtonCount > 0) {
-        // Set up dialog handler for confirmation
-        page.on('dialog', async dialog => {
-          expect(dialog.type()).toBe('confirm');
-          expect(dialog.message()).toContain('Are you sure you want to delete this environment template?');
-          await dialog.accept();
-        });
-
-        // Click the first delete button
-        await deleteButtons.first().click();
-
-        // Wait for success message
-        await expect(page.getByText('Environment template deleted successfully!')).toBeVisible();
-
-        // Verify the template count decreased
-        const updatedTemplateCount = await templateCards.count();
-        expect(updatedTemplateCount).toBeLessThan(templateCount);
-      }
-
-      // Test form validation - empty path should disable button
-      await pathInput.fill(''); // Clear the input
-      const buttonDisabled = await addButton.isDisabled();
-      expect(buttonDisabled).toBe(true);
-
-      // Test with valid path again to ensure form still works
-      await pathInput.fill('package.json');
-      await addButton.click();
-
-      // Should see success message and new template
-      await expect(page.getByText('Environment template added successfully!')).toBeVisible();
-      await expect(page.locator('text=📦 Node.js Package').first()).toBeVisible();
-
-    } else {
-      console.log('No projects available for Environment Templates test');
+      // Verify the template count decreased
+      const updatedTemplateCount = await templateCards.count();
+      expect(updatedTemplateCount).toBeLessThan(templateCount);
     }
+
+    // Test form validation - empty path should disable button
+    await pathInput.fill(''); // Clear the input
+    const buttonDisabled = await addButton.isDisabled();
+    expect(buttonDisabled).toBe(true);
+
+    // Test with valid path again to ensure form still works
+    await pathInput.fill('package.json');
+    await addButton.click();
+
+    // Should see success message and new template
+    await expect(page.getByText('Environment template added successfully!')).toBeVisible();
+    await expect(page.locator('text=📦 Node.js Package').first()).toBeVisible();
   });
 
   test('should display Environment Templates section with helpful examples', async ({ page }) => {
@@ -125,35 +123,33 @@ test.describe('Project Environment Templates', () => {
     const projectCards = page.locator('[data-testid^="project-card-"]');
     const projectCount = await projectCards.count();
 
-    if (projectCount > 0) {
-      // Navigate to a project
-      await projectCards.first().click();
-      await page.waitForLoadState('networkidle');
+    // Ensure we have projects to test with
+    expect(projectCount).toBeGreaterThan(0);
 
-      // Verify Environment Templates section is positioned correctly between Priority Issues and Environments
-      const priorityIssuesHeading = page.locator('h2:has-text("Priority Issues")');
-      const environmentTemplatesHeading = page.locator('h2:has-text("Environment Templates")');
-      const environmentsHeading = page.locator('h2:has-text("Environments")');
+    // Navigate to a project
+    await projectCards.first().click();
+    await page.waitForLoadState('networkidle');
 
-      await expect(priorityIssuesHeading).toBeVisible();
-      await expect(environmentTemplatesHeading).toBeVisible();
-      await expect(environmentsHeading).toBeVisible();
+    // Verify Environment Templates section is positioned correctly between Priority Issues and Environments
+    const priorityIssuesHeading = page.locator('h2:has-text("Priority Issues")');
+    const environmentTemplatesHeading = page.locator('h2:has-text("Environment Templates")');
+    const environmentsHeading = page.locator('h2:has-text("Environments")');
 
-      // Verify the helpful examples are shown
-      await expect(page.getByText('Common examples:')).toBeVisible();
-      await expect(page.getByText('Dockerfile - Docker containerization')).toBeVisible();
-      await expect(page.getByText('Chart.yaml - Helm chart configuration')).toBeVisible();
-      await expect(page.getByText('charts/app/Chart.yaml - Nested Helm chart')).toBeVisible();
-      await expect(page.getByText('k8s/deployment.yaml - Kubernetes manifests')).toBeVisible();
-      await expect(page.getByText('package.json - Node.js application')).toBeVisible();
+    await expect(priorityIssuesHeading).toBeVisible();
+    await expect(environmentTemplatesHeading).toBeVisible();
+    await expect(environmentsHeading).toBeVisible();
 
-      // Verify placeholder text
-      const pathInput = page.locator('input#path');
-      await expect(pathInput).toHaveAttribute('placeholder', 'e.g., Dockerfile, Chart.yaml, charts/app/Chart.yaml');
+    // Verify the helpful examples are shown
+    await expect(page.getByText('Common examples:')).toBeVisible();
+    await expect(page.getByText('Dockerfile - Docker containerization')).toBeVisible();
+    await expect(page.getByText('Chart.yaml - Helm chart configuration')).toBeVisible();
+    await expect(page.getByText('charts/app/Chart.yaml - Nested Helm chart')).toBeVisible();
+    await expect(page.getByText('k8s/deployment.yaml - Kubernetes manifests')).toBeVisible();
+    await expect(page.getByText('package.json - Node.js application')).toBeVisible();
 
-    } else {
-      console.log('No projects available for Environment Templates examples test');
-    }
+    // Verify placeholder text
+    const pathInput = page.locator('input#path');
+    await expect(pathInput).toHaveAttribute('placeholder', 'e.g., Dockerfile, Chart.yaml, charts/app/Chart.yaml');
   });
 
   test('should handle different manifest file types with correct icons', async ({ page }) => {
@@ -163,38 +159,36 @@ test.describe('Project Environment Templates', () => {
     const projectCards = page.locator('[data-testid^="project-card-"]');
     const projectCount = await projectCards.count();
 
-    if (projectCount > 0) {
-      // Navigate to a project
-      await projectCards.first().click();
-      await page.waitForLoadState('networkidle');
+    // Ensure we have projects to test with
+    expect(projectCount).toBeGreaterThan(0);
 
-      const pathInput = page.locator('input#path');
-      const addButton = page.locator('button:has-text("Add Environment Template")');
+    // Navigate to a project
+    await projectCards.first().click();
+    await page.waitForLoadState('networkidle');
 
-      // Test different file types and their icons
-      const testCases = [
-        { path: 'Dockerfile', expectedIcon: '🐳 Dockerfile' },
-        { path: 'Chart.yaml', expectedIcon: '⎈ Helm Chart' },
-        { path: 'k8s/deployment.yaml', expectedIcon: '📄 YAML Manifest' },
-        { path: 'package.json', expectedIcon: '📦 Node.js Package' },
-        { path: 'Cargo.toml', expectedIcon: '🦀 Rust Package' },
-        { path: 'Gemfile', expectedIcon: '💎 Ruby Package' }
-      ];
+    const pathInput = page.locator('input#path');
+    const addButton = page.locator('button:has-text("Add Environment Template")');
 
-      for (const testCase of testCases) {
-        // Add the template
-        await pathInput.fill(testCase.path);
-        await addButton.click();
+    // Test different file types and their icons
+    const testCases = [
+      { path: 'Dockerfile', expectedIcon: '🐳 Dockerfile' },
+      { path: 'Chart.yaml', expectedIcon: '⎈ Helm Chart' },
+      { path: 'k8s/deployment.yaml', expectedIcon: '📄 YAML Manifest' },
+      { path: 'package.json', expectedIcon: '📦 Node.js Package' },
+      { path: 'Cargo.toml', expectedIcon: '🦀 Rust Package' },
+      { path: 'Gemfile', expectedIcon: '💎 Ruby Package' }
+    ];
 
-        // Wait for success message
-        await expect(page.getByText('Environment template added successfully!')).toBeVisible();
+    for (const testCase of testCases) {
+      // Add the template
+      await pathInput.fill(testCase.path);
+      await addButton.click();
 
-        // Verify the correct icon and display name appears
-        await expect(page.locator(`text=${testCase.expectedIcon}`).first()).toBeVisible();
-      }
+      // Wait for success message
+      await expect(page.getByText('Environment template added successfully!')).toBeVisible();
 
-    } else {
-      console.log('No projects available for manifest file types test');
+      // Verify the correct icon and display name appears
+      await expect(page.locator(`text=${testCase.expectedIcon}`).first()).toBeVisible();
     }
   });
 
@@ -208,33 +202,31 @@ test.describe('Project Environment Templates', () => {
     const projectCards = page.locator('[data-testid^="project-card-"]');
     const projectCount = await projectCards.count();
 
-    if (projectCount > 0) {
-      // Navigate to a project
-      await projectCards.first().click();
-      await page.waitForLoadState('networkidle');
+    // Ensure we have projects to test with
+    expect(projectCount).toBeGreaterThan(0);
 
-      // Environment Templates section should be mobile-responsive
-      await expect(page.locator('h2:has-text("Environment Templates")')).toBeVisible();
+    // Navigate to a project
+    await projectCards.first().click();
+    await page.waitForLoadState('networkidle');
 
-      // Form should still be accessible and usable on mobile
-      const repositorySelect = page.locator('select#repoId');
-      const pathInput = page.locator('input#path');
-      const addButton = page.locator('button:has-text("Add Environment Template")');
+    // Environment Templates section should be mobile-responsive
+    await expect(page.locator('h2:has-text("Environment Templates")')).toBeVisible();
 
-      await expect(repositorySelect).toBeVisible();
-      await expect(pathInput).toBeVisible();
-      await expect(addButton).toBeVisible();
+    // Form should still be accessible and usable on mobile
+    const repositorySelect = page.locator('select#repoId');
+    const pathInput = page.locator('input#path');
+    const addButton = page.locator('button:has-text("Add Environment Template")');
 
-      // Test adding a template on mobile
-      await pathInput.fill('Dockerfile');
-      await addButton.click();
+    await expect(repositorySelect).toBeVisible();
+    await expect(pathInput).toBeVisible();
+    await expect(addButton).toBeVisible();
 
-      // Should work on mobile too
-      await expect(page.getByText('Environment template added successfully!')).toBeVisible();
-      await expect(page.locator('text=🐳 Dockerfile').first()).toBeVisible();
+    // Test adding a template on mobile
+    await pathInput.fill('Dockerfile');
+    await addButton.click();
 
-    } else {
-      console.log('No projects available for mobile Environment Templates test');
-    }
+    // Should work on mobile too
+    await expect(page.getByText('Environment template added successfully!')).toBeVisible();
+    await expect(page.locator('text=🐳 Dockerfile').first()).toBeVisible();
   });
 });

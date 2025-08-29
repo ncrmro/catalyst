@@ -51,25 +51,24 @@ test.describe('Projects Pages', () => {
     const projectCards = page.locator('[data-testid^="project-card-"]');
     const projectCount = await projectCards.count();
 
-    if (projectCount > 0) {
-      // Click on the first project card
-      const firstProject = projectCards.first();
-      await firstProject.click();
+    // Ensure we have projects to test with
+    expect(projectCount).toBeGreaterThan(0);
 
-      // Should navigate to the individual project page
-      await expect(page).toHaveURL(/\/projects\/[^\/]+$/);
+    // Click on the first project card
+    const firstProject = projectCards.first();
+    await firstProject.click();
 
-      // Should show the individual project page elements
-      await expect(page.getByText('Back to Projects')).toBeVisible();
-      
-      // Should show sections for repositories, pull requests, issues, and environments
-      await expect(page.locator('h2:has-text("Repositories")')).toBeVisible();
-      await expect(page.locator('h2:has-text("Open Pull Requests")')).toBeVisible();
-      await expect(page.locator('h2:has-text("Priority Issues")')).toBeVisible();
-      await expect(page.locator('h2:has-text("Environments")')).toBeVisible();
-    } else {
-      console.log('No projects available for navigation test');
-    }
+    // Should navigate to the individual project page
+    await expect(page).toHaveURL(/\/projects\/[^\/]+$/);
+
+    // Should show the individual project page elements
+    await expect(page.getByText('Back to Projects')).toBeVisible();
+    
+    // Should show sections for repositories, pull requests, issues, and environments
+    await expect(page.locator('h2:has-text("Repositories")')).toBeVisible();
+    await expect(page.locator('h2:has-text("Open Pull Requests")')).toBeVisible();
+    await expect(page.locator('h2:has-text("Priority Issues")')).toBeVisible();
+    await expect(page.locator('h2:has-text("Environments")')).toBeVisible();
   });
 
   test('should display project sections correctly', async ({ page }) => {
@@ -79,46 +78,45 @@ test.describe('Projects Pages', () => {
     const projectCards = page.locator('[data-testid^="project-card-"]');
     const projectCount = await projectCards.count();
 
-    if (projectCount > 0) {
-      // Navigate to first project
-      await projectCards.first().click();
-      await page.waitForLoadState('networkidle');
+    // Ensure we have projects to test with
+    expect(projectCount).toBeGreaterThan(0);
 
-      // Verify basic sections are present
-      await expect(page.locator('h2:has-text("Repositories")')).toBeVisible();
-      await expect(page.locator('h2:has-text("Open Pull Requests")')).toBeVisible();
-      await expect(page.locator('h2:has-text("Priority Issues")')).toBeVisible();
-      await expect(page.locator('h2:has-text("Environments")')).toBeVisible();
+    // Navigate to first project
+    await projectCards.first().click();
+    await page.waitForLoadState('networkidle');
 
-      // Check that either content or empty state messages are shown
-      const prSection = page.locator('h2:has-text("Open Pull Requests")').locator('..');
-      const issuesSection = page.locator('h2:has-text("Priority Issues")').locator('..');
-      
-      // Should have some content in each section (either data or empty state)
-      await expect(prSection).toBeVisible();
-      await expect(issuesSection).toBeVisible();
+    // Verify basic sections are present
+    await expect(page.locator('h2:has-text("Repositories")')).toBeVisible();
+    await expect(page.locator('h2:has-text("Open Pull Requests")')).toBeVisible();
+    await expect(page.locator('h2:has-text("Priority Issues")')).toBeVisible();
+    await expect(page.locator('h2:has-text("Environments")')).toBeVisible();
 
-      // Verify repositories section shows repository information
-      const reposSection = page.locator('h2:has-text("Repositories")').locator('..');
-      await expect(reposSection.locator('a[href*="github.com"]').first()).toBeVisible(); // Should have GitHub links
+    // Check that either content or empty state messages are shown
+    const prSection = page.locator('h2:has-text("Open Pull Requests")').locator('..');
+    const issuesSection = page.locator('h2:has-text("Priority Issues")').locator('..');
+    
+    // Should have some content in each section (either data or empty state)
+    await expect(prSection).toBeVisible();
+    await expect(issuesSection).toBeVisible();
 
-      // Verify environments section shows environment information
-      const envsSection = page.locator('h2:has-text("Environments")').locator('..');
-      
-      // The environments section should always be visible
-      await expect(envsSection).toBeVisible();
-      
-      // Check if project has environments - should either have status badges OR "No environments configured"
-      const hasStatusBadges = await envsSection.locator('text=/active|inactive|deploying/').count() > 0;
-      const hasNoEnvMessage = await envsSection.locator('text=No environments configured').count() > 0;
-      const hasAddEnvButton = await envsSection.locator('a:has-text("Add Environment")').count() > 0;
-      const hasSetupEnvButton = await envsSection.locator('a:has-text("Set up Environment")').count() > 0;
-      
-      // Project should have either environments (status badges + add button) OR no-environment setup
-      expect(hasStatusBadges || hasNoEnvMessage || hasAddEnvButton || hasSetupEnvButton).toBe(true);
-    } else {
-      console.log('No projects available for section test');
-    }
+    // Verify repositories section shows repository information
+    const reposSection = page.locator('h2:has-text("Repositories")').locator('..');
+    await expect(reposSection.locator('a[href*="github.com"]').first()).toBeVisible(); // Should have GitHub links
+
+    // Verify environments section shows environment information
+    const envsSection = page.locator('h2:has-text("Environments")').locator('..');
+    
+    // The environments section should always be visible
+    await expect(envsSection).toBeVisible();
+    
+    // Check if project has environments - should either have status badges OR "No environments configured"
+    const hasStatusBadges = await envsSection.locator('text=/active|inactive|deploying/').count() > 0;
+    const hasNoEnvMessage = await envsSection.locator('text=No environments configured').count() > 0;
+    const hasAddEnvButton = await envsSection.locator('a:has-text("Add Environment")').count() > 0;
+    const hasSetupEnvButton = await envsSection.locator('a:has-text("Set up Environment")').count() > 0;
+    
+    // Project should have either environments (status badges + add button) OR no-environment setup
+    expect(hasStatusBadges || hasNoEnvMessage || hasAddEnvButton || hasSetupEnvButton).toBe(true);
   });
 
   test('should navigate back to projects list from individual project page', async ({ page }) => {
@@ -128,20 +126,19 @@ test.describe('Projects Pages', () => {
     const projectCards = page.locator('[data-testid^="project-card-"]');
     const projectCount = await projectCards.count();
 
-    if (projectCount > 0) {
-      // Navigate to a project
-      await projectCards.first().click();
-      await page.waitForLoadState('networkidle');
+    // Ensure we have projects to test with
+    expect(projectCount).toBeGreaterThan(0);
 
-      // Click back to projects
-      await page.getByText('Back to Projects').click();
+    // Navigate to a project
+    await projectCards.first().click();
+    await page.waitForLoadState('networkidle');
 
-      // Should be back on the projects list page
-      await expect(page).toHaveURL('/projects');
-      await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
-    } else {
-      console.log('No projects available for back navigation test');
-    }
+    // Click back to projects
+    await page.getByText('Back to Projects').click();
+
+    // Should be back on the projects list page
+    await expect(page).toHaveURL('/projects');
+    await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
   });
 
   test('should handle external links correctly', async ({ page }) => {
@@ -151,28 +148,27 @@ test.describe('Projects Pages', () => {
     const projectCards = page.locator('[data-testid^="project-card-"]');
     const projectCount = await projectCards.count();
 
-    if (projectCount > 0) {
-      // Navigate to a project
-      await projectCards.first().click();
-      await page.waitForLoadState('networkidle');
+    // Ensure we have projects to test with
+    expect(projectCount).toBeGreaterThan(0);
 
-      // Check that GitHub repository links exist and have correct attributes
-      const repoLinks = page.locator('a[href*="github.com"]');
-      const linkCount = await repoLinks.count();
+    // Navigate to a project
+    await projectCards.first().click();
+    await page.waitForLoadState('networkidle');
 
-      if (linkCount > 0) {
-        const firstRepoLink = repoLinks.first();
-        
-        // Should have target="_blank" for external links
-        await expect(firstRepoLink).toHaveAttribute('target', '_blank');
-        await expect(firstRepoLink).toHaveAttribute('rel', 'noopener noreferrer');
-        
-        // Should have valid GitHub URL
-        const href = await firstRepoLink.getAttribute('href');
-        expect(href).toMatch(/^https:\/\/github\.com\//);
-      }
-    } else {
-      console.log('No projects available for external links test');
+    // Check that GitHub repository links exist and have correct attributes
+    const repoLinks = page.locator('a[href*="github.com"]');
+    const linkCount = await repoLinks.count();
+
+    if (linkCount > 0) {
+      const firstRepoLink = repoLinks.first();
+      
+      // Should have target="_blank" for external links
+      await expect(firstRepoLink).toHaveAttribute('target', '_blank');
+      await expect(firstRepoLink).toHaveAttribute('rel', 'noopener noreferrer');
+      
+      // Should have valid GitHub URL
+      const href = await firstRepoLink.getAttribute('href');
+      expect(href).toMatch(/^https:\/\/github\.com\//);
     }
   });
 
@@ -183,32 +179,31 @@ test.describe('Projects Pages', () => {
     const projectCards = page.locator('[data-testid^="project-card-"]');
     const projectCount = await projectCards.count();
 
-    if (projectCount > 0) {
-      // Navigate to a project
-      await projectCards.first().click();
-      await page.waitForLoadState('networkidle');
+    // Ensure we have projects to test with
+    expect(projectCount).toBeGreaterThan(0);
 
-      // Check if the project has environments or not by looking for the banner
-      const noEnvBanner = page.locator('text=No environments configured');
-      const hasNoEnvBanner = await noEnvBanner.count() > 0;
+    // Navigate to a project
+    await projectCards.first().click();
+    await page.waitForLoadState('networkidle');
 
-      if (hasNoEnvBanner) {
-        // Project has no environments - should show setup banner
-        await expect(page.locator('text=No environments configured')).toBeVisible();
-        await expect(page.locator('text=Set up your first deployment environment')).toBeVisible();
-        
-        // Should have "Set up Environment" link
-        const setupLink = page.locator('a:has-text("Set up Environment")');
-        await expect(setupLink).toBeVisible();
-        await expect(setupLink).toHaveAttribute('href', new RegExp(`/environments/[^/]+$`));
-        
-        // Should NOT have "Add Environment" button
-        await expect(page.locator('button:has-text("Add Environment"), a:has-text("Add Environment")')).not.toBeVisible();
-      } else {
-        console.log('Project has environments - skipping no-environment test');
-      }
+    // Check if the project has environments or not by looking for the banner
+    const noEnvBanner = page.locator('text=No environments configured');
+    const hasNoEnvBanner = await noEnvBanner.count() > 0;
+
+    if (hasNoEnvBanner) {
+      // Project has no environments - should show setup banner
+      await expect(page.locator('text=No environments configured')).toBeVisible();
+      await expect(page.locator('text=Set up your first deployment environment')).toBeVisible();
+      
+      // Should have "Set up Environment" link
+      const setupLink = page.locator('a:has-text("Set up Environment")');
+      await expect(setupLink).toBeVisible();
+      await expect(setupLink).toHaveAttribute('href', new RegExp(`/environments/[^/]+$`));
+      
+      // Should NOT have "Add Environment" button
+      await expect(page.locator('button:has-text("Add Environment"), a:has-text("Add Environment")')).not.toBeVisible();
     } else {
-      console.log('No projects available for environment setup test');
+      console.log('Project has environments - skipping no-environment test');
     }
   });
 
@@ -219,28 +214,27 @@ test.describe('Projects Pages', () => {
     const projectCards = page.locator('[data-testid^="project-card-"]');
     const projectCount = await projectCards.count();
 
-    if (projectCount > 0) {
-      // Navigate to a project
-      await projectCards.first().click();
-      await page.waitForLoadState('networkidle');
+    // Ensure we have projects to test with
+    expect(projectCount).toBeGreaterThan(0);
 
-      // Check if the project has environments by looking for the Add Environment button
-      const addEnvButton = page.locator('a:has-text("Add Environment")');
-      const hasAddEnvButton = await addEnvButton.count() > 0;
+    // Navigate to a project
+    await projectCards.first().click();
+    await page.waitForLoadState('networkidle');
 
-      if (hasAddEnvButton) {
-        // Project has environments - should show add environment button
-        await expect(addEnvButton).toBeVisible();
-        await expect(addEnvButton).toHaveAttribute('href', new RegExp(`/environments/[^/]+$`));
-        
-        // Should NOT show the no-environments banner
-        await expect(page.locator('text=No environments configured')).not.toBeVisible();
-        await expect(page.locator('text=Set up Environment')).not.toBeVisible();
-      } else {
-        console.log('Project has no environments - skipping existing-environment test');
-      }
+    // Check if the project has environments by looking for the Add Environment button
+    const addEnvButton = page.locator('a:has-text("Add Environment")');
+    const hasAddEnvButton = await addEnvButton.count() > 0;
+
+    if (hasAddEnvButton) {
+      // Project has environments - should show add environment button
+      await expect(addEnvButton).toBeVisible();
+      await expect(addEnvButton).toHaveAttribute('href', new RegExp(`/environments/[^/]+$`));
+      
+      // Should NOT show the no-environments banner
+      await expect(page.locator('text=No environments configured')).not.toBeVisible();
+      await expect(page.locator('text=Set up Environment')).not.toBeVisible();
     } else {
-      console.log('No projects available for environment add test');
+      console.log('Project has no environments - skipping existing-environment test');
     }
   });
 
