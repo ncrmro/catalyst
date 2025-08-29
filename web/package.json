@@ -6,7 +6,6 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "start:production": "node server-with-logging.js",
     "lint": "next lint",
     "test": "jest",
     "test:unit": "jest --testPathPatterns=unit",
