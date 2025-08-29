@@ -1,4 +1,4 @@
-import { Page, TestInfo, request as playwrightRequest, APIRequestContext } from '@playwright/test';
+import { Page, TestInfo } from '@playwright/test';
 
 /**
  * Generate unique user credentials for E2E tests based on worker index and timestamp
@@ -16,6 +16,7 @@ export function generateUserCredentials(testInfo: TestInfo, role: 'user' | 'admi
 /**
  * Perform a development credentials login via NextAuth and attach auth cookies to the provided page.
  * Requires NODE_ENV=development and the Credentials provider enabled (id: "password").
+ * This will automatically create a user and team if they don't exist.
  */
 export async function loginWithDevPassword(page: Page, testInfo: TestInfo, role: 'user' | 'admin' = 'user') {
   // Generate a unique dev password that NextAuth credentials provider understands
