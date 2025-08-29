@@ -4,12 +4,21 @@ import { db, repos, projects, projectsRepos, teams } from '@/db';
  * Seed the database with sample data for development and testing
  */
 export async function seedDatabase() {
-  // Get the first available team to assign to seeded data
-  const firstTeam = await db.select().from(teams).limit(1);
-  if (firstTeam.length === 0) {
+  // For E2E testing, we need to ensure that seeded projects are accessible to test users
+  // We'll either use an existing team or create/use a dedicated E2E team
+  
+  // Check if we have any teams available
+  const existingTeams = await db.select().from(teams).limit(1);
+  
+  let teamId: string;
+  
+  if (existingTeams.length === 0) {
     throw new Error('Cannot seed database: No teams found. Please create at least one team first.');
+  } else {
+    // Use the first available team - this ensures compatibility with existing E2E test users
+    teamId = existingTeams[0].id;
+    console.log(`Using existing team for seeded data: ${teamId}`);
   }
-  const teamId = firstTeam[0].id;
 
   // Insert sample repositories
   const repoData = [
