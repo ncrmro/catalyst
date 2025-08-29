@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { loginWithDevPassword } from './helpers';
+import { loginWithFixedTestUser } from './helpers';
 
 test.describe('Project Environment Templates', () => {
   test.beforeEach(async ({ page }, testInfo) => {
-    await loginWithDevPassword(page, testInfo);
+    await loginWithFixedTestUser(page);
   });
 
   test('should add Dockerfile and Helm chart templates and delete one', async ({ page }) => {
@@ -15,7 +15,7 @@ test.describe('Project Environment Templates', () => {
     const projectCards = page.locator('[data-testid^="project-card-"]');
     const projectCount = await projectCards.count();
 
-    // Ensure we have projects to test with
+    // MUST have projects - test will FAIL if no projects exist (no exceptions)
     expect(projectCount).toBeGreaterThan(0);
 
     // Navigate to the first project
@@ -83,24 +83,25 @@ test.describe('Project Environment Templates', () => {
     const deleteButtons = page.locator('button:has-text("Delete")');
     const deleteButtonCount = await deleteButtons.count();
     
-    if (deleteButtonCount > 0) {
-      // Set up dialog handler for confirmation
-      page.on('dialog', async dialog => {
-        expect(dialog.type()).toBe('confirm');
-        expect(dialog.message()).toContain('Are you sure you want to delete this environment template?');
-        await dialog.accept();
-      });
+    // Should have delete buttons since we just added templates
+    expect(deleteButtonCount).toBeGreaterThan(0);
 
-      // Click the first delete button
-      await deleteButtons.first().click();
+    // Set up dialog handler for confirmation
+    page.on('dialog', async dialog => {
+      expect(dialog.type()).toBe('confirm');
+      expect(dialog.message()).toContain('Are you sure you want to delete this environment template?');
+      await dialog.accept();
+    });
 
-      // Wait for success message
-      await expect(page.getByText('Environment template deleted successfully!')).toBeVisible();
+    // Click the first delete button
+    await deleteButtons.first().click();
 
-      // Verify the template count decreased
-      const updatedTemplateCount = await templateCards.count();
-      expect(updatedTemplateCount).toBeLessThan(templateCount);
-    }
+    // Wait for success message
+    await expect(page.getByText('Environment template deleted successfully!')).toBeVisible();
+
+    // Verify the template count decreased
+    const updatedTemplateCount = await templateCards.count();
+    expect(updatedTemplateCount).toBeLessThan(templateCount);
 
     // Test form validation - empty path should disable button
     await pathInput.fill(''); // Clear the input
@@ -123,7 +124,7 @@ test.describe('Project Environment Templates', () => {
     const projectCards = page.locator('[data-testid^="project-card-"]');
     const projectCount = await projectCards.count();
 
-    // Ensure we have projects to test with
+    // MUST have projects - test will FAIL if no projects exist (no exceptions)
     expect(projectCount).toBeGreaterThan(0);
 
     // Navigate to a project
@@ -159,7 +160,7 @@ test.describe('Project Environment Templates', () => {
     const projectCards = page.locator('[data-testid^="project-card-"]');
     const projectCount = await projectCards.count();
 
-    // Ensure we have projects to test with
+    // MUST have projects - test will FAIL if no projects exist (no exceptions)
     expect(projectCount).toBeGreaterThan(0);
 
     // Navigate to a project
@@ -202,7 +203,7 @@ test.describe('Project Environment Templates', () => {
     const projectCards = page.locator('[data-testid^="project-card-"]');
     const projectCount = await projectCards.count();
 
-    // Ensure we have projects to test with
+    // MUST have projects - test will FAIL if no projects exist (no exceptions)
     expect(projectCount).toBeGreaterThan(0);
 
     // Navigate to a project
