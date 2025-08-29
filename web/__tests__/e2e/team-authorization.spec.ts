@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { loginWithDevPassword, generateUserCredentials } from './helpers';
+import { loginAndSeedForE2E, loginWithDevPassword, generateUserCredentials } from './helpers';
 
 test.describe('Team Authorization', () => {
   test.beforeEach(async ({ page }, testInfo) => {
-    // Login as a regular user for most tests
-    await loginWithDevPassword(page, testInfo, 'user');
+    // Login as a regular user and seed projects for most tests
+    await loginAndSeedForE2E(page, testInfo, 'user');
   });
 
   test('should only show projects that belong to user teams', async ({ page }) => {
@@ -105,12 +105,12 @@ test.describe('Team Authorization', () => {
   });
 
   test('admin user should have appropriate access', async ({ page }, testInfo) => {
-    // Override the beforeEach by logging in as an admin user
+    // Override the beforeEach by logging in as an admin user and seeding projects
     await page.goto('/');
     await page.getByRole('button', { name: 'Sign out' }).click();
     
-    // Login as admin user
-    await loginWithDevPassword(page, testInfo, 'admin');
+    // Login as admin user and seed projects
+    await loginAndSeedForE2E(page, testInfo, 'admin');
 
     // Navigate to projects page
     await page.goto('/projects');

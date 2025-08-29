@@ -65,4 +65,40 @@ export async function ensureTestDataExists(page: Page, testInfo: TestInfo) {
   }
   
   console.log(`Found ${projectCount} existing project(s) for testing`);
+}
+
+/**
+ * Seed projects for the current E2E test user
+ * This ensures that the user has projects available in the database
+ */
+export async function seedProjectsForE2EUser(page: Page) {
+  try {
+    // Call the E2E seeding endpoint after user is logged in
+    const response = await page.request.post('/api/e2e/seed');
+    
+    if (!response.ok()) {
+      const errorText = await response.text();
+      console.warn('Failed to seed projects for E2E user:', errorText);
+      return { success: false, message: errorText };
+    }
+    
+    const result = await response.json();
+    console.log('E2E projects seeded:', result);
+    return result;
+  } catch (error) {
+    console.error('Error seeding projects for E2E user:', error);
+    return { success: false, message: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+/**
+ * Login and seed projects for E2E testing
+ * This is a convenience function that combines login and seeding
+ */
+export async function loginAndSeedForE2E(page: Page, testInfo: TestInfo, role: 'user' | 'admin' = 'user') {
+  // First login the user
+  await loginWithDevPassword(page, testInfo, role);
+  
+  // Then seed projects for this user
+  await seedProjectsForE2EUser(page);
 } 
