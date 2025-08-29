@@ -122,18 +122,18 @@ test.describe('Cluster Namespaces Browsing', () => {
     // Wait for namespaces to load
     await expect(page.getByRole('heading', { name: 'default' })).toBeVisible();
     
-    // Click on the default namespace card
-    await page.getByRole('heading', { name: 'default' }).click();
+    // Click on the kube-system namespace card
+    await page.getByRole('heading', { name: 'kube-system' }).click();
     
     // Verify we're on the namespace detail page
-    await expect(page.getByRole('heading', { name: 'Namespace: default' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Namespace: kube-system' })).toBeVisible();
     
     // Click back to namespaces
     await page.getByRole('link', { name: '← Back to Namespaces' }).click();
     
     // Should be back on namespaces page
     await expect(page.getByRole('heading', { name: /Namespaces - / })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'default' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'kube-system' })).toBeVisible();
   });
 
   test('should handle non-existent namespace gracefully', async ({ page }) => {
