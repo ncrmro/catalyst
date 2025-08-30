@@ -1,0 +1,19 @@
+{{- if .Values.dockerRegistry.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "catalyst-singleton.dockerRegistry.serviceName" . }}
+  labels:
+    {{- include "catalyst-singleton.labels" . | nindent 4 }}
+    app.kubernetes.io/component: docker-registry
+spec:
+  type: {{ .Values.dockerRegistry.service.type }}
+  ports:
+    - port: {{ .Values.dockerRegistry.service.port }}
+      targetPort: {{ .Values.dockerRegistry.service.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "catalyst-singleton.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: docker-registry
+{{- end }}

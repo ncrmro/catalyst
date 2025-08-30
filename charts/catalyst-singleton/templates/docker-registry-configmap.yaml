@@ -1,0 +1,31 @@
+{{- if .Values.dockerRegistry.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "catalyst-singleton.fullname" . }}-registry-config
+  labels:
+    {{- include "catalyst-singleton.labels" . | nindent 4 }}
+    app.kubernetes.io/component: docker-registry
+data:
+  config.yml: |
+    version: 0.1
+    log:
+      fields:
+        service: registry
+    storage:
+      cache:
+        blobdescriptor: inmemory
+      filesystem:
+        rootdirectory: {{ .Values.dockerRegistry.storage.filesystem.rootdirectory }}
+      delete:
+        enabled: {{ .Values.dockerRegistry.storage.delete.enabled }}
+    http:
+      addr: :{{ .Values.dockerRegistry.service.targetPort }}
+      headers:
+        X-Content-Type-Options: [nosniff]
+    health:
+      storagedriver:
+        enabled: true
+        interval: 10s
+        threshold: 3
+{{- end }}

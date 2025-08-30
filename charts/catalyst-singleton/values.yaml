@@ -1,0 +1,69 @@
+# Default values for catalyst-singleton
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Docker Registry configuration
+dockerRegistry:
+  # Enable Docker Registry deployment
+  enabled: true
+  
+  # Docker Registry specific configuration
+  # These values will be passed to the docker-registry subchart
+  image:
+    repository: registry
+    tag: "2.8.3"
+    pullPolicy: IfNotPresent
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 5000
+    targetPort: 5000
+    name: registry
+  
+  # Storage configuration
+  storage:
+    filesystem:
+      rootdirectory: /var/lib/registry
+    delete:
+      enabled: true
+  
+  # Security configuration
+  secrets:
+    htpasswd: ""
+  
+  # Persistence configuration
+  persistence:
+    enabled: false
+    size: 10Gi
+    storageClass: ""
+    accessMode: ReadWriteOnce
+  
+  # Resource limits
+  resources:
+    limits:
+      cpu: 100m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+  
+  # Node selector
+  nodeSelector: {}
+  
+  # Tolerations
+  tolerations: []
+  
+  # Affinity
+  affinity: {}
+
+# Additional services can be added here in the future
+# For example: shared databases, caches, etc.
+
+# Global configuration
+global:
+  # Image pull secrets
+  imagePullSecrets: []
+  
+  # Storage class for persistent volumes
+  storageClass: ""
