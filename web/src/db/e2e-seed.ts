@@ -137,11 +137,6 @@ export async function seedProjectsForCurrentUser() {
 
     await db.insert(projectsRepos).values(projectRepoData);
 
-    console.log('E2E projects seeded successfully for team:', teamId);
-    console.log(`Inserted ${insertedRepos.length} repositories`);
-    console.log(`Inserted ${insertedProjects.length} projects`);
-    console.log(`Created ${projectRepoData.length} project-repo relationships`);
-
     return { 
       success: true, 
       message: 'Projects seeded successfully',

@@ -1,21 +1,12 @@
-import { test, expect } from '@playwright/test';
-import * as k8s from '@kubernetes/client-node';
+import { test, expect, namespaceExists, cleanupNamespace } from './fixtures/k8s-fixture';
 import crypto from 'crypto';
 
-// Helper function to create and configure Kubernetes client
-async function createKubernetesClient() {
-  const kc = new k8s.KubeConfig();
-  kc.loadFromDefault();
-  
-  const coreApi = kc.makeApiClient(k8s.CoreV1Api);
-  
-  return { kc, coreApi };
+function createSignature(payload: string, secret: string): string {
+  return `sha256=${crypto.createHmac('sha256', secret).update(payload).digest('hex')}`;
 }
 
 // Test cluster connectivity by listing namespaces - this must pass for tests to continue
-async function verifyClusterConnectivity() {
-  const { coreApi } = await createKubernetesClient();
-  
+async function verifyClusterConnectivity(coreApi) {
   try {
     const response = await coreApi.listNamespace();
     
@@ -30,42 +21,11 @@ async function verifyClusterConnectivity() {
   }
 }
 
-// Helper function to check if namespace exists
-async function namespaceExists(namespaceName: string): Promise<boolean> {
-  try {
-    const { coreApi } = await createKubernetesClient();
-    await coreApi.readNamespace({ name: namespaceName });
-    return true;
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('not found')) {
-      return false;
-    }
-    throw error;
-  }
-}
-
-// Helper function to clean up namespace
-async function cleanupNamespace(namespaceName: string): Promise<void> {
-  try {
-    const { coreApi } = await createKubernetesClient();
-    await coreApi.deleteNamespace({ name: namespaceName });
-    console.log(`✓ Cleaned up namespace: ${namespaceName}`);
-  } catch (error) {
-    if (error instanceof Error && !error.message.includes('not found')) {
-      console.log(`⚠ Failed to clean up namespace ${namespaceName}:`, error.message);
-    }
-  }
-}
-
-function createSignature(payload: string, secret: string): string {
-  return `sha256=${crypto.createHmac('sha256', secret).update(payload).digest('hex')}`;
-}
-
 test.describe('GitHub Webhook → Namespace E2E Integration', () => {
 
-  test('should create namespace when PR is opened via GitHub webhook', async ({ request }) => {
+  test('should create namespace when PR is opened via GitHub webhook', async ({ request, k8s }) => {
     // First verify cluster connectivity - this must pass for the test to continue
-    await verifyClusterConnectivity();
+    await verifyClusterConnectivity(k8s.coreApi);
 
     const prNumber = Math.floor(Math.random() * 10000); // Random PR number to avoid conflicts
     const payload = {
@@ -86,7 +46,7 @@ test.describe('GitHub Webhook → Namespace E2E Integration', () => {
 
     try {
       // Ensure namespace doesn't exist before test
-      const existsBefore = await namespaceExists(expectedNamespace);
+      const existsBefore = await namespaceExists(k8s.coreApi, expectedNamespace);
       expect(existsBefore).toBe(false);
 
       // Send webhook request without signature (simulating dev environment)
@@ -113,12 +73,11 @@ test.describe('GitHub Webhook → Namespace E2E Integration', () => {
       expect(data.namespace.labels['catalyst/environment']).toBe(`gh-pr-${prNumber}`);
 
       // Verify namespace actually exists in Kubernetes cluster
-      const existsAfter = await namespaceExists(expectedNamespace);
+      const existsAfter = await namespaceExists(k8s.coreApi, expectedNamespace);
       expect(existsAfter).toBe(true);
 
       // Verify namespace has correct labels
-      const { coreApi } = await createKubernetesClient();
-      const namespaceDetails = await coreApi.readNamespace({ name: expectedNamespace });
+      const namespaceDetails = await k8s.coreApi.readNamespace({ name: expectedNamespace });
       expect(namespaceDetails.metadata?.labels?.['catalyst/team']).toBe('e2eowner');
       expect(namespaceDetails.metadata?.labels?.['catalyst/project']).toBe('e2erepo');
       expect(namespaceDetails.metadata?.labels?.['catalyst/environment']).toBe(`gh-pr-${prNumber}`);
@@ -127,13 +86,13 @@ test.describe('GitHub Webhook → Namespace E2E Integration', () => {
 
     } finally {
       // Clean up the test namespace
-      await cleanupNamespace(expectedNamespace);
+      await cleanupNamespace(k8s.coreApi, expectedNamespace);
     }
   });
 
-  test('should handle non-opened PR actions without creating namespace', async ({ request }) => {
+  test('should handle non-opened PR actions without creating namespace', async ({ request, k8s }) => {
     // First verify cluster connectivity
-    await verifyClusterConnectivity();
+    await verifyClusterConnectivity(k8s.coreApi);
 
     const prNumber = Math.floor(Math.random() * 10000); // Random PR number to avoid conflicts
     const payload = {
@@ -171,57 +130,59 @@ test.describe('GitHub Webhook → Namespace E2E Integration', () => {
     expect(data.namespace_deleted).toBeDefined();
 
     // Verify namespace was NOT created
-    const exists = await namespaceExists(expectedNamespace);
+    const exists = await namespaceExists(k8s.coreApi, expectedNamespace);
     expect(exists).toBe(false);
 
     console.log(`✓ E2E test passed: No namespace created for non-opened PR action`);
   });
 
-  test('should handle other PR actions without creating namespace', async ({ request }) => {
+  test('should handle other PR actions without creating namespace', async ({ request, k8s }) => {
     // First verify cluster connectivity
-    await verifyClusterConnectivity();
+    await verifyClusterConnectivity(k8s.coreApi);
 
-    const actions = ['synchronize', 'edited', 'review_requested'];
-    
-    for (const action of actions) {
-      const prNumber = Math.floor(Math.random() * 10000);
-      const payload = {
-        action: action,
-        pull_request: {
-          number: prNumber,
-          title: `E2E Test PR for ${action} action`,
-          user: { login: 'e2euser' }
-        },
-        repository: { full_name: 'e2eowner/e2erepo' }
-      };
-      const payloadString = JSON.stringify(payload);
+    await test.step('Test different PR actions', async () => {
+      const actions = ['synchronize', 'edited', 'review_requested'];
+      
+      for (const action of actions) {
+        const prNumber = Math.floor(Math.random() * 10000);
+        const payload = {
+          action: action,
+          pull_request: {
+            number: prNumber,
+            title: `E2E Test PR for ${action} action`,
+            user: { login: 'e2euser' }
+          },
+          repository: { full_name: 'e2eowner/e2erepo' }
+        };
+        const payloadString = JSON.stringify(payload);
 
-      const expectedNamespace = `e2eowner-e2erepo-gh-pr-${prNumber}`;
+        const expectedNamespace = `e2eowner-e2erepo-gh-pr-${prNumber}`;
 
-      // Send webhook request
-      const response = await request.post('/api/github/webhook', {
-        headers: {
-          'x-github-event': 'pull_request',
-          'x-github-delivery': `e2e-test-delivery-${prNumber}`,
-          'content-type': 'application/json'
-        },
-        data: payloadString
-      });
+        // Send webhook request
+        const response = await request.post('/api/github/webhook', {
+          headers: {
+            'x-github-event': 'pull_request',
+            'x-github-delivery': `e2e-test-delivery-${prNumber}`,
+            'content-type': 'application/json'
+          },
+          data: payloadString
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      // Verify webhook response
-      expect(response.ok()).toBe(true);
-      expect(data.success).toBe(true);
-      expect(data.pr_number).toBe(prNumber);
-      expect(data.message).toBe(`Pull request ${action} processed`);
-      expect(data.namespace).toBeUndefined();
+        // Verify webhook response
+        expect(response.ok()).toBe(true);
+        expect(data.success).toBe(true);
+        expect(data.pr_number).toBe(prNumber);
+        expect(data.message).toBe(`Pull request ${action} processed`);
+        expect(data.namespace).toBeUndefined();
 
-      // Verify namespace was NOT created
-      const exists = await namespaceExists(expectedNamespace);
-      expect(exists).toBe(false);
+        // Verify namespace was NOT created
+        const exists = await namespaceExists(k8s.coreApi, expectedNamespace);
+        expect(exists).toBe(false);
 
-      console.log(`✓ E2E test passed: No namespace created for ${action} PR action`);
-    }
+        console.log(`✓ E2E test passed: No namespace created for ${action} PR action`);
+      }
+    });
   });
 });
