@@ -5,6 +5,7 @@ name: Kind Cluster Testing
     branches: [main, master]
     paths:
       - '.github/workflows/test.kind.yml'
+      - 'charts/catalyst-singleton/**'
   workflow_dispatch:
 
 jobs:
