@@ -11,6 +11,9 @@ test.describe('Cluster Namespaces Browsing', () => {
   });
 
   test('should navigate to cluster and namespace pages which display correct info', async ({ page }) => {
+    // TODO unset this once we split this test
+    test.setTimeout(60_000);
+
     // Navigate to clusters page
     await page.goto('/clusters');
     
