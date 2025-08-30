@@ -1,10 +1,14 @@
 import { test, expect } from '@playwright/test';
-import { loginWithDevPassword, generateUserCredentials } from './helpers';
+import { loginWithDevPassword, generateUserCredentials, loginAndSeedForE2E } from './helpers';
+import { seedProjectsForE2EUser } from './e2e-seed';
 
 test.describe('Team Authorization', () => {
   test.beforeEach(async ({ page }, testInfo) => {
-    // Login as a regular user for most tests
-    await loginWithDevPassword(page, testInfo, 'user');
+    // Login as a regular user for most tests and seed projects
+    const password = await loginWithDevPassword(page, testInfo, 'user');
+    
+    // Seed projects for this user to ensure tests have data
+    await seedProjectsForE2EUser(password, testInfo);
   });
 
   test('should only show projects that belong to user teams', async ({ page }) => {
@@ -13,25 +17,15 @@ test.describe('Team Authorization', () => {
     await page.goto('/projects');
 
     // Check that the page loads correctly
-    await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Projects', level: 1 })).toBeVisible();
 
     // In mocked mode, users should see projects since they have personal teams
     // In non-mocked mode with team authorization, they should only see projects from their teams
     const projectCards = page.locator('[data-testid^="project-card-"]');
-    const noProjectsMessage = page.getByText('No projects found');
     
-    // Should either have projects (if user is team member) or no projects message
-    const hasProjects = await projectCards.count() > 0;
-    const hasNoProjectsMessage = await noProjectsMessage.isVisible();
-    
-    expect(hasProjects || hasNoProjectsMessage).toBe(true);
-
-    // If projects are shown, they should belong to the user's teams
-    if (hasProjects) {
-      console.log(`User has access to ${await projectCards.count()} projects`);
-    } else {
-      console.log('User has no access to any projects (correct team authorization)');
-    }
+    // We expect at least one project to exist
+    const projectCount = await projectCards.count();
+    expect(projectCount).toBeGreaterThan(0);
   });
 
   test('should prevent access to projects from other teams', async ({ page }) => {
@@ -44,22 +38,17 @@ test.describe('Team Authorization', () => {
     const projectCards = page.locator('[data-testid^="project-card-"]');
     const projectCount = await projectCards.count();
     
-    if (projectCount > 0) {
-      // Navigate to first project to test authorization
-      await projectCards.first().click();
-      
-      // Should be able to access the project if authorized
-      await expect(page.getByText('Back to Projects')).toBeVisible();
-      
-      // Should show project sections 
-      await expect(page.locator('h2:has-text("Repositories")')).toBeVisible();
-      
-      console.log('User successfully accessed authorized project');
-    } else {
-      // No projects available - this is also valid for team authorization
-      await expect(page.getByText('No projects found')).toBeVisible();
-      console.log('User correctly has no access to projects (team authorization working)');
-    }
+    // We expect at least one project to exist
+    expect(projectCount).toBeGreaterThan(0);
+    
+    // Navigate to first project to test authorization
+    await projectCards.first().click();
+    
+    // Should be able to access the project if authorized
+    await expect(page.getByText('Back to Projects')).toBeVisible();
+    
+    // Should show project sections 
+    await expect(page.locator('h2:has-text("Repositories")')).toBeVisible();
   });
 
   test('should show repos page regardless of team authorization', async ({ page }) => {
@@ -80,8 +69,6 @@ test.describe('Team Authorization', () => {
     
     // Should either show repos or empty state
     expect(hasRepos || hasEmptyState).toBe(true);
-    
-    console.log('Repos page accessible regardless of team authorization (fetches from GitHub)');
   });
 
   test('should show teams page with user teams', async ({ page }) => {
@@ -100,8 +87,6 @@ test.describe('Team Authorization', () => {
     const teamCount = await teamCards.count();
     
     expect(teamCount).toBeGreaterThan(0);
-    
-    console.log(`User is member of ${teamCount} teams`);
   });
 
   test('admin user should have appropriate access', async ({ page }, testInfo) => {
@@ -109,25 +94,24 @@ test.describe('Team Authorization', () => {
     await page.goto('/');
     await page.getByRole('button', { name: 'Sign out' }).click();
     
-    // Login as admin user
-    await loginWithDevPassword(page, testInfo, 'admin');
+    // Login using generated user credentials, not hardcoded admin role
+    const password = await loginWithDevPassword(page, testInfo, 'admin');
+    
+    // Seed projects for this admin user to ensure tests have data
+    await seedProjectsForE2EUser(password, testInfo);
 
     // Navigate to projects page
     await page.goto('/projects');
 
     // Check that the page loads correctly
-    await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Projects', level: 1 })).toBeVisible();
 
     // Admin users should still be subject to team authorization
     // They need to be members of teams to see team projects
     const projectCards = page.locator('[data-testid^="project-card-"]');
-    const noProjectsMessage = page.getByText('No projects found');
     
-    const hasProjects = await projectCards.count() > 0;
-    const hasNoProjectsMessage = await noProjectsMessage.isVisible();
-    
-    expect(hasProjects || hasNoProjectsMessage).toBe(true);
-    
-    console.log('Admin user also subject to team authorization (correct behavior)');
+    // We expect at least one project to exist
+    const projectCount = await projectCards.count();
+    expect(projectCount).toBeGreaterThan(0);
   });
 });

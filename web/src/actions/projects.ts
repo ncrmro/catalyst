@@ -271,8 +271,11 @@ export async function fetchProjects(): Promise<ProjectsData> {
     }
 
     if (projectsFromDb.length === 0) {
-      console.log('No projects found in database, returning mocked data');
-      return getMockProjectsData();
+      // Return empty result when no projects found in database
+      return {
+        projects: [],
+        total_count: 0,
+      };
     }
 
     // Group the results by project
@@ -338,8 +341,11 @@ export async function fetchProjects(): Promise<ProjectsData> {
     );
 
     if (validProjects.length === 0) {
-      console.warn('No valid projects found in database, falling back to mock data');
-      return getMockProjectsData();
+      // Return empty result when no valid projects found
+      return {
+        projects: [],
+        total_count: 0,
+      };
     }
 
     console.log(`Returning ${validProjects.length} projects from database`);
