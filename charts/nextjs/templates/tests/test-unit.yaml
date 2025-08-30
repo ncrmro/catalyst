@@ -29,11 +29,30 @@ spec:
         - sh
         - -c
         - |
-          # Install dependencies if needed (assumes package.json exists)
-          if [ -f package.json ]; then
-            npm ci --only=production
-            npm install --no-save jest @types/jest
+          # Ensure we're in the right directory and check for expected files
+          if [ ! -f /app/package.json ]; then
+            echo "Error: package.json not found at /app/package.json"
+            echo "Current directory: $(pwd)"
+            echo "Contents of /app:"
+            ls -la /app/ || echo "Directory /app does not exist"
+            exit 1
           fi
+          
+          # Change to app directory
+          cd /app
+          
+          # Install dependencies if needed
+          npm ci --only=production
+          npm install --no-save jest @types/jest
+          
+          # Verify test script exists
+          if ! npm run test:unit --help >/dev/null 2>&1; then
+            echo "Error: npm script 'test:unit' not found"
+            echo "Available scripts:"
+            npm run
+            exit 1
+          fi
+          
           # Run the unit tests
           npm run test:unit -- --passWithNoTests --ci
       resources:
