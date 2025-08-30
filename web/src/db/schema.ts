@@ -21,7 +21,7 @@ export const users = pgTable("user", {
   admin: boolean("admin").notNull().default(false),
 })
 
-export const usersRelations = relations(users, ({ many, one }) => ({
+export const usersRelations = relations(users, ({ many }) => ({
   accounts: many(accounts),
   sessions: many(sessions),
   authenticators: many(authenticators),

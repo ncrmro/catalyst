@@ -15,7 +15,7 @@ const testWithoutProjects = baseTest.extend({
 
 baseTest.describe('Project Environment Setup', () => {
   baseTest.describe('With pre-seeded environments', () => {
-    testWithEnvironments('should show Add Environment button when environments exist', async ({ projectsPage, page }) => {
+    testWithEnvironments('should show Add Environment button when environments exist', async ({ projectsPage }) => {
       // Project should have environments - verify environment section and buttons
       await expect(projectsPage.environmentsSection).toBeVisible();
       
@@ -168,7 +168,7 @@ baseTest.describe('Project Environment Setup', () => {
       }
     });
     
-    testWithoutProjects('should be able to create first project from empty state', async ({ page, projectsPage }) => {
+    testWithoutProjects('should be able to create first project from empty state', async ({ projectsPage }) => {
       // This test is for when we implement a UI flow for creating a project
       // For now, we'll just verify the empty state and skip the actual creation
       

@@ -1,7 +1,6 @@
 'use client';
 
 import { configureProjectEnvironments } from '@/actions/environments';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -25,7 +24,6 @@ interface EnvironmentsPageClientProps {
 
 // Client component to handle form submission and feedback
 export function EnvironmentsForm({ project }: EnvironmentsPageClientProps) {
-  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   

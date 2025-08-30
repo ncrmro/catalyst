@@ -1,4 +1,5 @@
 import { db, repos, projects, projectsRepos, users, teams, teamsMemberships } from '@/db';
+import type { InferSelectModel } from 'drizzle-orm';
 import { eq } from 'drizzle-orm';
 import { TestInfo } from '@playwright/test';
 
@@ -153,7 +154,7 @@ export async function createTeamRepos(teamId: string, uniqueSuffix: string) {
  * Generate projects for a team with the given repos
  * Used by both E2E tests and development seeding
  */
-export async function createTeamProjects(teamId: string, uniqueSuffix: string, insertedRepos: any[]) {
+export async function createTeamProjects(teamId: string, uniqueSuffix: string, insertedRepos: InferSelectModel<typeof repos>[]) {
   // Insert sample projects for this team
   const projectData = [
     {

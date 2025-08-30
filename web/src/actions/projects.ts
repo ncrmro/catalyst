@@ -5,7 +5,7 @@
  */
 
 import { db } from '@/db';
-import { projects, repos, projectsRepos, projectEnvironments } from '@/db/schema';
+import { projects } from '@/db/schema';
 import { eq, inArray } from 'drizzle-orm';
 import { auth } from '@/auth';
 import { Octokit } from '@octokit/rest';

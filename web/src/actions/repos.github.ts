@@ -4,7 +4,7 @@ import { auth } from '@/auth';
 import { Octokit } from '@octokit/rest';
 import { db, repos, teams } from '@/db';
 import { getUserTeamIds } from '@/lib/team-auth';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, count } from 'drizzle-orm';
 import { fetchDatabaseRepos } from './repos.connected';
 
 /**
@@ -385,11 +385,11 @@ export async function fetchGitHubRepos(): Promise<ReposData> {
           
           // Check if we've already created these mock repos for this team
           const existingRepos = await db
-            .select({ count: { value: repos.id } })
+            .select({ count: count() })
             .from(repos)
             .where(eq(repos.teamId, teamId));
             
-          if (existingRepos.length === 0 || existingRepos[0].count.value < 3) {
+          if (existingRepos.length === 0 || existingRepos[0].count < 3) {
             console.log('Creating mock repos in database for e2e testing');
             
             // Insert mock user repos first

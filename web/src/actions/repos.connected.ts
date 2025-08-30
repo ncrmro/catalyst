@@ -1,8 +1,7 @@
 'use server';
 
-import { db, repos, projectsRepos, teams, teamsMemberships } from '@/db';
+import { db, repos, projectsRepos } from '@/db';
 import { inArray, eq } from 'drizzle-orm';
-import { auth } from '@/auth';
 import { getUserTeamIds } from '@/lib/team-auth';
 
 /**
