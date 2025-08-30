@@ -100,6 +100,19 @@ The following table lists the configurable parameters of the NextJS chart and th
 | `resources.requests.cpu` | CPU request | `100m` |
 | `resources.requests.memory` | Memory request | `128Mi` |
 
+### Test Configuration
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `unitTests.enabled` | Enable unit tests | `false` |
+| `unitTests.env` | Additional environment variables for unit tests | `[]` |
+| `unitTests.resources` | Resource limits for unit test pod | `{limits: {cpu: "500m", memory: "512Mi"}, requests: {cpu: "250m", memory: "256Mi"}}` |
+| `e2eTests.enabled` | Enable E2E tests | `false` |
+| `e2eTests.smokeOnly` | Run only smoke tests | `true` |
+| `e2eTests.testFiles` | Custom test files to run | `[]` |
+| `e2eTests.env` | Additional environment variables for E2E tests | `[]` |
+| `e2eTests.resources` | Resource limits for E2E test pod | `{limits: {cpu: "1000m", memory: "1Gi"}, requests: {cpu: "500m", memory: "512Mi"}}` |
+
 ## Example Values
 
 ```yaml
@@ -138,6 +151,10 @@ ingress:
 # Scale to multiple replicas
 replicaCount: 3
 
+# Enable unit tests  
+unitTests:
+  enabled: true
+
 # Enable E2E tests
 e2eTests:
   enabled: true
@@ -162,13 +179,54 @@ The chart includes default health checks that probe the root path (`/`) on port 
 
 ## Helm Tests
 
-The chart includes two types of tests that can be run with `helm test`:
+The chart includes three types of tests that can be run with `helm test`:
 
 ### Connection Test
 A basic connectivity test that verifies the NextJS service is accessible:
 ```bash
 helm test my-nextjs-app
 ```
+
+### Unit Tests
+Jest-based unit tests that validate application logic and functionality:
+
+**Prerequisites:**
+- Your NextJS application must be built with the development image that includes test dependencies
+- The development image is used to run Jest unit tests
+
+**Configuration:**
+```yaml
+unitTests:
+  enabled: true        # Enable unit tests (disabled by default)
+  
+  # Additional environment variables for tests
+  env:
+    - name: DATABASE_URL
+      value: "mock://localhost"
+```
+
+**Running Unit Tests:**
+```bash
+# Deploy with development image and enable unit testing
+helm install my-nextjs-app charts/nextjs \
+  --set image.repository=my-nextjs-app \
+  --set image.tag=v1.0.0 \
+  --set developmentImage.repository=my-nextjs-app \
+  --set developmentImage.tag=development \
+  --set unitTests.enabled=true
+
+# Run all tests (including unit tests)
+helm test my-nextjs-app
+
+# Run only unit tests
+helm test my-nextjs-app --filter name=*unit*
+```
+
+The unit tests run the Jest test suite with mocked dependencies and validate:
+- Action functions and business logic
+- API routes and handlers
+- Authentication and authorization
+- Database operations (with mocked connections)
 
 ### E2E Tests
 Advanced end-to-end tests using Playwright that validate application functionality:

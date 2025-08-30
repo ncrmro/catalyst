@@ -1,0 +1,56 @@
+{{- if .Values.unitTests.enabled }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "nextjs.fullname" . }}-test-unit"
+  labels:
+    {{- include "nextjs.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-weight": "0"
+spec:
+  containers:
+    - name: unit-tests
+      image: "{{ .Values.developmentImage.repository }}:{{ .Values.developmentImage.tag | default .Chart.AppVersion }}"
+      imagePullPolicy: {{ .Values.developmentImage.pullPolicy }}
+      workingDir: /app
+      env:
+        - name: NODE_ENV
+          value: "test"
+        - name: CI
+          value: "true"
+        - name: MOCKED
+          value: "1"
+        {{- range .Values.unitTests.env }}
+        - name: {{ .name }}
+          value: {{ .value | quote }}
+        {{- end }}
+      command: 
+        - sh
+        - -c
+        - |
+          # Install dependencies if needed (assumes package.json exists)
+          if [ -f package.json ]; then
+            npm ci --only=production
+            npm install --no-save jest @types/jest
+          fi
+          # Run the unit tests
+          npm run test:unit -- --passWithNoTests --ci
+      resources:
+        {{- toYaml .Values.unitTests.resources | nindent 8 }}
+      volumeMounts:
+        - name: test-results
+          mountPath: /tmp
+  volumes:
+    - name: test-results
+      emptyDir: {}
+  restartPolicy: Never
+  {{- with .Values.unitTests.nodeSelector }}
+  nodeSelector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.unitTests.tolerations }}
+  tolerations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

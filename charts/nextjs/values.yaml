@@ -19,6 +19,33 @@ developmentImage:
   pullPolicy: IfNotPresent
   # tag defaults to Chart.AppVersion if not specified
 
+# Unit test configuration for helm tests using development image
+unitTests:
+  # Enable unit tests (disabled by default)
+  enabled: false
+  
+  # Additional environment variables for unit tests
+  env: []
+  # Example:
+  # env:
+  #   - name: DATABASE_URL
+  #     value: "mock://localhost"
+  
+  # Resource limits for unit test pod
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  
+  # Node selector for unit test pod
+  nodeSelector: {}
+  
+  # Tolerations for unit test pod
+  tolerations: []
+
 # E2E test configuration for helm tests using development image
 e2eTests:
   # Enable E2E tests (disabled by default)
