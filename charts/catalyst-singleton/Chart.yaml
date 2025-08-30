@@ -1,0 +1,21 @@
+apiVersion: v2
+name: catalyst-singleton
+description: A Helm chart that provides singleton services for Catalyst, including a Docker registry
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - catalyst
+  - docker-registry
+  - singleton
+home: https://github.com/ncrmro/catalyst
+sources:
+  - https://github.com/ncrmro/catalyst
+maintainers:
+  - name: catalyst
+    email: maintainer@example.com
+
+# Note: This chart was originally intended to use the twuni/docker-registry chart
+# from https://helm.twun.io as a dependency. However, to ensure reliability and
+# avoid external dependencies, we've implemented a standalone Docker registry
+# deployment that provides the same functionality.

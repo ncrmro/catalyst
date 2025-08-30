@@ -1,0 +1,22 @@
+{{- if and .Values.dockerRegistry.enabled .Values.dockerRegistry.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "catalyst-singleton.fullname" . }}-docker-registry-storage
+  labels:
+    {{- include "catalyst-singleton.labels" . | nindent 4 }}
+    app.kubernetes.io/component: docker-registry
+spec:
+  accessModes:
+    - {{ .Values.dockerRegistry.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.dockerRegistry.persistence.size }}
+  {{- if .Values.dockerRegistry.persistence.storageClass }}
+  {{- if (eq "-" .Values.dockerRegistry.persistence.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ .Values.dockerRegistry.persistence.storageClass }}
+  {{- end }}
+  {{- end }}
+{{- end }}
