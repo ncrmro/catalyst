@@ -67,22 +67,79 @@ jobs:
         run: |
           echo "Building and pushing web/Dockerfile to in-cluster registry..."
           
-          # Build and push to the in-cluster registry
+          # Build and push production image to the in-cluster registry
           docker build \
+            --target runner \
             --tag localhost:5000/catalyst-web:test \
             --file web/Dockerfile \
             web/
           
-          # Push the image to the registry
+          # Build and push development image for unit tests
+          docker build \
+            --target development \
+            --tag localhost:5000/catalyst-web:development \
+            --file web/Dockerfile \
+            web/
+          
+          # Push both images to the registry
           docker push localhost:5000/catalyst-web:test
+          docker push localhost:5000/catalyst-web:development
           
           echo "Web application build and push completed successfully!"
           
-          # Verify the image was pushed successfully
+          # Verify the images were pushed successfully
           echo "Verifying image push to registry..."
           curl -f "http://localhost:5000/v2/catalyst-web/tags/list" && \
-            echo "Image successfully pushed and verified in registry!" || \
-            echo "Warning: Could not verify image in registry, but push command succeeded"
+            echo "Images successfully pushed and verified in registry!" || \
+            echo "Warning: Could not verify images in registry, but push command succeeded"
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: '3.16.1'
+
+      - name: Deploy NextJS chart with unit tests enabled
+        run: |
+          echo "Deploying NextJS Helm chart with unit tests enabled..."
+          
+          # Deploy the chart with unit tests enabled
+          helm install catalyst-test charts/nextjs \
+            --set image.repository=localhost:5000/catalyst-web \
+            --set image.tag=test \
+            --set developmentImage.repository=localhost:5000/catalyst-web \
+            --set developmentImage.tag=development \
+            --set unitTests.enabled=true \
+            --set postgresql.enabled=false \
+            --wait \
+            --timeout=5m
+          
+          echo "Chart deployed successfully!"
+          
+          # Show deployment status
+          kubectl get all -l app.kubernetes.io/instance=catalyst-test
+
+      - name: Run Helm unit tests
+        run: |
+          echo "Running Helm unit tests..."
+          
+          # Run only unit tests using filter
+          helm test catalyst-test --filter name=*unit* --logs
+          
+          echo "Unit tests completed successfully!"
+
+      - name: Show test results and cleanup
+        if: always()
+        run: |
+          echo "Showing test pod logs and status..."
+          
+          # Show unit test pod logs
+          kubectl logs -l app.kubernetes.io/instance=catalyst-test,helm.sh/chart=nextjs || echo "No unit test pods found"
+          
+          # Show all test pods
+          kubectl get pods -l app.kubernetes.io/instance=catalyst-test || echo "No test pods found"
+          
+          # Cleanup the release
+          helm uninstall catalyst-test || echo "Release already removed"
 
       - name: Test basic kubectl operations
         run: |
