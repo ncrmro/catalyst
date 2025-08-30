@@ -22,7 +22,6 @@ export class ProjectsPage extends BasePage {
   readonly setupEnvironmentLink: Locator;
   readonly addEnvironmentLink: Locator;
   readonly noEnvironmentsMessage: Locator;
-  readonly environmentStatusBadges: Locator;
   readonly githubRepoLinks: Locator;
   
   constructor(page: Page) {
@@ -44,7 +43,6 @@ export class ProjectsPage extends BasePage {
     this.setupEnvironmentLink = page.locator('a:has-text("Set up Environment")');
     this.addEnvironmentLink = page.locator('a:has-text("Add Environment")');
     this.noEnvironmentsMessage = page.locator('text=No environments configured');
-    this.environmentStatusBadges = page.locator('text=/active|inactive|deploying/');
     this.githubRepoLinks = page.locator('a[href*="github.com"]');
   }
 
@@ -140,10 +138,7 @@ export class ProjectsPage extends BasePage {
    * @returns {Promise<boolean>} True if environments exist, false otherwise
    */
   async hasEnvironments(): Promise<boolean> {
-    const hasStatusBadges = await this.environmentStatusBadges.count() > 0;
-    const hasAddEnvButton = await this.addEnvironmentLink.isVisible();
-    
-    return hasStatusBadges || hasAddEnvButton;
+    return await this.addEnvironmentLink.isVisible();
   }
 
   /**

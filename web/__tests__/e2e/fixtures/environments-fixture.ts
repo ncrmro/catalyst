@@ -29,21 +29,36 @@ type EnvironmentSetupOptions = {
  */
 async function seedProjectEnvironments(projectId: string) {
   try {
+    console.log(`Seeding environments for project ${projectId}`);
+    const repoId = await findProjectPrimaryRepoId(projectId);
+    console.log(`Found primary repo ID: ${repoId}`);
+    
     // Create some environments for the project
-    await db.insert(projectEnvironments).values([
+    const result = await db.insert(projectEnvironments).values([
       {
         projectId,
-        repoId: await findProjectPrimaryRepoId(projectId),
+        repoId,
         environment: 'preview',
         latestDeployment: 'deploy-preview-123',
+        status: 'active',
       },
       {
         projectId,
-        repoId: await findProjectPrimaryRepoId(projectId),
+        repoId,
         environment: 'staging',
         latestDeployment: 'deploy-staging-456',
+        status: 'active',
       }
-    ]);
+    ]).returning();
+    
+    console.log(`Created environments: ${JSON.stringify(result)}`);
+    
+    // Verify environments were created
+    const createdEnvironments = await db.query.projectEnvironments.findMany({
+      where: eq(projectEnvironments.projectId, projectId)
+    });
+    console.log(`Verified environments: ${JSON.stringify(createdEnvironments)}`);
+    
     return true;
   } catch (error) {
     console.error('Error seeding project environments:', error);

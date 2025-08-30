@@ -384,9 +384,10 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           {project.environments.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {project.environments.map((env) => (
+
                 <div key={env.id} className="bg-surface border border-outline rounded-lg p-4 shadow-sm">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium text-on-surface">{env.name}</h3>
+                    <h3 className="font-medium text-on-surface">{env.environment}</h3>
                     <span className={`px-2 py-1 text-xs rounded-full ${
                       env.status === 'active' ? 'bg-success-container text-on-success-container' :
                       env.status === 'deploying' ? 'bg-warning-container text-on-warning-container' :
@@ -395,9 +396,6 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                       {env.status}
                     </span>
                   </div>
-                  <p className="text-sm text-on-surface-variant mb-2">
-                    Type: {env.type === 'branch_push' ? `Branch: ${env.branch}` : `Cron: ${env.cronSchedule}`}
-                  </p>
                   {env.url && (
                     <a 
                       href={env.url}
