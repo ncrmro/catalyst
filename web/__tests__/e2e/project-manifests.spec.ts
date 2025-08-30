@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { loginWithFixedTestUser } from './helpers';
+import { loginAndSeedForE2E } from './helpers';
 
 test.describe('Project Environment Templates', () => {
   test.beforeEach(async ({ page }, testInfo) => {
-    await loginWithFixedTestUser(page);
+    await loginAndSeedForE2E(page, testInfo);
   });
 
   test('should add Dockerfile and Helm chart templates and delete one', async ({ page }) => {
