@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loginWithDevPassword, generateUserCredentials, loginAndSeedForE2E } from './helpers';
-import { seedProjectsForE2EUser } from './e2e-seed';
+import { loginWithDevPassword, generateUserCredentials, loginAndSeedForE2E, seedProjectsForE2EUser } from './helpers';
 
 test.describe('Team Authorization', () => {
   test.beforeEach(async ({ page }, testInfo) => {
@@ -53,22 +52,27 @@ test.describe('Team Authorization', () => {
 
   test('should show repos page regardless of team authorization', async ({ page }) => {
 
-    // Navigate to repos page - this should work as it fetches from GitHub directly
+    // Navigate to repos page - this works with database repos and optionally GitHub repos
     await page.goto('/repos');
 
-    // Check that the page loads correctly
-    await expect(page.getByRole('heading', { name: 'GitHub Repositories' })).toBeVisible();
+    // Check that the page loads correctly with new generic title
+    await expect(page.getByRole('heading', { name: 'Git Repositories' })).toBeVisible();
 
     // Should show description
-    await expect(page.getByText('View and manage your GitHub repositories and organization repos.')).toBeVisible();
+    await expect(page.getByText('View and manage your Git repositories across different platforms.')).toBeVisible();
 
-    // In mocked mode, should show mock repositories
-    // In real mode, would depend on GitHub access
     const hasRepos = await page.locator('[class*="bg-surface"][class*="border"][class*="rounded-lg"]').count() > 0;
-    const hasEmptyState = await page.getByText('No repositories found').isVisible();
     
     // Should either show repos or empty state
-    expect(hasRepos || hasEmptyState).toBe(true);
+    expect(hasRepos).toBe(true);
+    
+    // If GitHub integration is not enabled, it should show a warning message
+    const githubDisabledWarning = page.locator('text=GitHub integration is not currently enabled');
+    const hasGithubWarning = await githubDisabledWarning.count() > 0;
+    
+    // The test can pass whether GitHub integration is enabled or not
+    // If it's disabled, we'll see the warning; if it's enabled, we won't
+    console.log(`GitHub integration ${hasGithubWarning ? 'is not' : 'is'} enabled for this test run`);
   });
 
   test('should show teams page with user teams', async ({ page }) => {

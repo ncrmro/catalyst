@@ -1,6 +1,15 @@
-import { ProjectEnvironment } from '@/actions/projects';
+type Environment = {
+  id: string;
+  name: string;
+  type: string;
+  branch?: string;
+  cronSchedule?: string;
+  status: string;
+  url?: string;
+  lastDeployed?: Date;
+};
 
-export function EnvironmentBadge({ environment }: { environment: ProjectEnvironment }) {
+export function EnvironmentBadge({ environment }: { environment: Environment }) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
@@ -18,11 +27,11 @@ export function EnvironmentBadge({ environment }: { environment: ProjectEnvironm
     return type === 'branch_push' ? '🔄' : '⏰';
   };
 
-  const getTypeDescription = (env: ProjectEnvironment) => {
+  const getTypeDescription = (env: Environment) => {
     if (env.type === 'branch_push') {
       return env.branch ? `on ${env.branch}` : 'branch push';
     } else {
-      return env.cron_schedule ? `cron: ${env.cron_schedule}` : 'scheduled';
+      return env.cronSchedule ? `cron: ${env.cronSchedule}` : 'scheduled';
     }
   };
 

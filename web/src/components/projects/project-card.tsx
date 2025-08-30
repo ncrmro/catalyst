@@ -1,29 +1,70 @@
-import { Project } from '@/actions/projects';
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { EnvironmentBadge } from './environment-badge';
 
-export function ProjectCard({ project }: { project: Project }) {
-  const primaryRepo = project.repositories.find(repo => repo.primary) || project.repositories[0];
-  const otherRepos = project.repositories.filter(repo => !repo.primary);
+// Define type for the project from the database structure
+type ProjectData = {
+  id: string;
+  name: string;
+  fullName: string;
+  description: string | null;
+  ownerLogin: string;
+  ownerType: string;
+  ownerAvatarUrl: string;
+  previewEnvironmentsCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+  repositories: {
+    isPrimary: boolean;
+    repo: {
+      id: string;
+      githubId: number;
+      name: string;
+      fullName: string;
+      url: string;
+    }
+  }[];
+  environments: {
+    id: string;
+    name: string;
+    type: string;
+    branch?: string;
+    cronSchedule?: string;
+    status: string;
+    url?: string;
+    lastDeployed?: Date;
+  }[];
+};
+
+export function ProjectCard({ project }: { project: ProjectData }) {
+  // Find primary repo or use first one
+  const primaryRepoConnection = project.repositories.find(repo => repo.isPrimary) || project.repositories[0];
+  const primaryRepo = primaryRepoConnection?.repo;
+  
+  // Get non-primary repos
+  const otherRepos = project.repositories
+    .filter(repo => !repo.isPrimary)
+    .map(connection => connection.repo);
 
   return (
     <Link href={`/projects/${project.id}`}>
       <div 
         className="bg-surface border border-outline rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-        data-testid={`project-card-${project.full_name}`}
+        data-testid={`project-card-${project.fullName}`}
       >
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <Image 
-            src={project.owner.avatar_url} 
-            alt={`${project.owner.login} avatar`}
+            src={project.ownerAvatarUrl || ''} 
+            alt={`${project.ownerLogin} avatar`}
             width={32}
             height={32}
             className="w-8 h-8 rounded-full"
           />
           <div>
-            <h3 className="text-lg font-semibold text-on-surface">{project.full_name}</h3>
+            <h3 className="text-lg font-semibold text-on-surface">{project.fullName}</h3>
             {project.description && (
               <p className="text-on-surface-variant text-sm mt-1">{project.description}</p>
             )}
@@ -31,7 +72,7 @@ export function ProjectCard({ project }: { project: Project }) {
         </div>
         <div className="flex items-center gap-2 text-sm text-on-surface-variant">
           <span className="bg-primary-container text-on-primary-container px-2 py-1 rounded-full text-xs font-medium">
-            {project.preview_environments_count} previews
+            {project.previewEnvironmentsCount} previews
           </span>
         </div>
       </div>
@@ -60,6 +101,7 @@ export function ProjectCard({ project }: { project: Project }) {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary hover:opacity-80 font-medium"
+                onClick={(e) => e.stopPropagation()}
               >
                 {primaryRepo.name}
               </a>
@@ -76,6 +118,7 @@ export function ProjectCard({ project }: { project: Project }) {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-on-surface-variant hover:text-on-surface"
+                onClick={(e) => e.stopPropagation()}
               >
                 {repo.name}
               </a>
@@ -92,8 +135,8 @@ export function ProjectCard({ project }: { project: Project }) {
       {/* Footer */}
       <div className="mt-4 pt-4 border-t border-outline">
         <div className="flex items-center justify-between text-xs text-on-surface-variant">
-          <span>Created {new Date(project.created_at).toLocaleDateString()}</span>
-          <span>Updated {new Date(project.updated_at).toLocaleDateString()}</span>
+          <span>Created {new Date(project.createdAt).toLocaleDateString()}</span>
+          <span>Updated {new Date(project.updatedAt).toLocaleDateString()}</span>
         </div>
       </div>
       </div>

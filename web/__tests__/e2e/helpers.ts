@@ -1,5 +1,5 @@
 import { Page, TestInfo } from '@playwright/test';
-import { seedProjectsForE2EUser } from './e2e-seed';
+import { seedUser } from '@/lib/seed';
 
 /**
  * Generate unique user credentials for E2E tests based on worker index and timestamp
@@ -34,6 +34,17 @@ export async function loginWithDevPassword(page: Page, testInfo: TestInfo, role:
 }
 
 /**
+ * For E2E tests - seed projects for the authenticated user
+ */
+export async function seedProjectsForE2EUser(password: string, testInfo?: TestInfo) {
+  return seedUser({
+    password,
+    testInfo,
+    createProjects: true
+  });
+}
+
+/**
  * Login and seed projects for E2E testing
  * This is a convenience function that combines login and seeding
  */
@@ -43,4 +54,4 @@ export async function loginAndSeedForE2E(page: Page, testInfo: TestInfo, role: '
   
   // Then seed projects for this user using the database directly
   await seedProjectsForE2EUser(password, testInfo);
-} 
+}

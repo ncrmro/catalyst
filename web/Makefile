@@ -12,9 +12,13 @@ help: ## Show this help message
 build: ## Build all services
 	$(DC) run --env NODE_ENV=production --rm -it app pnpm run build
 
+seed: ## Seed the database with test data
+	npm run seed
+
 up: ## Start all services
 	$(DC) up --detach --wait
 	npm run db:migrate
+	npm run seed
 	GITHUB_REPOS_MODE=mocked npm run dev
 
 down: ## Stop all services

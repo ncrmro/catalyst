@@ -1,4 +1,4 @@
-import { fetchProjectById, fetchProjectPullRequests, fetchProjectIssues, type Project } from '@/actions/projects';
+import { fetchProjectById, fetchProjectPullRequests, fetchProjectIssues } from '@/actions/projects';
 import { fetchProjectManifests, type ProjectManifest } from '@/actions/project-manifests';
 import { type PullRequest, type Issue } from '@/actions/reports';
 import { ProjectManifestsForm } from '@/components/projects/project-manifests-form';
@@ -6,6 +6,40 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
+
+// Define type for the project from the database structure
+type ProjectData = {
+  id: string;
+  name: string;
+  fullName: string;
+  description: string | null;
+  ownerLogin: string;
+  ownerType: string;
+  ownerAvatarUrl: string;
+  previewEnvironmentsCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+  repositories: {
+    isPrimary: boolean;
+    repo: {
+      id: string;
+      githubId: number;
+      name: string;
+      fullName: string;
+      url: string;
+    }
+  }[];
+  environments: {
+    id: string;
+    name: string;
+    type: string;
+    branch?: string;
+    cronSchedule?: string;
+    status: string;
+    url?: string;
+    lastDeployed?: Date;
+  }[];
+};
 
 function getPriorityColor(priority: 'high' | 'medium' | 'low') {
   switch (priority) {
@@ -158,7 +192,7 @@ export async function generateMetadata({ params }: ProjectPageProps): Promise<Me
   const project = await fetchProjectById(projectId);
   
   return {
-    title: project ? `${project.full_name} - Catalyst` : 'Project - Catalyst',
+    title: project ? `${project.fullName} - Catalyst` : 'Project - Catalyst',
     description: project?.description || 'Project details, pull requests, and issues in Catalyst.',
   };
 }
@@ -166,7 +200,7 @@ export async function generateMetadata({ params }: ProjectPageProps): Promise<Me
 export default async function ProjectPage({ params }: ProjectPageProps) {
   const { projectId } = await params;
   
-  let project: Project | null;
+  let project: ProjectData | null;
   let pullRequests: PullRequest[];
   let issues: Issue[];
   let manifests: ProjectManifest[];
@@ -191,6 +225,15 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     notFound();
   }
 
+  // Convert repository connections to simpler format for the manifests form
+  const repositoriesForForm = project.repositories.map(repoConnection => ({
+    id: repoConnection.repo.id,
+    name: repoConnection.repo.name,
+    full_name: repoConnection.repo.fullName,
+    url: repoConnection.repo.url,
+    primary: repoConnection.isPrimary
+  }));
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
@@ -204,23 +247,23 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           <div className="bg-surface border border-outline rounded-lg p-8 shadow-sm">
             <div className="flex items-start gap-4 mb-6">
               <Image 
-                src={project.owner.avatar_url} 
-                alt={`${project.owner.login} avatar`}
+                src={project.ownerAvatarUrl || ''} 
+                alt={`${project.ownerLogin} avatar`}
                 width={64}
                 height={64}
                 className="w-16 h-16 rounded-full"
               />
               <div className="flex-1">
-                <h1 className="text-3xl font-bold text-on-surface mb-2">{project.full_name}</h1>
+                <h1 className="text-3xl font-bold text-on-surface mb-2">{project.fullName}</h1>
                 {project.description && (
                   <p className="text-lg text-on-surface-variant mb-4">{project.description}</p>
                 )}
                 <div className="flex items-center gap-4 text-sm text-on-surface-variant">
-                  <span>Owner: {project.owner.login} ({project.owner.type})</span>
+                  <span>Owner: {project.ownerLogin} ({project.ownerType})</span>
                   <span>•</span>
                   <span>{project.repositories.length} repositories</span>
                   <span>•</span>
-                  <span>{project.preview_environments_count} preview environments</span>
+                  <span>{project.previewEnvironmentsCount} preview environments</span>
                 </div>
               </div>
             </div>
@@ -247,25 +290,25 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         <div className="mb-8">
           <h2 className="text-2xl font-semibold text-on-surface mb-6">Repositories</h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {project.repositories.map((repo) => (
-              <div key={repo.id} className="bg-surface border border-outline rounded-lg p-4 shadow-sm">
+            {project.repositories.map((repoConnection) => (
+              <div key={repoConnection.repo.id} className="bg-surface border border-outline rounded-lg p-4 shadow-sm">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className={`w-2 h-2 rounded-full ${repo.primary ? 'bg-primary' : 'bg-on-surface-variant'}`}></span>
+                  <span className={`w-2 h-2 rounded-full ${repoConnection.isPrimary ? 'bg-primary' : 'bg-on-surface-variant'}`}></span>
                   <a 
-                    href={repo.url}
+                    href={repoConnection.repo.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="font-medium text-primary hover:opacity-80"
                   >
-                    {repo.name}
+                    {repoConnection.repo.name}
                   </a>
-                  {repo.primary && (
+                  {repoConnection.isPrimary && (
                     <span className="bg-primary-container text-on-primary-container px-1.5 py-0.5 rounded text-xs">
                       primary
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-on-surface-variant">{repo.full_name}</p>
+                <p className="text-sm text-on-surface-variant">{repoConnection.repo.fullName}</p>
               </div>
             ))}
           </div>
@@ -319,7 +362,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           </p>
           <ProjectManifestsForm 
             projectId={projectId}
-            repositories={project.repositories}
+            repositories={repositoriesForForm}
             manifests={manifests}
           />
         </div>
@@ -328,14 +371,14 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-semibold text-on-surface">Environments</h2>
-            {project.environments.length > 0 && (
+            {project.environments.length > 0 ? (
               <Link
                 href={`/environments/${projectId}`}
                 className="px-4 py-2 text-sm font-medium text-on-primary bg-primary border border-transparent rounded-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
               >
                 Add Environment
               </Link>
-            )}
+            ) : null}
           </div>
           
           {project.environments.length > 0 ? (
@@ -353,7 +396,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                     </span>
                   </div>
                   <p className="text-sm text-on-surface-variant mb-2">
-                    Type: {env.type === 'branch_push' ? `Branch: ${env.branch}` : `Cron: ${env.cron_schedule}`}
+                    Type: {env.type === 'branch_push' ? `Branch: ${env.branch}` : `Cron: ${env.cronSchedule}`}
                   </p>
                   {env.url && (
                     <a 
@@ -365,9 +408,9 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                       View Environment →
                     </a>
                   )}
-                  {env.last_deployed && (
+                  {env.lastDeployed && (
                     <p className="text-xs text-on-surface-variant mt-2">
-                      Last deployed: {new Date(env.last_deployed).toLocaleDateString()}
+                      Last deployed: {new Date(env.lastDeployed).toLocaleDateString()}
                     </p>
                   )}
                 </div>

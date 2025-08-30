@@ -29,7 +29,7 @@ export class ProjectsPage extends BasePage {
     super(page);
     
     // Initialize projects list page elements
-    this.pageTitle = page.getByRole('heading', { name: 'Projects' });
+    this.pageTitle = page.getByRole('heading', { name: 'Projects', level: 1 });
     this.pageDescription = page.getByText('Manage your deployment projects and environments');
     this.projectCount = page.locator('text=/\\d+ projects with environments/');
     this.projectCards = page.locator('[data-testid^="project-card-"]');
@@ -76,14 +76,22 @@ export class ProjectsPage extends BasePage {
 
   /**
    * Assert that projects exist and are visible
-   * Will fail the test if no projects are found
+   * @param {boolean} requireProjects - If true, fails the test when no projects are found. 
+   *                                   If false, allows empty projects state.
    */
-  async expectProjectsToExist() {
+  async expectProjectsToExist(requireProjects = true) {
     const count = await this.projectCards.count();
     const noProjectsVisible = await this.noProjectsMessage.isVisible();
     
-    expect(count, 'At least one project should be available for testing').toBeGreaterThan(0);
-    expect(noProjectsVisible, '"No projects found" message should not be visible').toBe(false);
+    if (requireProjects) {
+      expect(count, 'At least one project should be available for testing').toBeGreaterThan(0);
+      expect(noProjectsVisible, '"No projects found" message should not be visible').toBe(false);
+    } else {
+      // Just log the state without failing
+      console.log(`Projects found: ${count}, "No projects" message visible: ${noProjectsVisible}`);
+    }
+    
+    return count > 0;
   }
 
   /**
@@ -177,5 +185,45 @@ export class ProjectsPage extends BasePage {
     
     const href = await firstRepoLink.getAttribute('href');
     expect(href).toMatch(/^https:\/\/github\.com\//);
+  }
+  
+  /**
+   * Checks if the current state is the empty projects state
+   * @returns {Promise<boolean>} True if we're in the empty projects state
+   */
+  async isEmptyState(): Promise<boolean> {
+    const noProjectsVisible = await this.noProjectsMessage.isVisible();
+    const projectCount = await this.projectCards.count();
+    return noProjectsVisible && projectCount === 0;
+  }
+  
+  /**
+   * Creates a project from the empty state UI
+   * Note: This is a placeholder method for when the create project UI is implemented
+   * @param projectName Name of the project to create
+   */
+  async createProjectFromEmptyState(projectName: string): Promise<void> {
+    // Check that we're in the empty state
+    if (!await this.isEmptyState()) {
+      throw new Error('Not in empty state - projects already exist');
+    }
+    
+    // Note: The UI for creating a project from empty state is not yet implemented
+    // This method will be updated once that UI is available
+    const createProjectButton = this.page.getByRole('button', { name: /create/i }) || 
+                                this.page.getByRole('link', { name: /create/i });
+    
+    if (await createProjectButton.count() > 0) {
+      await createProjectButton.click();
+      
+      // Here we'd fill out the project creation form when it's implemented
+      // await this.page.locator('input[name="projectName"]').fill(projectName);
+      // await this.page.locator('button[type="submit"]').click();
+      
+      // For now, just log that we'd create a project
+      console.log(`Would create project: ${projectName}`);
+    } else {
+      throw new Error('Create project button not found in the UI');
+    }
   }
 }

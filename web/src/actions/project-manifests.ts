@@ -28,8 +28,6 @@ export async function fetchProjectManifests(projectId: string): Promise<ProjectM
     throw new Error('Unauthorized');
   }
 
-  // For mocked data environment, return empty array for now
-  // In a real implementation, this would check the database
   try {
     const manifests = await db
       .select()
@@ -37,8 +35,8 @@ export async function fetchProjectManifests(projectId: string): Promise<ProjectM
       .where(eq(projectManifests.projectId, projectId));
 
     return manifests;
-  } catch {
-    console.log('Database query failed, returning empty manifests for mocked environment');
+  } catch (error) {
+    console.log('Database query failed, returning empty manifests for mocked environment', error);
     return [];
   }
 }
@@ -51,9 +49,7 @@ export async function createProjectManifest(data: CreateProjectManifestRequest):
   if (!session?.user?.id) {
     throw new Error('Unauthorized');
   }
-
-  // For development/mocked environment, simulate creating a manifest
-  // Check if this is a mocked data environment by trying to get the project from the database
+  console.log(data)
   try {
     // Verify the project exists and user has access
     const project = await db
@@ -63,29 +59,12 @@ export async function createProjectManifest(data: CreateProjectManifestRequest):
       .limit(1);
 
     if (project.length === 0) {
-      // This might be mocked data - check if the project exists in mocked data
-      const { fetchProjectById } = await import('./projects');
-      const mockedProject = await fetchProjectById(data.projectId);
-      
-      if (!mockedProject) {
-        throw new Error('Project not found');
-      }
-      
-      // In mocked environment, simulate successful creation
-      console.log('Simulating project manifest creation for mocked project:', data);
-      const simulatedManifest: ProjectManifest = {
-        projectId: data.projectId,
-        repoId: data.repoId,
-        path: data.path,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      
-      // Since this is mocked, we'll just return the simulated manifest
-      // In a real database environment, this would actually insert the record
-      return simulatedManifest;
+      throw new Error('Project not found');
     }
 
+
+    console.log({repoId: data.repoId
+    })
     // Verify the repo exists
     const repo = await db
       .select()

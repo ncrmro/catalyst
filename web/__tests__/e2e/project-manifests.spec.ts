@@ -1,9 +1,13 @@
 import { test, expect } from '@playwright/test';
-import { loginAndSeedForE2E } from './helpers';
+import { loginWithDevPassword, seedProjectsForE2EUser } from './helpers';
 
 test.describe('Project Environment Templates', () => {
   test.beforeEach(async ({ page }, testInfo) => {
-    await loginAndSeedForE2E(page, testInfo);
+    // Login as a regular user for tests
+    const password = await loginWithDevPassword(page, testInfo, 'user');
+    
+    // Seed projects for this user to ensure tests have data
+    await seedProjectsForE2EUser(password, testInfo);
   });
 
   test('should add Dockerfile and Helm chart templates and delete one', async ({ page }) => {
