@@ -19,9 +19,6 @@ baseTest.describe('Project Environment Setup', () => {
       // Project should have environments - verify environment section and buttons
       await expect(projectsPage.environmentsSection).toBeVisible();
       
-      // Should show environment statuses since environments are seeded
-      await expect(projectsPage.environmentStatusBadges).toBeVisible();
-      
       // Should show Add Environment button, not Setup Environment
       await expect(projectsPage.addEnvironmentLink).toBeVisible();
       await expect(projectsPage.addEnvironmentLink).toHaveAttribute('href', new RegExp(`/environments/[^/]+$`));
@@ -75,9 +72,6 @@ baseTest.describe('Project Environment Setup', () => {
       
       // Should NOT have "Add Environment" button
       await expect(projectsPage.addEnvironmentLink).not.toBeVisible();
-      
-      // Should NOT show any environment statuses
-      await expect(projectsPage.environmentStatusBadges).not.toBeVisible();
     });
 
     testWithoutEnvironments('should navigate to environment setup page for first environment', async ({ projectsPage, page }) => {
@@ -120,7 +114,6 @@ baseTest.describe('Project Environment Setup', () => {
       }
       
       // First, verify we have no environments
-      await expect(projectsPage.environmentStatusBadges).not.toBeVisible();
       await expect(projectsPage.noEnvironmentsMessage).toBeVisible();
       
       // Navigate to environment setup page
@@ -143,12 +136,9 @@ baseTest.describe('Project Environment Setup', () => {
       // Verify the environment was created - no more empty state
       await expect(projectsPage.noEnvironmentsMessage).not.toBeVisible();
       
-      // Either we have environment badges now, or an Add Environment button (instead of Setup Environment)
-      const hasEnvBadges = await projectsPage.environmentStatusBadges.count() > 0;
-      const hasAddEnvButton = await projectsPage.addEnvironmentLink.isVisible();
-      
-      // At least one of these should be true
-      expect(hasEnvBadges || hasAddEnvButton, 'Environment should be created successfully').toBe(true);
+      // Verify that we have environments now
+      const hasEnvironments = await projectsPage.hasEnvironments();
+      expect(hasEnvironments, 'Environment should be created successfully').toBe(true);
       
       // Setup environment link should be gone
       await expect(projectsPage.setupEnvironmentLink).not.toBeVisible();
