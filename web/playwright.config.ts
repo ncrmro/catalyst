@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import 'dotenv/config';
 
 /**
  * @see https://playwright.dev/docs/test-configuration
@@ -11,8 +12,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 0 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  /* Run tests two at a time on CI. */
+  workers: process.env.CI ? 2 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: process.env.CI ? 
     [['github'], ['html', { open: 'never' }]] : 
@@ -30,6 +31,10 @@ export default defineConfig({
     
     /* Record video only when test fails. */
     video: 'retain-on-failure',
+  },
+
+  expect: {
+    timeout: 10_000 // 10 Seconds
   },
 
   /* Configure projects for major browsers */
