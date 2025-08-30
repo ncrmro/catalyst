@@ -25,6 +25,51 @@ const customJestConfig = {
   collectCoverageFrom: [
     'src/**/*.{js,jsx,ts,tsx}',
     '!src/**/*.d.ts',
+    '!src/**/*.config.{js,ts}',
+    '!src/db/migrations/**',
+    '!src/types/**',
+  ],
+  coverageDirectory: 'coverage',
+  coverageReporters: [
+    'text',
+    'text-summary',
+    'html',
+    'lcov',
+    'json',
+    'json-summary'
+  ],
+  coverageThreshold: {
+    global: {
+      branches: 15,
+      functions: 20,
+      lines: 20,
+      statements: 20
+    },
+    // Allow lower thresholds for specific patterns
+    'src/components/**': {
+      branches: 10,
+      functions: 15,
+      lines: 15,
+      statements: 15
+    },
+    'src/app/**': {
+      branches: 10,
+      functions: 15,
+      lines: 15,
+      statements: 15
+    }
+  },
+  coveragePathIgnorePatterns: [
+    '/node_modules/',
+    '/coverage/',
+    '/drizzle/',
+    '/.next/',
+    '/public/',
+    '/scripts/',
+    '/docs/',
+    '/__tests__/',
+    '\\.config\\.(js|ts)$',
+    '\\.setup\\.(js|ts)$'
   ],
   transformIgnorePatterns: [
     'node_modules/(?!(next-auth|@auth/core|@kubernetes/client-node)/)',

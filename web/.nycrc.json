@@ -1,0 +1,50 @@
+{
+  "all": true,
+  "check-coverage": true,
+  "skip-full": false,
+  "exclude": [
+    "**/*.config.{js,ts}",
+    "**/*.setup.{js,ts}",
+    "**/coverage/**",
+    "**/node_modules/**",
+    "**/.next/**",
+    "**/drizzle/**",
+    "**/public/**",
+    "**/docs/**",
+    "**/__tests__/**",
+    "**/scripts/**",
+    "**/*.d.ts",
+    "**/types/**",
+    "**/migrations/**"
+  ],
+  "extension": [
+    ".js",
+    ".jsx",
+    ".ts",
+    ".tsx"
+  ],
+  "include": [
+    "src/**/*.{js,jsx,ts,tsx}"
+  ],
+  "instrument": true,
+  "reporter": [
+    "text",
+    "text-summary",
+    "html",
+    "lcov",
+    "json",
+    "json-summary"
+  ],
+  "report-dir": "./coverage",
+  "temp-dir": "./coverage/tmp",
+  "watermarks": {
+    "lines": [20, 70],
+    "functions": [20, 70],
+    "branches": [15, 70],
+    "statements": [20, 70]
+  },
+  "statements": 20,
+  "branches": 15,
+  "functions": 20,
+  "lines": 20
+}
