@@ -1,4 +1,5 @@
 import { Page, TestInfo } from '@playwright/test';
+import { seedProjectsForE2EUser } from './e2e-seed';
 
 /**
  * Generate unique user credentials for E2E tests based on worker index and timestamp
@@ -17,6 +18,8 @@ export function generateUserCredentials(testInfo: TestInfo, role: 'user' | 'admi
  * Perform a development credentials login via NextAuth and attach auth cookies to the provided page.
  * Requires NODE_ENV=development and the Credentials provider enabled (id: "password").
  * This will automatically create a user and team if they don't exist.
+ * 
+ * @returns The password used for login
  */
 export async function loginWithDevPassword(page: Page, testInfo: TestInfo, role: 'user' | 'admin' = 'user') {
   // Generate a unique dev password that NextAuth credentials provider understands
@@ -25,30 +28,9 @@ export async function loginWithDevPassword(page: Page, testInfo: TestInfo, role:
   await page.getByLabel('Password').fill(password);
   await page.getByRole('button', { name: 'Sign in with Password' }).click();
   await page.waitForURL('/');
-}
-
-/**
- * Seed projects for the current E2E test user
- * This ensures that the user has projects available in the database
- */
-export async function seedProjectsForE2EUser(page: Page) {
-  try {
-    // Call the E2E seeding endpoint after user is logged in
-    const response = await page.request.post('/api/e2e/seed');
-    
-    if (!response.ok()) {
-      const errorText = await response.text();
-      console.warn('Failed to seed projects for E2E user:', errorText);
-      return { success: false, message: errorText };
-    }
-    
-    const result = await response.json();
-    console.log('E2E projects seeded:', result);
-    return result;
-  } catch (error) {
-    console.error('Error seeding projects for E2E user:', error);
-    return { success: false, message: error instanceof Error ? error.message : 'Unknown error' };
-  }
+  
+  // Return the password so it can be used for seeding
+  return password;
 }
 
 /**
@@ -56,9 +38,9 @@ export async function seedProjectsForE2EUser(page: Page) {
  * This is a convenience function that combines login and seeding
  */
 export async function loginAndSeedForE2E(page: Page, testInfo: TestInfo, role: 'user' | 'admin' = 'user') {
-  // First login the user
-  await loginWithDevPassword(page, testInfo, role);
+  // First login the user and get the password used
+  const password = await loginWithDevPassword(page, testInfo, role);
   
-  // Then seed projects for this user
-  await seedProjectsForE2EUser(page);
+  // Then seed projects for this user using the database directly
+  await seedProjectsForE2EUser(password, testInfo);
 } 
