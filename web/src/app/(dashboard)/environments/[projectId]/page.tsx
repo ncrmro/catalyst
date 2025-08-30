@@ -17,8 +17,8 @@ export async function generateMetadata({ params }: EnvironmentsPageProps): Promi
   const project = await fetchProjectById(projectId);
   
   return {
-    title: project ? `${project.full_name} - Environments - Catalyst` : 'Project Environments - Catalyst',
-    description: project ? `Configure environments for ${project.full_name}` : 'Configure project environments in Catalyst.',
+    title: project ? `${project.fullName} - Environments - Catalyst` : 'Project Environments - Catalyst',
+    description: project ? `Configure environments for ${project.fullName}` : 'Configure project environments in Catalyst.',
   };
 }
 

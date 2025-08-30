@@ -1,13 +1,13 @@
 import { test as base } from '@playwright/test';
 import { loginAndSeedForE2E } from '../helpers';
-import { getClusterConfig, getCoreV1Api } from '../../../src/lib/k8s-client';
-import { CoreV1Api, KubeConfig } from '@kubernetes/client-node';
+import { getClusterConfig, getCoreV1Api, KubeConfig as CustomKubeConfig } from '../../../src/lib/k8s-client';
+import { CoreV1Api } from '@kubernetes/client-node';
 
 /**
  * Interface for the Kubernetes client fixture
  */
 interface K8sFixture {
-  kc: KubeConfig;
+  kc: CustomKubeConfig;
   coreApi: CoreV1Api;
 }
 

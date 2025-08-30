@@ -12,7 +12,7 @@ type ProjectData = {
   description: string | null;
   ownerLogin: string;
   ownerType: string;
-  ownerAvatarUrl: string;
+  ownerAvatarUrl: string | null;
   previewEnvironmentsCount: number;
   createdAt: Date;
   updatedAt: Date;
@@ -28,13 +28,18 @@ type ProjectData = {
   }[];
   environments: {
     id: string;
-    name: string;
-    type: string;
+    projectId: string;
+    repoId: string;
+    environment: string;
+    latestDeployment: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    name?: string;
+    type?: string;
     branch?: string;
     cronSchedule?: string;
-    status: string;
+    status?: string;
     url?: string;
-    lastDeployed?: Date;
   }[];
 };
 

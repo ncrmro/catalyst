@@ -8,7 +8,7 @@ interface EnvironmentsPageClientProps {
   project: {
     id: string;
     name: string;
-    full_name: string;
+    fullName: string;
     teamId: string;
     repositories: {
       repoId: string;
@@ -53,7 +53,7 @@ export function EnvironmentsForm({ project }: EnvironmentsPageClientProps) {
         </Link>
         <h1 className="text-3xl font-bold text-on-background mb-4">Configure Environments</h1>
         <p className="text-lg text-on-surface-variant mb-6">
-          Set up deployment environments for <span className="font-semibold">{project.full_name}</span>. 
+          Set up deployment environments for <span className="font-semibold">{project.fullName}</span>. 
           We recommend starting with a preview environment which will create pull requests for your changes.
         </p>
       </div>

@@ -1,16 +1,21 @@
 type Environment = {
   id: string;
-  name: string;
-  type: string;
+  projectId: string;
+  repoId: string;
+  environment: string;
+  latestDeployment: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  name?: string;
+  type?: string;
   branch?: string;
   cronSchedule?: string;
-  status: string;
+  status?: string;
   url?: string;
-  lastDeployed?: Date;
 };
 
 export function EnvironmentBadge({ environment }: { environment: Environment }) {
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status?: string) => {
     switch (status) {
       case 'active':
         return 'bg-green-100 text-green-800';
@@ -19,11 +24,12 @@ export function EnvironmentBadge({ environment }: { environment: Environment }) 
       case 'inactive':
         return 'bg-gray-100 text-gray-800';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-green-100 text-green-800'; // Default to active
     }
   };
 
-  const getTypeIcon = (type: string) => {
+  const getTypeIcon = (type?: string) => {
+    if (!type) return '🔄';
     return type === 'branch_push' ? '🔄' : '⏰';
   };
 
@@ -39,7 +45,7 @@ export function EnvironmentBadge({ environment }: { environment: Environment }) 
     <div className="flex items-center gap-2 text-sm">
       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(environment.status)}`}>
         {getTypeIcon(environment.type)}
-        {environment.name}
+        {environment.name || environment.environment}
       </span>
       <span className="text-gray-500 text-xs">
         {getTypeDescription(environment)}

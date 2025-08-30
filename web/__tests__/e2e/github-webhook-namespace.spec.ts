@@ -6,7 +6,7 @@ function createSignature(payload: string, secret: string): string {
 }
 
 // Test cluster connectivity by listing namespaces - this must pass for tests to continue
-async function verifyClusterConnectivity(coreApi) {
+async function verifyClusterConnectivity(coreApi: any) {
   try {
     const response = await coreApi.listNamespace();
     

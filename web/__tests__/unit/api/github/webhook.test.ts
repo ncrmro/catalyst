@@ -58,7 +58,7 @@ describe('/api/github/webhook', () => {
           'x-hub-signature-256': signature,
           'content-type': 'application/json'
         },
-        body: payloadString,
+        body: Buffer.from(payloadString),
       });
 
       // Mock request.text() to return the payload
@@ -93,7 +93,7 @@ describe('/api/github/webhook', () => {
           'x-hub-signature-256': signature,
           'content-type': 'application/json'
         },
-        body: payloadString,
+        body: Buffer.from(payloadString),
       });
 
       req.text = jest.fn().mockResolvedValue(payloadString);
@@ -126,7 +126,7 @@ describe('/api/github/webhook', () => {
           'x-hub-signature-256': signature,
           'content-type': 'application/json'
         },
-        body: payloadString,
+        body: Buffer.from(payloadString),
       });
 
       req.text = jest.fn().mockResolvedValue(payloadString);
@@ -189,7 +189,7 @@ describe('/api/github/webhook', () => {
           'x-hub-signature-256': signature,
           'content-type': 'application/json'
         },
-        body: payloadString,
+        body: Buffer.from(payloadString),
       });
 
       req.text = jest.fn().mockResolvedValue(payloadString);
@@ -254,7 +254,7 @@ describe('/api/github/webhook', () => {
           'x-hub-signature-256': signature,
           'content-type': 'application/json'
         },
-        body: payloadString,
+        body: Buffer.from(payloadString),
       });
 
       req.text = jest.fn().mockResolvedValue(payloadString);
@@ -303,7 +303,7 @@ describe('/api/github/webhook', () => {
           'x-hub-signature-256': signature,
           'content-type': 'application/json'
         },
-        body: payloadString,
+        body: Buffer.from(payloadString),
       });
 
       req.text = jest.fn().mockResolvedValue(payloadString);
@@ -346,7 +346,7 @@ describe('/api/github/webhook', () => {
           'x-hub-signature-256': signature,
           'content-type': 'application/json'
         },
-        body: payloadString,
+        body: Buffer.from(payloadString),
       });
 
       req.text = jest.fn().mockResolvedValue(payloadString);
@@ -404,7 +404,7 @@ describe('/api/github/webhook', () => {
           'x-hub-signature-256': signature,
           'content-type': 'application/json'
         },
-        body: payloadString,
+        body: Buffer.from(payloadString),
       });
 
       req.text = jest.fn().mockResolvedValue(payloadString);
@@ -437,7 +437,7 @@ describe('/api/github/webhook', () => {
           'x-hub-signature-256': signature,
           'content-type': 'application/json'
         },
-        body: payloadString,
+        body: Buffer.from(payloadString),
       });
 
       req.text = jest.fn().mockResolvedValue(payloadString);
@@ -466,7 +466,7 @@ describe('/api/github/webhook', () => {
           'x-hub-signature-256': invalidSignature,
           'content-type': 'application/json'
         },
-        body: payloadString,
+        body: Buffer.from(payloadString),
       });
 
       req.text = jest.fn().mockResolvedValue(payloadString);
@@ -501,7 +501,7 @@ describe('/api/github/webhook', () => {
           'x-github-delivery': 'test-delivery-123',
           'content-type': 'application/json'
         },
-        body: payloadString,
+        body: Buffer.from(payloadString),
       });
 
       req.text = jest.fn().mockResolvedValue(payloadString);
@@ -525,7 +525,7 @@ describe('/api/github/webhook', () => {
           'x-hub-signature-256': signature,
           'content-type': 'application/json'
         },
-        body: invalidJson,
+        body: Buffer.from(invalidJson),
       });
 
       req.text = jest.fn().mockResolvedValue(invalidJson);

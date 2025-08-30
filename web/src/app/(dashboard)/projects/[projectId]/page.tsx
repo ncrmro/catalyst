@@ -15,7 +15,7 @@ type ProjectData = {
   description: string | null;
   ownerLogin: string;
   ownerType: string;
-  ownerAvatarUrl: string;
+  ownerAvatarUrl: string | null;
   previewEnvironmentsCount: number;
   createdAt: Date;
   updatedAt: Date;
@@ -31,13 +31,14 @@ type ProjectData = {
   }[];
   environments: {
     id: string;
-    name: string;
-    type: string;
-    branch?: string;
-    cronSchedule?: string;
-    status: string;
+    projectId: string;
+    repoId: string;
+    environment: string;
+    latestDeployment: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    status?: string;
     url?: string;
-    lastDeployed?: Date;
   }[];
 };
 
@@ -393,7 +394,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                       env.status === 'deploying' ? 'bg-warning-container text-on-warning-container' :
                       'bg-surface-variant text-on-surface-variant'
                     }`}>
-                      {env.status}
+                      {env.status || 'active'}
                     </span>
                   </div>
                   {env.url && (
@@ -406,9 +407,9 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                       View Environment →
                     </a>
                   )}
-                  {env.lastDeployed && (
+                  {env.latestDeployment && (
                     <p className="text-xs text-on-surface-variant mt-2">
-                      Last deployed: {new Date(env.lastDeployed).toLocaleDateString()}
+                      Last deployed: {new Date(env.updatedAt).toLocaleDateString()}
                     </p>
                   )}
                 </div>

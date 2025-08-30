@@ -11,6 +11,15 @@ import { auth } from '@/auth';
 import { Octokit } from '@octokit/rest';
 import { getUserTeamIds } from '@/lib/team-auth';
 
+// Define type for simplified project repository format
+export interface ProjectRepo {
+  id: string;
+  name: string;
+  full_name: string;
+  url: string;
+  primary: boolean;
+}
+
 /**
  * Fetch projects data from database using Drizzle's relational queries
  * Returns data directly as it comes from the database

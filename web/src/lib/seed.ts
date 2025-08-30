@@ -330,7 +330,7 @@ export async function seedUser(options: {
       if (options.testInfo) {
         uniqueSuffix = `${options.testInfo.workerIndex}-${Date.now()}`;
       } else {
-        uniqueSuffix = `${user.email.split('@')[0]}-${Math.floor(Math.random() * 1000000)}`;
+        uniqueSuffix = `${user.email?.split('@')[0] || 'user'}-${Math.floor(Math.random() * 1000000)}`;
       }
   
       // Create repos and projects

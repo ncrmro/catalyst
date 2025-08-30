@@ -34,22 +34,24 @@ async function seedProjectEnvironments(projectId: string) {
     console.log(`Found primary repo ID: ${repoId}`);
     
     // Create some environments for the project
-    const result = await db.insert(projectEnvironments).values([
+    const result = await db.insert(projectEnvironments).values(
       {
         projectId,
         repoId,
         environment: 'preview',
-        latestDeployment: 'deploy-preview-123',
-        status: 'active',
-      },
+        latestDeployment: 'deploy-preview-123'
+      }
+    ).returning();
+    
+    // Insert the second environment separately
+    await db.insert(projectEnvironments).values(
       {
         projectId,
         repoId,
         environment: 'staging',
-        latestDeployment: 'deploy-staging-456',
-        status: 'active',
+        latestDeployment: 'deploy-staging-456'
       }
-    ]).returning();
+    );
     
     console.log(`Created environments: ${JSON.stringify(result)}`);
     

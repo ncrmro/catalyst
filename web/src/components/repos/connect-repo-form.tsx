@@ -26,7 +26,7 @@ interface GitHubRepo {
 interface Project {
   id: string;
   name: string;
-  full_name: string;
+  fullName: string;
   description: string | null;
 }
 
@@ -182,7 +182,7 @@ export function ConnectRepoForm({ repo, existingProjects }: ConnectRepoFormProps
                 <option value="">Select a project...</option>
                 {existingProjects.map((project) => (
                   <option key={project.id} value={project.id}>
-                    {project.full_name} {project.description && `- ${project.description}`}
+                    {project.fullName} {project.description && `- ${project.description}`}
                   </option>
                 ))}
               </select>

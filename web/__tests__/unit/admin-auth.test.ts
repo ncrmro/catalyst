@@ -57,7 +57,7 @@ describe('Admin Authentication', () => {
       })
       
       // Mock user creation with admin=true
-      db.transaction.mockImplementation((callback) => callback({
+      db.transaction.mockImplementation((callback: any) => callback({
         insert: jest.fn().mockReturnValue({
           values: jest.fn().mockReturnValue({
             returning: jest.fn().mockResolvedValue([{ 
@@ -99,7 +99,7 @@ describe('Admin Authentication', () => {
       })
       
       // Mock user creation with admin=false
-      db.transaction.mockImplementation((callback) => callback({
+      db.transaction.mockImplementation((callback: any) => callback({
         insert: jest.fn().mockReturnValue({
           values: jest.fn().mockReturnValue({
             returning: jest.fn().mockResolvedValue([{ 

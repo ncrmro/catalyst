@@ -46,7 +46,7 @@ describe('Feature Flags', () => {
 
     it('should only treat "1" as true', () => {
       // Set NODE_ENV to production to test strict production behavior
-      process.env.NODE_ENV = 'production';
+      process.env = { ...process.env, NODE_ENV: 'production' };
       process.env.FF_TEST_TRUE = '1';
       process.env.FF_TEST_FALSE = '0';
       process.env.FF_TEST_EMPTY = '';
@@ -65,7 +65,7 @@ describe('Feature Flags', () => {
 
     it('should default to true in development unless set to "0"', () => {
       // Set NODE_ENV to development
-      process.env.NODE_ENV = 'development';
+      process.env = { ...process.env, NODE_ENV: 'development' };
       process.env.FF_DEV_DEFAULT = undefined; // Not set
       process.env.FF_DEV_EXPLICIT_TRUE = '1';
       process.env.FF_DEV_EXPLICIT_FALSE = '0';
@@ -84,7 +84,7 @@ describe('Feature Flags', () => {
 
     it('should behave like production when NODE_ENV is not development', () => {
       // Set NODE_ENV to production
-      process.env.NODE_ENV = 'production';
+      process.env = { ...process.env, NODE_ENV: 'production' };
       process.env.FF_PROD_TRUE = '1';
       process.env.FF_PROD_FALSE = '0';
       process.env.FF_PROD_EMPTY = '';
@@ -117,13 +117,13 @@ describe('Feature Flags', () => {
     });
 
     it('should return false for non-existent features in production', () => {
-      process.env.NODE_ENV = 'production';
+      process.env = { ...process.env, NODE_ENV: 'production' };
       const { isFeatureEnabled: freshIsFeatureEnabled } = require('../../../src/lib/feature-flags');
       expect(freshIsFeatureEnabled('NON_EXISTENT')).toBe(false);
     });
 
     it('should return true for non-existent features in development', () => {
-      process.env.NODE_ENV = 'development';
+      process.env = { ...process.env, NODE_ENV: 'development' };
       const { isFeatureEnabled: freshIsFeatureEnabled } = require('../../../src/lib/feature-flags');
       expect(freshIsFeatureEnabled('NON_EXISTENT')).toBe(true);
     });

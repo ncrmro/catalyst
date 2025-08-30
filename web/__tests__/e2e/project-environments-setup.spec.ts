@@ -178,7 +178,7 @@ baseTest.describe('Project Environment Setup', () => {
       
       // This test is intentionally left as a placeholder for when the 
       // create project from empty state UI flow is implemented
-      baseTest.skip('Create project from empty state UI not yet implemented');
+      baseTest.skip(true, 'Create project from empty state UI not yet implemented');
     });
   });
 });

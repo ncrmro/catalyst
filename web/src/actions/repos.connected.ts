@@ -161,7 +161,7 @@ export async function fetchDatabaseRepos() {
       private: repo.isPrivate,
       owner: {
         login: repo.ownerLogin,
-        type: repo.ownerType,
+        type: repo.ownerType as 'User' | 'Organization',
         avatar_url: repo.ownerAvatarUrl || 'https://github.com/identicons/github.png',
       },
       html_url: repo.url,

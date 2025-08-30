@@ -124,7 +124,7 @@ describe('/api/github/register', () => {
         headers: {
           'content-type': 'application/json',
         },
-        body: 'invalid json',
+        body: Buffer.from('invalid json'),
       });
 
       // Mock json() to throw an error
