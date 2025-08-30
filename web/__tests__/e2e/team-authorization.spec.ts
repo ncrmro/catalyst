@@ -1,10 +1,14 @@
 import { test, expect } from '@playwright/test';
-import { loginWithDevPassword, generateUserCredentials } from './helpers';
+import { loginWithDevPassword, generateUserCredentials, loginAndSeedForE2E } from './helpers';
+import { seedProjectsForE2EUser } from './e2e-seed';
 
 test.describe('Team Authorization', () => {
   test.beforeEach(async ({ page }, testInfo) => {
-    // Login as a regular user for most tests
-    await loginWithDevPassword(page, testInfo, 'user');
+    // Login as a regular user for most tests and seed projects
+    const password = await loginWithDevPassword(page, testInfo, 'user');
+    
+    // Seed projects for this user to ensure tests have data
+    await seedProjectsForE2EUser(password, testInfo);
   });
 
   test('should only show projects that belong to user teams', async ({ page }) => {
@@ -13,7 +17,7 @@ test.describe('Team Authorization', () => {
     await page.goto('/projects');
 
     // Check that the page loads correctly
-    await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Projects', level: 1 })).toBeVisible();
 
     // In mocked mode, users should see projects since they have personal teams
     // In non-mocked mode with team authorization, they should only see projects from their teams
@@ -91,8 +95,10 @@ test.describe('Team Authorization', () => {
     await page.getByRole('button', { name: 'Sign out' }).click();
     
     // Login using generated user credentials, not hardcoded admin role
-    const password = generateUserCredentials(testInfo, 'admin');
-    await loginWithDevPassword(page, testInfo, 'admin');
+    const password = await loginWithDevPassword(page, testInfo, 'admin');
+    
+    // Seed projects for this admin user to ensure tests have data
+    await seedProjectsForE2EUser(password, testInfo);
 
     // Navigate to projects page
     await page.goto('/projects');
