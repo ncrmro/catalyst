@@ -1,0 +1,44 @@
+# Example values for using unit tests with the NextJS Helm chart
+
+# Your NextJS application image
+image:
+  repository: my-nextjs-app
+  tag: v1.0.0
+
+# Development image for unit tests (same as your main app but with test dependencies)
+developmentImage:
+  repository: my-nextjs-app
+  tag: development  # or use a development build of your app
+
+# Unit test configuration
+unitTests:
+  enabled: true
+  
+  # Additional environment variables for unit tests
+  env:
+    - name: DATABASE_URL
+      value: "mock://localhost"
+    - name: TEST_TIMEOUT
+      value: "30000"
+  
+  # Resource limits for unit test pod
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# PostgreSQL configuration (can be disabled for unit tests since they're mocked)
+postgresql:
+  enabled: false
+
+# Minimal resources for the main application when only testing
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
