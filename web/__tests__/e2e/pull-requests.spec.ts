@@ -61,27 +61,8 @@ test.describe('Pull Requests Page', () => {
     expect(titleLinkCount).toBe(4);
   });
 
-  test('should show no pull requests message when none exist', async ({ page }) => {
-    // Set environment to return empty pull requests
-    await page.addInitScript(() => {
-      // Override the fetch function to return empty array
-      const originalFetch = window.fetch;
-      window.fetch = async (...args) => {
-        if (args[0]?.toString().includes('/pull-requests')) {
-          return new Response(JSON.stringify([]), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
-          });
-        }
-        return originalFetch(...args);
-      };
-    });
-
-    // Go to the pull requests page
-    await page.goto('/pull-requests');
-    
-    // Since we can't easily mock server actions in E2E tests, just verify the page loads
-    // TODO: Implement proper empty state testing when server-side mocking is available
-    await expect(page.locator('h1')).toContainText('Pull Requests');
+  test.skip('should show no pull requests message when none exist', async ({ page }) => {
+    // Skipped: No way to return no PRs because of the mocked data
+    // The GITHUB_REPOS_MODE=mocked always returns the same mock data
   });
 });

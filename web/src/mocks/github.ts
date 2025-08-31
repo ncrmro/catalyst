@@ -9,22 +9,26 @@
  * Used by actions when MOCKED=1 or GITHUB_REPOS_MODE=mocked environment variables are set
  */
 
-/**
- * Centralized GitHub mock data for development and testing
- * 
- * This file contains mock data for:
- * - GitHub repositories (user and organization repos)
- * - GitHub organizations  
- * - Pull requests
- * 
- * Used by actions when MOCKED=1 or GITHUB_REPOS_MODE=mocked environment variables are set
- */
-
 import { PullRequest } from '@/actions/reports';
 
+/*
+ * Note: These interfaces are based on @octokit/rest API responses but simplified for our use case.
+ * For full type definitions, use:
+ * 
+ * import { GetResponseDataTypeFromEndpointMethod } from "@octokit/types";
+ * import { Octokit } from "@octokit/rest";
+ * 
+ * const octokit = new Octokit();
+ * type FullGitHubRepo = GetResponseDataTypeFromEndpointMethod<
+ *   typeof octokit.repos.listForAuthenticatedUser
+ * >[0];
+ * type FullGitHubOrganization = GetResponseDataTypeFromEndpointMethod<
+ *   typeof octokit.orgs.listForAuthenticatedUser  
+ * >[0];
+ */
+
 // GitHub Repository Interface
-// Based on GitHub API response structure from @octokit/rest 
-// (repos.listForAuthenticatedUser and orgs.listForAuthenticatedUser)
+// Simplified subset of @octokit/rest repos.listForAuthenticatedUser response
 export interface GitHubRepo {
   id: number;
   name: string;
@@ -55,7 +59,7 @@ export interface GitHubRepo {
 }
 
 // GitHub Organization Interface
-// Based on GitHub API response structure from @octokit/rest (orgs.listForAuthenticatedUser)
+// Simplified subset of @octokit/rest orgs.listForAuthenticatedUser response
 export interface GitHubOrganization {
   login: string;
   id: number;
