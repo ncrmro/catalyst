@@ -1,4 +1,5 @@
 import { FF, isFeatureEnabled, useFeatureFlags } from '../../../src/lib/feature-flags';
+import { vi } from 'vitest';
 
 // Mock process.env for testing
 const originalEnv = process.env;
@@ -6,7 +7,7 @@ const originalEnv = process.env;
 describe('Feature Flags', () => {
   beforeEach(() => {
     // Reset process.env before each test
-    jest.resetModules();
+    vi.resetModules();
     process.env = { ...originalEnv };
   });
 

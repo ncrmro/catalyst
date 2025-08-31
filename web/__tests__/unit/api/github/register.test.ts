@@ -1,5 +1,6 @@
 import { createMocks } from 'node-mocks-http';
 import { GET, POST } from '../../../../src/app/api/github/register/route';
+import { vi } from 'vitest';
 
 describe('/api/github/register', () => {
   beforeEach(() => {
@@ -81,7 +82,7 @@ describe('/api/github/register', () => {
       });
 
       // Mock the json method
-      req.json = jest.fn().mockResolvedValue(requestBody);
+      req.json = vi.fn().mockResolvedValue(requestBody);
 
       const response = await POST(req as any);
       const data = await response.json();
@@ -105,7 +106,7 @@ describe('/api/github/register', () => {
       });
 
       // Mock the json method
-      req.json = jest.fn().mockResolvedValue(customData);
+      req.json = vi.fn().mockResolvedValue(customData);
 
       const response = await POST(req as any);
       const data = await response.json();
@@ -128,7 +129,7 @@ describe('/api/github/register', () => {
       });
 
       // Mock json() to throw an error
-      req.json = jest.fn().mockRejectedValue(new Error('Invalid JSON'));
+      req.json = vi.fn().mockRejectedValue(new Error('Invalid JSON'));
 
       const response = await POST(req as any);
       const data = await response.json();

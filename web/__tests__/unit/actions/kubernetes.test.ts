@@ -1,21 +1,22 @@
 import { createProjectNamespace, deleteNamespace, generateNamespaceName } from '../../../src/lib/k8s-namespaces';
 import { createKubernetesNamespace, deleteKubernetesNamespace } from '../../../src/actions/kubernetes';
+import { vi } from 'vitest';
 
 // Mock the k8s-namespaces module
-jest.mock('../../../src/lib/k8s-namespaces', () => ({
-  createProjectNamespace: jest.fn(),
-  deleteNamespace: jest.fn(),
-  generateNamespaceName: jest.fn()
+vi.mock('../../../src/lib/k8s-namespaces', () => ({
+  createProjectNamespace: vi.fn(),
+  deleteNamespace: vi.fn(),
+  generateNamespaceName: vi.fn()
 }));
 
 
-const mockCreateProjectNamespace = createProjectNamespace as jest.MockedFunction<typeof createProjectNamespace>;
-const mockDeleteNamespace = deleteNamespace as jest.MockedFunction<typeof deleteNamespace>;
-const mockGenerateNamespaceName = generateNamespaceName as jest.MockedFunction<typeof generateNamespaceName>;
+const mockCreateProjectNamespace = createProjectNamespace as ReturnType<typeof vi.fn>;
+const mockDeleteNamespace = deleteNamespace as ReturnType<typeof vi.fn>;
+const mockGenerateNamespaceName = generateNamespaceName as ReturnType<typeof vi.fn>;
 
 describe('createKubernetesNamespace action', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should create namespace successfully', async () => {
@@ -147,7 +148,7 @@ describe('createKubernetesNamespace action', () => {
 describe('deleteKubernetesNamespace action', () => {
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should delete namespace successfully', async () => {

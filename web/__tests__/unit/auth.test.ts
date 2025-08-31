@@ -1,30 +1,32 @@
+import { vi } from 'vitest';
+
 // Mock the database module
-jest.mock('../../src/db', () => ({
+vi.mock('../../src/db', () => ({
   db: {
-    select: jest.fn().mockReturnValue({
-      from: jest.fn().mockReturnValue({
-        where: jest.fn().mockReturnValue({
-          limit: jest.fn().mockResolvedValue([])
+    select: vi.fn().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue([])
         })
       })
     }),
-    insert: jest.fn().mockReturnValue({
-      values: jest.fn().mockResolvedValue(undefined)
+    insert: vi.fn().mockReturnValue({
+      values: vi.fn().mockResolvedValue(undefined)
     })
   }
 }))
 
-jest.mock('../../src/db/schema', () => ({
+vi.mock('../../src/db/schema', () => ({
   users: {}
 }))
 
-jest.mock('drizzle-orm', () => ({
-  eq: jest.fn()
+vi.mock('drizzle-orm', () => ({
+  eq: vi.fn()
 }))
 
 describe('JWT Authentication', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
   })
 
   describe('JWT callback logic', () => {

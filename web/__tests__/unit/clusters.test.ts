@@ -1,11 +1,13 @@
+import { vi } from 'vitest';
+
 // Mock the kubernetes client module
-jest.mock('@kubernetes/client-node', () => ({
-  KubeConfig: jest.fn().mockImplementation(() => ({
-    loadFromString: jest.fn(),
-    loadFromDefault: jest.fn(),
-    getCurrentContext: jest.fn(() => 'test-context'),
-    getCurrentCluster: jest.fn(() => ({ server: 'https://test-server:6443' })),
-    makeApiClient: jest.fn()
+vi.mock('@kubernetes/client-node', () => ({
+  KubeConfig: vi.fn().mockImplementation(() => ({
+    loadFromString: vi.fn(),
+    loadFromDefault: vi.fn(),
+    getCurrentContext: vi.fn(() => 'test-context'),
+    getCurrentCluster: vi.fn(() => ({ server: 'https://test-server:6443' })),
+    makeApiClient: vi.fn()
   }))
 }));
 

@@ -1,48 +1,50 @@
+import { vi } from 'vitest';
+
 // Mock the database module
-jest.mock('../../src/db', () => ({
+vi.mock('../../src/db', () => ({
   db: {
-    select: jest.fn().mockReturnValue({
-      from: jest.fn().mockReturnValue({
-        where: jest.fn().mockReturnValue({
-          limit: jest.fn().mockResolvedValue([])
+    select: vi.fn().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue([])
         })
       })
     }),
-    insert: jest.fn().mockReturnValue({
-      values: jest.fn().mockReturnValue({
-        returning: jest.fn().mockResolvedValue([{ id: 'test-id', admin: false }])
+    insert: vi.fn().mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockResolvedValue([{ id: 'test-id', admin: false }])
       })
     }),
-    update: jest.fn().mockReturnValue({
-      set: jest.fn().mockReturnValue({
-        where: jest.fn().mockReturnValue({
-          returning: jest.fn().mockResolvedValue([{ id: 'test-id', admin: true }])
+    update: vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([{ id: 'test-id', admin: true }])
         })
       })
     }),
-    transaction: jest.fn().mockImplementation((callback) => callback({
-      insert: jest.fn().mockReturnValue({
-        values: jest.fn().mockReturnValue({
-          returning: jest.fn().mockResolvedValue([{ id: 'test-id', admin: false }])
+    transaction: vi.fn().mockImplementation((callback) => callback({
+      insert: vi.fn().mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([{ id: 'test-id', admin: false }])
         })
       })
     }))
   }
 }))
 
-jest.mock('../../src/db/schema', () => ({
+vi.mock('../../src/db/schema', () => ({
   users: {},
   teams: {},
   teamsMemberships: {}
 }))
 
-jest.mock('drizzle-orm', () => ({
-  eq: jest.fn()
+vi.mock('drizzle-orm', () => ({
+  eq: vi.fn()
 }))
 
 describe('Admin Authentication', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
   })
 
   describe('Credentials Provider - Admin Status', () => {

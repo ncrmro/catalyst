@@ -1,15 +1,16 @@
 import { getGitHubAppInstallations } from '../../../src/actions/github-app';
 import { getAllInstallations } from '../../../src/lib/github';
+import { vi } from 'vitest';
 
 // Mock the github lib
-jest.mock('../../../src/lib/github', () => ({
-  getAllInstallations: jest.fn()
+vi.mock('../../../src/lib/github', () => ({
+  getAllInstallations: vi.fn()
 }));
 
-const mockGetAllInstallations = getAllInstallations as jest.MockedFunction<typeof getAllInstallations>;
+const mockGetAllInstallations = getAllInstallations as ReturnType<typeof vi.fn>;
 
 // Mock console.error to avoid noise in test output
-const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
 beforeEach(() => {
   mockGetAllInstallations.mockReset();
