@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createKubernetesNamespace, deleteKubernetesNamespace } from '../../../../actions/kubernetes';
 import { getInstallationOctokit } from '../../../../lib/github';
+import { createPullRequestPodJob, cleanupPullRequestPodJob } from '../../../../lib/k8s-pull-request-pod';
 
 /**
  * GitHub App Webhook Endpoint
@@ -186,12 +187,26 @@ async function handlePullRequestEvent(payload: {
       
       const namespaceResult = await createKubernetesNamespace(owner, repo, environment);
       
+      // Create pull request pod job for buildx support
+      let podJobResult: any = null;
+      try {
+        const prJobName = `pr-${pull_request.number}-${repository.name}`;
+        podJobResult = await createPullRequestPodJob({
+          name: prJobName,
+          namespace: namespaceResult.success ? namespaceResult.namespace?.name || 'default' : 'default'
+        });
+        console.log(`Pull request pod job created for PR ${pull_request.number}:`, podJobResult);
+      } catch (podJobError) {
+        console.error(`Failed to create pull request pod job for PR ${pull_request.number}:`, podJobError);
+      }
+      
       if (namespaceResult.success) {
         return NextResponse.json({
           success: true,
           message: `Pull request ${action} processed and namespace created`,
           pr_number: pull_request.number,
-          namespace: namespaceResult.namespace
+          namespace: namespaceResult.namespace,
+          podJob: podJobResult
         });
       } else {
         console.error(`Failed to create namespace for PR ${pull_request.number}:`, namespaceResult.error);
@@ -199,7 +214,8 @@ async function handlePullRequestEvent(payload: {
           success: true,
           message: `Pull request ${action} processed but namespace creation failed`,
           pr_number: pull_request.number,
-          namespace_error: namespaceResult.error
+          namespace_error: namespaceResult.error,
+          podJob: podJobResult
         });
       }
     } catch (error) {
@@ -219,6 +235,15 @@ async function handlePullRequestEvent(payload: {
       // Extract team and project from repository full_name (owner/repo)
       const [owner, repo] = repository.full_name.split('/');
       const environment = `gh-pr-${pull_request.number}`;
+      
+      // Clean up pull request pod job resources
+      try {
+        const prJobName = `pr-${pull_request.number}-${repository.name}`;
+        await cleanupPullRequestPodJob(prJobName, 'default');
+        console.log(`Pull request pod job cleaned up for PR ${pull_request.number}`);
+      } catch (podJobError) {
+        console.error(`Failed to cleanup pull request pod job for PR ${pull_request.number}:`, podJobError);
+      }
       
       const deleteResult = await deleteKubernetesNamespace(owner, repo, environment);
       
