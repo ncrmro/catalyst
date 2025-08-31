@@ -36,17 +36,14 @@ class KubeConfigRegistry {
       key.startsWith('KUBECONFIG_') && process.env[key]
     );
 
-    console.log(`Found ${kubeConfigEnvs.length} kubeConfigEnvs`)
-
     for (const envVar of kubeConfigEnvs) {
         const kubeConfig = new KubeConfig();
         await kubeConfig.loadFromEnvVar(envVar);
         
         // Extract suffix from environment variable name (e.g., KUBECONFIG_PRIMARY -> PRIMARY)
         const suffix = envVar.replace('KUBECONFIG_', '');
+        this.configs.set(suffix, kubeConfig);
     }
-
-    console.log(this.configs)
 
     // If no environment variables are set, try to load from default kubeconfig
     if (this.configs.size === 0) {
@@ -113,6 +110,7 @@ class KubeConfigRegistry {
   }
 }
 
+console.log('env', process.env)
 // Global instance
 const kubeConfigRegistry = new KubeConfigRegistry();
 
