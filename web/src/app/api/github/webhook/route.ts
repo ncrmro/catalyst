@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createKubernetesNamespace, deleteKubernetesNamespace } from '../../../../actions/kubernetes';
 import { getInstallationOctokit } from '../../../../lib/github';
-import { createPullRequestPodJob, cleanupPullRequestPodJob } from '../../../../lib/k8s-pull-request-pod';
+import { createPullRequestPodJob, cleanupPullRequestPodJob, PullRequestPodResult } from '../../../../lib/k8s-pull-request-pod';
 
 /**
  * GitHub App Webhook Endpoint
@@ -188,7 +188,7 @@ async function handlePullRequestEvent(payload: {
       const namespaceResult = await createKubernetesNamespace(owner, repo, environment);
       
       // Create pull request pod job for buildx support
-      let podJobResult: any = null;
+      let podJobResult: PullRequestPodResult | null = null;
       try {
         const prJobName = `pr-${pull_request.number}-${repository.name}`;
         podJobResult = await createPullRequestPodJob({
