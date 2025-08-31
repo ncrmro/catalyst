@@ -1,6 +1,6 @@
 import { test as base } from '@playwright/test';
-import { ProjectsPage } from '../page-objects/projects-page';
-import { loginAndSeedForE2E } from '../helpers';
+import { ProjectsPage } from '@/__tests__/e2e/page-objects/projects-page';
+import { loginAndSeedForE2E } from '@/__tests__/e2e/helpers';
 
 /**
  * Extended test fixture that includes:
