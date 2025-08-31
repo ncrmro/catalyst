@@ -1,6 +1,7 @@
 import { test as base } from '@playwright/test';
-import { ProjectsPage } from '@/__tests__/e2e/page-objects/projects-page';
-import { loginWithDevPassword } from '@/__tests__/e2e/helpers';
+import { ProjectsPage } from '../page-objects/projects-page';
+import { loginWithDevPassword } from '../helpers';
+
 import { db, projectEnvironments, projects, repos, projectsRepos, teams } from '@/db';
 import { eq, inArray } from 'drizzle-orm';
 import { seedUser } from '@/lib/seed';

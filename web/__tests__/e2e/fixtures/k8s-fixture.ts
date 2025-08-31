@@ -1,6 +1,6 @@
 import { test as base } from '@playwright/test';
-import { loginAndSeedForE2E } from '@/__tests__/e2e/helpers';
-import { getClusterConfig, getCoreV1Api, KubeConfig as CustomKubeConfig } from '@/lib/k8s-client';
+import { loginAndSeedForE2E } from '../helpers';
+import { getClusterConfig, getCoreV1Api } from '../../../src/lib/k8s-client';
 import { CoreV1Api } from '@kubernetes/client-node';
 
 /**
