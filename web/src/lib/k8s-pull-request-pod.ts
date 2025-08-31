@@ -73,7 +73,16 @@ export async function createBuildxServiceAccount(
       }
     };
 
-    await coreApi.createNamespacedServiceAccount({ namespace, body: serviceAccount });
+    try {
+      await coreApi.createNamespacedServiceAccount({ namespace, body: serviceAccount });
+    } catch (error: unknown) {
+      // If service account already exists, that's fine - we can reuse it
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorBody = (error as { body?: string })?.body || '';
+      if (!errorBody.includes('already exists') && !errorMessage.includes('already exists')) {
+        throw error;
+      }
+    }
 
     // Create role with pod creation permissions for buildx
     const role = {
@@ -107,7 +116,16 @@ export async function createBuildxServiceAccount(
       ]
     };
 
-    await rbacApi.createNamespacedRole({ namespace, body: role });
+    try {
+      await rbacApi.createNamespacedRole({ namespace, body: role });
+    } catch (error: unknown) {
+      // If role already exists, that's fine - we can reuse it
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorBody = (error as { body?: string })?.body || '';
+      if (!errorBody.includes('already exists') && !errorMessage.includes('already exists')) {
+        throw error;
+      }
+    }
 
     // Create role binding
     const roleBinding = {
@@ -136,7 +154,16 @@ export async function createBuildxServiceAccount(
       }
     };
 
-    await rbacApi.createNamespacedRoleBinding({ namespace, body: roleBinding });
+    try {
+      await rbacApi.createNamespacedRoleBinding({ namespace, body: roleBinding });
+    } catch (error: unknown) {
+      // If role binding already exists, that's fine - we can reuse it
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorBody = (error as { body?: string })?.body || '';
+      if (!errorBody.includes('already exists') && !errorMessage.includes('already exists')) {
+        throw error;
+      }
+    }
 
   } catch (error) {
     console.error('Error creating buildx service account:', error);
