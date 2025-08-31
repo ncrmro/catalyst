@@ -45,8 +45,9 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    // Note: E2E tests should never use the full MOCKED=1 flag, only GITHUB_REPOS_MODE=mocked
-    // This allows testing against real database while mocking only GitHub API calls
+    // Note: E2E tests should never use the full MOCKED=1 flag, only specific mocked modes
+    // This allows testing against real database while mocking only GitHub API calls  
+    // GITHUB_REPOS_MODE=mocked enables GitHub repository and pull request mocking
     command: 'GITHUB_REPOS_MODE=mocked npm run dev',
     url: 'http://localhost:3000/api/health/readiness',
     reuseExistingServer: !process.env.CI,
