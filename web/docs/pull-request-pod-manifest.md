@@ -136,9 +136,46 @@ This functionality is designed to work with GitHub Actions workflows:
 ```yaml
 - name: Create PR Build Job
   run: |
-    curl -X POST https://your-app.com/api/pr-jobs \
+    curl -X POST https://your-app.com/api/kubernetes/pr-jobs \
       -H "Content-Type: application/json" \
       -d '{"name": "pr-${{ github.event.number }}", "namespace": "builds"}'
+```
+
+### API Endpoint
+
+The functionality is exposed via `/api/kubernetes/pr-jobs` endpoint:
+
+**Create a job:**
+```bash
+curl -X POST /api/kubernetes/pr-jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "create",
+    "name": "pr-123-build",
+    "namespace": "default",
+    "image": "docker:24-dind"
+  }'
+```
+
+**Check job status:**
+```bash
+curl -X POST /api/kubernetes/pr-jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "status",
+    "name": "pr-123-build",
+    "jobName": "pr-job-pr-123-build-1640995200000"
+  }'
+```
+
+**Clean up resources:**
+```bash
+curl -X POST /api/kubernetes/pr-jobs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "cleanup",
+    "name": "pr-123-build"
+  }'
 ```
 
 ## Monitoring and Observability

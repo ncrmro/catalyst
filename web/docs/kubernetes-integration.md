@@ -2,6 +2,14 @@
 
 This document demonstrates how the Kubernetes integration would work in a real environment with a Kubernetes cluster available.
 
+## Available Kubernetes Features
+
+### Pull Request Pod Manifests
+For creating jobs with buildx kubernetes driver support, see [Pull Request Pod Manifest Documentation](./pull-request-pod-manifest.md).
+
+### Deployment Management
+The following demonstrates basic deployment operations:
+
 ## API Endpoint Usage
 
 Call the deployment endpoint:
