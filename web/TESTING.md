@@ -68,9 +68,35 @@ npm run test:e2e          # E2E tests only
 # Run with watch mode
 npm run test:watch
 
+# Run with coverage
+npm run test:coverage              # All tests with coverage
+npm run test:coverage:unit         # Unit tests with coverage
+npm run test:coverage:integration  # Integration tests with coverage
+npm run test:coverage:components   # Component tests with coverage
+
 # Run comprehensive CI tests
 make ci
+
+# Generate coverage reports only
+make coverage
 ```
+
+### Coverage Reports
+
+Test coverage is generated using Istanbul via `@vitest/coverage-v8`. Coverage reports are available in multiple formats:
+
+- **HTML Report**: `coverage/index.html` - Interactive web interface
+- **LCOV Report**: `coverage/lcov.info` - For CI/CD integration
+- **JSON Report**: `coverage/coverage-final.json` - Machine-readable format
+- **Text Report**: Displayed in terminal during test runs
+
+Coverage includes:
+- Line coverage
+- Branch coverage  
+- Function coverage
+- Statement coverage
+
+Coverage reports exclude test files, configuration files, and build artifacts to focus on source code quality.
 
 ## Testing Principles
 

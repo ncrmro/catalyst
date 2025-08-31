@@ -42,12 +42,6 @@ export default defineConfig({
       use: { 
         ...devices['Desktop Chrome'], 
         channel: 'chromium',
-        // Collect coverage in E2E tests
-        contextOptions: {
-          // Enable code coverage collection
-          recordVideo: undefined,
-          recordHar: undefined,
-        },
       },
     },
   ],

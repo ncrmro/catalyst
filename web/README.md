@@ -75,12 +75,29 @@ your_private_key_here
 
 ## Testing
 
-Run the integration test suite:
+Run the comprehensive test suite:
 
 ```bash
 cd web
-npm test
+npm test                    # Run all tests
+npm run test:unit          # Unit tests only
+npm run test:integration   # Integration tests only
+npm run test:components    # Component tests only
 ```
+
+### Test Coverage
+
+Generate detailed test coverage reports:
+
+```bash
+npm run test:coverage      # All tests with coverage
+make coverage             # Generate comprehensive coverage report
+```
+
+Coverage reports are generated in multiple formats:
+- **HTML**: `coverage/index.html` - Interactive web interface
+- **LCOV**: `coverage/lcov.info` - For CI/CD integration  
+- **JSON**: `coverage/coverage-final.json` - Machine-readable format
 
 ### E2E Testing
 
