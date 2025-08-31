@@ -31,6 +31,7 @@ describe('Sidebar Component', () => {
     // Should show regular navigation items
     expect(screen.getByText('Home')).toBeInTheDocument();
     expect(screen.getByText('Projects')).toBeInTheDocument();
+    expect(screen.getByText('Pull Requests')).toBeInTheDocument();
     expect(screen.getByText('Teams')).toBeInTheDocument();
     expect(screen.getByText('Kubeconfigs')).toBeInTheDocument();
     expect(screen.getByText('Infrastructure')).toBeInTheDocument();
@@ -45,6 +46,7 @@ describe('Sidebar Component', () => {
     // Should show regular navigation items
     expect(screen.getByText('Home')).toBeInTheDocument();
     expect(screen.getByText('Projects')).toBeInTheDocument();
+    expect(screen.getByText('Pull Requests')).toBeInTheDocument();
     expect(screen.getByText('Teams')).toBeInTheDocument();
     expect(screen.getByText('Kubeconfigs')).toBeInTheDocument();
     expect(screen.getByText('Infrastructure')).toBeInTheDocument();
@@ -59,6 +61,7 @@ describe('Sidebar Component', () => {
     // Should show regular navigation items
     expect(screen.getByText('Home')).toBeInTheDocument();
     expect(screen.getByText('Projects')).toBeInTheDocument();
+    expect(screen.getByText('Pull Requests')).toBeInTheDocument();
     
     // Should NOT show clusters link when user is undefined
     expect(screen.queryByText('Clusters')).not.toBeInTheDocument();
@@ -70,6 +73,7 @@ describe('Sidebar Component', () => {
     // Should show regular navigation items
     expect(screen.getByText('Home')).toBeInTheDocument();
     expect(screen.getByText('Projects')).toBeInTheDocument();
+    expect(screen.getByText('Pull Requests')).toBeInTheDocument();
     
     // Should NOT show clusters link when admin property is undefined
     expect(screen.queryByText('Clusters')).not.toBeInTheDocument();
@@ -89,6 +93,22 @@ describe('Sidebar Component', () => {
     
     const clustersLink = screen.getByText('Clusters').closest('a');
     expect(clustersLink).toHaveAttribute('href', '/clusters');
+  });
+
+  it('pull requests link has correct href', () => {
+    render(<Sidebar user={{ admin: false }} />);
+    
+    const pullRequestsLink = screen.getByText('Pull Requests').closest('a');
+    expect(pullRequestsLink).toHaveAttribute('href', '/pull-requests');
+  });
+
+  it('highlights pull requests navigation item correctly', () => {
+    mockUsePathname.mockReturnValue('/pull-requests');
+    
+    render(<Sidebar user={{ admin: false }} />);
+    
+    const pullRequestsLink = screen.getByText('Pull Requests').closest('a');
+    expect(pullRequestsLink).toHaveClass('bg-primary-container', 'text-on-primary-container');
   });
 
   it('clusters link has kubernetes icon', () => {

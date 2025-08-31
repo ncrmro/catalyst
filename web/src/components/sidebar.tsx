@@ -14,6 +14,7 @@ interface SidebarNavItem {
 const navItems: SidebarNavItem[] = [
   { href: "/", label: "Home", icon: "🏠" },
   { href: "/projects", label: "Projects", icon: "📁" },
+  { href: "/pull-requests", label: "Pull Requests", icon: "🔄" },
   { href: "/teams", label: "Teams", icon: "👥" },
   { href: "/kubeconfigs", label: "Kubeconfigs", icon: "⚙️" },
   { href: "/infrastructure", label: "Infrastructure", icon: "🏗️" },

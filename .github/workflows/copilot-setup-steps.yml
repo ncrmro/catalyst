@@ -84,3 +84,15 @@ jobs:
       
       - name: Verify Kind Access
         run: kubectl get all
+      
+      - name: Add Kind kubeconfig to .env
+        run: |
+          # Get kubeconfig from kind as YAML
+          KIND_KUBECONFIG=$(kind get kubeconfig --name preview-cluster)
+          
+          # Convert YAML to JSON and base64 encode
+          KUBECONFIG_JSON_B64=$(echo "$KIND_KUBECONFIG" | yq eval -o json | base64 -w 0)
+          
+          # Add KUBECONFIG_PRIMARY to .env file
+          cd ./web
+          echo "KUBECONFIG_PRIMARY=$KUBECONFIG_JSON_B64" >> .env
