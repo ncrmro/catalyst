@@ -162,7 +162,7 @@ export const {
      *
      * @see https://next-auth.js.org/configuration/callbacks
      */
-    async jwt({ token, account, profile, user }) {
+    async jwt({ token, account }) {
       // Add the GitHub access token to enable access to GitHub's APIs
       // GitHub's access_token will give you access to GitHub's APIs.
       // Self-managed providers (like Keycloak, oidc-provider, etc.) can be used to authorize against custom third-party backends.

@@ -47,6 +47,6 @@ test.describe('Smoke Tests', () => {
     await page.goto('/repos');
     
     // Check that the page title is correct
-    await expect(page.getByRole('heading', { name: 'GitHub Repositories' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Git Repositories' })).toBeVisible();
   });
 });

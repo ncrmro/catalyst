@@ -2,23 +2,26 @@
   "name": "web",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest",
-    "test:unit": "jest --testPathPatterns=unit",
-    "test:integration": "jest --testPathPatterns=integration",
-    "test:components": "jest --testPathPatterns=components",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
+    "test": "vitest run",
+    "test:unit": "vitest run __tests__/unit",
+    "test:integration": "vitest run __tests__/integration",
+    "test:components": "vitest run __tests__/components",
+    "test:watch": "vitest watch",
+    "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx scripts/seed.js"
+    "db:seed": "tsx scripts/seed.ts",
+    "seed": "tsx scripts/seed.ts",
+    "typecheck": "npx tsc --noEmit"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.6",
@@ -64,6 +67,8 @@
     "supertest": "^7.1.4",
     "tailwindcss": "^4",
     "tsx": "^4.20.4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.2.4"
   }
 }

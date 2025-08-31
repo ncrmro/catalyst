@@ -5,18 +5,19 @@ import {
   enableGitHubOIDC,
   disableGitHubOIDC
 } from '../../src/lib/k8s-github-oidc';
+import { vi } from 'vitest';
 
 // Mock the k8s-client module
-jest.mock('../../src/lib/k8s-client', () => ({
-  getClusterConfig: jest.fn(),
+vi.mock('../../src/lib/k8s-client', () => ({
+  getClusterConfig: vi.fn(),
 }));
 
 import { getClusterConfig } from '../../src/lib/k8s-client';
-const mockGetClusterConfig = getClusterConfig as jest.MockedFunction<typeof getClusterConfig>;
+const mockGetClusterConfig = getClusterConfig as ReturnType<typeof vi.fn>;
 
 describe('k8s-github-oidc', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
   describe('generateGitHubOIDCConfig', () => {
     it('should generate a valid AuthenticationConfiguration', () => {
@@ -50,7 +51,7 @@ describe('k8s-github-oidc', () => {
     const originalEnv = process.env;
 
     beforeEach(() => {
-      jest.resetModules();
+      vi.resetModules();
       process.env = { ...originalEnv };
     });
 
@@ -91,7 +92,7 @@ describe('k8s-github-oidc', () => {
 
   describe('enableGitHubOIDC', () => {
     it('should return success result', async () => {
-      const mockKubeConfig = { makeApiClient: jest.fn() };
+      const mockKubeConfig = { makeApiClient: vi.fn() };
       mockGetClusterConfig.mockResolvedValue(mockKubeConfig as any);
       
       const result = await enableGitHubOIDC({
@@ -116,7 +117,7 @@ describe('k8s-github-oidc', () => {
 
   describe('disableGitHubOIDC', () => {
     it('should return success result', async () => {
-      const mockKubeConfig = { makeApiClient: jest.fn() };
+      const mockKubeConfig = { makeApiClient: vi.fn() };
       mockGetClusterConfig.mockResolvedValue(mockKubeConfig as any);
       
       const result = await disableGitHubOIDC();

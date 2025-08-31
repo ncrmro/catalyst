@@ -37,16 +37,12 @@ class KubeConfigRegistry {
     );
 
     for (const envVar of kubeConfigEnvs) {
-      try {
         const kubeConfig = new KubeConfig();
         await kubeConfig.loadFromEnvVar(envVar);
         
         // Extract suffix from environment variable name (e.g., KUBECONFIG_PRIMARY -> PRIMARY)
         const suffix = envVar.replace('KUBECONFIG_', '');
         this.configs.set(suffix, kubeConfig);
-      } catch (error) {
-        console.warn(`Failed to load kubeconfig from ${envVar}:`, error instanceof Error ? error.message : 'Unknown error');
-      }
     }
 
     // If no environment variables are set, try to load from default kubeconfig
@@ -58,6 +54,11 @@ class KubeConfigRegistry {
       } catch (error) {
         console.warn('Failed to load default kubeconfig:', error instanceof Error ? error.message : 'Unknown error');
       }
+    }
+
+    // Throw an error immediately if no clusters were configured
+    if (this.configs.size === 0) {
+      throw new Error('No Kubernetes clusters configured. Ensure KUBECONFIG_PRIMARY or another KUBECONFIG_* environment variable is set with a valid base64-encoded kubeconfig.');
     }
 
     this.initialized = true;
@@ -109,6 +110,7 @@ class KubeConfigRegistry {
   }
 }
 
+console.log('env', process.env)
 // Global instance
 const kubeConfigRegistry = new KubeConfigRegistry();
 
@@ -248,7 +250,8 @@ export async function getClusterConfig(clusterName?: string): Promise<KubeConfig
     if (clusterConfig) {
       return clusterConfig;
     } else {
-      return null;
+      // Throw an error if a specific cluster was requested but not found
+      throw new Error(`Kubernetes cluster "${clusterName}" not found. Ensure KUBECONFIG_${clusterName} environment variable is set with a valid base64-encoded kubeconfig.`);
     }
   } else {
     // Try to find any configured cluster, prioritizing production environments
@@ -274,10 +277,8 @@ export async function getClusterConfig(clusterName?: string): Promise<KubeConfig
     if (selectedConfig) {
       return selectedConfig;
     } else {
-      // Fallback to creating a new config if no registered configs exist
-      const kc = new KubeConfig();
-      await kc.loadFromDefault();
-      return kc;
+      // Instead of falling back to default, throw an error about missing configuration
+      throw new Error('No Kubernetes clusters configured. Ensure KUBECONFIG_PRIMARY or another KUBECONFIG_* environment variable is set with a valid base64-encoded kubeconfig.');
     }
   }
 }

@@ -1,4 +1,4 @@
-import { fetchProjects, ProjectsData } from '@/actions/projects';
+import { fetchProjects } from '@/actions/projects';
 import Link from 'next/link';
 import { ProjectCard } from '@/components/projects/project-card';
 import { Metadata } from "next";
@@ -9,14 +9,13 @@ export const metadata: Metadata = {
 };
 
 export default async function ProjectsPage() {
-  let projectsData: ProjectsData | null;
+  let projectsData = null;
   let error: string | null = null;
 
   try {
     projectsData = await fetchProjects();
   } catch (err) {
     error = err instanceof Error ? err.message : 'Failed to fetch projects';
-    projectsData = null;
   }
 
   if (error) {
@@ -47,42 +46,42 @@ export default async function ProjectsPage() {
 
   return (
     <div className="space-y-6">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-on-background">Projects</h1>
-          <p className="mt-4 text-lg text-on-surface-variant">
-            Manage your deployment projects and environments
-          </p>
-          <p className="text-sm text-on-surface-variant mt-2">
-            {projectsData.total_count} projects with environments and preview deployments
-          </p>
-        </div>
-
-        {/* Projects Grid */}
-        {projectsData.projects.length > 0 ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {projectsData.projects.map((project) => (
-              <ProjectCard key={project.id} project={project} />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <div className="w-24 h-24 bg-surface rounded-full flex items-center justify-center mx-auto mb-4 border border-outline">
-              <span className="text-on-surface-variant text-3xl">🚀</span>
-            </div>
-            <h3 className="text-lg font-medium text-on-surface mb-2">No projects found</h3>
-            <p className="text-on-surface-variant max-w-md mx-auto">
-              Create your first project to get started with automated deployments and environment management.
-            </p>
-            <div className="mt-6">
-              <Link
-                href="/projects/create"
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-on-primary bg-primary hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-              >
-                Create Project
-              </Link>
-            </div>
-          </div>
-        )}
+      <div className="text-center">
+        <h1 className="text-3xl font-bold text-on-background">Projects</h1>
+        <p className="mt-4 text-lg text-on-surface-variant">
+          Manage your deployment projects and environments
+        </p>
+        <p className="text-sm text-on-surface-variant mt-2">
+          {projectsData.total_count} projects with environments and preview deployments
+        </p>
       </div>
-    );
-  }
+
+      {/* Projects Grid */}
+      {projectsData.projects.length > 0 ? (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {projectsData.projects.map((project) => (
+            <ProjectCard key={project.id} project={project} />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <div className="w-24 h-24 bg-surface rounded-full flex items-center justify-center mx-auto mb-4 border border-outline">
+            <span className="text-on-surface-variant text-3xl">🚀</span>
+          </div>
+          <h3 className="text-lg font-medium text-on-surface mb-2">No projects found</h3>
+          <p className="text-on-surface-variant max-w-md mx-auto">
+            Create your first project to get started with automated deployments and environment management.
+          </p>
+          <div className="mt-6">
+            <Link
+              href="/projects/create"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-on-primary bg-primary hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            >
+              Create Project
+            </Link>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

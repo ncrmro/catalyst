@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { useState } from 'react';
 
 // Mock kubeconfig data that would be suitable for GitHub Actions and buildx

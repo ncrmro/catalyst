@@ -1,23 +1,28 @@
+import { vi } from 'vitest';
+
 // Mock the AI SDK modules to avoid requiring API keys in tests
-jest.mock('ai', () => ({
-  generateObject: jest.fn()
+vi.mock('ai', () => ({
+  generateObject: vi.fn(),
+  experimental_createMCPClient: vi.fn().mockResolvedValue({
+    tools: vi.fn().mockResolvedValue({})
+  })
 }));
 
-jest.mock('@ai-sdk/anthropic', () => ({
-  anthropic: jest.fn()
+vi.mock('@ai-sdk/anthropic', () => ({
+  anthropic: vi.fn()
 }));
 
-jest.mock('@ai-sdk/openai', () => ({
-  openai: jest.fn()
+vi.mock('@ai-sdk/openai', () => ({
+  openai: vi.fn()
 }));
 
 // Mock the actions
-jest.mock('../../../src/actions/projects', () => ({
-  fetchProjects: jest.fn()
+vi.mock('../../../src/actions/projects', () => ({
+  fetchProjects: vi.fn()
 }));
 
-jest.mock('../../../src/actions/clusters', () => ({
-  getClusters: jest.fn()
+vi.mock('../../../src/actions/clusters', () => ({
+  getClusters: vi.fn()
 }));
 
 import { PeriodicReportAgent, generatePeriodicReport } from '../../../src/agents/periodic-report';
@@ -27,7 +32,7 @@ import { generateObject } from 'ai';
 
 describe('PeriodicReportAgent', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should create an agent with default options', () => {
@@ -62,7 +67,7 @@ describe('PeriodicReportAgent', () => {
       total_count: 1
     };
 
-    (fetchProjects as jest.Mock).mockResolvedValue(mockProjectsData);
+    (fetchProjects as ReturnType<typeof vi.fn>).mockResolvedValue(mockProjectsData);
 
     const agent = new PeriodicReportAgent();
     const result = await agent.fetchProjects();
@@ -81,7 +86,7 @@ describe('PeriodicReportAgent', () => {
       }
     ];
 
-    (getClusters as jest.Mock).mockResolvedValue(mockClustersData);
+    (getClusters as ReturnType<typeof vi.fn>).mockResolvedValue(mockClustersData);
 
     const agent = new PeriodicReportAgent();
     const result = await agent.fetchClusters();
@@ -93,7 +98,7 @@ describe('PeriodicReportAgent', () => {
 
   it('should handle errors when fetching projects', async () => {
     const errorMessage = 'Failed to fetch projects';
-    (fetchProjects as jest.Mock).mockRejectedValue(new Error(errorMessage));
+    (fetchProjects as ReturnType<typeof vi.fn>).mockRejectedValue(new Error(errorMessage));
 
     const agent = new PeriodicReportAgent();
     const result = await agent.fetchProjects();
@@ -105,7 +110,7 @@ describe('PeriodicReportAgent', () => {
 
   it('should handle errors when fetching clusters', async () => {
     const errorMessage = 'Failed to fetch clusters';
-    (getClusters as jest.Mock).mockRejectedValue(new Error(errorMessage));
+    (getClusters as ReturnType<typeof vi.fn>).mockRejectedValue(new Error(errorMessage));
 
     const agent = new PeriodicReportAgent();
     const result = await agent.fetchClusters();
@@ -169,9 +174,9 @@ describe('PeriodicReportAgent', () => {
       nextSteps: ['Review security settings']
     };
 
-    (fetchProjects as jest.Mock).mockResolvedValue(mockProjectsData);
-    (getClusters as jest.Mock).mockResolvedValue(mockClustersData);
-    (generateObject as jest.Mock).mockResolvedValue({ object: mockReport });
+    (fetchProjects as ReturnType<typeof vi.fn>).mockResolvedValue(mockProjectsData);
+    (getClusters as ReturnType<typeof vi.fn>).mockResolvedValue(mockClustersData);
+    (generateObject as ReturnType<typeof vi.fn>).mockResolvedValue({ object: mockReport });
 
     const agent = new PeriodicReportAgent();
     const result = await agent.generateReport();
@@ -198,9 +203,9 @@ describe('PeriodicReportAgent', () => {
       nextSteps: []
     };
 
-    (fetchProjects as jest.Mock).mockResolvedValue({ projects: [], total_count: 0 });
-    (getClusters as jest.Mock).mockResolvedValue([]);
-    (generateObject as jest.Mock).mockResolvedValue({ object: mockReport });
+    (fetchProjects as ReturnType<typeof vi.fn>).mockResolvedValue({ projects: [], total_count: 0 });
+    (getClusters as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (generateObject as ReturnType<typeof vi.fn>).mockResolvedValue({ object: mockReport });
 
     const result = await generatePeriodicReport();
 

@@ -1,12 +1,14 @@
 /**
- * @jest-environment jsdom
+ * @vitest-environment jsdom
  */
+import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import KubeconfigCore from '../../../src/components/kubeconfig-core';
+import { vi, describe, test, expect, beforeEach } from 'vitest';
+import KubeconfigCore from '@/components/kubeconfig-core';
 
 // Mock navigator.clipboard
-const mockWriteText = jest.fn();
+const mockWriteText = vi.fn();
 Object.defineProperty(navigator, 'clipboard', {
   value: {
     writeText: mockWriteText,
@@ -15,14 +17,14 @@ Object.defineProperty(navigator, 'clipboard', {
 });
 
 // Mock URL and Blob for download functionality
-global.URL.createObjectURL = jest.fn(() => 'mock-url');
-global.URL.revokeObjectURL = jest.fn();
+global.URL.createObjectURL = vi.fn(() => 'mock-url');
+global.URL.revokeObjectURL = vi.fn();
 
 describe('KubeconfigCore', () => {
   beforeEach(() => {
     mockWriteText.mockClear();
-    (global.URL.createObjectURL as jest.Mock).mockClear();
-    (global.URL.revokeObjectURL as jest.Mock).mockClear();
+    (global.URL.createObjectURL as ReturnType<typeof vi.fn>).mockClear();
+    (global.URL.revokeObjectURL as ReturnType<typeof vi.fn>).mockClear();
   });
 
   test('renders kubeconfig component with all required elements', () => {
@@ -68,23 +70,23 @@ describe('KubeconfigCore', () => {
     
     // Mock document.createElement and appendChild/removeChild after render
     const mockAnchor = {
-      click: jest.fn(),
+      click: vi.fn(),
       href: '',
       download: '',
     };
-    const mockAppendChild = jest.fn();
-    const mockRemoveChild = jest.fn();
+    const mockAppendChild = vi.fn();
+    const mockRemoveChild = vi.fn();
     
     const originalCreateElement = document.createElement;
-    jest.spyOn(document, 'createElement').mockImplementation((tagName) => {
+    vi.spyOn(document, 'createElement').mockImplementation((tagName) => {
       if (tagName === 'a') {
         return mockAnchor as any;
       }
       return originalCreateElement.call(document, tagName);
     });
     
-    jest.spyOn(document.body, 'appendChild').mockImplementation(mockAppendChild);
-    jest.spyOn(document.body, 'removeChild').mockImplementation(mockRemoveChild);
+    vi.spyOn(document.body, 'appendChild').mockImplementation(mockAppendChild);
+    vi.spyOn(document.body, 'removeChild').mockImplementation(mockRemoveChild);
     
     const downloadButton = screen.getByTestId('download-button');
     
@@ -100,9 +102,9 @@ describe('KubeconfigCore', () => {
     expect(global.URL.revokeObjectURL).toHaveBeenCalledTimes(1);
     
     // Restore mocks
-    (document.createElement as jest.Mock).mockRestore();
-    (document.body.appendChild as jest.Mock).mockRestore();
-    (document.body.removeChild as jest.Mock).mockRestore();
+    (document.createElement as ReturnType<typeof vi.fn>).mockRestore();
+    (document.body.appendChild as ReturnType<typeof vi.fn>).mockRestore();
+    (document.body.removeChild as ReturnType<typeof vi.fn>).mockRestore();
   });
 
   test('kubeconfig contains expected structure and content', () => {

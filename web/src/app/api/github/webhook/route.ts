@@ -180,7 +180,6 @@ async function handlePullRequestEvent(payload: {
           issue_number: pull_request.number,
           body: 'hello from catalyst',
         });
-        console.log(`Comment added to PR ${pull_request.number} in ${repository.full_name}`);
       } catch (commentError) {
         console.error(`Failed to comment on PR ${pull_request.number}:`, commentError);
       }
@@ -188,7 +187,6 @@ async function handlePullRequestEvent(payload: {
       const namespaceResult = await createKubernetesNamespace(owner, repo, environment);
       
       if (namespaceResult.success) {
-        console.log(`Namespace created for PR ${pull_request.number}:`, namespaceResult.namespace?.name);
         return NextResponse.json({
           success: true,
           message: `Pull request ${action} processed and namespace created`,
@@ -225,7 +223,6 @@ async function handlePullRequestEvent(payload: {
       const deleteResult = await deleteKubernetesNamespace(owner, repo, environment);
       
       if (deleteResult.success) {
-        console.log(`Namespace deleted for PR ${pull_request.number}:`, deleteResult.namespaceName);
         return NextResponse.json({
           success: true,
           message: `Pull request ${action} processed and namespace deleted`,

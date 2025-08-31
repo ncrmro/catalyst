@@ -7,8 +7,8 @@ import { Metadata } from "next";
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: "GitHub Repositories - Catalyst",
-  description: "View and manage your GitHub repositories and organization repos.",
+  title: "Git Repositories - Catalyst",
+  description: "View and manage your Git repositories across different platforms.",
 };
 
 interface GitHubRepo {
@@ -28,6 +28,12 @@ interface GitHubRepo {
   forks_count: number;
   open_issues_count: number;
   updated_at: string;
+  connection?: {
+    projectId: string;
+    isPrimary: boolean;
+  } | null;
+  database_id?: string;
+  teamId?: string;
 }
 
 interface GitHubOrganization {
@@ -35,6 +41,13 @@ interface GitHubOrganization {
   id: number;
   avatar_url: string;
   description: string | null;
+}
+
+interface ReposData {
+  user_repos: GitHubRepo[];
+  organizations: GitHubOrganization[];
+  org_repos: Record<string, GitHubRepo[]>;
+  github_integration_enabled: boolean;
 }
 
 function RepoCard({ repo, isConnected }: { repo: GitHubRepo; isConnected: boolean }) {
@@ -170,7 +183,7 @@ export default async function ReposPage() {
     }
   }
 
-  let reposData;
+  let reposData: ReposData | null = null;
   let error: string | null = null;
 
   try {
@@ -200,9 +213,9 @@ export default async function ReposPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-on-background mb-2">GitHub Repositories</h1>
+          <h1 className="text-3xl font-bold text-on-background mb-2">Git Repositories</h1>
           <p className="text-on-surface-variant">
-            View and manage your GitHub repositories and organization repos.
+            View and manage your Git repositories across different platforms.
           </p>
         </div>
         
@@ -213,7 +226,7 @@ export default async function ReposPage() {
           <h2 className="text-lg font-semibold text-on-error-container mb-2 text-center">Error Loading Repositories</h2>
           <p className="text-on-error-container text-center">{error}</p>
           <div className="mt-4 text-sm text-on-error-container text-center">
-            <p>To view repositories, set MOCKED=1 or GITHUB_REPOS_MODE=mocked in your environment.</p>
+            <p>Please check your database connection or try again later.</p>
           </div>
         </div>
       </div>
@@ -224,9 +237,9 @@ export default async function ReposPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-on-background mb-2">GitHub Repositories</h1>
+          <h1 className="text-3xl font-bold text-on-background mb-2">Git Repositories</h1>
           <p className="text-on-surface-variant">
-            View and manage your GitHub repositories and organization repos.
+            View and manage your Git repositories across different platforms.
           </p>
         </div>
         
@@ -258,9 +271,9 @@ export default async function ReposPage() {
     <div className="space-y-6">
         {/* Header Section */}
         <div>
-          <h1 className="text-3xl font-bold text-on-background mb-2">GitHub Repositories</h1>
+          <h1 className="text-3xl font-bold text-on-background mb-2">Git Repositories</h1>
           <p className="text-on-surface-variant">
-            View and manage your GitHub repositories and organization repos.
+            View and manage your Git repositories across different platforms.
           </p>
           <p className="text-sm text-on-surface-variant mt-2">
             {totalRepos} repositories across {reposData.organizations.length + 1} accounts
@@ -268,6 +281,22 @@ export default async function ReposPage() {
               <span className="text-primary"> • {connectedRepos.length} connected</span>
             )}
           </p>
+          
+          {/* GitHub Integration Status */}
+          {!reposData.github_integration_enabled && (
+            <div className="mt-2 p-3 bg-surface-variant/20 border border-outline rounded-md">
+              <p className="text-sm flex items-center gap-2">
+                <span className="text-amber-500">⚠️</span>
+                <span>
+                  GitHub integration is not currently enabled. 
+                  Only repositories from the database are shown.
+                  <Link href="/admin/github" className="ml-2 text-primary hover:underline">
+                    Configure GitHub Integration
+                  </Link>
+                </span>
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Connected Repositories Section */}
@@ -367,17 +396,36 @@ export default async function ReposPage() {
               <span className="text-gray-400 text-3xl">📁</span>
             </div>
             <h3 className="text-lg font-medium text-on-surface mb-2">No repositories found</h3>
-            <p className="text-on-surface-variant max-w-md mx-auto">
-              Connect your GitHub account and grant access to organizations to see repositories here.
-            </p>
-            <div className="mt-6">
-              <a
-                href="/github"
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-              >
-                Set up GitHub Integration
-              </a>
-            </div>
+            
+            {reposData.github_integration_enabled ? (
+              <div>
+                <p className="text-on-surface-variant max-w-md mx-auto">
+                  Connect your GitHub account and grant access to organizations to see your repositories here.
+                </p>
+                <div className="mt-6">
+                  <a
+                    href="/github"
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                  >
+                    Set up GitHub Integration
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <p className="text-on-surface-variant max-w-md mx-auto">
+                  No repositories found in the database. Enable GitHub integration to discover and import repositories.
+                </p>
+                <div className="mt-6">
+                  <a
+                    href="/admin/github"
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                  >
+                    Configure GitHub Integration
+                  </a>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -1,16 +1,17 @@
 import { createMocks } from 'node-mocks-http';
 import { POST } from '../../../../src/app/api/github/webhook/route';
 import crypto from 'crypto';
+import { vi } from 'vitest';
 
 // Mock the Kubernetes action
-jest.mock('../../../../src/actions/kubernetes', () => ({
-  createKubernetesNamespace: jest.fn(),
-  deleteKubernetesNamespace: jest.fn()
+vi.mock('../../../../src/actions/kubernetes', () => ({
+  createKubernetesNamespace: vi.fn(),
+  deleteKubernetesNamespace: vi.fn()
 }));
 
 // Mock the GitHub library
-jest.mock('../../../../src/lib/github', () => ({
-  getInstallationOctokit: jest.fn()
+vi.mock('../../../../src/lib/github', () => ({
+  getInstallationOctokit: vi.fn()
 }));
 
 import { createKubernetesNamespace, deleteKubernetesNamespace } from '../../../../src/actions/kubernetes';
@@ -18,14 +19,14 @@ import { getInstallationOctokit } from '../../../../src/lib/github';
 
 describe('/api/github/webhook', () => {
   const mockWebhookSecret = 'test-webhook-secret';
-  const mockCreateKubernetesNamespace = createKubernetesNamespace as jest.MockedFunction<typeof createKubernetesNamespace>;
-  const mockDeleteKubernetesNamespace = deleteKubernetesNamespace as jest.MockedFunction<typeof deleteKubernetesNamespace>;
-  const mockGetInstallationOctokit = getInstallationOctokit as jest.MockedFunction<typeof getInstallationOctokit>;
+  const mockCreateKubernetesNamespace = createKubernetesNamespace as ReturnType<typeof vi.fn>;
+  const mockDeleteKubernetesNamespace = deleteKubernetesNamespace as ReturnType<typeof vi.fn>;
+  const mockGetInstallationOctokit = getInstallationOctokit as ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     process.env.GITHUB_WEBHOOK_SECRET = mockWebhookSecret;
     // Reset all mocks
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -58,11 +59,11 @@ describe('/api/github/webhook', () => {
           'x-hub-signature-256': signature,
           'content-type': 'application/json'
         },
-        body: payloadString,
+        body: Buffer.from(payloadString),
       });
 
       // Mock request.text() to return the payload
-      req.text = jest.fn().mockResolvedValue(payloadString);
+      req.text = vi.fn().mockResolvedValue(payloadString);
 
       const response = await POST(req as any);
       const data = await response.json();
@@ -93,10 +94,10 @@ describe('/api/github/webhook', () => {
           'x-hub-signature-256': signature,
           'content-type': 'application/json'
         },
-        body: payloadString,
+        body: Buffer.from(payloadString),
       });
 
-      req.text = jest.fn().mockResolvedValue(payloadString);
+      req.text = vi.fn().mockResolvedValue(payloadString);
 
       const response = await POST(req as any);
       const data = await response.json();
@@ -126,10 +127,10 @@ describe('/api/github/webhook', () => {
           'x-hub-signature-256': signature,
           'content-type': 'application/json'
         },
-        body: payloadString,
+        body: Buffer.from(payloadString),
       });
 
-      req.text = jest.fn().mockResolvedValue(payloadString);
+      req.text = vi.fn().mockResolvedValue(payloadString);
 
       const response = await POST(req as any);
       const data = await response.json();
@@ -159,7 +160,7 @@ describe('/api/github/webhook', () => {
       });
 
       // Mock GitHub octokit for commenting
-      const mockRequest = jest.fn().mockResolvedValue({});
+      const mockRequest = vi.fn().mockResolvedValue({});
       mockGetInstallationOctokit.mockResolvedValue({
         request: mockRequest
       } as any);
@@ -189,10 +190,10 @@ describe('/api/github/webhook', () => {
           'x-hub-signature-256': signature,
           'content-type': 'application/json'
         },
-        body: payloadString,
+        body: Buffer.from(payloadString),
       });
 
-      req.text = jest.fn().mockResolvedValue(payloadString);
+      req.text = vi.fn().mockResolvedValue(payloadString);
 
       const response = await POST(req as any);
       const data = await response.json();
@@ -254,10 +255,10 @@ describe('/api/github/webhook', () => {
           'x-hub-signature-256': signature,
           'content-type': 'application/json'
         },
-        body: payloadString,
+        body: Buffer.from(payloadString),
       });
 
-      req.text = jest.fn().mockResolvedValue(payloadString);
+      req.text = vi.fn().mockResolvedValue(payloadString);
 
       const response = await POST(req as any);
       const data = await response.json();
@@ -303,10 +304,10 @@ describe('/api/github/webhook', () => {
           'x-hub-signature-256': signature,
           'content-type': 'application/json'
         },
-        body: payloadString,
+        body: Buffer.from(payloadString),
       });
 
-      req.text = jest.fn().mockResolvedValue(payloadString);
+      req.text = vi.fn().mockResolvedValue(payloadString);
 
       const response = await POST(req as any);
       const data = await response.json();
@@ -346,10 +347,10 @@ describe('/api/github/webhook', () => {
           'x-hub-signature-256': signature,
           'content-type': 'application/json'
         },
-        body: payloadString,
+        body: Buffer.from(payloadString),
       });
 
-      req.text = jest.fn().mockResolvedValue(payloadString);
+      req.text = vi.fn().mockResolvedValue(payloadString);
 
       const response = await POST(req as any);
       const data = await response.json();
@@ -374,7 +375,7 @@ describe('/api/github/webhook', () => {
       });
 
       // Mock GitHub octokit for commenting
-      const mockRequest = jest.fn().mockResolvedValue({});
+      const mockRequest = vi.fn().mockResolvedValue({});
       mockGetInstallationOctokit.mockResolvedValue({
         request: mockRequest
       } as any);
@@ -404,10 +405,10 @@ describe('/api/github/webhook', () => {
           'x-hub-signature-256': signature,
           'content-type': 'application/json'
         },
-        body: payloadString,
+        body: Buffer.from(payloadString),
       });
 
-      req.text = jest.fn().mockResolvedValue(payloadString);
+      req.text = vi.fn().mockResolvedValue(payloadString);
 
       const response = await POST(req as any);
       const data = await response.json();
@@ -437,10 +438,10 @@ describe('/api/github/webhook', () => {
           'x-hub-signature-256': signature,
           'content-type': 'application/json'
         },
-        body: payloadString,
+        body: Buffer.from(payloadString),
       });
 
-      req.text = jest.fn().mockResolvedValue(payloadString);
+      req.text = vi.fn().mockResolvedValue(payloadString);
 
       const response = await POST(req as any);
       const data = await response.json();
@@ -466,10 +467,10 @@ describe('/api/github/webhook', () => {
           'x-hub-signature-256': invalidSignature,
           'content-type': 'application/json'
         },
-        body: payloadString,
+        body: Buffer.from(payloadString),
       });
 
-      req.text = jest.fn().mockResolvedValue(payloadString);
+      req.text = vi.fn().mockResolvedValue(payloadString);
 
       const response = await POST(req as any);
       const data = await response.json();
@@ -501,10 +502,10 @@ describe('/api/github/webhook', () => {
           'x-github-delivery': 'test-delivery-123',
           'content-type': 'application/json'
         },
-        body: payloadString,
+        body: Buffer.from(payloadString),
       });
 
-      req.text = jest.fn().mockResolvedValue(payloadString);
+      req.text = vi.fn().mockResolvedValue(payloadString);
 
       const response = await POST(req as any);
       const data = await response.json();
@@ -525,10 +526,10 @@ describe('/api/github/webhook', () => {
           'x-hub-signature-256': signature,
           'content-type': 'application/json'
         },
-        body: invalidJson,
+        body: Buffer.from(invalidJson),
       });
 
-      req.text = jest.fn().mockResolvedValue(invalidJson);
+      req.text = vi.fn().mockResolvedValue(invalidJson);
 
       const response = await POST(req as any);
       const data = await response.json();

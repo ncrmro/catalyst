@@ -7,6 +7,7 @@ import {
   integer,
   unique,
 } from "drizzle-orm/pg-core"
+import { relations } from "drizzle-orm"
 import type { AdapterAccountType } from "@auth/core/adapters"
  
 export const users = pgTable("user", {
@@ -19,6 +20,14 @@ export const users = pgTable("user", {
   image: text("image"),
   admin: boolean("admin").notNull().default(false),
 })
+
+export const usersRelations = relations(users, ({ many }) => ({
+  accounts: many(accounts),
+  sessions: many(sessions),
+  authenticators: many(authenticators),
+  ownedTeams: many(teams, { relationName: "teamOwner" }),
+  teamMemberships: many(teamsMemberships),
+}))
  
 export const accounts = pgTable(
   "account",
@@ -45,6 +54,13 @@ export const accounts = pgTable(
     },
   ]
 )
+
+export const accountsRelations = relations(accounts, ({ one }) => ({
+  user: one(users, {
+    fields: [accounts.userId],
+    references: [users.id]
+  })
+}))
  
 export const sessions = pgTable("session", {
   sessionToken: text("sessionToken").primaryKey(),
@@ -53,6 +69,13 @@ export const sessions = pgTable("session", {
     .references(() => users.id, { onDelete: "cascade" }),
   expires: timestamp("expires", { mode: "date" }).notNull(),
 })
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  user: one(users, {
+    fields: [sessions.userId],
+    references: [users.id]
+  })
+}))
  
 export const verificationTokens = pgTable(
   "verificationToken",
@@ -93,6 +116,13 @@ export const authenticators = pgTable(
   ]
 )
 
+export const authenticatorsRelations = relations(authenticators, ({ one }) => ({
+  user: one(users, {
+    fields: [authenticators.userId],
+    references: [users.id]
+  })
+}))
+
 export const teams = pgTable("teams", {
   id: text("id")
     .primaryKey()
@@ -110,6 +140,17 @@ export const teams = pgTable("teams", {
     .$defaultFn(() => new Date()),
 })
 
+export const teamsRelations = relations(teams, ({ one, many }) => ({
+  owner: one(users, {
+    fields: [teams.ownerId],
+    references: [users.id],
+    relationName: "teamOwner"
+  }),
+  memberships: many(teamsMemberships),
+  repos: many(repos),
+  projects: many(projects)
+}))
+
 export const teamsMemberships = pgTable("teams_memberships", {
   id: text("id")
     .primaryKey()
@@ -125,6 +166,17 @@ export const teamsMemberships = pgTable("teams_memberships", {
     .notNull()
     .$defaultFn(() => new Date()),
 })
+
+export const teamsMembershipsRelations = relations(teamsMemberships, ({ one }) => ({
+  team: one(teams, {
+    fields: [teamsMemberships.teamId],
+    references: [teams.id]
+  }),
+  user: one(users, {
+    fields: [teamsMemberships.userId],
+    references: [users.id]
+  })
+}))
 
 export const repos = pgTable("repo", {
   id: text("id")
@@ -151,6 +203,16 @@ export const repos = pgTable("repo", {
   pushedAt: timestamp("pushed_at", { mode: "date" }),
 })
 
+export const reposRelations = relations(repos, ({ one, many }) => ({
+  team: one(teams, {
+    fields: [repos.teamId],
+    references: [teams.id]
+  }),
+  projectConnections: many(projectsRepos),
+  environments: many(projectEnvironments),
+  manifests: many(projectManifests)
+}))
+
 export const projects = pgTable("project", {
   id: text("id")
     .primaryKey()
@@ -168,6 +230,16 @@ export const projects = pgTable("project", {
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 })
+
+export const projectsRelations = relations(projects, ({ one, many }) => ({
+  team: one(teams, {
+    fields: [projects.teamId],
+    references: [teams.id]
+  }),
+  repositories: many(projectsRepos),
+  environments: many(projectEnvironments),
+  manifests: many(projectManifests)
+}))
 
 export const projectsRepos = pgTable(
   "projects_repos",
@@ -189,6 +261,17 @@ export const projectsRepos = pgTable(
     },
   ]
 )
+
+export const projectsReposRelations = relations(projectsRepos, ({ one }) => ({
+  project: one(projects, {
+    fields: [projectsRepos.projectId],
+    references: [projects.id]
+  }),
+  repo: one(repos, {
+    fields: [projectsRepos.repoId],
+    references: [repos.id]
+  })
+}))
 
 export const projectEnvironments = pgTable(
   "project_environments",
@@ -217,6 +300,17 @@ export const projectEnvironments = pgTable(
     },
   ]
 )
+
+export const projectEnvironmentsRelations = relations(projectEnvironments, ({ one }) => ({
+  project: one(projects, {
+    fields: [projectEnvironments.projectId],
+    references: [projects.id]
+  }),
+  repo: one(repos, {
+    fields: [projectEnvironments.repoId],
+    references: [repos.id]
+  })
+}))
 
 /**
  * Project Manifests Table
@@ -255,3 +349,14 @@ export const projectManifests = pgTable(
     primaryKey({ columns: [table.projectId, table.repoId, table.path]}),
   ]
 )
+
+export const projectManifestsRelations = relations(projectManifests, ({ one }) => ({
+  project: one(projects, {
+    fields: [projectManifests.projectId],
+    references: [projects.id]
+  }),
+  repo: one(repos, {
+    fields: [projectManifests.repoId],
+    references: [repos.id]
+  })
+}))

@@ -61,7 +61,7 @@ export async function getAuthenticatedUser(): Promise<McpUser | null> {
       projects: projectsData.projects.map(project => ({
         id: project.id,
         name: project.name,
-        full_name: project.full_name
+        full_name: project.fullName
       }))
     };
   } catch (error) {

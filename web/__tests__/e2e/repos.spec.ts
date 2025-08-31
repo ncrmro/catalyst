@@ -12,10 +12,7 @@ test.describe('GitHub Repositories Page', () => {
     await page.goto('/repos');
 
     // Check that the page title is correct
-    await expect(page.getByRole('heading', { name: 'GitHub Repositories' })).toBeVisible();
-
-    // Check that the description is shown
-    await expect(page.getByText('View and manage your GitHub repositories and organization repos.')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Git Repositories' })).toBeVisible();
 
     // Check that user repositories section is shown
     await expect(page.locator('h3').filter({ hasText: 'Your Repositories' })).toBeVisible();

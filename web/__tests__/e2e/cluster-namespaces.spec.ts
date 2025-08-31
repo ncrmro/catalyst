@@ -21,7 +21,7 @@ test.describe('Cluster Namespaces Browsing', () => {
     await page.getByRole('link', { name: 'View Namespaces' }).click();
 
     await test.step('Verify namespace page displays correctly', async () => {
-      await expect(page.getByRole('heading', { name: /Namespaces - /, levle: 1 })).toBeVisible();
+      await expect(page.getByRole('heading', { name: /Namespaces - /, level: 1 })).toBeVisible();
       await expect(page.getByText('Browse and manage namespaces in this Kubernetes cluster')).toBeVisible();
       await expect(page.getByText(/Found \d+ namespace/)).toBeVisible();
       

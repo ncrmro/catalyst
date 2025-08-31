@@ -1,9 +1,10 @@
 import { POST, GET, DELETE, OPTIONS } from '../../../src/app/api/mcp/route';
 import { NextRequest } from 'next/server';
+import { vi } from 'vitest';
 
 // Mock the fetchProjects function
-jest.mock('../../../src/actions/projects', () => ({
-  fetchProjects: jest.fn().mockResolvedValue({
+vi.mock('../../../src/actions/projects', () => ({
+  fetchProjects: vi.fn().mockResolvedValue({
     projects: [
       {
         id: 'test-project-1',
@@ -27,13 +28,13 @@ jest.mock('../../../src/actions/projects', () => ({
 }));
 
 // Mock the authentication functions
-jest.mock('../../../src/lib/mcp-auth', () => ({
-  validateApiKey: jest.fn((authHeader: string | null) => {
+vi.mock('../../../src/lib/mcp-auth', () => ({
+  validateApiKey: vi.fn((authHeader: string | null) => {
     if (!authHeader) return false;
     const token = authHeader.replace('Bearer ', '');
     return token === (process.env.MCP_API_KEY || 'catalyst-mcp-key-2024');
   }),
-  getAuthenticatedUser: jest.fn().mockResolvedValue({
+  getAuthenticatedUser: vi.fn().mockResolvedValue({
     id: 'test-user-id',
     email: 'test@example.com',
     name: 'Test User',
@@ -48,12 +49,12 @@ jest.mock('../../../src/lib/mcp-auth', () => ({
 }));
 
 // Mock the namespace functions
-jest.mock('../../../src/lib/mcp-namespaces', () => ({
-  getNamespacesForUser: jest.fn().mockResolvedValue([
+vi.mock('../../../src/lib/mcp-namespaces', () => ({
+  getNamespacesForUser: vi.fn().mockResolvedValue([
     { name: 'default', labels: {}, creationTimestamp: '2024-01-01T00:00:00Z' },
     { name: 'test-namespace', labels: { 'catalyst/team': 'team-1' }, creationTimestamp: '2024-01-01T00:00:00Z' }
   ]),
-  getNamespaceDetails: jest.fn().mockResolvedValue({
+  getNamespaceDetails: vi.fn().mockResolvedValue({
     name: 'test-namespace',
     labels: { 'catalyst/team': 'team-1' },
     creationTimestamp: '2024-01-01T00:00:00Z'
