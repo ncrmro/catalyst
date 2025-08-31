@@ -11,7 +11,7 @@
     "test": "vitest run",
     "test:unit": "vitest run __tests__/unit",
     "test:integration": "vitest run __tests__/integration",
-    "test:components": "jest --testPathPatterns=components",
+    "test:components": "vitest run __tests__/components",
     "test:watch": "vitest watch",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "vitest run __tests__/e2e",

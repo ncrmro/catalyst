@@ -9,6 +9,7 @@ export default defineConfig({
     setupFiles: ['./vitest.setup.ts'],
     include: [
       '**/__tests__/unit/**/*.test.{ts,tsx}',
+      '**/__tests__/components/**/*.test.{ts,tsx}',
       '**/__tests__/integration/**/*.test.{ts,tsx}',
       '**/__tests__/e2e/**/*.{test,spec}.{ts,tsx}'
     ],

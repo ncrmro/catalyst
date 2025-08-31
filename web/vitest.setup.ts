@@ -4,9 +4,6 @@ import dotenv from 'dotenv';
 // Load environment variables from .env file
 dotenv.config();
 
-// Set test environment 
-process.env.NODE_ENV = 'test';
-
 // Display a message that environment variables are loaded
 console.log('Vitest setup: Environment variables loaded from .env');
 

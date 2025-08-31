@@ -1,18 +1,20 @@
 /**
- * @jest-environment jsdom
+ * @vitest-environment jsdom
  */
 
+import React from 'react';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { usePathname } from 'next/navigation';
 import Sidebar from '@/components/sidebar';
+import { vi, describe, it, expect, afterEach, beforeEach } from 'vitest';
 
 // Mock usePathname
-jest.mock('next/navigation', () => ({
-  usePathname: jest.fn(),
+vi.mock('next/navigation', () => ({
+  usePathname: vi.fn(),
 }));
 
-const mockUsePathname = usePathname as jest.MockedFunction<typeof usePathname>;
+const mockUsePathname = usePathname as ReturnType<typeof vi.fn>;
 
 describe('Sidebar Component', () => {
   beforeEach(() => {
@@ -20,7 +22,7 @@ describe('Sidebar Component', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('renders all navigation items for non-admin users except clusters', () => {
