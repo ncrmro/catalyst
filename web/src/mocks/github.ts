@@ -9,9 +9,22 @@
  * Used by actions when MOCKED=1 or GITHUB_REPOS_MODE=mocked environment variables are set
  */
 
+/**
+ * Centralized GitHub mock data for development and testing
+ * 
+ * This file contains mock data for:
+ * - GitHub repositories (user and organization repos)
+ * - GitHub organizations  
+ * - Pull requests
+ * 
+ * Used by actions when MOCKED=1 or GITHUB_REPOS_MODE=mocked environment variables are set
+ */
+
 import { PullRequest } from '@/actions/reports';
 
 // GitHub Repository Interface
+// Based on GitHub API response structure from @octokit/rest 
+// (repos.listForAuthenticatedUser and orgs.listForAuthenticatedUser)
 export interface GitHubRepo {
   id: number;
   name: string;
@@ -42,6 +55,7 @@ export interface GitHubRepo {
 }
 
 // GitHub Organization Interface
+// Based on GitHub API response structure from @octokit/rest (orgs.listForAuthenticatedUser)
 export interface GitHubOrganization {
   login: string;
   id: number;

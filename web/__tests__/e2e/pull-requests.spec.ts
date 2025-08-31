@@ -77,9 +77,11 @@ test.describe('Pull Requests Page', () => {
       };
     });
 
-    // Go to the pull requests page with a custom environment that would return no PRs
-    // Since we can't easily mock server actions in E2E, we'll skip this test for now
-    // and rely on the main test to verify the mocked data is displayed correctly
-    test.skip('Skipping empty state test - requires server-side mocking');
+    // Go to the pull requests page
+    await page.goto('/pull-requests');
+    
+    // Since we can't easily mock server actions in E2E tests, just verify the page loads
+    // TODO: Implement proper empty state testing when server-side mocking is available
+    await expect(page.locator('h1')).toContainText('Pull Requests');
   });
 });

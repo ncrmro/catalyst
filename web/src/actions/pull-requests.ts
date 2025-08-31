@@ -139,13 +139,13 @@ async function fetchGitFoobarPullRequests(): Promise<PullRequest[]> {
  * Combines results from GitHub and gitfoobar providers
  */
 export async function fetchUserPullRequests(): Promise<PullRequest[]> {
-  // Check if we should return mocked data
-  const pullRequestsMode = process.env.GITHUB_PULL_REQUESTS_MODE;
+  // Check if we should return mocked data (using same env var as GitHub repos)
+  const githubReposMode = process.env.GITHUB_REPOS_MODE;
   const mocked = process.env.MOCKED === '1';
   
-  console.log('Environment check - MOCKED:', mocked, 'GITHUB_PULL_REQUESTS_MODE:', pullRequestsMode);
+  console.log('Environment check - MOCKED:', mocked, 'GITHUB_REPOS_MODE:', githubReposMode);
   
-  if (pullRequestsMode === 'mocked' || mocked) {
+  if (githubReposMode === 'mocked' || mocked) {
     console.log('Returning mocked pull requests data');
     return getMockPullRequests();
   }
