@@ -34,15 +34,21 @@ ci: ## Run comprehensive CI tests (unit, integration, and e2e)
 	@echo "Running comprehensive CI tests..."
 	@echo "1. Running linter..."
 	npm run lint
-	@echo "2. Running unit tests..."
-	npm run test:unit
-	@echo "3. Running integration tests..."
-	npm run test:integration
-	@echo "4. Running component tests..."
-	npm run test:components
+	@echo "2. Running unit tests with coverage..."
+	npm run test:coverage:unit
+	@echo "3. Running integration tests with coverage..."
+	npm run test:coverage:integration
+	@echo "4. Running component tests with coverage..."
+	npm run test:coverage:components
 	@echo "5. Running e2e tests..."
 	npm run test:e2e
 	@echo "All tests completed successfully!"
+
+coverage: ## Generate comprehensive test coverage reports
+	@echo "Generating test coverage reports..."
+	npm run test:coverage
+	@echo "Coverage reports generated in ./coverage/"
+	@echo "Open coverage/index.html in your browser to view the report"
 
 ci-docker: ## Run comprehensive CI tests in Docker (unit, integration, and e2e)
 	$(DC) run --env NODE_ENV=production --rm -it app npm run lint
