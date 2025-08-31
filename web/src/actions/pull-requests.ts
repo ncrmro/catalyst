@@ -120,6 +120,11 @@ async function fetchGitHubPullRequests(): Promise<PullRequest[]> {
 /**
  * gitfoobar provider - placeholder provider that returns empty array
  * This acts as a placeholder for future git providers
+ * 
+ * DOCUMENTATION: This is a placeholder git provider called "gitfoobar" that
+ * always returns an empty array of pull requests. It serves as a template
+ * for future git provider integrations and demonstrates the multi-provider
+ * architecture of the pull requests system.
  */
 async function fetchGitFoobarPullRequests(): Promise<PullRequest[]> {
   // This is a placeholder provider that returns no pull requests
