@@ -9,6 +9,7 @@
 import { auth } from '@/auth';
 import { Octokit } from '@octokit/rest';
 import { PullRequest } from '@/actions/reports';
+import { getMockPullRequests } from '@/mocks/github';
 
 /**
  * GitHub provider - fetches real pull requests from GitHub API
@@ -138,6 +139,17 @@ async function fetchGitFoobarPullRequests(): Promise<PullRequest[]> {
  * Combines results from GitHub and gitfoobar providers
  */
 export async function fetchUserPullRequests(): Promise<PullRequest[]> {
+  // Check if we should return mocked data (using same env var as GitHub repos)
+  const githubReposMode = process.env.GITHUB_REPOS_MODE;
+  const mocked = process.env.MOCKED === '1';
+  
+  console.log('Environment check - MOCKED:', mocked, 'GITHUB_REPOS_MODE:', githubReposMode);
+  
+  if (githubReposMode === 'mocked' || mocked) {
+    console.log('Returning mocked pull requests data');
+    return getMockPullRequests();
+  }
+
   try {
     // Fetch from all providers in parallel
     const [githubPrs, gitfoobarPrs] = await Promise.all([
