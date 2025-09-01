@@ -4,12 +4,13 @@ import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 const ENCRYPTION_KEY = process.env.TOKEN_ENCRYPTION_KEY as string;
 const ALGORITHM = 'aes-256-gcm';
 
+if (!ENCRYPTION_KEY) {
   if (process.env.NODE_ENV === 'production') {
     console.error('TOKEN_ENCRYPTION_KEY environment variable is required in production. Application will exit.');
-   process.exit(1);
- } else {
-   console.warn('TOKEN_ENCRYPTION_KEY environment variable is not set. Token encryption will not work.');
- }
+    process.exit(1);
+  } else {
+    console.warn('TOKEN_ENCRYPTION_KEY environment variable is not set. Token encryption will not work.');
+  }
 }
 
 export interface EncryptedToken {
