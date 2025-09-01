@@ -2,14 +2,13 @@
 # This is a YAML-formatted file.
 
 # Values for cert-manager subchart
-certManager:
+cert-manager:
   installCRDs: true
   # Namespace configuration for cert-manager
   namespace: cert-manager
-  createNamespace: true
   # Additional cert-manager configuration can be added here
 
 # Values for GitHub Actions Runner Controller
-ghArc:
-  namespace: arc-systems
-  createNamespace: true
+gha-runner-scale-set-controller:
+  namespaceOverride: gh-arc-systems
+  createNamespace: true 

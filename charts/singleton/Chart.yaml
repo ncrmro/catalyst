@@ -6,11 +6,9 @@ version: 0.1.0
 appVersion: "1.0.0"
 dependencies:
   - name: cert-manager
-    alias: certManager
     version: v1.18.2
     repository: oci://quay.io/jetstack/charts
   - name: gha-runner-scale-set-controller
-    alias: ghArc
     version: 0.12.1
     repository: oci://ghcr.io/actions/actions-runner-controller-charts
 
