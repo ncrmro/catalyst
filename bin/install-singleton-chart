@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Get the directory of the script
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+CHART_DIR="$(dirname "$SCRIPT_DIR")/charts/singleton"
+
+# Print current context for verification
+echo "Current Kubernetes context: $(kubectl config current-context)"
+
+# Check if chart directory exists
+if [ ! -d "$CHART_DIR" ]; then
+  echo "Error: Singleton chart directory not found at $CHART_DIR"
+  exit 1
+fi
+
+# Install or upgrade the chart
+echo "Installing/upgrading singleton chart from $CHART_DIR..."
+helm upgrade --install singleton "$CHART_DIR" --wait
+
+echo "Singleton chart installation complete!"
