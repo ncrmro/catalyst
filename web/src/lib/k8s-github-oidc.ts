@@ -1,5 +1,6 @@
 // Kubernetes GitHub OIDC Authentication Configuration management functions
-import { getClusterConfig } from './k8s-client';
+import { getClusterConfig, getCoreV1Api } from './k8s-client';
+import yaml from 'js-yaml';
 
 export interface GitHubOIDCOptions {
   clusterAudience: string; // e.g., "https://your.cluster.aud"
@@ -64,17 +65,30 @@ export async function isGitHubOIDCEnabled(clusterName?: string): Promise<boolean
       return false;
     }
 
-    // For now, we'll check if there's an AuthenticationConfiguration
-    // In a real implementation, this would query the actual Kubernetes API
-    // to check for existing AuthenticationConfiguration resources
+    // Check for the ConfigMap that stores our AuthenticationConfiguration
+    const CoreV1Api = await getCoreV1Api();
+    const k8sApi = kc.makeApiClient(CoreV1Api);
     
-    // This is a placeholder implementation
-    // In practice, we would need to use a custom API client to check for 
-    // authentication.k8s.io/v1beta1 resources, which may not be available
-    // in the standard client libraries
+    const configMapName = 'github-oidc-auth-config';
+    const namespace = 'kube-system'; // Store in kube-system namespace
     
-    return false; // Default to false for now
+    try {
+      await k8sApi.readNamespacedConfigMap({
+        name: configMapName,
+        namespace: namespace
+      });
+      return true; // ConfigMap exists, so GitHub OIDC is "enabled"
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 404) {
+        return false; // ConfigMap doesn't exist
+      }
+      throw error; // Re-throw other errors
+    }
   } catch (error) {
+    // If the error is about cluster not found, re-throw it
+    if (error instanceof Error && error.message.includes('Kubernetes cluster') && error.message.includes('not found')) {
+      throw error;
+    }
     console.warn('Failed to check GitHub OIDC status:', error instanceof Error ? error.message : 'Unknown error');
     return false;
   }
@@ -93,26 +107,80 @@ export async function enableGitHubOIDC(options: GitHubOIDCOptions, clusterName?:
   const authConfig = generateGitHubOIDCConfig(options);
 
   try {
-    // Note: The AuthenticationConfiguration is a beta API and may not be available
-    // in the standard Kubernetes client libraries. In a real implementation,
-    // this would require custom API calls or kubectl commands.
+    // Create a ConfigMap to store the AuthenticationConfiguration
+    // In a real implementation, this would be applied to the API server configuration
+    const CoreV1Api = await getCoreV1Api();
+    const k8sApi = kc.makeApiClient(CoreV1Api);
     
-    // For now, we'll simulate the creation and log the configuration
-    console.log('GitHub OIDC AuthenticationConfiguration would be created:', {
-      name: configName,
-      config: authConfig,
-      cluster: clusterName || 'default'
-    });
+    const configMapName = 'github-oidc-auth-config';
+    const namespace = 'kube-system';
+    
+    // Convert the AuthenticationConfiguration to YAML
+    const authConfigYaml = yaml.dump(authConfig);
+    
+    const configMapManifest = {
+      apiVersion: 'v1',
+      kind: 'ConfigMap',
+      metadata: {
+        name: configMapName,
+        namespace: namespace,
+        labels: {
+          'app.kubernetes.io/name': 'github-oidc-auth',
+          'app.kubernetes.io/component': 'authentication',
+          'app.kubernetes.io/managed-by': 'catalyst'
+        }
+      },
+      data: {
+        'authentication-config.yaml': authConfigYaml,
+        'cluster-audience': options.clusterAudience,
+        'enabled': 'true',
+        'created-at': new Date().toISOString()
+      }
+    };
 
-    // In a real implementation, you would:
-    // 1. Use kubectl or a custom API client to apply the AuthenticationConfiguration
-    // 2. Configure the kube-apiserver to use this authentication configuration
-    // 3. Restart the kube-apiserver with the --authentication-config flag
+    // Check if ConfigMap already exists
+    let exists = false;
+    try {
+      await k8sApi.readNamespacedConfigMap({
+        name: configMapName,
+        namespace: namespace
+      });
+      exists = true;
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'code' in error && error.code !== 404) {
+        throw error;
+      }
+    }
+
+    if (exists) {
+      // Update existing ConfigMap
+      await k8sApi.replaceNamespacedConfigMap({
+        name: configMapName,
+        namespace: namespace,
+        body: configMapManifest
+      });
+      console.log('GitHub OIDC AuthenticationConfiguration updated:', {
+        name: configName,
+        config: authConfig,
+        cluster: clusterName || 'default'
+      });
+    } else {
+      // Create new ConfigMap
+      await k8sApi.createNamespacedConfigMap({
+        namespace: namespace,
+        body: configMapManifest
+      });
+      console.log('GitHub OIDC AuthenticationConfiguration created:', {
+        name: configName,
+        config: authConfig,
+        cluster: clusterName || 'default'
+      });
+    }
 
     return {
       name: configName,
-      created: true,
-      exists: false
+      created: !exists,
+      exists: exists
     };
   } catch (error) {
     console.error('Failed to enable GitHub OIDC:', error);
@@ -132,19 +200,40 @@ export async function disableGitHubOIDC(clusterName?: string): Promise<GitHubOID
   const configName = 'github-oidc-auth';
 
   try {
-    // In a real implementation, this would remove the AuthenticationConfiguration
-    // and potentially restart the kube-apiserver
+    // Delete the ConfigMap that stores our AuthenticationConfiguration
+    const CoreV1Api = await getCoreV1Api();
+    const k8sApi = kc.makeApiClient(CoreV1Api);
     
-    console.log('GitHub OIDC AuthenticationConfiguration would be removed:', {
-      name: configName,
-      cluster: clusterName || 'default'
-    });
-
-    return {
-      name: configName,
-      created: false,
-      exists: false
-    };
+    const configMapName = 'github-oidc-auth-config';
+    const namespace = 'kube-system';
+    
+    try {
+      await k8sApi.deleteNamespacedConfigMap({
+        name: configMapName,
+        namespace: namespace
+      });
+      
+      console.log('GitHub OIDC AuthenticationConfiguration removed:', {
+        name: configName,
+        cluster: clusterName || 'default'
+      });
+      
+      return {
+        name: configName,
+        created: false,
+        exists: false
+      };
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 404) {
+        // ConfigMap doesn't exist, which means it's already "disabled"
+        return {
+          name: configName,
+          created: false,
+          exists: false
+        };
+      }
+      throw error;
+    }
   } catch (error) {
     console.error('Failed to disable GitHub OIDC:', error);
     throw error;

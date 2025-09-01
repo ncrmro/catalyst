@@ -10,10 +10,12 @@ import { vi } from 'vitest';
 // Mock the k8s-client module
 vi.mock('../../src/lib/k8s-client', () => ({
   getClusterConfig: vi.fn(),
+  getCoreV1Api: vi.fn(),
 }));
 
-import { getClusterConfig } from '../../src/lib/k8s-client';
+import { getClusterConfig, getCoreV1Api } from '../../src/lib/k8s-client';
 const mockGetClusterConfig = getClusterConfig as ReturnType<typeof vi.fn>;
+const mockGetCoreV1Api = getCoreV1Api as ReturnType<typeof vi.fn>;
 
 describe('k8s-github-oidc', () => {
   beforeEach(() => {
@@ -88,12 +90,52 @@ describe('k8s-github-oidc', () => {
       const enabled = await isGitHubOIDCEnabled('test-cluster');
       expect(enabled).toBe(false);
     });
+
+    it('should return true when ConfigMap exists', async () => {
+      const mockK8sApi = {
+        readNamespacedConfigMap: vi.fn().mockResolvedValue({ metadata: { name: 'github-oidc-auth-config' } }),
+      };
+      const mockKubeConfig = { makeApiClient: vi.fn().mockReturnValue(mockK8sApi) };
+      const mockCoreV1Api = function() { return mockK8sApi; };
+      
+      mockGetClusterConfig.mockResolvedValue(mockKubeConfig as any);
+      mockGetCoreV1Api.mockResolvedValue(mockCoreV1Api);
+      
+      const enabled = await isGitHubOIDCEnabled('test-cluster');
+      expect(enabled).toBe(true);
+      
+      expect(mockK8sApi.readNamespacedConfigMap).toHaveBeenCalledWith({
+        name: 'github-oidc-auth-config',
+        namespace: 'kube-system'
+      });
+    });
+
+    it('should return false when ConfigMap does not exist', async () => {
+      const mockK8sApi = {
+        readNamespacedConfigMap: vi.fn().mockRejectedValue({ code: 404 }),
+      };
+      const mockKubeConfig = { makeApiClient: vi.fn().mockReturnValue(mockK8sApi) };
+      const mockCoreV1Api = function() { return mockK8sApi; };
+      
+      mockGetClusterConfig.mockResolvedValue(mockKubeConfig as any);
+      mockGetCoreV1Api.mockResolvedValue(mockCoreV1Api);
+      
+      const enabled = await isGitHubOIDCEnabled('test-cluster');
+      expect(enabled).toBe(false);
+    });
   });
 
   describe('enableGitHubOIDC', () => {
     it('should return success result', async () => {
-      const mockKubeConfig = { makeApiClient: vi.fn() };
+      const mockK8sApi = {
+        readNamespacedConfigMap: vi.fn().mockRejectedValue({ code: 404 }),
+        createNamespacedConfigMap: vi.fn().mockResolvedValue({}),
+      };
+      const mockKubeConfig = { makeApiClient: vi.fn().mockReturnValue(mockK8sApi) };
+      const mockCoreV1Api = function() { return mockK8sApi; };
+      
       mockGetClusterConfig.mockResolvedValue(mockKubeConfig as any);
+      mockGetCoreV1Api.mockResolvedValue(mockCoreV1Api);
       
       const result = await enableGitHubOIDC({
         clusterAudience: 'https://test.cluster.example.com'
@@ -104,6 +146,15 @@ describe('k8s-github-oidc', () => {
         created: true,
         exists: false
       });
+      
+      expect(mockK8sApi.createNamespacedConfigMap).toHaveBeenCalledWith({
+        namespace: 'kube-system',
+        body: expect.objectContaining({
+          metadata: expect.objectContaining({
+            name: 'github-oidc-auth-config'
+          })
+        })
+      });
     });
 
     it('should throw error when no cluster config available', async () => {
@@ -113,12 +164,42 @@ describe('k8s-github-oidc', () => {
         clusterAudience: 'https://test.cluster.example.com'
       })).rejects.toThrow('Kubernetes cluster configuration not found. No clusters available.');
     });
+
+    it('should update existing ConfigMap when it already exists', async () => {
+      const mockK8sApi = {
+        readNamespacedConfigMap: vi.fn().mockResolvedValue({ metadata: { name: 'github-oidc-auth-config' } }),
+        replaceNamespacedConfigMap: vi.fn().mockResolvedValue({}),
+      };
+      const mockKubeConfig = { makeApiClient: vi.fn().mockReturnValue(mockK8sApi) };
+      const mockCoreV1Api = function() { return mockK8sApi; };
+      
+      mockGetClusterConfig.mockResolvedValue(mockKubeConfig as any);
+      mockGetCoreV1Api.mockResolvedValue(mockCoreV1Api);
+      
+      const result = await enableGitHubOIDC({
+        clusterAudience: 'https://test.cluster.example.com'
+      });
+
+      expect(result).toEqual({
+        name: 'github-oidc-auth',
+        created: false,
+        exists: true
+      });
+      
+      expect(mockK8sApi.replaceNamespacedConfigMap).toHaveBeenCalled();
+    });
   });
 
   describe('disableGitHubOIDC', () => {
     it('should return success result', async () => {
-      const mockKubeConfig = { makeApiClient: vi.fn() };
+      const mockK8sApi = {
+        deleteNamespacedConfigMap: vi.fn().mockResolvedValue({}),
+      };
+      const mockKubeConfig = { makeApiClient: vi.fn().mockReturnValue(mockK8sApi) };
+      const mockCoreV1Api = function() { return mockK8sApi; };
+      
       mockGetClusterConfig.mockResolvedValue(mockKubeConfig as any);
+      mockGetCoreV1Api.mockResolvedValue(mockCoreV1Api);
       
       const result = await disableGitHubOIDC();
 
@@ -127,12 +208,36 @@ describe('k8s-github-oidc', () => {
         created: false,
         exists: false
       });
+      
+      expect(mockK8sApi.deleteNamespacedConfigMap).toHaveBeenCalledWith({
+        name: 'github-oidc-auth-config',
+        namespace: 'kube-system'
+      });
     });
 
     it('should throw error when no cluster config available', async () => {
       mockGetClusterConfig.mockResolvedValue(null);
       
       await expect(disableGitHubOIDC()).rejects.toThrow('Kubernetes cluster configuration not found. No clusters available.');
+    });
+
+    it('should handle ConfigMap already deleted', async () => {
+      const mockK8sApi = {
+        deleteNamespacedConfigMap: vi.fn().mockRejectedValue({ code: 404 }),
+      };
+      const mockKubeConfig = { makeApiClient: vi.fn().mockReturnValue(mockK8sApi) };
+      const mockCoreV1Api = function() { return mockK8sApi; };
+      
+      mockGetClusterConfig.mockResolvedValue(mockKubeConfig as any);
+      mockGetCoreV1Api.mockResolvedValue(mockCoreV1Api);
+      
+      const result = await disableGitHubOIDC();
+
+      expect(result).toEqual({
+        name: 'github-oidc-auth',
+        created: false,
+        exists: false
+      });
     });
   });
 });
