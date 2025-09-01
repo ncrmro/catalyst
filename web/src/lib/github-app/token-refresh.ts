@@ -61,8 +61,8 @@ export async function invalidateTokens(userId: string): Promise<void> {
   if (tokens?.installationId) {
     // Preserve installation ID but clear tokens
     await storeGitHubTokens(userId, {
-      accessToken: '',
-      refreshToken: '',
+      accessToken: null,
+      refreshToken: null,
       expiresAt: new Date(), // Set to now to force re-auth
       scope: '',
       installationId: tokens.installationId,
