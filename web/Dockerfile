@@ -83,13 +83,17 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Copy the server wrapper for structured logging
+COPY --from=builder --chown=nextjs:nodejs /app/server-with-logging-standalone.cjs ./server-with-logging-standalone.cjs
+COPY --from=builder --chown=nextjs:nodejs /app/next-logger.config.cjs ./next-logger.config.cjs
+
 USER nextjs
 
 EXPOSE 3000
 
 ENV PORT=3000
 
-# server.js is created by next build from the standalone output
-# https://nextjs.org/docs/pages/api-reference/config/next-config-js/output
+# Use the logging wrapper instead of direct server.js
+# This ensures structured JSON logging in production
 ENV HOSTNAME="0.0.0.0"
-CMD ["node", "server.js"]
+CMD ["node", "server-with-logging-standalone.cjs"]
