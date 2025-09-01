@@ -78,8 +78,10 @@ describe('Token Encryption', () => {
     const token = 'gho_testtoken';
     const encrypted = encryptToken(token);
     
-    // Use wrong auth tag
-    const wrongAuthTag = encrypted.authTag.replace('a', 'b');
+    // Use wrong auth tag by modifying the first character to ensure it's different
+    const firstChar = encrypted.authTag[0];
+    const differentChar = firstChar === '0' ? '1' : '0';
+    const wrongAuthTag = differentChar + encrypted.authTag.slice(1);
     
     expect(() => {
       decryptToken(encrypted.encryptedData, encrypted.iv, wrongAuthTag);
