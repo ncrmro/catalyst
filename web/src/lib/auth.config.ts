@@ -9,6 +9,8 @@ import { NextAuthConfig } from "next-auth";
 
 const providers: Provider[] = [
     GitHub({
+      clientId: process.env.GITHUB_APP_CLIENT_ID,
+      clientSecret: process.env.GITHUB_APP_CLIENT_SECRET,
       authorization: {
         params: {
           scope: "read:user user:email read:org repo"
