@@ -92,6 +92,11 @@ export async function getGitHubTokens(userId: string): Promise<GitHubTokens | nu
       record.refreshTokenAuthTag
     );
     
+    // Check for empty tokens (indicates invalidated tokens)
+    if (!accessToken || !refreshToken) {
+      return null;
+    }
+    
     return {
       accessToken,
       refreshToken,
