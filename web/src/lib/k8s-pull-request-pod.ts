@@ -230,17 +230,8 @@ export async function createPullRequestPodJob(options: PullRequestPodOptions): P
                 args: [
                   '-c',
                   `
-                  # Install docker buildx if not present
-                  if ! docker buildx version; then
-                    apk add --no-cache curl
-                    mkdir -p ~/.docker/cli-plugins
-                    curl -L "https://github.com/docker/buildx/releases/latest/download/buildx-v0.12.0.linux-amd64" -o ~/.docker/cli-plugins/docker-buildx
-                    chmod +x ~/.docker/cli-plugins/docker-buildx
-                  fi
-                  
                   # Create buildx kubernetes driver
-                  docker buildx create --driver=kubernetes --name k8s-builder || true
-                  docker buildx use k8s-builder
+                  docker buildx create --driver=kubernetes --name k8s-builder --user
                   
                   # Test by creating a simple build pod
                   echo "FROM alpine:latest" > Dockerfile
@@ -249,18 +240,6 @@ export async function createPullRequestPodJob(options: PullRequestPodOptions): P
                   
                   echo "Successfully created and tested buildx kubernetes driver"
                   `
-                ],
-                env: [
-                  {
-                    name: 'DOCKER_HOST',
-                    value: 'unix:///var/run/docker.sock'
-                  }
-                ],
-                volumeMounts: [
-                  {
-                    name: 'docker-sock',
-                    mountPath: '/var/run/docker.sock'
-                  }
                 ],
                 resources: {
                   limits: {
@@ -271,15 +250,6 @@ export async function createPullRequestPodJob(options: PullRequestPodOptions): P
                     cpu: '100m',
                     memory: '128Mi'
                   }
-                }
-              }
-            ],
-            volumes: [
-              {
-                name: 'docker-sock',
-                hostPath: {
-                  path: '/var/run/docker.sock',
-                  type: 'Socket'
                 }
               }
             ]
