@@ -250,18 +250,6 @@ export async function createPullRequestPodJob(options: PullRequestPodOptions): P
                   echo "Successfully created and tested buildx kubernetes driver"
                   `
                 ],
-                env: [
-                  {
-                    name: 'DOCKER_HOST',
-                    value: 'unix:///var/run/docker.sock'
-                  }
-                ],
-                volumeMounts: [
-                  {
-                    name: 'docker-sock',
-                    mountPath: '/var/run/docker.sock'
-                  }
-                ],
                 resources: {
                   limits: {
                     cpu: '500m',
@@ -271,15 +259,6 @@ export async function createPullRequestPodJob(options: PullRequestPodOptions): P
                     cpu: '100m',
                     memory: '128Mi'
                   }
-                }
-              }
-            ],
-            volumes: [
-              {
-                name: 'docker-sock',
-                hostPath: {
-                  path: '/var/run/docker.sock',
-                  type: 'Socket'
                 }
               }
             ]
