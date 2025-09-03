@@ -190,7 +190,7 @@ curl -X POST /api/kubernetes/pr-jobs \
 
 1. **Permission Denied**: Ensure the cluster has RBAC enabled and your kubeconfig has appropriate permissions
 2. **Image Pull Errors**: Verify the container image is accessible from the cluster
-3. **Docker Socket Issues**: Ensure Docker-in-Docker is properly configured in your cluster
+3. **Buildx Driver Issues**: Ensure the kubernetes driver can create build pods in the cluster
 
 ### Debugging Commands
 
