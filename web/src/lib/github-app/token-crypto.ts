@@ -1,15 +1,28 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 
 // Key should be stored in environment variables
-const ENCRYPTION_KEY = process.env.TOKEN_ENCRYPTION_KEY as string;
+let ENCRYPTION_KEY = process.env.TOKEN_ENCRYPTION_KEY as string;
 const ALGORITHM = 'aes-256-gcm';
 
 // Check if we're in NextJS build phase - don't validate env vars during build
 const isNextJsBuild = process.env.NEXT_PHASE === 'phase-production-build';
 
+// Check if we're in CI environment
+const isCI = process.env.CI === 'true' || process.env.CI === '1' || 
+             process.env.GITHUB_ACTIONS === 'true' || 
+             process.env.NODE_ENV === 'test';
+
+// Stub encryption key for CI environments (64-character hex string)
+const STUB_ENCRYPTION_KEY = 'a'.repeat(64);
+
 // Only check environment variables at runtime, not during build
 if (!isNextJsBuild && !ENCRYPTION_KEY) {
-  if (process.env.NODE_ENV === 'production') {
+  if (isCI) {
+    console.warn('TOKEN_ENCRYPTION_KEY environment variable is not set in CI. Using stub value for preview deployment.');
+    // Use stub key in CI environments
+    process.env.TOKEN_ENCRYPTION_KEY = STUB_ENCRYPTION_KEY;
+    ENCRYPTION_KEY = STUB_ENCRYPTION_KEY;
+  } else if (process.env.NODE_ENV === 'production') {
     console.error('TOKEN_ENCRYPTION_KEY environment variable is required in production. Application will exit.');
     process.exit(1);
   } else {
