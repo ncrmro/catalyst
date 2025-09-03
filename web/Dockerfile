@@ -31,10 +31,10 @@ RUN npx playwright install --with-deps --no-shell
 COPY . .
 
 # Create user for security
-RUN groupadd --system --gid 1001 nodejs
-RUN useradd --system --uid 1001 --gid nodejs nextjs
-RUN chown -R nextjs:nodejs /app
-USER nextjs
+# RUN groupadd --system --gid 1001 nodejs
+# RUN useradd --system --uid 1001 --gid nodejs nextjs
+# RUN chown -R nextjs:nodejs /app
+# USER nextjs
 
 EXPOSE 3000
 ENV PORT=3000

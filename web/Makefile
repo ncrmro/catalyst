@@ -17,9 +17,9 @@ seed: ## Seed the database with test data
 
 up: ## Start all services
 	$(DC) up --detach --wait
-	npm run db:migrate
-	npm run seed
-	GITHUB_REPOS_MODE=mocked npm run dev
+	$(DC) run --rm -it app npm run db:migrate
+	$(DC) run --rm -it app npm run seed
+	$(DC) run --rm -it -e GITHUB_REPOS_MODE=mocked app npm run dev
 
 down: ## Stop all services
 	$(DC) down --remove-orphans
