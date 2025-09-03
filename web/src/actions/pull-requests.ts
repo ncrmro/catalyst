@@ -2,7 +2,7 @@
 
 /**
  * Server action to fetch pull requests from multiple git providers
- * - GitHub provider: fetches real pull requests from GitHub API
+ * - GitHub provider: fetches real pull requests from GitHub API using GitHub App tokens
  * - gitfoobar provider: placeholder that returns empty array
  */
 
@@ -10,21 +10,31 @@ import { auth } from '@/auth';
 import { Octokit } from '@octokit/rest';
 import { PullRequest } from '@/actions/reports';
 import { getMockPullRequests } from '@/mocks/github';
+import { refreshTokenIfNeeded } from '@/lib/github-app/token-refresh';
+import { invalidateTokens } from '@/lib/github-app/token-refresh';
 
 /**
- * GitHub provider - fetches real pull requests from GitHub API
+ * GitHub provider - fetches real pull requests from GitHub API using GitHub App tokens
  * Gets user's repositories and then fetches open pull requests from them
  */
 async function fetchGitHubPullRequests(): Promise<PullRequest[]> {
   const session = await auth();
   
-  if (!session?.accessToken) {
-    console.warn('No GitHub access token found for fetching pull requests');
+  if (!session?.user?.id) {
+    console.warn('No authenticated user found for fetching pull requests');
+    return [];
+  }
+
+  // Get tokens from the database, refreshing if needed
+  const tokens = await refreshTokenIfNeeded(session.user.id);
+  
+  if (!tokens) {
+    console.warn('No GitHub App tokens found for user. User may need to authorize the GitHub App');
     return [];
   }
 
   const octokit = new Octokit({
-    auth: session.accessToken,
+    auth: tokens.accessToken,
   });
 
   try {
@@ -113,7 +123,14 @@ async function fetchGitHubPullRequests(): Promise<PullRequest[]> {
 
     return allPullRequests;
   } catch (error) {
-    console.error('Error fetching GitHub pull requests:', error);
+    // Handle potential token errors
+    if (isTokenError(error)) {
+      console.error('Token error during pull request fetch:', error);
+      // Invalidate tokens to force re-authentication on next request
+      await invalidateTokens(session.user.id);
+    } else {
+      console.error('Error fetching GitHub pull requests:', error);
+    }
     return [];
   }
 }
@@ -167,4 +184,23 @@ export async function fetchUserPullRequests(): Promise<PullRequest[]> {
     console.error('Error fetching user pull requests:', error);
     return [];
   }
+}
+
+/**
+ * Helper to identify token-related errors
+ * @param error The error to check
+ * @returns True if the error is token-related
+ */
+function isTokenError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  
+  const err = error as { status?: number; message?: string };
+  return (
+    err?.status === 401 ||
+    err?.status === 403 ||
+    (err?.message?.includes('token') ?? false) ||
+    (err?.message?.includes('authentication') ?? false)
+  );
 }

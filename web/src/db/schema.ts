@@ -21,12 +21,16 @@ export const users = pgTable("user", {
   admin: boolean("admin").notNull().default(false),
 })
 
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ one, many }) => ({
   accounts: many(accounts),
   sessions: many(sessions),
   authenticators: many(authenticators),
   ownedTeams: many(teams, { relationName: "teamOwner" }),
   teamMemberships: many(teamsMemberships),
+  githubToken: one(githubUserTokens, {
+    fields: [users.id],
+    references: [githubUserTokens.userId],
+  }),
 }))
  
 export const accounts = pgTable(
@@ -358,5 +362,37 @@ export const projectManifestsRelations = relations(projectManifests, ({ one }) =
   repo: one(repos, {
     fields: [projectManifests.repoId],
     references: [repos.id]
+  })
+}))
+
+/**
+ * GitHub App User Tokens Table
+ * 
+ * Stores encrypted GitHub App user tokens with refresh capabilities.
+ * This table enables secure token management for GitHub App authentication
+ * with automatic refresh before expiration (8-hour tokens, 6-month refresh tokens).
+ */
+export const githubUserTokens = pgTable('github_user_tokens', {
+  userId: text('user_id')
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull()
+    .primaryKey(),
+  installationId: text('installation_id'),
+  accessTokenEncrypted: text('access_token_encrypted'),
+  accessTokenIv: text('access_token_iv'),
+  accessTokenAuthTag: text('access_token_auth_tag'),
+  refreshTokenEncrypted: text('refresh_token_encrypted'),
+  refreshTokenIv: text('refresh_token_iv'),
+  refreshTokenAuthTag: text('refresh_token_auth_tag'),
+  tokenExpiresAt: timestamp('token_expires_at'),
+  tokenScope: text('token_scope'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const githubUserTokensRelations = relations(githubUserTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [githubUserTokens.userId],
+    references: [users.id]
   })
 }))
