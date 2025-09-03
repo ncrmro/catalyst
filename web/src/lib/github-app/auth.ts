@@ -1,33 +1,11 @@
 // Check if we're in NextJS build phase - don't validate env vars during build
-const isNextJsBuild = process.env.NEXT_PHASE === 'phase-production-build';
-
-// Check if we're in CI environment
-const isCI = process.env.CI === 'true' || process.env.CI === '1' || 
-             process.env.GITHUB_ACTIONS === 'true' || 
-             process.env.NODE_ENV === 'test';
-
+const isNextJsBuild = process.env.NEXT_PHASE === 'phase-production-build'
 // Environment variable validation - only at runtime, not during build
-let GITHUB_APP_CLIENT_ID = process.env.GITHUB_APP_CLIENT_ID;
-let GITHUB_APP_CLIENT_SECRET = process.env.GITHUB_APP_CLIENT_SECRET;
-
-// Stub values for CI environments
-const STUB_CLIENT_ID = 'stub_github_app_client_id';
-const STUB_CLIENT_SECRET = 'stub_github_app_client_secret';
+const GITHUB_APP_CLIENT_ID = process.env.GITHUB_APP_CLIENT_ID;
+const GITHUB_APP_CLIENT_SECRET = process.env.GITHUB_APP_CLIENT_SECRET;
 
 if (!isNextJsBuild && (!GITHUB_APP_CLIENT_ID || !GITHUB_APP_CLIENT_SECRET)) {
-  if (isCI) {
-    console.warn('GITHUB_APP_CLIENT_ID and/or GITHUB_APP_CLIENT_SECRET environment variables are not set in CI. Using stub values for preview deployment.');
-    if (!GITHUB_APP_CLIENT_ID) {
-      GITHUB_APP_CLIENT_ID = STUB_CLIENT_ID;
-      process.env.GITHUB_APP_CLIENT_ID = STUB_CLIENT_ID;
-    }
-    if (!GITHUB_APP_CLIENT_SECRET) {
-      GITHUB_APP_CLIENT_SECRET = STUB_CLIENT_SECRET;
-      process.env.GITHUB_APP_CLIENT_SECRET = STUB_CLIENT_SECRET;
-    }
-  } else {
-    console.error('GITHUB_APP_CLIENT_ID and GITHUB_APP_CLIENT_SECRET environment variables are required');
-  }
+  console.error('GITHUB_APP_CLIENT_ID and GITHUB_APP_CLIENT_SECRET environment variables are required');
 }
 
 /**
