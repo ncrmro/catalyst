@@ -1,8 +1,5 @@
 // Check if we're in NextJS build phase - don't validate env vars during build
-const isNextJsBuild = process.env.NEXT_PHASE === 'phase-production-build' || 
-                      process.argv.includes('build') || 
-                      process.env.npm_lifecycle_event === 'build';
-
+const isNextJsBuild = process.env.NEXT_PHASE === 'phase-production-build'
 // Environment variable validation - only at runtime, not during build
 const GITHUB_APP_CLIENT_ID = process.env.GITHUB_APP_CLIENT_ID;
 const GITHUB_APP_CLIENT_SECRET = process.env.GITHUB_APP_CLIENT_SECRET;
