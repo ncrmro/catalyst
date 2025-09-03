@@ -5,9 +5,7 @@ const ENCRYPTION_KEY = process.env.TOKEN_ENCRYPTION_KEY as string;
 const ALGORITHM = 'aes-256-gcm';
 
 // Check if we're in NextJS build phase - don't validate env vars during build
-const isNextJsBuild = process.env.NEXT_PHASE === 'phase-production-build' || 
-                      process.argv.includes('build') || 
-                      process.env.npm_lifecycle_event === 'build';
+const isNextJsBuild = process.env.NEXT_PHASE === 'phase-production-build';
 
 // Only check environment variables at runtime, not during build
 if (!isNextJsBuild && !ENCRYPTION_KEY) {
