@@ -22,10 +22,15 @@ export interface ClusterInfo {
 class KubeConfigRegistry {
   private configs: Map<string, KubeConfig> = new Map();
   private initialized = false;
+  private clusterCache: ClusterInfo[] | null = null;
+  private cacheExpiry = 0;
+  private readonly CACHE_TTL = 30000; // 30 seconds cache
 
   reset() {
     this.configs.clear();
     this.initialized = false;
+    this.clusterCache = null;
+    this.cacheExpiry = 0;
   }
 
   async initialize() {
@@ -90,6 +95,12 @@ class KubeConfigRegistry {
   }
 
   async getClusters(): Promise<ClusterInfo[]> {
+    // Check cache first
+    const now = Date.now();
+    if (this.clusterCache && now < this.cacheExpiry) {
+      return this.clusterCache;
+    }
+
     await this.initialize();
     const clusters: ClusterInfo[] = [];
 
@@ -105,6 +116,10 @@ class KubeConfigRegistry {
         console.warn(`Failed to get cluster info for ${source}:`, error instanceof Error ? error.message : 'Unknown error');
       }
     }
+
+    // Cache the results
+    this.clusterCache = clusters;
+    this.cacheExpiry = now + this.CACHE_TTL;
 
     return clusters;
   }
