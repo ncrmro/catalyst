@@ -1,0 +1,121 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: test-pr-pod-with-pat
+  namespace: default
+spec:
+  template:
+    spec:
+      serviceAccountName: pull-request-job-pod
+      restartPolicy: Never
+      containers:
+      - name: pr-builder
+        image: docker:24-git
+        env:
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: github-pat-secret
+              key: token
+        - name: REPO_URL
+          value: "https://github.com/ncrmro/catalyst.git"
+        - name: PR_BRANCH
+          value: "main"
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+          echo "Setting up git configuration..."
+          git config --global credential.helper '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN"; }; f'
+          
+          # Check if repository already exists in cache
+          if [ -d /workspace/.git ]; then
+            echo "Found existing repository in cache, fetching updates..."
+            cd /workspace
+            git fetch origin
+            git checkout $PR_BRANCH
+            git pull origin $PR_BRANCH
+            echo "Repository updated from cache!"
+          else
+            echo "No cache found, cloning repository..."
+            # Clone directly into /workspace (which has the PVC mounted)
+            git clone $REPO_URL /workspace
+            cd /workspace
+            echo "Checking out PR branch..."
+            git checkout $PR_BRANCH
+            echo "Repository cloned and cached!"
+          fi
+          
+          echo "Repository ready!"
+          echo "Git status:"
+          git status
+          
+          echo "Files in repository:"
+          ls -la
+          
+          echo "Git directory size (cached):"
+          du -sh .git
+          
+          echo ""
+          echo "=== Checking specified files ==="
+          echo ""
+          
+          # Define file paths as constants (simulating these coming from external source)
+          DOCKERFILE_PATH="web/Dockerfile"
+          PACKAGE_JSON_PATH="web/package.json"
+          
+          echo "Checking package.json at path: $PACKAGE_JSON_PATH"
+          if [ -f "$PACKAGE_JSON_PATH" ]; then
+            echo "✓ Found package.json"
+          else
+            echo "✗ package.json not found at $PACKAGE_JSON_PATH"
+            echo "Listing web directory contents:"
+            ls -la web/ || echo "web directory not found"
+          fi
+          
+          echo "Checking Dockerfile at path: $DOCKERFILE_PATH"
+          if [ -f "$DOCKERFILE_PATH" ]; then
+            echo "✓ Found Dockerfile"
+          else
+            echo "✗ Dockerfile not found at $DOCKERFILE_PATH"
+          fi
+          
+          echo ""
+          echo "=== Setting up buildx kubernetes builder ==="
+          echo ""
+          
+          # Create buildx kubernetes builder
+          echo "Creating buildx kubernetes builder..."
+          docker buildx create --driver kubernetes --name k8s-builder --bootstrap || echo "Builder already exists or failed to create"
+          
+          # Use the kubernetes builder
+          echo "Using kubernetes builder..."
+          docker buildx use k8s-builder
+          
+          # Verify builder is ready
+          echo "Verifying builder status..."
+          docker buildx inspect --bootstrap
+          
+          echo ""
+          echo "=== Building Docker image ==="
+          echo ""
+          
+          if [ -f "$DOCKERFILE_PATH" ]; then
+            echo "Building image using buildx with kubernetes driver..."
+            cd web
+            docker buildx build --platform linux/amd64 -t catalyst-pr-test:latest . || echo "Build failed"
+            echo "✓ Build completed"
+          else
+            echo "✗ Cannot build - Dockerfile not found"
+          fi
+          
+          echo ""
+          echo "PR pod simulation complete!"
+        volumeMounts:
+        - name: git-cache
+          mountPath: /workspace
+      volumes:
+      - name: git-cache
+        persistentVolumeClaim:
+          claimName: git-cache-pvc
