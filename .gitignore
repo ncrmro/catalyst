@@ -1,1 +1,4 @@
 **/.claude/settings.local.json
+# Helm chart dependencies
+charts/*/charts/
+**/kubeconfig.devbox.yml

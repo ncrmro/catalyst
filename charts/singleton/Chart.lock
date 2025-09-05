@@ -1,0 +1,9 @@
+dependencies:
+- name: cert-manager
+  repository: oci://quay.io/jetstack/charts
+  version: v1.18.2
+- name: gha-runner-scale-set-controller
+  repository: oci://ghcr.io/actions/actions-runner-controller-charts
+  version: 0.12.1
+digest: sha256:b8cbe4900aac8150992d9ff8fa9b5cea1c693bf9b94859db7f96d36f3c4f24ac
+generated: "2025-08-31T20:30:06.23427735-05:00"

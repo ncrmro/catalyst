@@ -1,0 +1,1 @@
+- When user requests a spike always read spikes/README.md for how to create and implement a new spike

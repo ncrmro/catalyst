@@ -1,0 +1,176 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: test-pr-pod-with-pat
+  namespace: default
+spec:
+  template:
+    spec:
+      serviceAccountName: pull-request-job-pod
+      restartPolicy: Never
+      containers:
+      - name: pr-builder
+        image: docker:24-git
+        env:
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: github-pat-secret
+              key: token
+        - name: REPO_URL
+          value: "https://github.com/ncrmro/catalyst.git"
+        - name: PR_BRANCH
+          value: "main"
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+          echo "Setting up git configuration..."
+          git config --global credential.helper '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN"; }; f'
+          
+          # Check if repository already exists in cache
+          if [ -d /workspace/.git ]; then
+            echo "Found existing repository in cache, fetching updates..."
+            cd /workspace
+            git fetch origin
+            git checkout $PR_BRANCH
+            git pull origin $PR_BRANCH
+            echo "Repository updated from cache!"
+          else
+            echo "No cache found, cloning repository..."
+            # Clone directly into /workspace (which has the PVC mounted)
+            git clone $REPO_URL /workspace
+            cd /workspace
+            echo "Checking out PR branch..."
+            git checkout $PR_BRANCH
+            echo "Repository cloned and cached!"
+          fi
+          
+          echo "Repository ready!"
+          echo "Git status:"
+          git status
+          
+          echo "Files in repository:"
+          ls -la
+          
+          echo "Git directory size (cached):"
+          du -sh .git
+          
+          echo ""
+          echo "=== Checking specified files ==="
+          echo ""
+          
+          # Define file paths as constants (simulating these coming from external source)
+          DOCKERFILE_PATH="web/Dockerfile"
+          PACKAGE_JSON_PATH="web/package.json"
+          DOCKER_BAKE_PATH="web/docker-bake.yml"
+          
+          echo "Checking package.json at path: $PACKAGE_JSON_PATH"
+          if [ -f "$PACKAGE_JSON_PATH" ]; then
+            echo "✓ Found package.json"
+          else
+            echo "✗ package.json not found at $PACKAGE_JSON_PATH"
+            echo "Listing web directory contents:"
+            ls -la web/ || echo "web directory not found"
+          fi
+          
+          echo "Checking Dockerfile at path: $DOCKERFILE_PATH"
+          if [ -f "$DOCKERFILE_PATH" ]; then
+            echo "✓ Found Dockerfile"
+          else
+            echo "✗ Dockerfile not found at $DOCKERFILE_PATH"
+          fi
+          
+          echo "Checking docker-bake manifest at path: $DOCKER_BAKE_PATH"
+          if [ -f "$DOCKER_BAKE_PATH" ]; then
+            echo "✓ Found docker-bake.yml"
+          else
+            echo "✗ docker-bake.yml not found at $DOCKER_BAKE_PATH"
+          fi
+          
+          echo ""
+          echo "=== Setting up buildx kubernetes builder ==="
+          echo ""
+          
+          # Create buildx kubernetes builder
+          echo "Creating buildx kubernetes builder..."
+          docker buildx create --driver kubernetes --name k8s-builder --bootstrap || echo "Builder already exists or failed to create"
+          
+          # Use the kubernetes builder
+          echo "Using kubernetes builder..."
+          docker buildx use k8s-builder
+          
+          # Verify builder is ready
+          echo "Verifying builder status..."
+          docker buildx inspect --bootstrap
+          
+          echo ""
+          echo "=== Installing Helm ==="
+          echo ""
+          
+          # Check if Helm is already cached
+          if [ -f "/helm-cache/helm" ]; then
+            echo "✓ Found cached Helm binary"
+            # Copy to PATH
+            cp /helm-cache/helm /usr/local/bin/helm
+            chmod +x /usr/local/bin/helm
+            echo "✓ Helm ready from cache"
+          else
+            echo "Installing Helm binary..."
+            # Download Helm binary directly
+            wget -O helm.tar.gz https://get.helm.sh/helm-v3.18.6-linux-amd64.tar.gz
+            tar -xzf helm.tar.gz
+            mv linux-amd64/helm /usr/local/bin/helm
+            chmod +x /usr/local/bin/helm
+            rm -rf linux-amd64 helm.tar.gz
+            
+            # Cache the binary for future use
+            cp /usr/local/bin/helm /helm-cache/helm
+            echo "✓ Helm installed and cached"
+          fi
+          
+          # Verify Helm installation
+          helm version --short || echo "Helm version check failed"
+          
+          echo ""
+          echo "=== Building with Docker Bake ==="
+          echo ""
+          
+          if [ -f "$DOCKER_BAKE_PATH" ] && [ -f "$DOCKERFILE_PATH" ]; then
+            echo "Building all targets using docker buildx bake with kubernetes driver..."
+            cd web
+            
+            # List available targets in bake file
+            echo "Available bake targets:"
+            docker buildx bake --file docker-bake.yml --print | grep -E '"target":|"context":' || echo "Could not parse bake targets"
+            
+            # Build all targets defined in bake file
+            docker buildx bake --file docker-bake.yml || echo "Bake build failed"
+            echo "✓ Bake build completed"
+          elif [ -f "$DOCKERFILE_PATH" ]; then
+            echo "No bake file found, falling back to single Dockerfile build..."
+            cd web
+            docker buildx build --platform linux/amd64 -t catalyst-pr-test:latest . || echo "Build failed"
+            echo "✓ Build completed"
+          else
+            echo "✗ Cannot build - Dockerfile not found"
+            if [ ! -f "$DOCKER_BAKE_PATH" ]; then
+              echo "✗ docker-bake.yml also not found"
+            fi
+          fi
+          
+          echo ""
+          echo "PR pod simulation complete!"
+        volumeMounts:
+        - name: git-cache
+          mountPath: /workspace
+        - name: helm-cache
+          mountPath: /helm-cache
+      volumes:
+      - name: git-cache
+        persistentVolumeClaim:
+          claimName: git-cache-pvc
+      - name: helm-cache
+        persistentVolumeClaim:
+          claimName: helm-cache-pvc
