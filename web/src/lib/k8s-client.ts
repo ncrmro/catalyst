@@ -110,7 +110,6 @@ class KubeConfigRegistry {
   }
 }
 
-console.log('env', process.env)
 // Global instance
 const kubeConfigRegistry = new KubeConfigRegistry();
 

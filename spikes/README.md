@@ -2,6 +2,16 @@
 
 This directory contains spike solutions - exploratory code to test concepts and ideas.
 
+## Core Principles
+
+Spikes should always attempt to explore the **simplest solution** to a well-defined problem. The goal is to quickly test concepts without unnecessary complexity.
+
+- Focus on solving a single, specific problem
+- Prioritize simplicity and clarity over comprehensive feature sets
+- Include documentation that clearly explains the approach and findings
+- Example code should usually be in code blocks within README.md files
+- Scripts that can be used to test or verify functionality can go in the spike folder
+
 ## Naming Convention
 
 All spike directories should follow this naming pattern:

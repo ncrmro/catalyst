@@ -10,6 +10,12 @@ vi.mock('@/auth', () => ({
   auth: vi.fn(),
 }));
 
+// Mock the token refresh function
+vi.mock('@/lib/github-app/token-refresh', () => ({
+  refreshTokenIfNeeded: vi.fn(),
+  invalidateTokens: vi.fn(),
+}));
+
 // Mock the Octokit
 vi.mock('@octokit/rest', () => ({
   Octokit: vi.fn().mockImplementation(() => ({
@@ -61,11 +67,20 @@ describe('Pull Requests Actions', () => {
 
   it('combines results from both providers and sorts by updated_at', async () => {
     const { auth } = await import('@/auth');
+    const { refreshTokenIfNeeded } = await import('@/lib/github-app/token-refresh');
     const { Octokit } = await import('@octokit/rest');
 
-    // Mock successful GitHub auth
+    // Mock successful GitHub auth with user ID
     (auth as any).mockResolvedValue({
-      accessToken: 'mock-token',
+      user: { id: 'test-user-id' },
+    });
+
+    // Mock successful token refresh
+    (refreshTokenIfNeeded as any).mockResolvedValue({
+      accessToken: 'mock-access-token',
+      refreshToken: 'mock-refresh-token',
+      expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000), // 8 hours from now
+      scope: 'read:user user:email read:org repo',
     });
 
     // Mock Octokit responses

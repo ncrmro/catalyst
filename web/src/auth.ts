@@ -163,11 +163,13 @@ export const {
      * @see https://next-auth.js.org/configuration/callbacks
      */
     async jwt({ token, account }) {
-      // Add the GitHub access token to enable access to GitHub's APIs
-      // GitHub's access_token will give you access to GitHub's APIs.
-      // Self-managed providers (like Keycloak, oidc-provider, etc.) can be used to authorize against custom third-party backends.
+      // Handle GitHub App authentication
       if (account?.provider === "github") {
+        // Store the refresh token and access token from GitHub App
         token.accessToken = account.access_token;
+        token.refreshToken = account.refresh_token;
+        token.tokenExpiresAt = account.expires_at;
+        token.tokenScope = account.scope;
       }
       const { email, name, picture: image } = token;
       // Persist the OAuth access_token and or the user id to the token right after signin
@@ -183,6 +185,23 @@ export const {
       if (existingUser) {
         token.id = existingUser.id;
         token.admin = existingUser.admin;
+        
+        // Store GitHub App tokens in database if we have them
+        if (account?.provider === "github" && token.accessToken && token.refreshToken) {
+          const { storeGitHubTokens } = await import('@/lib/github-app/token-service');
+          
+          // Calculate expiration time (8 hours for GitHub App tokens)
+          const expiresAt = new Date();
+          expiresAt.setHours(expiresAt.getHours() + 8);
+          
+          await storeGitHubTokens(existingUser.id, {
+            accessToken: token.accessToken as string,
+            refreshToken: token.refreshToken as string,
+            expiresAt,
+            scope: token.tokenScope as string || '',
+          });
+        }
+        
         return token;
       } else {
         const createdUser = await createUserWithPersonalTeam({
@@ -193,6 +212,23 @@ export const {
 
         token.id = createdUser.id;
         token.admin = createdUser.admin;
+        
+        // Store GitHub App tokens in database if we have them
+        if (account?.provider === "github" && token.accessToken && token.refreshToken) {
+          const { storeGitHubTokens } = await import('@/lib/github-app/token-service');
+          
+          // Calculate expiration time (8 hours for GitHub App tokens)
+          const expiresAt = new Date();
+          expiresAt.setHours(expiresAt.getHours() + 8);
+          
+          await storeGitHubTokens(createdUser.id, {
+            accessToken: token.accessToken as string,
+            refreshToken: token.refreshToken as string,
+            expiresAt,
+            scope: token.tokenScope as string || '',
+          });
+        }
+        
         return token;
       }
       return token;

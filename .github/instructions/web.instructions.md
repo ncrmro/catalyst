@@ -48,3 +48,7 @@ A theme guide is documented in `src/app/globals.css` always consult it when writ
 # Screenshots
 
 Always attempt to take a screenshot of new or modified pages.
+
+# Spikes
+
+When user requests a spike **ALWAYS CONSULT** the spikes/README.md
