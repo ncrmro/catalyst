@@ -5,53 +5,68 @@
  * Handles CRUD operations for the pull_requests table
  */
 
+import { z } from 'zod';
 import { db, pullRequests, repos } from '@/db';
 import { eq, and, desc } from 'drizzle-orm';
 
-export interface CreatePullRequestData {
-  repoId: string;
-  provider: string;
-  providerPrId: string;
-  number: number;
-  title: string;
-  description?: string;
-  state: 'open' | 'closed' | 'merged';
-  status: 'draft' | 'ready' | 'changes_requested';
-  url: string;
-  authorLogin: string;
-  authorAvatarUrl?: string;
-  headBranch: string;
-  baseBranch: string;
-  commentsCount?: number;
-  reviewsCount?: number;
-  changedFilesCount?: number;
-  additionsCount?: number;
-  deletionsCount?: number;
-  priority?: 'high' | 'medium' | 'low';
-  labels?: string[]; // Will be serialized as JSON
-  assignees?: string[]; // Will be serialized as JSON
-  reviewers?: string[]; // Will be serialized as JSON
-  mergedAt?: Date;
-  closedAt?: Date;
-}
+/**
+ * Zod schema for creating a pull request
+ * Inferred from the database schema to ensure type safety
+ */
+export const createPullRequestSchema = z.object({
+  repoId: z.string().min(1),
+  provider: z.string().min(1),
+  providerPrId: z.string().min(1),
+  number: z.number().int().positive(),
+  title: z.string().min(1),
+  description: z.string().optional(),
+  state: z.enum(['open', 'closed', 'merged']),
+  status: z.enum(['draft', 'ready', 'changes_requested']),
+  url: z.string().url(),
+  authorLogin: z.string().min(1),
+  authorAvatarUrl: z.string().url().optional(),
+  headBranch: z.string().min(1),
+  baseBranch: z.string().min(1),
+  commentsCount: z.number().int().nonnegative().optional().default(0),
+  reviewsCount: z.number().int().nonnegative().optional().default(0),
+  changedFilesCount: z.number().int().nonnegative().optional().default(0),
+  additionsCount: z.number().int().nonnegative().optional().default(0),
+  deletionsCount: z.number().int().nonnegative().optional().default(0),
+  priority: z.enum(['high', 'medium', 'low']).optional().default('medium'),
+  labels: z.array(z.string()).optional().default([]),
+  assignees: z.array(z.string()).optional().default([]),
+  reviewers: z.array(z.string()).optional().default([]),
+  mergedAt: z.date().optional(),
+  closedAt: z.date().optional(),
+});
 
-export interface UpdatePullRequestData {
-  title?: string;
-  description?: string;
-  state?: 'open' | 'closed' | 'merged';
-  status?: 'draft' | 'ready' | 'changes_requested';
-  commentsCount?: number;
-  reviewsCount?: number;
-  changedFilesCount?: number;
-  additionsCount?: number;
-  deletionsCount?: number;
-  priority?: 'high' | 'medium' | 'low';
-  labels?: string[];
-  assignees?: string[];
-  reviewers?: string[];
-  mergedAt?: Date;
-  closedAt?: Date;
-}
+/**
+ * Zod schema for updating a pull request
+ * All fields are optional for partial updates
+ */
+export const updatePullRequestSchema = z.object({
+  title: z.string().min(1).optional(),
+  description: z.string().optional(),
+  state: z.enum(['open', 'closed', 'merged']).optional(),
+  status: z.enum(['draft', 'ready', 'changes_requested']).optional(),
+  commentsCount: z.number().int().nonnegative().optional(),
+  reviewsCount: z.number().int().nonnegative().optional(),
+  changedFilesCount: z.number().int().nonnegative().optional(),
+  additionsCount: z.number().int().nonnegative().optional(),
+  deletionsCount: z.number().int().nonnegative().optional(),
+  priority: z.enum(['high', 'medium', 'low']).optional(),
+  labels: z.array(z.string()).optional(),
+  assignees: z.array(z.string()).optional(),
+  reviewers: z.array(z.string()).optional(),
+  mergedAt: z.date().optional(),
+  closedAt: z.date().optional(),
+});
+
+/**
+ * TypeScript types inferred from Zod schemas
+ */
+export type CreatePullRequestData = z.infer<typeof createPullRequestSchema>;
+export type UpdatePullRequestData = z.infer<typeof updatePullRequestSchema>;
 
 /**
  * Create or update a pull request record
@@ -59,24 +74,27 @@ export interface UpdatePullRequestData {
  */
 export async function upsertPullRequest(data: CreatePullRequestData) {
   try {
+    // Validate input data using Zod schema
+    const validatedData = createPullRequestSchema.parse(data);
+    
     // First, try to find existing PR
     const existingPr = await db
       .select()
       .from(pullRequests)
       .where(
         and(
-          eq(pullRequests.repoId, data.repoId),
-          eq(pullRequests.provider, data.provider),
-          eq(pullRequests.providerPrId, data.providerPrId)
+          eq(pullRequests.repoId, validatedData.repoId),
+          eq(pullRequests.provider, validatedData.provider),
+          eq(pullRequests.providerPrId, validatedData.providerPrId)
         )
       )
       .limit(1);
 
     const prData = {
-      ...data,
-      labels: data.labels ? JSON.stringify(data.labels) : null,
-      assignees: data.assignees ? JSON.stringify(data.assignees) : null,
-      reviewers: data.reviewers ? JSON.stringify(data.reviewers) : null,
+      ...validatedData,
+      labels: validatedData.labels.length > 0 ? JSON.stringify(validatedData.labels) : null,
+      assignees: validatedData.assignees.length > 0 ? JSON.stringify(validatedData.assignees) : null,
+      reviewers: validatedData.reviewers.length > 0 ? JSON.stringify(validatedData.reviewers) : null,
       updatedAt: new Date(),
     };
 
@@ -100,6 +118,12 @@ export async function upsertPullRequest(data: CreatePullRequestData) {
     }
   } catch (error) {
     console.error('Error upserting pull request:', error);
+    if (error instanceof z.ZodError) {
+      return { 
+        success: false, 
+        error: `Validation error: ${error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`
+      };
+    }
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error' 
