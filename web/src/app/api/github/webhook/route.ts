@@ -227,9 +227,11 @@ async function handlePullRequestEvent(payload: {
         headBranch: pull_request.head.ref,
         baseBranch: pull_request.base.ref,
         commentsCount: pull_request.comments || 0,
+        reviewsCount: 0, // GitHub webhook doesn't provide review count directly
         changedFilesCount: pull_request.changed_files || 0,
         additionsCount: pull_request.additions || 0,
         deletionsCount: pull_request.deletions || 0,
+        priority: 'medium' as const, // Default priority for webhook PRs
         labels: pull_request.labels?.map(l => l.name) || [],
         assignees: pull_request.assignees?.map(a => a.login) || [],
         reviewers: pull_request.requested_reviewers?.map(r => r.login) || [],
