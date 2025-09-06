@@ -14,7 +14,7 @@ describe('Auth Actions', () => {
     const { auth } = await import('@/auth');
     const { requireAuth } = await import('@/actions');
     
-    vi.mocked(auth).mockResolvedValue(null);
+    vi.mocked(auth).mockResolvedValue(null as any);
 
     await expect(requireAuth()).rejects.toThrow();
   });
@@ -26,7 +26,7 @@ describe('Auth Actions', () => {
     const mockSession = {
       user: { id: '1', email: 'test@example.com', admin: false }
     };
-    vi.mocked(auth).mockResolvedValue(mockSession);
+    vi.mocked(auth).mockResolvedValue(mockSession as any);
 
     const result = await requireAuth();
     expect(result).toEqual(mockSession);

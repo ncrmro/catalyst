@@ -5,6 +5,7 @@ import { users } from "@/database/schema";
 import { eq } from "drizzle-orm";
 import authConfig from "@/lib/auth.config";
 import Credentials from "next-auth/providers/credentials";
+import type { JWT } from "next-auth/jwt";
 
 declare module "next-auth" {
   interface Session {
@@ -78,13 +79,15 @@ const config = {
     ] : []),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async jwt({ token, user }: { token: JWT; user?: any }) {
       if (user) {
         token.admin = user.admin;
       }
       return token;
     },
-    async session({ session, token }) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async session({ session, token }: { session: any; token: JWT }) {
       if (session.user) {
         session.user.id = token.sub!;
         session.user.admin = token.admin as boolean;

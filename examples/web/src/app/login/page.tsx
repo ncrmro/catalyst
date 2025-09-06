@@ -66,7 +66,7 @@ export default function LoginPage() {
                 required
               />
               <p className="text-xs text-on-surface-variant mt-1">
-                Use "password" for user access or "admin" for admin access
+                Use &quot;password&quot; for user access or &quot;admin&quot; for admin access
               </p>
             </div>
             
