@@ -1,0 +1,322 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pr-pod-registry-deploy
+  namespace: default
+spec:
+  template:
+    spec:
+      serviceAccountName: pull-request-job-pod
+      restartPolicy: Never
+      containers:
+      - name: pr-builder
+        image: docker:24-git
+        env:
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: github-pat-secret
+              key: token
+        - name: REPO_URL
+          value: "https://github.com/ncrmro/catalyst.git"
+        - name: PR_BRANCH
+          value: "main"
+        - name: REGISTRY_URL
+          value: "registry.registry.svc.cluster.local:5000"
+        - name: DOCKERFILE_PATH
+          value: "web/Dockerfile"
+        - name: PACKAGE_JSON_PATH
+          value: "web/package.json"
+        - name: DOCKER_BAKE_PATH
+          value: "web/docker-bake.yml"
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+          echo "Setting up git configuration..."
+          git config --global credential.helper '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN"; }; f'
+          
+          # Check if repository already exists in cache
+          if [ -d /workspace/.git ]; then
+            echo "Found existing repository in cache, fetching updates..."
+            cd /workspace
+            git fetch origin
+            git checkout $PR_BRANCH
+            git pull origin $PR_BRANCH
+            echo "Repository updated from cache!"
+          else
+            echo "No cache found, cloning repository..."
+            git clone $REPO_URL /workspace
+            cd /workspace
+            echo "Checking out PR branch..."
+            git checkout $PR_BRANCH
+            echo "Repository cloned and cached!"
+          fi
+          
+          echo "Repository ready!"
+          echo "Git status:"
+          git status
+          
+          echo "Git directory size (cached):"
+          du -sh .git
+          
+          echo ""
+          echo "=== Checking specified files ==="
+          echo ""
+          
+          # File paths are now provided as environment variables
+          echo "Using paths from environment variables:"
+          echo "  DOCKERFILE_PATH: $DOCKERFILE_PATH"
+          echo "  PACKAGE_JSON_PATH: $PACKAGE_JSON_PATH"
+          echo "  DOCKER_BAKE_PATH: $DOCKER_BAKE_PATH"
+          
+          echo "Checking package.json at path: $PACKAGE_JSON_PATH"
+          if [ -f "$PACKAGE_JSON_PATH" ]; then
+            echo "✓ Found package.json"
+          else
+            echo "✗ package.json not found at $PACKAGE_JSON_PATH"
+          fi
+          
+          echo "Checking Dockerfile at path: $DOCKERFILE_PATH"
+          if [ -f "$DOCKERFILE_PATH" ]; then
+            echo "✓ Found Dockerfile"
+          else
+            echo "✗ Dockerfile not found at $DOCKERFILE_PATH"
+          fi
+          
+          echo "Checking docker-bake manifest at path: $DOCKER_BAKE_PATH"
+          if [ -f "$DOCKER_BAKE_PATH" ]; then
+            echo "✓ Found docker-bake.yml"
+          else
+            echo "✗ docker-bake.yml not found at $DOCKER_BAKE_PATH"
+          fi
+          
+          echo ""
+          echo "=== Setting up APK cache and installing tools ==="
+          echo ""
+          
+          # Set up APK cache directory in persistent volume
+          mkdir -p /helm-cache/apk
+          
+          # Configure APK to use the cache
+          echo "Configuring APK cache..."
+          ln -sf /helm-cache/apk /etc/apk/cache || true
+          
+          # Update APK repositories
+          apk update
+          
+          echo "Installing Helm via APK..."
+          if command -v helm >/dev/null 2>&1; then
+            echo "✓ Helm already installed"
+          else
+            apk add --cache-dir=/helm-cache/apk helm
+            echo "✓ Helm installed via APK"
+          fi
+          
+          # Verify Helm installation
+          helm version --short || echo "Helm version check failed"
+          
+          echo "Installing kubectl via APK..."
+          if command -v kubectl >/dev/null 2>&1; then
+            echo "✓ kubectl already installed"
+          else
+            apk add --cache-dir=/helm-cache/apk kubectl
+            echo "✓ kubectl installed via APK"
+          fi
+          
+          # Verify kubectl installation
+          kubectl version --client --short || echo "kubectl version check failed"
+          
+          echo "Installing curl via APK..."
+          if command -v curl >/dev/null 2>&1; then
+            echo "✓ curl already installed"
+          else
+            apk add --cache-dir=/helm-cache/apk curl
+            echo "✓ curl installed via APK"
+          fi
+          
+          echo ""
+          echo "=== Setting up buildx kubernetes builder ==="
+          echo ""
+          
+          # Create buildx kubernetes builder
+          echo "Creating buildx kubernetes builder..."
+          docker buildx create --driver kubernetes --name k8s-builder --bootstrap || echo "Builder already exists or failed to create"
+          
+          # Use the kubernetes builder
+          echo "Using kubernetes builder..."
+          docker buildx use k8s-builder
+          
+          # Verify builder is ready
+          echo "Verifying builder status..."
+          docker buildx inspect --bootstrap
+          
+          echo ""
+          echo "=== Building and Pushing to Registry ==="
+          echo ""
+          
+          if [ -f "$DOCKER_BAKE_PATH" ] && [ -f "$DOCKERFILE_PATH" ]; then
+            echo "Building and pushing all targets using docker buildx bake..."
+            cd web
+            
+            # Adjust paths for the web directory context
+            BAKE_FILE=$(basename "$DOCKER_BAKE_PATH")
+            
+            # List available targets in bake file
+            echo "Available bake targets:"
+            docker buildx bake --file "$BAKE_FILE" --print | grep -E '"target":|"context":' || echo "Could not parse bake targets"
+            
+            # Build and push using the bake file with registry output
+            # Override output to push to registry while using existing targets
+            docker buildx bake --file "$BAKE_FILE" --set "*.output=type=registry" --set "*.tags=$REGISTRY_URL/catalyst-web:latest" --set "*.tags=$REGISTRY_URL/catalyst-web:pr-$PR_BRANCH"
+            echo "✓ Images built and pushed to registry"
+            
+          elif [ -f "$DOCKERFILE_PATH" ]; then
+            echo "No bake file found, building and pushing single image..."
+            cd web
+            docker buildx build --platform linux/amd64 \
+              --tag "$REGISTRY_URL/catalyst-web:latest" \
+              --tag "$REGISTRY_URL/catalyst-web:pr-$PR_BRANCH" \
+              --push .
+            echo "✓ Image built and pushed to registry"
+          else
+            echo "✗ Cannot build - Dockerfile not found"
+            if [ ! -f "$DOCKER_BAKE_PATH" ]; then
+              echo "✗ docker-bake.yml also not found"
+            fi
+            exit 1
+          fi
+          
+          echo ""
+          echo "=== Creating Simple Web App Chart ==="
+          echo ""
+          
+          # Create a simple Helm chart for the web app
+          mkdir -p /tmp/web-app-chart/templates
+          
+          cat > /tmp/web-app-chart/Chart.yaml << EOL
+          apiVersion: v2
+          name: web-app
+          description: Simple web app chart for PR deployments
+          version: 0.1.0
+          appVersion: "pr-$PR_BRANCH"
+          EOL
+          
+          cat > /tmp/web-app-chart/values.yaml << EOL
+          image:
+            repository: $REGISTRY_URL/catalyst-web
+            tag: pr-$PR_BRANCH
+            pullPolicy: Always
+          
+          service:
+            type: ClusterIP
+            port: 3000
+          
+          replicas: 1
+          EOL
+          
+          cat > /tmp/web-app-chart/templates/deployment.yaml << 'EOL'
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: {{ .Chart.Name }}
+            labels:
+              app: {{ .Chart.Name }}
+          spec:
+            replicas: {{ .Values.replicas }}
+            selector:
+              matchLabels:
+                app: {{ .Chart.Name }}
+            template:
+              metadata:
+                labels:
+                  app: {{ .Chart.Name }}
+              spec:
+                containers:
+                - name: web
+                  image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+                  imagePullPolicy: {{ .Values.image.pullPolicy }}
+                  ports:
+                  - containerPort: 3000
+          EOL
+          
+          cat > /tmp/web-app-chart/templates/service.yaml << 'EOL'
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: {{ .Chart.Name }}
+            labels:
+              app: {{ .Chart.Name }}
+          spec:
+            type: {{ .Values.service.type }}
+            ports:
+            - port: {{ .Values.service.port }}
+              targetPort: 3000
+            selector:
+              app: {{ .Chart.Name }}
+          EOL
+          
+          echo "✓ Web app chart created"
+          
+          echo ""
+          echo "=== Deploying with Helm ==="
+          echo ""
+          
+          # Deploy the web app using Helm
+          echo "Installing/upgrading web-app with Helm..."
+          helm upgrade --install web-app /tmp/web-app-chart \
+            --set image.repository="$REGISTRY_URL/catalyst-web" \
+            --set image.tag="pr-$PR_BRANCH" \
+            --wait --timeout=2m
+          
+          echo "✓ Helm deployment completed"
+          
+          echo ""
+          echo "=== Deployment Status ==="
+          echo ""
+          
+          # Show deployment status
+          echo "Checking deployment status..."
+          kubectl get deployments web-app || echo "Deployment not found"
+          kubectl get pods -l app=web-app || echo "Pods not found"
+          kubectl get services web-app || echo "Service not found"
+          
+          echo ""
+          echo "=== Testing kubectl Operations ==="
+          echo ""
+          
+          # Test scaling the deployment
+          echo "Scaling deployment to 2 replicas..."
+          kubectl scale deployment web-app --replicas=2
+          
+          # Wait a bit for scaling
+          sleep 5
+          
+          # Check replica sets
+          echo "Checking ReplicaSets..."
+          kubectl get replicasets -l app=web-app || echo "ReplicaSets not found"
+          
+          # Check scaled pods
+          echo "Checking scaled pods..."
+          kubectl get pods -l app=web-app || echo "Pods not found"
+          
+          echo ""
+          echo "PR pod registry deployment complete!"
+        volumeMounts:
+        - name: git-cache
+          mountPath: /workspace
+        - name: helm-cache
+          mountPath: /helm-cache
+        - name: docker-sock
+          mountPath: /var/run/docker.sock
+      volumes:
+      - name: git-cache
+        persistentVolumeClaim:
+          claimName: git-cache-pvc
+      - name: helm-cache
+        persistentVolumeClaim:
+          claimName: helm-cache-pvc
+      - name: docker-sock
+        hostPath:
+          path: /var/run/docker.sock
