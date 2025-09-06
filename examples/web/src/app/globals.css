@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light dark;
+}
+
+.light {
+  /* forces light color-scheme */
+  color-scheme: light;
+}
+.dark {
+  /* forces dark color-scheme */
+  color-scheme: dark;
+}
+
+body {
+  background: light-dark(var(--color-gray-200), var(--color-gray-950));
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Basic theme system with semantic color tokens */
+@theme {
+  --color-primary: light-dark(
+    oklch(0.55 0.14 264.665),
+    var(--color-indigo-500)
+  );
+  --color-on-primary: light-dark(white, white);
+  --color-primary-container: light-dark(
+    oklch(0.85 0.08 264.665),
+    var(--color-indigo-950)
+  );
+  --color-on-primary-container: light-dark(
+    oklch(0.3 0.15 264.665),
+    oklch(0.9 0.08 264.665)
+  );
+  
+  --color-surface: light-dark(white, var(--color-gray-900));
+  --color-on-surface: light-dark(var(--color-gray-900), var(--color-gray-100));
+  --color-on-surface-variant: light-dark(var(--color-gray-600), var(--color-gray-400));
+  
+  --color-outline: light-dark(var(--color-gray-300), var(--color-gray-700));
+  --color-background: light-dark(var(--color-gray-50), var(--color-gray-950));
+  --color-on-background: light-dark(var(--color-gray-900), var(--color-gray-100));
+}
