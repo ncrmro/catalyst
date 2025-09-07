@@ -1,18 +1,23 @@
 FROM docker:24-git
 
-# Install APK packages for kubectl and helm
-RUN apk add --no-cache \
+# Install APK packages and verify installations
+RUN <<EOF
+set -e
+echo "=== Installing tools ==="
+apk add --no-cache \
     kubectl \
     helm \
     curl \
     bash \
     jq
 
-# Verify installations
-RUN kubectl version --client --short && \
-    helm version --short && \
-    git --version && \
-    docker --version
+echo "=== Verifying installations ==="
+kubectl version --client
+helm version --short
+git --version
+docker --version
+echo "=== All tools verified ==="
+EOF
 
 # Set working directory
 WORKDIR /workspace
