@@ -134,7 +134,7 @@ async function fetchGitHubPullRequests(): Promise<{ pullRequests: PullRequest[];
       }
     }
 
-    return allPullRequests;
+    return { pullRequests: allPullRequests, authMethod };
   } catch (error) {
     // Handle potential token errors
     if (isTokenError(error)) {
@@ -144,7 +144,7 @@ async function fetchGitHubPullRequests(): Promise<{ pullRequests: PullRequest[];
     } else {
       console.error('Error fetching GitHub pull requests:', error);
     }
-    return [];
+    return { pullRequests: [], authMethod: 'none' };
   }
 }
 
@@ -186,6 +186,7 @@ export async function fetchUserPullRequestsWithTokenStatus(): Promise<PullReques
     return {
       pullRequests: getMockPullRequests(),
       hasGitHubToken: true, // Assume we have token in mocked mode
+      authMethod: 'pat', // Assume PAT in mocked mode
     };
   }
 
@@ -195,6 +196,7 @@ export async function fetchUserPullRequestsWithTokenStatus(): Promise<PullReques
     return {
       pullRequests: [],
       hasGitHubToken: false,
+      authMethod: 'none',
     };
   }
 
@@ -204,25 +206,27 @@ export async function fetchUserPullRequestsWithTokenStatus(): Promise<PullReques
 
   try {
     // Fetch from all providers in parallel
-    const [githubPrs, gitfoobarPrs] = await Promise.all([
+    const [githubResult, gitfoobarPrs] = await Promise.all([
       fetchGitHubPullRequests(),
       fetchGitFoobarPullRequests(),
     ]);
 
     // Combine all pull requests and sort by updated date (newest first)
-    const allPullRequests = [...githubPrs, ...gitfoobarPrs];
+    const allPullRequests = [...githubResult.pullRequests, ...gitfoobarPrs];
     
     return {
       pullRequests: allPullRequests.sort((a, b) => 
         new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
       ),
       hasGitHubToken,
+      authMethod: githubResult.authMethod,
     };
   } catch (error) {
     console.error('Error fetching user pull requests:', error);
     return {
       pullRequests: [],
       hasGitHubToken,
+      authMethod: 'none',
     };
   }
 }
