@@ -1,28 +1,35 @@
 import { createMocks } from 'node-mocks-http';
-import { POST } from '../../../../src/app/api/github/webhook/route';
+import { POST } from '@/app/api/github/webhook/route';
 import crypto from 'crypto';
 import { vi } from 'vitest';
 
 // Mock the Kubernetes action
-vi.mock('../../../../src/actions/kubernetes', () => ({
+vi.mock('@/actions/kubernetes', () => ({
   createKubernetesNamespace: vi.fn(),
   deleteKubernetesNamespace: vi.fn()
 }));
 
 // Mock the GitHub library
-vi.mock('../../../../src/lib/github', () => ({
+vi.mock('@/lib/github', () => ({
   getInstallationOctokit: vi.fn()
 }));
 
 // Mock the k8s-pull-request-pod library
-vi.mock('../../../../src/lib/k8s-pull-request-pod', () => ({
+vi.mock('@/lib/k8s-pull-request-pod', () => ({
   createPullRequestPodJob: vi.fn(),
   cleanupPullRequestPodJob: vi.fn()
 }));
 
-import { createKubernetesNamespace, deleteKubernetesNamespace } from '../../../../src/actions/kubernetes';
-import { getInstallationOctokit } from '../../../../src/lib/github';
-import { createPullRequestPodJob, cleanupPullRequestPodJob } from '../../../../src/lib/k8s-pull-request-pod';
+// Mock the pull requests database operations
+vi.mock('@/actions/pull-requests-db', () => ({
+  upsertPullRequest: vi.fn(),
+  findRepoByGitHubData: vi.fn()
+}));
+
+import { createKubernetesNamespace, deleteKubernetesNamespace } from '@/actions/kubernetes';
+import { getInstallationOctokit } from '@/lib/github';
+import { createPullRequestPodJob, cleanupPullRequestPodJob } from '@/lib/k8s-pull-request-pod';
+import { upsertPullRequest, findRepoByGitHubData } from '@/actions/pull-requests-db';
 
 describe('/api/github/webhook', () => {
   const mockWebhookSecret = 'test-webhook-secret';
@@ -31,11 +38,58 @@ describe('/api/github/webhook', () => {
   const mockGetInstallationOctokit = getInstallationOctokit as ReturnType<typeof vi.fn>;
   const mockCreatePullRequestPodJob = createPullRequestPodJob as ReturnType<typeof vi.fn>;
   const mockCleanupPullRequestPodJob = cleanupPullRequestPodJob as ReturnType<typeof vi.fn>;
+  const mockUpsertPullRequest = upsertPullRequest as ReturnType<typeof vi.fn>;
+  const mockFindRepoByGitHubData = findRepoByGitHubData as ReturnType<typeof vi.fn>;
+
+  // Helper function to create complete pull request payload
+  function createPullRequestPayload(action: string, prData: any = {}) {
+    return {
+      action,
+      installation: { id: 12345 },
+      pull_request: {
+        id: 42,
+        number: 42,
+        title: 'Test PR',
+        body: 'Test PR body',
+        state: 'open' as const,
+        draft: false,
+        html_url: 'https://github.com/user/repo/pull/42',
+        user: { 
+          login: 'testuser',
+          avatar_url: 'https://github.com/testuser.png'
+        },
+        head: { ref: 'feature/test' },
+        base: { ref: 'main' },
+        comments: 0,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T01:00:00Z',
+        ...prData
+      },
+      repository: { 
+        id: 123456,
+        full_name: 'user/repo',
+        owner: { login: 'user' },
+        name: 'repo'
+      }
+    };
+  }
 
   beforeEach(() => {
     process.env.GITHUB_WEBHOOK_SECRET = mockWebhookSecret;
     // Reset all mocks
     vi.clearAllMocks();
+    
+    // Set up default mocks for database operations
+    mockFindRepoByGitHubData.mockResolvedValue({
+      success: true,
+      repo: null // Default to no repo found to avoid side effects
+    });
+    
+    mockUpsertPullRequest.mockResolvedValue({
+      success: true,
+      operation: 'create',
+      pullRequest: { id: 'mock-pr-id' }
+    });
   });
 
   afterEach(() => {
@@ -183,20 +237,7 @@ describe('/api/github/webhook', () => {
         request: mockRequest
       } as any);
 
-      const payload = {
-        action: 'opened',
-        installation: { id: 12345 },
-        pull_request: {
-          number: 42,
-          title: 'Test PR',
-          user: { login: 'testuser' }
-        },
-        repository: { 
-          full_name: 'user/repo',
-          owner: { login: 'user' },
-          name: 'repo'
-        }
-      };
+      const payload = createPullRequestPayload('opened');
       const payloadString = JSON.stringify(payload);
       const signature = createSignature(payloadString, mockWebhookSecret);
 
@@ -688,6 +729,218 @@ describe('/api/github/webhook', () => {
         success: false,
         error: 'Failed to process webhook'
       });
+    });
+
+    it('should create/update pull request in database when repository exists', async () => {
+      // Mock repository found in database
+      mockFindRepoByGitHubData.mockResolvedValue({
+        success: true,
+        repo: {
+          id: 'repo-uuid-1',
+          githubId: 123456,
+          name: 'repo',
+          fullName: 'user/repo'
+        }
+      });
+
+      // Mock successful pull request upsert
+      mockUpsertPullRequest.mockResolvedValue({
+        success: true,
+        operation: 'create',
+        pullRequest: {
+          id: 'pr-uuid-1',
+          repoId: 'repo-uuid-1',
+          provider: 'github',
+          providerPrId: '42',
+          number: 42,
+          title: 'Test PR with Database Integration',
+          state: 'open',
+          status: 'ready'
+        }
+      });
+
+      // Mock other dependencies
+      mockCreateKubernetesNamespace.mockResolvedValue({
+        success: true,
+        message: 'Namespace created successfully',
+        namespace: { name: 'user-repo-gh-pr-42', created: true }
+      });
+
+      mockCreatePullRequestPodJob.mockResolvedValue({
+        jobName: 'pr-job-pr-42-repo-1640995200000',
+        serviceAccountName: 'pr-42-repo-buildx-sa',
+        namespace: 'user-repo-gh-pr-42',
+        created: true
+      });
+
+      const mockRequest = vi.fn().mockResolvedValue({});
+      mockGetInstallationOctokit.mockResolvedValue({
+        request: mockRequest
+      } as any);
+
+      const payload = {
+        action: 'opened',
+        installation: { id: 12345 },
+        pull_request: {
+          id: 42,
+          number: 42,
+          title: 'Test PR with Database Integration',
+          body: 'This is a test pull request with full webhook data',
+          state: 'open',
+          draft: false,
+          html_url: 'https://github.com/user/repo/pull/42',
+          user: { 
+            login: 'testuser',
+            avatar_url: 'https://github.com/testuser.png'
+          },
+          head: { ref: 'feature/database-integration' },
+          base: { ref: 'main' },
+          comments: 2,
+          changed_files: 3,
+          additions: 50,
+          deletions: 10,
+          labels: [{ name: 'enhancement' }, { name: 'database' }],
+          assignees: [{ login: 'assignee1' }],
+          requested_reviewers: [{ login: 'reviewer1' }],
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T01:00:00Z'
+        },
+        repository: { 
+          id: 123456,
+          full_name: 'user/repo',
+          owner: { login: 'user' },
+          name: 'repo'
+        }
+      };
+      const payloadString = JSON.stringify(payload);
+      const signature = createSignature(payloadString, mockWebhookSecret);
+
+      const { req } = createMocks({
+        method: 'POST',
+        headers: {
+          'x-github-event': 'pull_request',
+          'x-github-delivery': 'test-delivery-123',
+          'x-hub-signature-256': signature,
+          'content-type': 'application/json'
+        },
+        body: Buffer.from(payloadString),
+      });
+
+      req.text = vi.fn().mockResolvedValue(payloadString);
+
+      const response = await POST(req as any);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+
+      // Verify repository lookup was called
+      expect(mockFindRepoByGitHubData).toHaveBeenCalledWith(123456);
+
+      // Verify pull request was upserted with correct data
+      expect(mockUpsertPullRequest).toHaveBeenCalledWith({
+        repoId: 'repo-uuid-1',
+        provider: 'github',
+        providerPrId: '42',
+        number: 42,
+        title: 'Test PR with Database Integration',
+        description: 'This is a test pull request with full webhook data',
+        state: 'open',
+        status: 'ready',
+        url: 'https://github.com/user/repo/pull/42',
+        authorLogin: 'testuser',
+        authorAvatarUrl: 'https://github.com/testuser.png',
+        headBranch: 'feature/database-integration',
+        baseBranch: 'main',
+        commentsCount: 2,
+        reviewsCount: 0,
+        changedFilesCount: 3,
+        additionsCount: 50,
+        deletionsCount: 10,
+        priority: 'medium',
+        labels: ['enhancement', 'database'],
+        assignees: ['assignee1'],
+        reviewers: ['reviewer1'],
+        mergedAt: undefined,
+        closedAt: undefined
+      });
+    });
+
+    it('should skip database operations when repository not found', async () => {
+      // Mock repository not found
+      mockFindRepoByGitHubData.mockResolvedValue({
+        success: true,
+        repo: null
+      });
+
+      // Mock other dependencies
+      mockCreateKubernetesNamespace.mockResolvedValue({
+        success: true,
+        message: 'Namespace created successfully',
+        namespace: { name: 'user-repo-gh-pr-42', created: true }
+      });
+
+      mockCreatePullRequestPodJob.mockResolvedValue({
+        jobName: 'pr-job-pr-42-repo-1640995200000',
+        created: true
+      });
+
+      const mockRequest = vi.fn().mockResolvedValue({});
+      mockGetInstallationOctokit.mockResolvedValue({
+        request: mockRequest
+      } as any);
+
+      const payload = {
+        action: 'opened',
+        installation: { id: 12345 },
+        pull_request: {
+          id: 42,
+          number: 42,
+          title: 'Test PR',
+          state: 'open',
+          draft: false,
+          html_url: 'https://github.com/user/repo/pull/42',
+          user: { login: 'testuser' },
+          head: { ref: 'feature/test' },
+          base: { ref: 'main' },
+          comments: 0,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T01:00:00Z'
+        },
+        repository: { 
+          id: 999999, // Unknown repo ID
+          full_name: 'user/repo',
+          owner: { login: 'user' },
+          name: 'repo'
+        }
+      };
+      const payloadString = JSON.stringify(payload);
+      const signature = createSignature(payloadString, mockWebhookSecret);
+
+      const { req } = createMocks({
+        method: 'POST',
+        headers: {
+          'x-github-event': 'pull_request',
+          'x-github-delivery': 'test-delivery-123',
+          'x-hub-signature-256': signature,
+          'content-type': 'application/json'
+        },
+        body: Buffer.from(payloadString),
+      });
+
+      req.text = vi.fn().mockResolvedValue(payloadString);
+
+      const response = await POST(req as any);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+
+      // Verify repository lookup was called
+      expect(mockFindRepoByGitHubData).toHaveBeenCalledWith(999999);
+
+      // Verify pull request upsert was NOT called
+      expect(mockUpsertPullRequest).not.toHaveBeenCalled();
     });
   });
 });

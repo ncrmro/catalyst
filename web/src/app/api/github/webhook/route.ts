@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { createKubernetesNamespace, deleteKubernetesNamespace } from '../../../../actions/kubernetes';
-import { getInstallationOctokit } from '../../../../lib/github';
-import { createPullRequestPodJob, cleanupPullRequestPodJob, PullRequestPodResult } from '../../../../lib/k8s-pull-request-pod';
+import { createKubernetesNamespace, deleteKubernetesNamespace } from '@/actions/kubernetes';
+import { getInstallationOctokit } from '@/lib/github';
+import { createPullRequestPodJob, cleanupPullRequestPodJob, PullRequestPodResult } from '@/lib/k8s-pull-request-pod';
+import { upsertPullRequest, findRepoByGitHubData } from '@/actions/pull-requests-db';
 
 /**
  * GitHub App Webhook Endpoint
@@ -147,11 +148,37 @@ async function handlePullRequestEvent(payload: {
   action: string;
   installation: { id: number };
   pull_request: {
+    id: number;
     number: number;
     title: string;
-    user: { login: string };
+    body?: string;
+    state: 'open' | 'closed';
+    draft: boolean;
+    html_url: string;
+    user: { 
+      login: string;
+      avatar_url?: string;
+    };
+    head: {
+      ref: string;
+    };
+    base: {
+      ref: string;
+    };
+    comments: number;
+    changed_files?: number;
+    additions?: number;
+    deletions?: number;
+    labels?: Array<{ name: string }>;
+    assignees?: Array<{ login: string }>;
+    requested_reviewers?: Array<{ login: string }>;
+    merged_at?: string;
+    closed_at?: string;
+    created_at: string;
+    updated_at: string;
   };
   repository: { 
+    id: number;
     full_name: string;
     owner: { login: string };
     name: string;
@@ -164,6 +191,70 @@ async function handlePullRequestEvent(payload: {
     title: pull_request.title,
     author: pull_request.user.login
   });
+
+  // Find the repository in our database
+  const repoResult = await findRepoByGitHubData(repository.id);
+  
+  // Create/update pull request record in database
+  if (repoResult.success && repoResult.repo) {
+    try {
+      // Determine status based on draft and state
+      let status: 'draft' | 'ready' | 'changes_requested' = 'ready';
+      if (pull_request.draft) {
+        status = 'draft';
+      }
+      // Note: We would need to check reviews to determine if changes are requested
+      // For now, we'll use a simple heuristic based on the action
+
+      // Determine state - GitHub uses 'open'/'closed', we need to check if it was merged
+      let state: 'open' | 'closed' | 'merged' = pull_request.state;
+      if (pull_request.state === 'closed' && pull_request.merged_at) {
+        state = 'merged';
+      }
+
+      const prData = {
+        repoId: repoResult.repo.id,
+        provider: 'github',
+        providerPrId: pull_request.id.toString(),
+        number: pull_request.number,
+        title: pull_request.title,
+        description: pull_request.body || undefined,
+        state,
+        status,
+        url: pull_request.html_url,
+        authorLogin: pull_request.user.login,
+        authorAvatarUrl: pull_request.user.avatar_url,
+        headBranch: pull_request.head.ref,
+        baseBranch: pull_request.base.ref,
+        commentsCount: pull_request.comments || 0,
+        reviewsCount: 0, // GitHub webhook doesn't provide review count directly
+        changedFilesCount: pull_request.changed_files || 0,
+        additionsCount: pull_request.additions || 0,
+        deletionsCount: pull_request.deletions || 0,
+        priority: 'medium' as const, // Default priority for webhook PRs
+        labels: pull_request.labels?.map(l => l.name) || [],
+        assignees: pull_request.assignees?.map(a => a.login) || [],
+        reviewers: pull_request.requested_reviewers?.map(r => r.login) || [],
+        mergedAt: pull_request.merged_at ? new Date(pull_request.merged_at) : undefined,
+        closedAt: pull_request.closed_at ? new Date(pull_request.closed_at) : undefined,
+      };
+
+      const dbResult = await upsertPullRequest(prData);
+      if (dbResult.success) {
+        console.log(`Pull request ${dbResult.operation}d in database:`, {
+          pr_id: dbResult.pullRequest?.id,
+          provider_pr_id: pull_request.id,
+          number: pull_request.number
+        });
+      } else {
+        console.error(`Failed to ${dbResult.operation} pull request in database:`, dbResult.error);
+      }
+    } catch (error) {
+      console.error('Error processing pull request for database:', error);
+    }
+  } else {
+    console.warn(`Repository with GitHub ID ${repository.id} not found in database. Skipping PR database operation.`);
+  }
 
   // Create namespace when PR is opened
   if (action === 'opened') {

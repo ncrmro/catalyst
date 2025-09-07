@@ -214,7 +214,8 @@ export const reposRelations = relations(repos, ({ one, many }) => ({
   }),
   projectConnections: many(projectsRepos),
   environments: many(projectEnvironments),
-  manifests: many(projectManifests)
+  manifests: many(projectManifests),
+  pullRequests: many(pullRequests)
 }))
 
 export const projects = pgTable("project", {
@@ -394,5 +395,62 @@ export const githubUserTokensRelations = relations(githubUserTokens, ({ one }) =
   user: one(users, {
     fields: [githubUserTokens.userId],
     references: [users.id]
+  })
+}))
+
+/**
+ * Pull Requests Table
+ * 
+ * Stores pull request information from various git providers (GitHub, GitLab, etc.).
+ * Designed to be provider-agnostic while maintaining relationships with repositories.
+ * 
+ * This table tracks pull requests across different git providers and enables
+ * consistent reporting and management regardless of the underlying provider.
+ */
+export const pullRequests = pgTable(
+  "pull_requests",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    repoId: text("repo_id")
+      .notNull()
+      .references(() => repos.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(), // 'github', 'gitlab', 'gitea', etc.
+    providerPrId: text("provider_pr_id").notNull(), // PR ID from the provider
+    number: integer("number").notNull(), // PR number (usually different from ID)
+    title: text("title").notNull(),
+    description: text("description"), // PR body/description
+    state: text("state").notNull(), // 'open', 'closed', 'merged'
+    status: text("status").notNull(), // 'draft', 'ready', 'changes_requested'
+    url: text("url").notNull(),
+    authorLogin: text("author_login").notNull(),
+    authorAvatarUrl: text("author_avatar_url"),
+    headBranch: text("head_branch").notNull(),
+    baseBranch: text("base_branch").notNull(),
+    commentsCount: integer("comments_count").notNull().default(0),
+    reviewsCount: integer("reviews_count").notNull().default(0),
+    changedFilesCount: integer("changed_files_count").notNull().default(0),
+    additionsCount: integer("additions_count").notNull().default(0),
+    deletionsCount: integer("deletions_count").notNull().default(0),
+    priority: text("priority").notNull().default('medium'), // 'high', 'medium', 'low'
+    labels: text("labels"), // JSON array of labels
+    assignees: text("assignees"), // JSON array of assignees
+    reviewers: text("reviewers"), // JSON array of reviewers
+    mergedAt: timestamp("merged_at", { mode: "date" }),
+    closedAt: timestamp("closed_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Ensure unique PR per provider per repo
+    unique().on(table.repoId, table.provider, table.providerPrId),
+  ]
+)
+
+export const pullRequestsRelations = relations(pullRequests, ({ one }) => ({
+  repo: one(repos, {
+    fields: [pullRequests.repoId],
+    references: [repos.id]
   })
 }))
