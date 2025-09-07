@@ -53,13 +53,22 @@ describe('Pull Requests Actions', () => {
 
   it('includes gitfoobar provider results (empty array)', async () => {
     const { auth } = await import('@/auth');
-    (auth as any).mockResolvedValue(null);
+    const { refreshTokenIfNeeded } = await import('@/lib/github-app/token-refresh');
+    
+    // Mock auth to return a user (so the function doesn't return early)
+    (auth as any).mockResolvedValue({
+      user: { id: 'test-user-id' }
+    });
+    
+    // Mock refreshTokenIfNeeded to return null (no GitHub tokens)
+    (refreshTokenIfNeeded as any).mockResolvedValue(null);
 
     // Spy on console.log to verify gitfoobar provider is called
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     await fetchUserPullRequests();
 
+    // Check that the gitfoobar provider log message appears among the console logs
     expect(consoleSpy).toHaveBeenCalledWith('gitfoobar provider: returning empty pull requests array');
     
     consoleSpy.mockRestore();
