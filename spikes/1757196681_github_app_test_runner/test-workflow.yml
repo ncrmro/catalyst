@@ -1,0 +1,63 @@
+# Example GitHub Actions workflow to test the runner
+# Save this file as .github/workflows/test-runner.yml in your repository
+
+name: Test GitHub App Runner
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test-runner:
+    runs-on: test-runner  # This targets our custom runner label
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Runner information
+      run: |
+        echo "Runner name: $RUNNER_NAME"
+        echo "Runner OS: $RUNNER_OS"
+        echo "Runner architecture: $RUNNER_ARCH"
+        echo "Kubernetes node: $(hostname)"
+        
+    - name: Test basic commands
+      run: |
+        echo "Testing basic shell commands..."
+        whoami
+        pwd
+        ls -la
+        echo "✅ Basic commands work"
+        
+    - name: Test Docker availability (if installed)
+      run: |
+        if command -v docker &> /dev/null; then
+          echo "Docker is available"
+          docker --version
+        else
+          echo "Docker not installed in runner image"
+        fi
+        
+    - name: Test runner connectivity
+      run: |
+        echo "Testing network connectivity..."
+        curl -s https://api.github.com/zen
+        echo "✅ Network connectivity works"
+        
+    - name: Test environment
+      run: |
+        echo "Environment variables:"
+        echo "HOME: $HOME"
+        echo "PATH: $PATH"
+        echo "USER: $(whoami)"
+        echo "✅ Environment test completed"
+        
+    - name: Success message
+      run: |
+        echo "🎉 GitHub App test runner is working correctly!"
+        echo "This job ran on a Kubernetes-based GitHub Actions runner"
+        echo "authenticated via GitHub App"

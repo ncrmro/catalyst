@@ -1,0 +1,119 @@
+apiVersion: actions.summerwind.dev/v1alpha1
+kind: RunnerScaleSet
+metadata:
+  name: github-app-test-runner
+  namespace: arc-runners
+spec:
+  # GitHub repository or organization to register runners for
+  # Update this to match your repository/organization
+  githubConfigUrl: "https://github.com/ncrmro/catalyst"
+  
+  # Runner configuration
+  runnerScaleSetName: "test-runner"
+  
+  # Minimum and maximum number of runners
+  minRunners: 0
+  maxRunners: 3
+  
+  # GitHub App authentication
+  githubConfigSecret:
+    name: "github-app-auth"
+    keys:
+      githubAppID: "github_app_id"
+      githubAppInstallationID: "github_app_installation_id"  # Optional
+      githubAppPrivateKey: "github_app_private_key"
+  
+  # Container mode (kubernetes is recommended for most use cases)
+  containerMode:
+    type: "kubernetes"
+    
+  # Runner template
+  template:
+    spec:
+      # Runner image - using the official GitHub Actions runner
+      containers:
+      - name: runner
+        image: "ghcr.io/actions/actions-runner:latest"
+        # Resource limits for testing
+        resources:
+          limits:
+            cpu: "1000m"
+            memory: "2Gi"
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+        # Security context
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+      
+      # Node selector for testing (optional)
+      # nodeSelector:
+      #   kubernetes.io/arch: amd64
+      
+      # Tolerations (optional)
+      # tolerations: []
+      
+      # Pod security context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 123
+      
+      # Service account (will be created automatically if not specified)
+      # serviceAccountName: "github-runner"
+      
+  # Runner group (optional - for enterprise accounts)
+  # runnerGroup: "default"
+  
+  # Labels to apply to runners (these will be available for workflow targeting)
+  # Workflows can target this runner with: runs-on: test-runner
+  runnerLabels:
+    - "test-runner"
+    - "kubernetes"
+    - "linux"
+    - "x64"
+  
+---
+# ServiceAccount for the runners (optional but recommended)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: github-runner
+  namespace: arc-runners
+  labels:
+    app: github-runner
+automountServiceAccountToken: true
+
+---
+# Role for basic runner permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: github-runner
+  namespace: arc-runners
+rules:
+# Allow reading pods (for runner status)
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+# Allow reading secrets (for runner authentication)
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get"]
+
+---
+# RoleBinding to associate the ServiceAccount with the Role
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: github-runner
+  namespace: arc-runners
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: github-runner
+subjects:
+- kind: ServiceAccount
+  name: github-runner
+  namespace: arc-runners
