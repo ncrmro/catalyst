@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { createKubernetesNamespace, deleteKubernetesNamespace } from '../../../../actions/kubernetes';
-import { getInstallationOctokit } from '../../../../lib/github';
-import { createPullRequestPodJob, cleanupPullRequestPodJob, PullRequestPodResult } from '../../../../lib/k8s-pull-request-pod';
-import { upsertPullRequest, findRepoByGitHubData } from '../../../../actions/pull-requests-db';
+import { createKubernetesNamespace, deleteKubernetesNamespace } from '@/actions/kubernetes';
+import { getInstallationOctokit } from '@/lib/github';
+import { createPullRequestPodJob, cleanupPullRequestPodJob, PullRequestPodResult } from '@/lib/k8s-pull-request-pod';
+import { upsertPullRequest, findRepoByGitHubData } from '@/actions/pull-requests-db';
 
 /**
  * GitHub App Webhook Endpoint

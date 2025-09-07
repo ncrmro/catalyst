@@ -1,35 +1,35 @@
 import { createMocks } from 'node-mocks-http';
-import { POST } from '../../../../src/app/api/github/webhook/route';
+import { POST } from '@/app/api/github/webhook/route';
 import crypto from 'crypto';
 import { vi } from 'vitest';
 
 // Mock the Kubernetes action
-vi.mock('../../../../src/actions/kubernetes', () => ({
+vi.mock('@/actions/kubernetes', () => ({
   createKubernetesNamespace: vi.fn(),
   deleteKubernetesNamespace: vi.fn()
 }));
 
 // Mock the GitHub library
-vi.mock('../../../../src/lib/github', () => ({
+vi.mock('@/lib/github', () => ({
   getInstallationOctokit: vi.fn()
 }));
 
 // Mock the k8s-pull-request-pod library
-vi.mock('../../../../src/lib/k8s-pull-request-pod', () => ({
+vi.mock('@/lib/k8s-pull-request-pod', () => ({
   createPullRequestPodJob: vi.fn(),
   cleanupPullRequestPodJob: vi.fn()
 }));
 
 // Mock the pull requests database operations
-vi.mock('../../../../src/actions/pull-requests-db', () => ({
+vi.mock('@/actions/pull-requests-db', () => ({
   upsertPullRequest: vi.fn(),
   findRepoByGitHubData: vi.fn()
 }));
 
-import { createKubernetesNamespace, deleteKubernetesNamespace } from '../../../../src/actions/kubernetes';
-import { getInstallationOctokit } from '../../../../src/lib/github';
-import { createPullRequestPodJob, cleanupPullRequestPodJob } from '../../../../src/lib/k8s-pull-request-pod';
-import { upsertPullRequest, findRepoByGitHubData } from '../../../../src/actions/pull-requests-db';
+import { createKubernetesNamespace, deleteKubernetesNamespace } from '@/actions/kubernetes';
+import { getInstallationOctokit } from '@/lib/github';
+import { createPullRequestPodJob, cleanupPullRequestPodJob } from '@/lib/k8s-pull-request-pod';
+import { upsertPullRequest, findRepoByGitHubData } from '@/actions/pull-requests-db';
 
 describe('/api/github/webhook', () => {
   const mockWebhookSecret = 'test-webhook-secret';

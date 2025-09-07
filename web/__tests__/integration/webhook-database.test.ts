@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { createMocks } from 'node-mocks-http';
 import crypto from 'crypto';
-import { POST } from '../../src/app/api/github/webhook/route';
+import { POST } from '@/app/api/github/webhook/route';
 import { db, pullRequests, repos, teams, users } from '@/db';
 import { eq, and } from 'drizzle-orm';
 
