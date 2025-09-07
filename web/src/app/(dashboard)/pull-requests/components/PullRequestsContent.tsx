@@ -7,7 +7,7 @@ import { GitHubConnectCard } from './GitHubConnectCard';
  * This component is wrapped in suspense by the parent
  */
 export async function PullRequestsContent() {
-  const { pullRequests, hasGitHubToken } = await fetchUserPullRequestsWithTokenStatus();
+  const { pullRequests, hasGitHubToken, authMethod } = await fetchUserPullRequestsWithTokenStatus();
 
   // If user doesn't have GitHub token, show connect card
   if (!hasGitHubToken) {
@@ -28,12 +28,54 @@ export async function PullRequestsContent() {
     );
   }
 
+  // Get auth method display info
+  const getAuthInfo = () => {
+    switch (authMethod) {
+      case 'pat':
+        return {
+          label: 'Personal Access Token',
+          description: 'Using GitHub PAT from environment variable',
+          icon: '🔑',
+          color: 'text-amber-600'
+        };
+      case 'github-app':
+        return {
+          label: 'GitHub App',
+          description: 'Using GitHub App user access token',
+          icon: '🔗',
+          color: 'text-green-600'
+        };
+      default:
+        return {
+          label: 'No Authentication',
+          description: 'No GitHub authentication available',
+          icon: '❌',
+          color: 'text-red-600'
+        };
+    }
+  };
+
+  const authInfo = getAuthInfo();
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-on-surface">
           Your Pull Requests ({pullRequests.length})
         </h2>
+      </div>
+
+      {/* Authentication method indicator */}
+      <div className="bg-surface-variant/50 border border-outline rounded-lg p-3">
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-lg">{authInfo.icon}</span>
+          <span className={`font-medium ${authInfo.color}`}>
+            Auth: {authInfo.label}
+          </span>
+          <span className="text-on-surface-variant">
+            • {authInfo.description}
+          </span>
+        </div>
       </div>
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

@@ -134,17 +134,19 @@ async function fetchGitHubPullRequests(): Promise<{ pullRequests: PullRequest[];
       }
     }
 
-    return allPullRequests;
+    return { pullRequests: allPullRequests, authMethod };
   } catch (error) {
     // Handle potential token errors
     if (isTokenError(error)) {
       console.error('Token error during pull request fetch:', error);
-      // Invalidate tokens to force re-authentication on next request
-      await invalidateTokens(session.user.id);
+      // Only invalidate tokens if using GitHub App auth (not PAT)
+      if (authMethod === 'github-app') {
+        await invalidateTokens(session.user.id);
+      }
     } else {
       console.error('Error fetching GitHub pull requests:', error);
     }
-    return [];
+    return { pullRequests: [], authMethod };
   }
 }
 
@@ -186,43 +188,43 @@ export async function fetchUserPullRequestsWithTokenStatus(): Promise<PullReques
     return {
       pullRequests: getMockPullRequests(),
       hasGitHubToken: true, // Assume we have token in mocked mode
+      authMethod: 'github-app' as const,
     };
   }
 
   const session = await auth();
   
   if (!session?.user?.id) {
-    return {
-      pullRequests: [],
-      hasGitHubToken: false,
-    };
+    throw new Error('No authenticated user found');
   }
 
-  // Check if user has GitHub tokens
-  const tokens = await refreshTokenIfNeeded(session.user.id);
-  const hasGitHubToken = !!tokens;
+  // Check for PAT first, then GitHub App tokens
+  const githubPat = process.env.GITHUB_PAT || process.env.GITHUB_TOKEN;
+  const hasGitHubToken = !!githubPat || !!(await refreshTokenIfNeeded(session.user.id));
 
   try {
     // Fetch from all providers in parallel
-    const [githubPrs, gitfoobarPrs] = await Promise.all([
+    const [githubResult, gitfoobarPrs] = await Promise.all([
       fetchGitHubPullRequests(),
       fetchGitFoobarPullRequests(),
     ]);
 
     // Combine all pull requests and sort by updated date (newest first)
-    const allPullRequests = [...githubPrs, ...gitfoobarPrs];
+    const allPullRequests = [...githubResult.pullRequests, ...gitfoobarPrs];
     
     return {
       pullRequests: allPullRequests.sort((a, b) => 
         new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
       ),
       hasGitHubToken,
+      authMethod: githubResult.authMethod,
     };
   } catch (error) {
     console.error('Error fetching user pull requests:', error);
     return {
       pullRequests: [],
       hasGitHubToken,
+      authMethod: 'none' as const,
     };
   }
 }
