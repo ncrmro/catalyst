@@ -40,6 +40,7 @@ Always run `make ci` before making your final commit. This command runs unit tes
 
 - Prefer to use NextJS server components
 - Prefer to use actions over API route unless specified.
+- Always use @ alias imports instead of relative imports (e.g., `import { db } from "@/db"` instead of `import { db } from "../../db"`)
 
 # Style Guidelines
 
