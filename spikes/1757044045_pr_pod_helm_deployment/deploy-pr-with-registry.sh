@@ -4,14 +4,29 @@
 
 set -e
 
-# Check for reset flag
+# Check for flags
 RESET_MODE=false
-if [ "$1" = "--reset" ] || [ "$1" = "-r" ]; then
-    RESET_MODE=true
-    echo "=== Reset mode enabled - will clean up all resources ==="
-else
-    echo "=== Normal mode - preserving buildx driver ==="
+HELM_RESET=false
+
+for arg in "$@"; do
+    case $arg in
+        --reset|-r)
+            RESET_MODE=true
+            echo "=== Reset mode enabled - will clean up all resources ==="
+            ;;
+        --helm-reset)
+            HELM_RESET=true
+            echo "=== Helm reset enabled - will uninstall helm release ==="
+            ;;
+        *)
+            ;;
+    esac
+done
+
+if [ "$RESET_MODE" = false ] && [ "$HELM_RESET" = false ]; then
+    echo "=== Normal mode - preserving buildx driver and helm release ==="
     echo "Use --reset or -r flag to clean up all resources including buildx driver"
+    echo "Use --helm-reset flag to uninstall helm release (will regenerate secrets)"
 fi
 
 echo "=== PR Pod Helm Deployment with GHCR ==="
@@ -57,33 +72,55 @@ if [ -f "$ROOT_DIR/kubeconfig.devbox.yml" ]; then
     echo "Using kubeconfig: $KUBECONFIG"
 fi
 
-echo "1. Creating RBAC resources..."
-kubectl apply -f "$SCRIPT_DIR/rbac.yaml"
-echo "   ✓ RBAC resources applied"
+echo "1. Creating namespace..."
 
-echo "2. Creating/verifying PVCs..."
-kubectl apply -f "$ROOT_DIR/spikes/1756920599_local_pr_pod_testing/git-cache-pvc.yaml"
-kubectl apply -f "$ROOT_DIR/spikes/1756920599_local_pr_pod_testing/helm-cache-pvc.yaml"
+# Create namespace if it doesn't exist
+NAMESPACE="catalyst-web-pr-000"
+echo "Creating namespace: $NAMESPACE"
+kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+echo "   ✓ Namespace created/verified"
+
+echo "2. Creating PVCs, service account, and GitHub PAT secrets..."
+
+# Create PVCs in the target namespace
+echo "Creating PVCs in namespace: $NAMESPACE"
+kubectl apply -f "$SCRIPT_DIR/git-cache-pvc.yaml" --namespace="$NAMESPACE"
+kubectl apply -f "$SCRIPT_DIR/helm-cache-pvc.yaml" --namespace="$NAMESPACE"
 echo "   ✓ PVCs created/verified"
 
-echo "3. Creating GitHub PAT secrets..."
-kubectl delete secret github-pat-secret --ignore-not-found=true
-kubectl create secret generic github-pat-secret --from-literal=token="$GITHUB_PAT" --from-literal=ghcr_token="$GITHUB_GHCR_PAT"
+# Create service account and RBAC resources in the target namespace
+echo "Creating service account and RBAC in namespace: $NAMESPACE"
+kubectl apply -f "$SCRIPT_DIR/rbac.yaml" -n "$NAMESPACE"
+echo "   ✓ Service account and RBAC created"
 
-kubectl delete secret ghcr-registry-secret --ignore-not-found=true
+# Create secrets in the specific namespace
+kubectl delete secret github-pat-secret --namespace="$NAMESPACE" --ignore-not-found=true
+kubectl create secret generic github-pat-secret --namespace="$NAMESPACE" --from-literal=token="$GITHUB_PAT" --from-literal=ghcr_token="$GITHUB_GHCR_PAT"
+
+kubectl delete secret ghcr-registry-secret --namespace="$NAMESPACE" --ignore-not-found=true
 kubectl create secret docker-registry ghcr-registry-secret \
+  --namespace="$NAMESPACE" \
   --docker-server=ghcr.io \
   --docker-username=ncrmro \
   --docker-password="$GITHUB_GHCR_PAT" \
   --docker-email=ncrmro@users.noreply.github.com
 echo "   ✓ Secrets created (generic PAT secret + docker registry secret)"
 
-echo "4. Cleaning up existing resources..."
-kubectl delete job pr-pod-registry-deploy --ignore-not-found=true
-kubectl delete deployment web-app --ignore-not-found=true
-kubectl delete replicaset -l app=web-app --ignore-not-found=true
-kubectl delete service web-app --ignore-not-found=true
-helm uninstall web-app --ignore-not-found || true
+echo "3. Cleaning up existing resources..."
+kubectl delete job pr-pod-registry-deploy --namespace="$NAMESPACE" --ignore-not-found=true
+
+if [ "$HELM_RESET" = "true" ]; then
+    echo "   Helm reset mode: Uninstalling helm release (will regenerate secrets)..."
+    kubectl delete deployment web-app --namespace="$NAMESPACE" --ignore-not-found=true
+    kubectl delete replicaset -l app=web-app --namespace="$NAMESPACE" --ignore-not-found=true
+    kubectl delete service web-app --namespace="$NAMESPACE" --ignore-not-found=true
+    helm uninstall web-app --namespace="$NAMESPACE" --ignore-not-found || true
+    echo "   Cleaning up PostgreSQL persistent volume claims for web-app instance..."
+    kubectl delete pvc -l app.kubernetes.io/name=postgresql,app.kubernetes.io/instance=web-app --namespace="$NAMESPACE" --ignore-not-found=true
+    echo "   ✓ Helm release uninstalled and PostgreSQL data cleared"
+else
+    echo "   Normal mode: Preserving helm release and secrets"
+fi
 
 if [ "$RESET_MODE" = true ]; then
     echo "   Reset mode: Cleaning up buildx driver..."
@@ -94,44 +131,45 @@ else
     echo "   ✓ Cleanup complete (buildx driver preserved)"
 fi
 
-echo "5. Creating PR pod job with GHCR push and Helm deployment..."
-kubectl apply -f "$SCRIPT_DIR/pr-pod-with-registry.yaml"
+echo "4. Creating PR pod job with GHCR push and Helm deployment..."
+# Apply the pr-pod job to the specific namespace
+kubectl apply -f "$SCRIPT_DIR/pr-pod-with-registry.yaml" --namespace="$NAMESPACE"
 echo "   ✓ Job created"
 
-echo "6. Waiting for pod to start..."
+echo "5. Waiting for pod to start..."
 sleep 5
 
 # Get pod name
-POD_NAME=$(kubectl get pods -l job-name=pr-pod-registry-deploy -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+POD_NAME=$(kubectl get pods -l job-name=pr-pod-registry-deploy --namespace="$NAMESPACE" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
 
 if [ -z "$POD_NAME" ]; then
     echo "ERROR: Pod not found. Checking job status..."
-    kubectl describe job pr-pod-registry-deploy
+    kubectl describe job pr-pod-registry-deploy --namespace="$NAMESPACE"
     exit 1
 fi
 
 echo "   ✓ Pod found: $POD_NAME"
 
-echo "7. Monitoring pod status..."
-kubectl wait --for=condition=Ready pod/$POD_NAME --timeout=120s || true
+echo "6. Monitoring pod status..."
+kubectl wait --for=condition=Ready pod/$POD_NAME --namespace="$NAMESPACE" --timeout=120s || true
 
-echo "8. Streaming pod logs..."
+echo "7. Streaming pod logs..."
 echo "----------------------------------------"
-kubectl logs -f $POD_NAME || kubectl logs $POD_NAME
+kubectl logs -f $POD_NAME --namespace="$NAMESPACE" || kubectl logs $POD_NAME --namespace="$NAMESPACE"
 echo "----------------------------------------"
 
-echo "9. Checking final job status..."
-kubectl get job pr-pod-registry-deploy
+echo "8. Checking final job status..."
+kubectl get job pr-pod-registry-deploy --namespace="$NAMESPACE"
 
-echo "10. Checking deployed resources..."
+echo "9. Checking deployed resources..."
 echo "Application deployments:"
-kubectl get deployments
+kubectl get deployments --namespace="$NAMESPACE"
 echo ""
 echo "Services:"
-kubectl get services
+kubectl get services --namespace="$NAMESPACE"
 echo ""
 echo "Pods:"
-kubectl get pods -l app=web-app
+kubectl get pods -l app=web-app --namespace="$NAMESPACE"
 
 echo ""
 echo "=== Test Complete ==="
@@ -141,10 +179,10 @@ echo "  ghcr.io/ncrmro/catalyst/web:pr-000"
 echo "  ghcr.io/ncrmro/catalyst/web:pr-000-cache"
 echo ""
 echo "To clean up resources, run:"
-echo "  kubectl delete job pr-pod-registry-deploy"
-echo "  kubectl delete secret github-pat-secret"
-echo "  kubectl delete secret ghcr-registry-secret"
-echo "  helm uninstall web-app"
+echo "  kubectl delete job pr-pod-registry-deploy --namespace=$NAMESPACE"
+echo "  kubectl delete secret github-pat-secret --namespace=$NAMESPACE"
+echo "  kubectl delete secret ghcr-registry-secret --namespace=$NAMESPACE"
+echo "  helm uninstall web-app --namespace=$NAMESPACE"
 echo ""
 echo "To delete PVCs (will remove caches):"
-echo "  kubectl delete pvc git-cache-pvc helm-cache-pvc"
+echo "  kubectl delete pvc git-cache-pvc helm-cache-pvc --namespace=$NAMESPACE"

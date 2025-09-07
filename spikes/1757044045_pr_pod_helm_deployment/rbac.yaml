@@ -2,12 +2,10 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: pull-request-job-pod
-  namespace: default
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  namespace: default
   name: pull-request-job-role
 rules:
 - apiGroups: ["apps"]
@@ -19,25 +17,35 @@ rules:
 - apiGroups: ["apps"]
   resources: ["replicasets"]
   verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["statefulsets"]
+  verbs: ["get", "list", "create", "patch"]
 - apiGroups: [""]
   resources: ["pods", "services"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["serviceaccounts"]
+  verbs: ["get", "list", "create", "patch"]
 - apiGroups: [""]
   resources: ["pods/exec"]
   verbs: ["create"]
 - apiGroups: [""]
   resources: ["configmaps", "secrets"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["networkpolicies"]
+  verbs: ["get", "list", "create", "patch"]
+- apiGroups: ["policy"]
+  resources: ["poddisruptionbudgets"]
+  verbs: ["get", "list", "create", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: pull-request-job-binding
-  namespace: default
 subjects:
 - kind: ServiceAccount
   name: pull-request-job-pod
-  namespace: default
 roleRef:
   kind: Role
   name: pull-request-job-role

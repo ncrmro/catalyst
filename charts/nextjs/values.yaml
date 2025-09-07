@@ -65,11 +65,19 @@ fullnameOverride: ""
 # NextJS specific configuration
 nextjs:
   # Environment variables for NextJS
+  # These can be set via --set nextjs.env[0].name=VAR_NAME --set nextjs.env[0].value=VAR_VALUE
   env:
     - name: NODE_ENV
       value: "production"
     - name: PORT
       value: "3000"
+    # Example of additional environment variables:
+    # - name: GITHUB_APP_ID
+    #   value: "your-app-id"
+    # - name: GITHUB_PRIVATE_KEY
+    #   value: "your-private-key"
+    # - name: TOKEN_ENCRYPTION_KEY
+    #   value: "your-encryption-key"
   # Additional environment variables from secrets or configmaps
   envFrom: []
 

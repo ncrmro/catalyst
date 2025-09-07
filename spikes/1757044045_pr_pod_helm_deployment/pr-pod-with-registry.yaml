@@ -2,7 +2,6 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: pr-pod-registry-deploy
-  namespace: default
 spec:
   backoffLimit: 0
   template:
@@ -10,356 +9,356 @@ spec:
       serviceAccountName: pull-request-job-pod
       restartPolicy: Never
       imagePullSecrets:
-      - name: ghcr-registry-secret
+        - name: ghcr-registry-secret
       containers:
-      - name: pr-builder
-        image: ghcr.io/ncrmro/catalyst/pr-job-pod:latest
-        env:
-        - name: GITHUB_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: github-pat-secret
-              key: token
-        - name: GITHUB_GHCR_PAT
-          valueFrom:
-            secretKeyRef:
-              name: github-pat-secret
-              key: ghcr_token
-        - name: REPO_URL
-          value: "https://github.com/ncrmro/catalyst.git"
-        - name: PR_BRANCH
-          value: "main"
-        - name: PR_NUMBER
-          value: "000"
-        - name: REGISTRY_URL
-          value: "ghcr.io"
-        - name: GITHUB_USER
-          value: "ncrmro"
-        - name: IMAGE_NAME
-          value: "catalyst/web"
-        - name: DOCKERFILE_PATH
-          value: "web/Dockerfile"
-        - name: PACKAGE_JSON_PATH
-          value: "web/package.json"
-        - name: DOCKER_BAKE_PATH
-          value: "web/docker-bake.yml"
-        command:
-        - /bin/sh
-        - -c
-        - |
-          set -e
-          
-          echo ""
-          echo "=== Authenticating with GHCR (Early Debug) ==="
-          echo ""
-          
-          # Login to GitHub Container Registry using classic PAT - moved early for debugging
-          echo "Logging into GHCR..."
-          echo "Using GITHUB_USER: $GITHUB_USER"
-          echo "GHCR PAT length: ${#GITHUB_GHCR_PAT}"
-          echo "$GITHUB_GHCR_PAT" | docker login ghcr.io -u "$GITHUB_USER" --password-stdin
-          echo "✓ Successfully logged into GHCR"
-          
-          echo ""
-          echo "=== Setting up Git Configuration ==="
-          echo ""
-          
-          echo "Setting up git configuration..."
-          git config --global credential.helper '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN"; }; f'
-          
-          # Check if repository already exists in cache
-          if [ -d /workspace/.git ]; then
-            echo "Found existing repository in cache, fetching updates..."
-            cd /workspace
-            git fetch origin
-            git checkout $PR_BRANCH
-            git pull origin $PR_BRANCH
-            echo "Repository updated from cache!"
-          else
-            echo "No cache found, cloning repository..."
-            git clone $REPO_URL /workspace
-            cd /workspace
-            echo "Checking out PR branch..."
-            git checkout $PR_BRANCH
-            echo "Repository cloned and cached!"
-          fi
-          
-          echo "Repository ready!"
-          echo "Git status:"
-          git status
-          
-          echo "Git directory size (cached):"
-          du -sh .git
-          
-          echo ""
-          echo "=== Checking specified files ==="
-          echo ""
-          
-          # File paths are now provided as environment variables
-          echo "Using paths from environment variables:"
-          echo "  DOCKERFILE_PATH: $DOCKERFILE_PATH"
-          echo "  PACKAGE_JSON_PATH: $PACKAGE_JSON_PATH"
-          echo "  DOCKER_BAKE_PATH: $DOCKER_BAKE_PATH"
-          
-          echo "Checking package.json at path: $PACKAGE_JSON_PATH"
-          if [ -f "$PACKAGE_JSON_PATH" ]; then
-            echo "✓ Found package.json"
-          else
-            echo "✗ package.json not found at $PACKAGE_JSON_PATH"
-          fi
-          
-          echo "Checking Dockerfile at path: $DOCKERFILE_PATH"
-          if [ -f "$DOCKERFILE_PATH" ]; then
-            echo "✓ Found Dockerfile"
-          else
-            echo "✗ Dockerfile not found at $DOCKERFILE_PATH"
-          fi
-          
-          echo "Checking docker-bake manifest at path: $DOCKER_BAKE_PATH"
-          if [ -f "$DOCKER_BAKE_PATH" ]; then
-            echo "✓ Found docker-bake.yml"
-          else
-            echo "✗ docker-bake.yml not found at $DOCKER_BAKE_PATH"
-          fi
-          
-          echo ""
-          echo "=== Verifying pre-installed tools ==="
-          echo ""
-          
-          # Tools are pre-installed in the ghcr.io/ncrmro/catalyst/pr-job-pod:latest image
-          echo "Checking pre-installed tools..."
-          helm version --short || echo "Helm version check failed"
-          kubectl version --client || echo "kubectl version check failed"
-          git --version || echo "Git version check failed"
-          docker --version || echo "Docker version check failed"
-          echo "✓ All tools verified"
-          
-          echo ""
-          echo "=== Setting up buildx kubernetes builder ==="
-          echo ""
-          
-          # Check if builder already exists
-          if docker buildx inspect k8s-builder >/dev/null 2>&1; then
-            echo "Found existing k8s-builder, using it..."
-            docker buildx use k8s-builder
-            echo "Verifying existing builder status..."
-            docker buildx inspect --bootstrap
-          else
-            echo "No existing builder found, creating new k8s-builder..."
-            docker buildx create --driver kubernetes --name k8s-builder --bootstrap
-            
-            # Use the kubernetes builder
-            echo "Using new kubernetes builder..."
-            docker buildx use k8s-builder
-            
-            # Verify builder is ready
-            echo "Verifying new builder status..."
-            docker buildx inspect --bootstrap
-          fi
-          
-          echo ""
-          echo "=== Building and Pushing to GHCR ==="
-          echo ""
-          
-          # Define image tags using PR number
-          FULL_IMAGE_NAME="$REGISTRY_URL/$GITHUB_USER/$IMAGE_NAME"
-          PR_TAG="pr-$PR_NUMBER"
-          CACHE_TAG="pr-$PR_NUMBER-cache"
-          
-          echo "Building with tags:"
-          echo "  Image: $FULL_IMAGE_NAME"
-          echo "  PR Tag: $PR_TAG"
-          echo "  Cache Tag: $CACHE_TAG"
-          
-          if [ -f "$DOCKER_BAKE_PATH" ] && [ -f "$DOCKERFILE_PATH" ]; then
-            echo "Building and pushing all targets using docker buildx bake..."
-            cd web
-            
-            # Adjust paths for the web directory context
-            BAKE_FILE=$(basename "$DOCKER_BAKE_PATH")
-            
-            # List available targets in bake file
-            echo "Available bake targets:"
-            docker buildx bake --file "$BAKE_FILE" --print | grep -E '"target":|"context":' || echo "Could not parse bake targets"
-            
-            # Build and push using the bake file with GHCR output and cache
-            docker buildx bake --file "$BAKE_FILE" \
-              --set "*.output=type=registry" \
-              --set "*.tags=$FULL_IMAGE_NAME:$PR_TAG" \
-              --set "*.cache-from=type=registry,ref=$FULL_IMAGE_NAME:$CACHE_TAG" \
-              --set "*.cache-to=type=registry,ref=$FULL_IMAGE_NAME:$CACHE_TAG,mode=max"
-            echo "✓ Images built and pushed to GHCR with cache"
-            
-          elif [ -f "$DOCKERFILE_PATH" ]; then
-            echo "No bake file found, building and pushing single image..."
-            cd web
-            docker buildx build --platform linux/amd64 \
-              --tag "$FULL_IMAGE_NAME:$PR_TAG" \
-              --cache-from "type=registry,ref=$FULL_IMAGE_NAME:$CACHE_TAG" \
-              --cache-to "type=registry,ref=$FULL_IMAGE_NAME:$CACHE_TAG,mode=max" \
-              --push .
-            echo "✓ Image built and pushed to GHCR with cache"
-          else
-            echo "✗ Cannot build - Dockerfile not found"
-            if [ ! -f "$DOCKER_BAKE_PATH" ]; then
-              echo "✗ docker-bake.yml also not found"
-            fi
-            exit 1
-          fi
-          
-          echo ""
-          echo "=== Creating Simple Web App Chart ==="
-          echo ""
-          
-          # Create a simple Helm chart for the web app
-          mkdir -p /tmp/web-app-chart/templates
-          
-          cat > /tmp/web-app-chart/Chart.yaml << EOL
-          apiVersion: v2
-          name: web-app
-          description: Simple web app chart for PR deployments
-          version: 0.1.0
-          appVersion: "pr-$PR_NUMBER"
-          EOL
-          
-          cat > /tmp/web-app-chart/values.yaml << EOL
-          image:
-            repository: $FULL_IMAGE_NAME
-            tag: $PR_TAG
-            pullPolicy: Always
-          
-          imagePullSecrets:
-            - name: ghcr-registry-secret
-          
-          service:
-            type: ClusterIP
-            port: 3000
-          
-          replicas: 1
-          EOL
-          
-          cat > /tmp/web-app-chart/templates/deployment.yaml << 'EOL'
-          apiVersion: apps/v1
-          kind: Deployment
-          metadata:
-            name: {{ .Chart.Name }}
-            labels:
-              app: {{ .Chart.Name }}
-          spec:
-            replicas: {{ .Values.replicas }}
-            selector:
-              matchLabels:
-                app: {{ .Chart.Name }}
-            template:
-              metadata:
-                labels:
-                  app: {{ .Chart.Name }}
-              spec:
-                {{- if .Values.imagePullSecrets }}
-                imagePullSecrets:
-                {{- range .Values.imagePullSecrets }}
-                - name: {{ .name }}
-                {{- end }}
-                {{- end }}
-                containers:
-                - name: web
-                  image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-                  imagePullPolicy: {{ .Values.image.pullPolicy }}
-                  ports:
-                  - containerPort: 3000
-          EOL
-          
-          cat > /tmp/web-app-chart/templates/service.yaml << 'EOL'
-          apiVersion: v1
-          kind: Service
-          metadata:
-            name: {{ .Chart.Name }}
-            labels:
-              app: {{ .Chart.Name }}
-          spec:
-            type: {{ .Values.service.type }}
-            ports:
-            - port: {{ .Values.service.port }}
-              targetPort: 3000
-            selector:
-              app: {{ .Chart.Name }}
-          EOL
-          
-          echo "✓ Web app chart created"
-          
-          echo ""
-          echo "=== Creating Registry Credential Secret ==="
-          echo ""
-          
-          # Create a Docker registry secret for the deployment
-          kubectl delete secret ghcr-registry-secret --ignore-not-found=true
-          kubectl create secret docker-registry ghcr-registry-secret \
-            --docker-server=ghcr.io \
-            --docker-username="$GITHUB_USER" \
-            --docker-password="$GITHUB_GHCR_PAT" \
-            --docker-email="$GITHUB_USER@users.noreply.github.com"
-          echo "✓ Registry credential secret created"
-          
-          echo ""
-          echo "=== Deploying with Helm ==="
-          echo ""
-          
-          # Deploy the web app using Helm
-          echo "Installing/upgrading web-app with Helm..."
-          echo "Using image: $FULL_IMAGE_NAME:$PR_TAG"
-          helm upgrade --install web-app /tmp/web-app-chart \
-            --set image.repository="$FULL_IMAGE_NAME" \
-            --set image.tag="$PR_TAG" \
-            --set imagePullSecrets[0].name="ghcr-registry-secret" \
-            --wait --timeout=2m
-          
-          echo "✓ Helm deployment completed"
-          
-          echo ""
-          echo "=== Deployment Status ==="
-          echo ""
-          
-          # Show deployment status
-          echo "Checking deployment status..."
-          kubectl get deployments web-app || echo "Deployment not found"
-          kubectl get pods -l app=web-app || echo "Pods not found"
-          kubectl get services web-app || echo "Service not found"
-          
-          echo ""
-          echo "=== Testing kubectl Operations ==="
-          echo ""
-          
-          # Test scaling the deployment
-          echo "Scaling deployment to 2 replicas..."
-          kubectl scale deployment web-app --replicas=2
-          
-          # Wait a bit for scaling
-          sleep 5
-          
-          # Check replica sets
-          echo "Checking ReplicaSets..."
-          kubectl get replicasets -l app=web-app || echo "ReplicaSets not found"
-          
-          # Check scaled pods
-          echo "Checking scaled pods..."
-          kubectl get pods -l app=web-app || echo "Pods not found"
-          
-          echo ""
-          echo "PR pod registry deployment complete!"
-        volumeMounts:
-        - name: git-cache
-          mountPath: /workspace
-        - name: helm-cache
-          mountPath: /helm-cache
-        - name: docker-sock
-          mountPath: /var/run/docker.sock
+        - name: pr-builder
+          image: ghcr.io/ncrmro/catalyst/pr-job-pod:latest
+          env:
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: github-pat-secret
+                  key: token
+            - name: GITHUB_GHCR_PAT
+              valueFrom:
+                secretKeyRef:
+                  name: github-pat-secret
+                  key: ghcr_token
+            - name: REPO_URL
+              value: "https://github.com/ncrmro/catalyst.git"
+            - name: PR_BRANCH
+              value: "main"
+            - name: PR_NUMBER
+              value: "000"
+            - name: REGISTRY_URL
+              value: "ghcr.io"
+            - name: GITHUB_USER
+              value: "ncrmro"
+            - name: IMAGE_NAME
+              value: "catalyst/web"
+            - name: DOCKERFILE_PATH
+              value: "web/Dockerfile"
+            - name: PACKAGE_JSON_PATH
+              value: "web/package.json"
+            - name: DOCKER_BAKE_PATH
+              value: "web/docker-bake.yml"
+            - name: NEEDS_BUILD
+              value: "true"
+            - name: TARGET_NAMESPACE
+              value: "catalyst-web-pr-000"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+
+              echo ""
+              echo "=== Authenticating with GHCR (Early Debug) ==="
+              echo ""
+
+              # Login to GitHub Container Registry using classic PAT - moved early for debugging
+              echo "Logging into GHCR..."
+              echo "Using GITHUB_USER: $GITHUB_USER"
+              echo "GHCR PAT length: ${#GITHUB_GHCR_PAT}"
+              echo "$GITHUB_GHCR_PAT" | docker login ghcr.io -u "$GITHUB_USER" --password-stdin
+              echo "✓ Successfully logged into GHCR"
+
+              echo ""
+              echo "=== Setting up Git Configuration ==="
+              echo ""
+
+              echo "Setting up git configuration..."
+              git config --global credential.helper '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN"; }; f'
+
+              # Check if repository already exists in cache
+              if [ -d /workspace/.git ]; then
+                echo "Found existing repository in cache, fetching updates..."
+                cd /workspace
+                git fetch origin
+                git checkout $PR_BRANCH
+                git pull origin $PR_BRANCH
+                echo "Repository updated from cache!"
+              else
+                echo "No cache found, cloning repository..."
+                git clone $REPO_URL /workspace
+                cd /workspace
+                echo "Checking out PR branch..."
+                git checkout $PR_BRANCH
+                echo "Repository cloned and cached!"
+              fi
+
+              echo "Repository ready!"
+              echo "Git status:"
+              git status
+
+              echo "Git directory size (cached):"
+              du -sh .git
+
+              echo ""
+              echo "=== Checking specified files ==="
+              echo ""
+
+              # File paths are now provided as environment variables
+              echo "Using paths from environment variables:"
+              echo "  DOCKERFILE_PATH: $DOCKERFILE_PATH"
+              echo "  PACKAGE_JSON_PATH: $PACKAGE_JSON_PATH"
+              echo "  DOCKER_BAKE_PATH: $DOCKER_BAKE_PATH"
+
+              echo "Checking package.json at path: $PACKAGE_JSON_PATH"
+              if [ -f "$PACKAGE_JSON_PATH" ]; then
+                echo "✓ Found package.json"
+              else
+                echo "✗ package.json not found at $PACKAGE_JSON_PATH"
+              fi
+
+              echo "Checking Dockerfile at path: $DOCKERFILE_PATH"
+              if [ -f "$DOCKERFILE_PATH" ]; then
+                echo "✓ Found Dockerfile"
+              else
+                echo "✗ Dockerfile not found at $DOCKERFILE_PATH"
+              fi
+
+              echo "Checking docker-bake manifest at path: $DOCKER_BAKE_PATH"
+              if [ -f "$DOCKER_BAKE_PATH" ]; then
+                echo "✓ Found docker-bake.yml"
+              else
+                echo "✗ docker-bake.yml not found at $DOCKER_BAKE_PATH"
+              fi
+
+              echo ""
+              echo "=== Verifying pre-installed tools ==="
+              echo ""
+
+              # Tools are pre-installed in the ghcr.io/ncrmro/catalyst/pr-job-pod:latest image
+              echo "Checking pre-installed tools..."
+              helm version --short || echo "Helm version check failed"
+              kubectl version --client || echo "kubectl version check failed"
+              git --version || echo "Git version check failed"
+              docker --version || echo "Docker version check failed"
+              echo "✓ All tools verified"
+
+              echo ""
+              echo "=== Setting up buildx kubernetes builder ==="
+              echo ""
+
+              # Check if builder already exists
+              if docker buildx inspect k8s-builder >/dev/null 2>&1; then
+                echo "Found existing k8s-builder, using it..."
+                docker buildx use k8s-builder
+                echo "Verifying existing builder status..."
+                docker buildx inspect --bootstrap
+              else
+                echo "No existing builder found, creating new k8s-builder..."
+                docker buildx create --driver kubernetes --name k8s-builder --bootstrap
+                
+                # Use the kubernetes builder
+                echo "Using new kubernetes builder..."
+                docker buildx use k8s-builder
+                
+                # Verify builder is ready
+                echo "Verifying new builder status..."
+                docker buildx inspect --bootstrap
+              fi
+
+              # Define image tags using PR number
+              FULL_IMAGE_NAME="$REGISTRY_URL/$GITHUB_USER/$IMAGE_NAME"
+              PR_TAG="pr-$PR_NUMBER"
+              CACHE_TAG="pr-$PR_NUMBER-cache"
+
+              if [ "$NEEDS_BUILD" = "true" ]; then
+                echo ""
+                echo "=== Building and Pushing to GHCR ==="
+                echo ""
+                
+                echo "Building with tags:"
+                echo "  Image: $FULL_IMAGE_NAME"
+                echo "  PR Tag: $PR_TAG"
+                echo "  Cache Tag: $CACHE_TAG"
+                
+                if [ -f "$DOCKER_BAKE_PATH" ] && [ -f "$DOCKERFILE_PATH" ]; then
+                  echo "Building and pushing all targets using docker buildx bake..."
+                  cd web
+                  
+                  # Adjust paths for the web directory context
+                  BAKE_FILE=$(basename "$DOCKER_BAKE_PATH")
+                  
+                  # List available targets in bake file
+                  echo "Available bake targets:"
+                  docker buildx bake --file "$BAKE_FILE" --print | grep -E '"target":|"context":' || echo "Could not parse bake targets"
+                  
+                  # Build and push using the bake file with specific tags for each target
+                  docker buildx bake --file "$BAKE_FILE" \
+                    --set "production.output=type=registry" \
+                    --set "production.tags=$FULL_IMAGE_NAME:$PR_TAG" \
+                    --set "production.cache-from=type=registry,ref=$FULL_IMAGE_NAME:main-cache" \
+                    --set "production.cache-from=type=registry,ref=$FULL_IMAGE_NAME:main-dev-cache" \
+                    --set "production.cache-from=type=registry,ref=$FULL_IMAGE_NAME:$CACHE_TAG" \
+                    --set "production.cache-to=type=registry,ref=$FULL_IMAGE_NAME:$CACHE_TAG,mode=max" \
+                    --set "development.output=type=registry" \
+                    --set "development.tags=$FULL_IMAGE_NAME:$PR_TAG-dev" \
+                    --set "development.cache-from=type=registry,ref=$FULL_IMAGE_NAME:main-dev-cache" \
+                    --set "development.cache-from=type=registry,ref=$FULL_IMAGE_NAME:main-cache" \
+                    --set "development.cache-from=type=registry,ref=$FULL_IMAGE_NAME:$CACHE_TAG-dev" \
+                    --set "development.cache-to=type=registry,ref=$FULL_IMAGE_NAME:$CACHE_TAG-dev,mode=max"
+                  echo "✓ Production and development images built and pushed to GHCR with cache"
+                  
+                elif [ -f "$DOCKERFILE_PATH" ]; then
+                  echo "No bake file found, building and pushing both production and development images..."
+                  cd web
+                  
+                  # Build production image
+                  echo "Building production image..."
+                  docker buildx build --platform linux/amd64 \
+                    --target runner \
+                    --tag "$FULL_IMAGE_NAME:$PR_TAG" \
+                    --cache-from "type=registry,ref=$FULL_IMAGE_NAME:main-cache" \
+                    --cache-from "type=registry,ref=$FULL_IMAGE_NAME:$CACHE_TAG" \
+                    --cache-to "type=registry,ref=$FULL_IMAGE_NAME:$CACHE_TAG,mode=max" \
+                    --push .
+                  
+                  # Build development image
+                  echo "Building development image..."
+                  docker buildx build --platform linux/amd64 \
+                    --target development \
+                    --tag "$FULL_IMAGE_NAME:$PR_TAG-dev" \
+                    --cache-from "type=registry,ref=$FULL_IMAGE_NAME:main-dev-cache" \
+                    --cache-from "type=registry,ref=$FULL_IMAGE_NAME:$CACHE_TAG-dev" \
+                    --cache-to "type=registry,ref=$FULL_IMAGE_NAME:$CACHE_TAG-dev,mode=max" \
+                    --push .
+                  
+                  echo "✓ Production and development images built and pushed to GHCR with cache"
+                else
+                  echo "✗ Cannot build - Dockerfile not found"
+                  if [ ! -f "$DOCKER_BAKE_PATH" ]; then
+                    echo "✗ docker-bake.yml also not found"
+                  fi
+                  exit 1
+                fi
+                cd /workspace
+              else
+                echo ""
+                echo "=== Skipping Build (NEEDS_BUILD=false) ==="
+                echo ""
+                echo "Using existing image tags:"
+                echo "  Image: $FULL_IMAGE_NAME"
+                echo "  PR Tag: $PR_TAG"
+                echo "✓ Build skipped - using existing images"
+              fi
+
+              echo ""
+              echo "=== Setting Helm Chart Path ==="
+              echo ""
+
+              # Use the existing nextjs chart from the repository
+              HELM_CHART_PATH="/workspace/charts/nextjs"
+
+              if [ ! -d "$HELM_CHART_PATH" ]; then
+                echo "✗ Helm chart not found at $HELM_CHART_PATH"
+                exit 1
+              fi
+
+              echo "✓ Using Helm chart from $HELM_CHART_PATH"
+
+              echo ""
+              echo "=== Creating Registry Credential Secret ==="
+              echo ""
+
+              # Create a Docker registry secret for the deployment
+              kubectl delete secret ghcr-registry-secret --ignore-not-found=true
+              kubectl create secret docker-registry ghcr-registry-secret \
+                --docker-server=ghcr.io \
+                --docker-username="$GITHUB_USER" \
+                --docker-password="$GITHUB_GHCR_PAT" \
+                --docker-email="$GITHUB_USER@users.noreply.github.com"
+              echo "✓ Registry credential secret created"
+
+              echo ""
+              echo "=== Deploying with Helm ==="
+              echo ""
+
+              # Deploy the web app using Helm
+              echo "Installing/upgrading web-app with Helm..."
+              echo "Using production image: $FULL_IMAGE_NAME:$PR_TAG"
+              echo "Using development image: $FULL_IMAGE_NAME:$PR_TAG-dev"
+              echo "Note: PostgreSQL subchart is included and will be deployed"
+              helm upgrade --install web-app "$HELM_CHART_PATH" \
+                --namespace "$TARGET_NAMESPACE" \
+                --set image.repository="$FULL_IMAGE_NAME" \
+                --set image.tag="$PR_TAG" \
+                --set image.pullPolicy="IfNotPresent" \
+                --set developmentImage.repository="$FULL_IMAGE_NAME" \
+                --set developmentImage.tag="$PR_TAG-dev" \
+                --set developmentImage.pullPolicy="IfNotPresent" \
+                --set imagePullSecrets[0].name="ghcr-registry-secret" \
+                --set postgresql.enabled=true \
+                --set postgresql.auth.username="nextjs" \
+                --set postgresql.auth.database="nextjs" \
+                --set postgresql.auth.existingSecret="nextjs-database" \
+                --set nextjs.env[0].name="GITHUB_APP_ID" \
+                --set nextjs.env[0].value="stub-app-id" \
+                --set nextjs.env[1].name="GITHUB_PRIVATE_KEY" \
+                --set nextjs.env[1].value="stub-private-key" \
+                --set nextjs.env[2].name="TOKEN_ENCRYPTION_KEY" \
+                --set nextjs.env[2].value="stub-encryption-key" \
+                --wait --timeout=2m
+
+              echo "✓ Helm deployment completed"
+
+              echo ""
+              echo "=== Deployment Status ==="
+              echo ""
+
+              # Show deployment status using correct nextjs chart naming
+              echo "Checking deployment status..."
+              kubectl get deployments web-app --namespace "$TARGET_NAMESPACE" || echo "Deployment not found"
+              kubectl get pods -l app.kubernetes.io/name=nextjs,app.kubernetes.io/instance=web-app --namespace "$TARGET_NAMESPACE" || echo "Pods not found"
+              kubectl get services web-app --namespace "$TARGET_NAMESPACE" || echo "Service not found"
+
+              echo ""
+              echo "=== Running Helm Tests ==="
+              echo ""
+
+              # Run helm tests to validate the deployment
+              echo "Running helm tests for web-app..."
+              helm test web-app --namespace "$TARGET_NAMESPACE" || echo "Helm tests failed or not available"
+
+              echo ""
+              echo "=== Testing kubectl Operations ==="
+              echo ""
+
+              # Test scaling the deployment
+              echo "Scaling deployment to 2 replicas..."
+              kubectl scale deployment web-app --replicas=2 --timeout=30s --namespace "$TARGET_NAMESPACE"
+
+              # Check replica sets using correct labels
+              echo "Checking ReplicaSets..."
+              kubectl get replicasets -l app.kubernetes.io/name=nextjs,app.kubernetes.io/instance=web-app --namespace "$TARGET_NAMESPACE"
+
+              # Check scaled pods using correct labels
+              echo "Checking scaled pods..."
+              kubectl get pods -l app.kubernetes.io/name=nextjs,app.kubernetes.io/instance=web-app --namespace "$TARGET_NAMESPACE"
+
+              # Scale back down to 1 replica
+              echo "Scaling back to 1 replica..."
+              kubectl scale deployment web-app --replicas=1 --timeout=30s --namespace "$TARGET_NAMESPACE"
+
+              echo ""
+              echo "PR pod registry deployment complete!"
+          volumeMounts:
+            - name: git-cache
+              mountPath: /workspace
+            - name: helm-cache
+              mountPath: /helm-cache
+            - name: docker-sock
+              mountPath: /var/run/docker.sock
       volumes:
-      - name: git-cache
-        persistentVolumeClaim:
-          claimName: git-cache-pvc
-      - name: helm-cache
-        persistentVolumeClaim:
-          claimName: helm-cache-pvc
-      - name: docker-sock
-        hostPath:
-          path: /var/run/docker.sock
+        - name: git-cache
+          persistentVolumeClaim:
+            claimName: git-cache-pvc
+        - name: helm-cache
+          persistentVolumeClaim:
+            claimName: helm-cache-pvc
+        - name: docker-sock
+          hostPath:
+            path: /var/run/docker.sock
+
