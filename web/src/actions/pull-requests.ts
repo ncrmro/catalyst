@@ -151,11 +151,16 @@ async function fetchGitFoobarPullRequests(): Promise<PullRequest[]> {
   return [];
 }
 
+export interface PullRequestsResult {
+  pullRequests: PullRequest[];
+  hasGitHubToken: boolean;
+}
+
 /**
  * Fetch pull requests from all configured providers
  * Combines results from GitHub and gitfoobar providers
  */
-export async function fetchUserPullRequests(): Promise<PullRequest[]> {
+export async function fetchUserPullRequestsWithTokenStatus(): Promise<PullRequestsResult> {
   // Check if we should return mocked data (using same env var as GitHub repos)
   const githubReposMode = process.env.GITHUB_REPOS_MODE;
   const mocked = process.env.MOCKED === '1';
@@ -164,8 +169,24 @@ export async function fetchUserPullRequests(): Promise<PullRequest[]> {
   
   if (githubReposMode === 'mocked' || mocked) {
     console.log('Returning mocked pull requests data');
-    return getMockPullRequests();
+    return {
+      pullRequests: getMockPullRequests(),
+      hasGitHubToken: true, // Assume we have token in mocked mode
+    };
   }
+
+  const session = await auth();
+  
+  if (!session?.user?.id) {
+    return {
+      pullRequests: [],
+      hasGitHubToken: false,
+    };
+  }
+
+  // Check if user has GitHub tokens
+  const tokens = await refreshTokenIfNeeded(session.user.id);
+  const hasGitHubToken = !!tokens;
 
   try {
     // Fetch from all providers in parallel
@@ -177,13 +198,24 @@ export async function fetchUserPullRequests(): Promise<PullRequest[]> {
     // Combine all pull requests and sort by updated date (newest first)
     const allPullRequests = [...githubPrs, ...gitfoobarPrs];
     
-    return allPullRequests.sort((a, b) => 
-      new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-    );
+    return {
+      pullRequests: allPullRequests.sort((a, b) => 
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      ),
+      hasGitHubToken,
+    };
   } catch (error) {
     console.error('Error fetching user pull requests:', error);
-    return [];
+    return {
+      pullRequests: [],
+      hasGitHubToken,
+    };
   }
+}
+
+export async function fetchUserPullRequests(): Promise<PullRequest[]> {
+  const result = await fetchUserPullRequestsWithTokenStatus();
+  return result.pullRequests;
 }
 
 /**
