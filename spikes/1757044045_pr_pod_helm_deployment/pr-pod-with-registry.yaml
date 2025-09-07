@@ -4,25 +4,39 @@ metadata:
   name: pr-pod-registry-deploy
   namespace: default
 spec:
+  backoffLimit: 0
   template:
     spec:
       serviceAccountName: pull-request-job-pod
       restartPolicy: Never
+      imagePullSecrets:
+      - name: ghcr-registry-secret
       containers:
       - name: pr-builder
-        image: docker:24-git
+        image: ghcr.io/ncrmro/catalyst/pr-job-pod:latest
         env:
         - name: GITHUB_TOKEN
           valueFrom:
             secretKeyRef:
               name: github-pat-secret
               key: token
+        - name: GITHUB_GHCR_PAT
+          valueFrom:
+            secretKeyRef:
+              name: github-pat-secret
+              key: ghcr_token
         - name: REPO_URL
           value: "https://github.com/ncrmro/catalyst.git"
         - name: PR_BRANCH
           value: "main"
+        - name: PR_NUMBER
+          value: "000"
         - name: REGISTRY_URL
-          value: "registry.registry.svc.cluster.local:5000"
+          value: "ghcr.io"
+        - name: GITHUB_USER
+          value: "ncrmro"
+        - name: IMAGE_NAME
+          value: "catalyst/web"
         - name: DOCKERFILE_PATH
           value: "web/Dockerfile"
         - name: PACKAGE_JSON_PATH
@@ -34,6 +48,22 @@ spec:
         - -c
         - |
           set -e
+          
+          echo ""
+          echo "=== Authenticating with GHCR (Early Debug) ==="
+          echo ""
+          
+          # Login to GitHub Container Registry using classic PAT - moved early for debugging
+          echo "Logging into GHCR..."
+          echo "Using GITHUB_USER: $GITHUB_USER"
+          echo "GHCR PAT length: ${#GITHUB_GHCR_PAT}"
+          echo "$GITHUB_GHCR_PAT" | docker login ghcr.io -u "$GITHUB_USER" --password-stdin
+          echo "✓ Successfully logged into GHCR"
+          
+          echo ""
+          echo "=== Setting up Git Configuration ==="
+          echo ""
+          
           echo "Setting up git configuration..."
           git config --global credential.helper '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN"; }; f'
           
@@ -93,68 +123,53 @@ spec:
           fi
           
           echo ""
-          echo "=== Setting up APK cache and installing tools ==="
+          echo "=== Verifying pre-installed tools ==="
           echo ""
           
-          # Set up APK cache directory in persistent volume
-          mkdir -p /helm-cache/apk
-          
-          # Configure APK to use the cache
-          echo "Configuring APK cache..."
-          ln -sf /helm-cache/apk /etc/apk/cache || true
-          
-          # Update APK repositories
-          apk update
-          
-          echo "Installing Helm via APK..."
-          if command -v helm >/dev/null 2>&1; then
-            echo "✓ Helm already installed"
-          else
-            apk add --cache-dir=/helm-cache/apk helm
-            echo "✓ Helm installed via APK"
-          fi
-          
-          # Verify Helm installation
+          # Tools are pre-installed in the ghcr.io/ncrmro/catalyst/pr-job-pod:latest image
+          echo "Checking pre-installed tools..."
           helm version --short || echo "Helm version check failed"
-          
-          echo "Installing kubectl via APK..."
-          if command -v kubectl >/dev/null 2>&1; then
-            echo "✓ kubectl already installed"
-          else
-            apk add --cache-dir=/helm-cache/apk kubectl
-            echo "✓ kubectl installed via APK"
-          fi
-          
-          # Verify kubectl installation
-          kubectl version --client --short || echo "kubectl version check failed"
-          
-          echo "Installing curl via APK..."
-          if command -v curl >/dev/null 2>&1; then
-            echo "✓ curl already installed"
-          else
-            apk add --cache-dir=/helm-cache/apk curl
-            echo "✓ curl installed via APK"
-          fi
+          kubectl version --client || echo "kubectl version check failed"
+          git --version || echo "Git version check failed"
+          docker --version || echo "Docker version check failed"
+          echo "✓ All tools verified"
           
           echo ""
           echo "=== Setting up buildx kubernetes builder ==="
           echo ""
           
-          # Create buildx kubernetes builder
-          echo "Creating buildx kubernetes builder..."
-          docker buildx create --driver kubernetes --name k8s-builder --bootstrap || echo "Builder already exists or failed to create"
-          
-          # Use the kubernetes builder
-          echo "Using kubernetes builder..."
-          docker buildx use k8s-builder
-          
-          # Verify builder is ready
-          echo "Verifying builder status..."
-          docker buildx inspect --bootstrap
+          # Check if builder already exists
+          if docker buildx inspect k8s-builder >/dev/null 2>&1; then
+            echo "Found existing k8s-builder, using it..."
+            docker buildx use k8s-builder
+            echo "Verifying existing builder status..."
+            docker buildx inspect --bootstrap
+          else
+            echo "No existing builder found, creating new k8s-builder..."
+            docker buildx create --driver kubernetes --name k8s-builder --bootstrap
+            
+            # Use the kubernetes builder
+            echo "Using new kubernetes builder..."
+            docker buildx use k8s-builder
+            
+            # Verify builder is ready
+            echo "Verifying new builder status..."
+            docker buildx inspect --bootstrap
+          fi
           
           echo ""
-          echo "=== Building and Pushing to Registry ==="
+          echo "=== Building and Pushing to GHCR ==="
           echo ""
+          
+          # Define image tags using PR number
+          FULL_IMAGE_NAME="$REGISTRY_URL/$GITHUB_USER/$IMAGE_NAME"
+          PR_TAG="pr-$PR_NUMBER"
+          CACHE_TAG="pr-$PR_NUMBER-cache"
+          
+          echo "Building with tags:"
+          echo "  Image: $FULL_IMAGE_NAME"
+          echo "  PR Tag: $PR_TAG"
+          echo "  Cache Tag: $CACHE_TAG"
           
           if [ -f "$DOCKER_BAKE_PATH" ] && [ -f "$DOCKERFILE_PATH" ]; then
             echo "Building and pushing all targets using docker buildx bake..."
@@ -167,19 +182,23 @@ spec:
             echo "Available bake targets:"
             docker buildx bake --file "$BAKE_FILE" --print | grep -E '"target":|"context":' || echo "Could not parse bake targets"
             
-            # Build and push using the bake file with registry output
-            # Override output to push to registry while using existing targets
-            docker buildx bake --file "$BAKE_FILE" --set "*.output=type=registry" --set "*.tags=$REGISTRY_URL/catalyst-web:latest" --set "*.tags=$REGISTRY_URL/catalyst-web:pr-$PR_BRANCH"
-            echo "✓ Images built and pushed to registry"
+            # Build and push using the bake file with GHCR output and cache
+            docker buildx bake --file "$BAKE_FILE" \
+              --set "*.output=type=registry" \
+              --set "*.tags=$FULL_IMAGE_NAME:$PR_TAG" \
+              --set "*.cache-from=type=registry,ref=$FULL_IMAGE_NAME:$CACHE_TAG" \
+              --set "*.cache-to=type=registry,ref=$FULL_IMAGE_NAME:$CACHE_TAG,mode=max"
+            echo "✓ Images built and pushed to GHCR with cache"
             
           elif [ -f "$DOCKERFILE_PATH" ]; then
             echo "No bake file found, building and pushing single image..."
             cd web
             docker buildx build --platform linux/amd64 \
-              --tag "$REGISTRY_URL/catalyst-web:latest" \
-              --tag "$REGISTRY_URL/catalyst-web:pr-$PR_BRANCH" \
+              --tag "$FULL_IMAGE_NAME:$PR_TAG" \
+              --cache-from "type=registry,ref=$FULL_IMAGE_NAME:$CACHE_TAG" \
+              --cache-to "type=registry,ref=$FULL_IMAGE_NAME:$CACHE_TAG,mode=max" \
               --push .
-            echo "✓ Image built and pushed to registry"
+            echo "✓ Image built and pushed to GHCR with cache"
           else
             echo "✗ Cannot build - Dockerfile not found"
             if [ ! -f "$DOCKER_BAKE_PATH" ]; then
@@ -200,14 +219,17 @@ spec:
           name: web-app
           description: Simple web app chart for PR deployments
           version: 0.1.0
-          appVersion: "pr-$PR_BRANCH"
+          appVersion: "pr-$PR_NUMBER"
           EOL
           
           cat > /tmp/web-app-chart/values.yaml << EOL
           image:
-            repository: $REGISTRY_URL/catalyst-web
-            tag: pr-$PR_BRANCH
+            repository: $FULL_IMAGE_NAME
+            tag: $PR_TAG
             pullPolicy: Always
+          
+          imagePullSecrets:
+            - name: ghcr-registry-secret
           
           service:
             type: ClusterIP
@@ -233,6 +255,12 @@ spec:
                 labels:
                   app: {{ .Chart.Name }}
               spec:
+                {{- if .Values.imagePullSecrets }}
+                imagePullSecrets:
+                {{- range .Values.imagePullSecrets }}
+                - name: {{ .name }}
+                {{- end }}
+                {{- end }}
                 containers:
                 - name: web
                   image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -260,14 +288,29 @@ spec:
           echo "✓ Web app chart created"
           
           echo ""
+          echo "=== Creating Registry Credential Secret ==="
+          echo ""
+          
+          # Create a Docker registry secret for the deployment
+          kubectl delete secret ghcr-registry-secret --ignore-not-found=true
+          kubectl create secret docker-registry ghcr-registry-secret \
+            --docker-server=ghcr.io \
+            --docker-username="$GITHUB_USER" \
+            --docker-password="$GITHUB_GHCR_PAT" \
+            --docker-email="$GITHUB_USER@users.noreply.github.com"
+          echo "✓ Registry credential secret created"
+          
+          echo ""
           echo "=== Deploying with Helm ==="
           echo ""
           
           # Deploy the web app using Helm
           echo "Installing/upgrading web-app with Helm..."
+          echo "Using image: $FULL_IMAGE_NAME:$PR_TAG"
           helm upgrade --install web-app /tmp/web-app-chart \
-            --set image.repository="$REGISTRY_URL/catalyst-web" \
-            --set image.tag="pr-$PR_BRANCH" \
+            --set image.repository="$FULL_IMAGE_NAME" \
+            --set image.tag="$PR_TAG" \
+            --set imagePullSecrets[0].name="ghcr-registry-secret" \
             --wait --timeout=2m
           
           echo "✓ Helm deployment completed"

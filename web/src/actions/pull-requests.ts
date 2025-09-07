@@ -14,28 +14,41 @@ import { refreshTokenIfNeeded } from '@/lib/github-app/token-refresh';
 import { invalidateTokens } from '@/lib/github-app/token-refresh';
 
 /**
- * GitHub provider - fetches real pull requests from GitHub API using GitHub App tokens
+ * GitHub provider - fetches real pull requests from GitHub API using GitHub App tokens or PAT
  * Gets user's repositories and then fetches open pull requests from them
  */
-async function fetchGitHubPullRequests(): Promise<PullRequest[]> {
+async function fetchGitHubPullRequests(): Promise<{ pullRequests: PullRequest[]; authMethod: 'github-app' | 'pat' | 'none' }> {
   const session = await auth();
   
   if (!session?.user?.id) {
-    console.warn('No authenticated user found for fetching pull requests');
-    return [];
+    throw new Error('No authenticated user found for fetching pull requests');
   }
 
-  // Get tokens from the database, refreshing if needed
-  const tokens = await refreshTokenIfNeeded(session.user.id);
-  
-  if (!tokens) {
-    console.warn('No GitHub App tokens found for user. User may need to authorize the GitHub App');
-    return [];
-  }
+  // Check for GitHub Personal Access Token in environment (for local development)
+  const githubPat = process.env.GITHUB_PAT || process.env.GITHUB_TOKEN;
+  let octokit: Octokit;
+  let authMethod: 'github-app' | 'pat' | 'none' = 'none';
 
-  const octokit = new Octokit({
-    auth: tokens.accessToken,
-  });
+  if (githubPat) {
+    console.log('Using GitHub Personal Access Token for pull requests');
+    octokit = new Octokit({
+      auth: githubPat,
+    });
+    authMethod = 'pat';
+  } else {
+    // Get tokens from the database, refreshing if needed
+    const tokens = await refreshTokenIfNeeded(session.user.id);
+    
+    if (!tokens) {
+      console.warn('No GitHub App tokens found for user. User may need to authorize the GitHub App');
+      return { pullRequests: [], authMethod: 'none' };
+    }
+
+    octokit = new Octokit({
+      auth: tokens.accessToken,
+    });
+    authMethod = 'github-app';
+  }
 
   try {
     // First, get the authenticated user to filter PRs by author
@@ -154,6 +167,7 @@ async function fetchGitFoobarPullRequests(): Promise<PullRequest[]> {
 export interface PullRequestsResult {
   pullRequests: PullRequest[];
   hasGitHubToken: boolean;
+  authMethod: 'github-app' | 'pat' | 'none';
 }
 
 /**
