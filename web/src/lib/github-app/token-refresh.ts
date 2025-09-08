@@ -5,6 +5,30 @@ import { exchangeRefreshToken } from './auth';
 const EXPIRATION_BUFFER_MS = 5 * 60 * 1000;
 
 /**
+ * Check if an error indicates a permanent token failure that requires invalidation
+ * @param error The error to check
+ * @returns True if the error indicates a permanent failure
+ */
+function isPermanentTokenError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  
+  const err = error as { message?: string };
+  const message = err.message?.toLowerCase() || '';
+  
+  // These errors indicate the refresh token is permanently invalid
+  return (
+    message.includes('refresh token expired') ||
+    message.includes('refresh token is invalid') ||
+    message.includes('invalid_grant') ||
+    message.includes('bad_refresh_token') ||
+    message.includes('token_expired') ||
+    message.includes('authorization_revoked')
+  );
+}
+
+/**
  * Check if token needs refresh and refresh if needed
  * @param userId The user ID to check tokens for
  * @returns Valid tokens or null if re-authorization is needed
@@ -40,8 +64,16 @@ export async function refreshTokenIfNeeded(userId: string): Promise<GitHubTokens
       };
     } catch (error) {
       console.error('Failed to refresh token:', error);
-      // If refresh fails, return null to indicate re-authorization is needed
-      await invalidateTokens(userId);
+      
+      // Only invalidate tokens if it's a permanent failure
+      if (isPermanentTokenError(error)) {
+        console.log('Permanent token error detected, invalidating tokens');
+        await invalidateTokens(userId);
+      } else {
+        console.log('Temporary refresh failure, preserving tokens for retry');
+        // For temporary failures, keep the tokens as-is for retry later
+      }
+      
       return null;
     }
   }
