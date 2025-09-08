@@ -1,0 +1,16 @@
+# Staging values for singleton chart
+
+# Values for docker-registry subchart
+docker-registry:
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    hosts:
+      - cr.devbox.ncrmro.com
+    tls:
+      - secretName: registry-tls
+        hosts:
+          - cr.devbox.ncrmro.com

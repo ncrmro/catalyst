@@ -11,4 +11,10 @@ dependencies:
   - name: gha-runner-scale-set-controller
     version: 0.12.1
     repository: oci://ghcr.io/actions/actions-runner-controller-charts
+  - name: ingress-nginx
+    version: 4.11.3
+    repository: https://kubernetes.github.io/ingress-nginx
+  - name: docker-registry
+    version: 2.2.3
+    repository: https://helm.twun.io
 

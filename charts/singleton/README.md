@@ -39,6 +39,41 @@ gha-runner-scale-set-controller:
   createNamespace: true
 ```
 
+## Cluster Issuer Configuration
+
+This chart includes a ClusterIssuer for Let's Encrypt certificates using Cloudflare DNS challenge. The issuer requires a secret containing the Cloudflare API token.
+
+### Prerequisites
+
+Before installing the singleton chart, you must create a secret with your Cloudflare API token:
+
+```bash
+kubectl create secret generic cloudflare-api-token-secret \
+  --namespace=cert-manager \
+  --from-literal=api-token=your-cloudflare-api-token
+```
+
+### ClusterIssuer Configuration
+
+The chart includes a production ClusterIssuer that uses:
+- Let's Encrypt production server
+- Cloudflare DNS01 challenge solver
+- References the `cloudflare-api-token-secret` secret
+
+Example usage in your ingress:
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+  - hosts:
+    - your-domain.com
+    secretName: your-domain-tls
+```
+
 ## License
 
 See the parent project license for more information.

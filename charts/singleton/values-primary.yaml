@@ -1,0 +1,126 @@
+# Values for primary cluster
+# Overrides for singleton chart in production environment
+
+# cert-manager configuration
+cert-manager:
+  installCRDs: true
+  namespace: cert-manager
+
+# GitHub Actions Runner Controller
+gha-runner-scale-set-controller:
+  namespaceOverride: gh-arc-systems
+  createNamespace: true
+
+# ingress-nginx configuration
+ingress-nginx:
+  controller:
+    service:
+      type: LoadBalancer
+    config:
+      proxy-body-size: "0"
+      proxy-read-timeout: "600"
+      proxy-send-timeout: "600"
+    # Production-specific settings
+    replicaCount: 2
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+      requests:
+        cpu: 200m
+        memory: 256Mi
+
+# Docker Registry configuration
+docker-registry:
+  enabled: true
+  replicaCount: 2
+  
+  image:
+    repository: registry
+    tag: 2.8.3
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 5000
+  
+  persistence:
+    enabled: true
+    size: 100Gi
+    storageClass: ""
+    accessMode: ReadWriteOnce
+  
+  # Registry storage configuration
+  storage: filesystem
+  
+  # Security configuration
+  secrets:
+    haSharedSecret: "primary-registry-secret-change-this-in-production"
+    htpasswd: ""  # Will be configured with actual credentials
+  
+  # Configure registry ingress
+  ingress:
+    enabled: true
+    className: nginx
+    path: /
+    hosts:
+      - cr.primary.catalyst.ncrmro.com
+    annotations:
+      nginx.ingress.kubernetes.io/proxy-body-size: "0"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+      # For production, consider using a proper CA-signed certificate
+      cert-manager.io/cluster-issuer: selfsigned-issuer
+      # Uncomment for Let's Encrypt in production with public domain
+      # cert-manager.io/cluster-issuer: letsencrypt-prod
+    tls:
+      - secretName: registry-primary-tls
+        hosts:
+          - cr.primary.catalyst.ncrmro.com
+  
+  # Production resource limits
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  
+  # Production-specific settings
+  configData:
+    version: 0.1
+    log:
+      level: warn
+      formatter: json
+    http:
+      addr: :5000
+      headers:
+        X-Content-Type-Options: [nosniff]
+    health:
+      storagedriver:
+        enabled: true
+        interval: 10s
+        threshold: 3
+    storage:
+      cache:
+        blobdescriptor: inmemory
+      maintenance:
+        uploadpurging:
+          enabled: true
+          age: 168h
+          interval: 24h
+          dryrun: false
+      delete:
+        enabled: true
+
+# Additional cluster issuer for self-signed certificates
+# Note: This requires manual creation of the ClusterIssuer resource
+# kubectl apply -f - <<EOF
+# apiVersion: cert-manager.io/v1
+# kind: ClusterIssuer
+# metadata:
+#   name: selfsigned-issuer
+# spec:
+#   selfSigned: {}
+# EOF

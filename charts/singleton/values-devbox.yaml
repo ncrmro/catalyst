@@ -1,0 +1,88 @@
+# Values for devbox cluster
+# Overrides for singleton chart in development environment
+
+# cert-manager configuration
+cert-manager:
+  installCRDs: true
+  namespace: cert-manager
+
+# GitHub Actions Runner Controller
+gha-runner-scale-set-controller:
+  namespaceOverride: gh-arc-systems
+  createNamespace: true
+
+# ingress-nginx configuration
+ingress-nginx:
+  controller:
+    service:
+      type: LoadBalancer
+    config:
+      proxy-body-size: "0"
+      proxy-read-timeout: "600"
+      proxy-send-timeout: "600"
+
+# Docker Registry configuration
+docker-registry:
+  enabled: true
+  replicaCount: 1
+  
+  image:
+    repository: registry
+    tag: 2.8.3
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 5000
+  
+  persistence:
+    enabled: true
+    size: 20Gi
+    storageClass: ""
+    accessMode: ReadWriteOnce
+  
+  # Registry storage configuration
+  storage: filesystem
+  
+  # Security configuration
+  secrets:
+    haSharedSecret: "devbox-registry-secret-change-in-production"
+    htpasswd: ""  # Will be configured later with actual credentials
+  
+  # Configure registry ingress
+  ingress:
+    enabled: true
+    className: nginx
+    path: /
+    hosts:
+      - cr.devbox.catalyst.ncrmro.com
+    annotations:
+      nginx.ingress.kubernetes.io/proxy-body-size: "0"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+      # For self-signed certificates
+      cert-manager.io/cluster-issuer: selfsigned-issuer
+    tls:
+      - secretName: registry-devbox-tls
+        hosts:
+          - cr.devbox.catalyst.ncrmro.com
+  
+  # Resource limits
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Additional cluster issuer for self-signed certificates
+# Note: This requires manual creation of the ClusterIssuer resource
+# kubectl apply -f - <<EOF
+# apiVersion: cert-manager.io/v1
+# kind: ClusterIssuer
+# metadata:
+#   name: selfsigned-issuer
+# spec:
+#   selfSigned: {}
+# EOF

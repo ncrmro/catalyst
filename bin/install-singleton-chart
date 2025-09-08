@@ -16,6 +16,9 @@ fi
 
 # Install or upgrade the chart
 echo "Installing/upgrading singleton chart from $CHART_DIR..."
-helm upgrade --install singleton "$CHART_DIR" --wait
+helm upgrade --install singleton "$CHART_DIR" \
+  --namespace singleton \
+  --create-namespace \
+  --wait
 
 echo "Singleton chart installation complete!"

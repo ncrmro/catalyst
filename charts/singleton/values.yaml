@@ -11,4 +11,15 @@ cert-manager:
 # Values for GitHub Actions Runner Controller
 gha-runner-scale-set-controller:
   namespaceOverride: gh-arc-systems
-  createNamespace: true 
+  createNamespace: true
+
+# Values for ingress-nginx
+ingress-nginx:
+  controller:
+    service:
+      type: LoadBalancer
+    # Additional controller configuration
+    config:
+      proxy-body-size: "0"
+      proxy-read-timeout: "600"
+      proxy-send-timeout: "600"

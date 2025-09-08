@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Parse command line arguments
+UPGRADE_SINGLETON=false
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --with-singleton)
+      UPGRADE_SINGLETON=true
+      shift
+      ;;
+    *)
+      echo "Unknown option $1"
+      echo "Usage: $0 [--with-singleton]"
+      echo "  --with-singleton: Also upgrade the singleton chart"
+      exit 1
+      ;;
+  esac
+done
+
+# Get the directory of the script
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+SINGLETON_CHART_DIR="$ROOT_DIR/charts/singleton"
+NEXTJS_CHART_DIR="$ROOT_DIR/charts/nextjs"
+KUBECONFIG_FILE="./kubeconfig.devbox.yml"
+ENV_FILE="$ROOT_DIR/web/.env"
+
+# Check if kubeconfig file exists
+if [ ! -f "$KUBECONFIG_FILE" ]; then
+  echo "Error: kubeconfig file not found at $KUBECONFIG_FILE"
+  exit 1
+fi
+
+# Check if .env file exists and load GHCR PAT
+if [ ! -f "$ENV_FILE" ]; then
+  echo "Error: .env file not found at $ENV_FILE"
+  exit 1
+fi
+
+# Source .env file to get GITHUB_GHCR_PAT
+source "$ENV_FILE"
+
+if [ -z "${GITHUB_GHCR_PAT:-}" ]; then
+  echo "Error: GITHUB_GHCR_PAT not found in $ENV_FILE"
+  exit 1
+fi
+
+# Export the kubeconfig
+export KUBECONFIG="$KUBECONFIG_FILE"
+
+# Print current context for verification
+echo "Using kubeconfig: $KUBECONFIG_FILE"
+echo "Current Kubernetes context: $(kubectl config current-context)"
+
+# Check if chart directories exist
+if [ ! -d "$SINGLETON_CHART_DIR" ]; then
+  echo "Error: Singleton chart directory not found at $SINGLETON_CHART_DIR"
+  exit 1
+fi
+
+if [ ! -d "$NEXTJS_CHART_DIR" ]; then
+  echo "Error: NextJS chart directory not found at $NEXTJS_CHART_DIR"
+  exit 1
+fi
+
+# Create GHCR pull secret for both namespaces
+create_ghcr_secret() {
+  local namespace=$1
+  echo "Creating GHCR pull secret in namespace: $namespace"
+  
+  kubectl create namespace "$namespace" --dry-run=client -o yaml | kubectl apply -f -
+  
+  kubectl create secret docker-registry ghcr-pull-secret \
+    --namespace="$namespace" \
+    --docker-server=ghcr.io \
+    --docker-username=ncrmro \
+    --docker-password="$GITHUB_GHCR_PAT" \
+    --dry-run=client -o yaml | kubectl apply -f -
+}
+
+# Create pull secret for catalyst-staging namespace (always needed)
+create_ghcr_secret "catalyst-staging"
+
+# Conditionally install singleton chart
+if [ "$UPGRADE_SINGLETON" = true ]; then
+  echo "Installing/upgrading singleton chart..."
+  
+  # Check if cloudflare-api-token-secret exists in cert-manager namespace
+  if ! kubectl get secret cloudflare-api-token-secret -n cert-manager >/dev/null 2>&1; then
+    echo "Error: cloudflare-api-token-secret not found in cert-manager namespace"
+    echo "Create it with: kubectl create secret generic cloudflare-api-token-secret --namespace=cert-manager --from-literal=api-token=your-cloudflare-api-token"
+    exit 1
+  fi
+  
+  create_ghcr_secret "singleton"
+  helm upgrade --install singleton "$SINGLETON_CHART_DIR" \
+    --namespace singleton \
+    --create-namespace \
+    --values "$SINGLETON_CHART_DIR/values.staging.yml" \
+    --wait
+  echo "Singleton chart installation complete!"
+else
+  echo "Skipping singleton chart (use --with-singleton to include it)"
+fi
+
+# Install or upgrade the nextjs chart (catalyst) in catalyst-staging namespace
+echo "Installing/upgrading catalyst (nextjs chart) for staging..."
+helm upgrade --install catalyst-staging "$NEXTJS_CHART_DIR" \
+  --namespace catalyst-staging \
+  --create-namespace \
+  --set image.repository=ghcr.io/ncrmro/catalyst/web \
+  --set image.tag=main \
+  --set developmentImage.repository=ghcr.io/ncrmro/catalyst/web \
+  --set developmentImage.tag=main-dev \
+  --wait
+
+echo "Catalyst staging deployment complete!"
+echo ""
+echo "Deployed resources:"
+if [ "$UPGRADE_SINGLETON" = true ]; then
+  echo "  - singleton (singleton chart) in namespace: singleton"
+fi
+echo "  - catalyst-staging (nextjs chart) in namespace: catalyst-staging"
+echo "  - ghcr-pull-secret in catalyst-staging namespace for container registry access"
+if [ "$UPGRADE_SINGLETON" = true ]; then
+  echo "  - ghcr-pull-secret in singleton namespace for container registry access"
+fi
