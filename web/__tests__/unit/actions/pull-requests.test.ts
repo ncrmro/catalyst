@@ -39,16 +39,12 @@ describe('Pull Requests Actions', () => {
     vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
 
-  it('returns empty array when no GitHub access token is available', async () => {
+  it('throws error when no authenticated user is found', async () => {
     const { auth } = await import('@/auth');
     (auth as any).mockResolvedValue(null);
 
-    const result = await fetchUserPullRequests();
-    expect(result).toEqual([]);
+    await expect(fetchUserPullRequests()).rejects.toThrow('No authenticated user found');
   });
 
   it('includes gitfoobar provider results (empty array)', async () => {
