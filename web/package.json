@@ -22,6 +22,8 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx scripts/seed.ts",
     "seed": "tsx scripts/seed.ts",
+    "submit-pr-pod": "tsx scripts/submit-pr-pod.ts",
+    "submit-pr-pod:dry-run": "tsx scripts/submit-pr-pod-dry-run.ts",
     "typecheck": "npx tsc --noEmit"
   },
   "dependencies": {
