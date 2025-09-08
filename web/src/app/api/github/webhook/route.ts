@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createKubernetesNamespace, deleteKubernetesNamespace } from '@/actions/kubernetes';
-import { getInstallationOctokit } from '@/lib/github';
+import { getInstallationOctokit, GITHUB_CONFIG } from '@/lib/github';
 import { createPullRequestPodJob, cleanupPullRequestPodJob, PullRequestPodResult } from '@/lib/k8s-pull-request-pod';
 import { upsertPullRequest, findRepoByGitHubData } from '@/actions/pull-requests-db';
 
@@ -18,20 +18,24 @@ export async function POST(request: NextRequest) {
     const event = request.headers.get('x-github-event');
     const delivery = request.headers.get('x-github-delivery');
     
-    // Verify webhook signature (optional but recommended for production)
-    const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET;
-    if (webhookSecret && signature) {
-      const expectedSignature = `sha256=${crypto
-        .createHmac('sha256', webhookSecret)
-        .update(body)
-        .digest('hex')}`;
-      
-      if (signature !== expectedSignature) {
-        return NextResponse.json(
-          { error: 'Invalid signature' },
-          { status: 401 }
-        );
-      }
+    // Verify webhook signature (required for security)
+    if (!signature) {
+      return NextResponse.json(
+        { error: 'Missing signature header' },
+        { status: 401 }
+      );
+    }
+
+    const expectedSignature = `sha256=${crypto
+      .createHmac('sha256', GITHUB_CONFIG.WEBHOOK_SECRET)
+      .update(body)
+      .digest('hex')}`;
+    
+    if (signature !== expectedSignature) {
+      return NextResponse.json(
+        { error: 'Invalid signature' },
+        { status: 401 }
+      );
     }
     
     const payload = JSON.parse(body);

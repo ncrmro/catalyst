@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { GITHUB_CONFIG } from '@/lib/github';
 
 /**
  * GitHub App Registration Endpoint
@@ -12,9 +13,7 @@ export async function GET(request: NextRequest) {
     const state = searchParams.get('state') || 'default';
     
     // GitHub App installation URL
-    // In a real implementation, this would use the actual GitHub App ID
-    const githubAppId = process.env.GITHUB_APP_ID || 'your-app-id';
-    const installationUrl = `https://github.com/apps/${githubAppId}/installations/new`;
+    const installationUrl = `https://github.com/apps/${GITHUB_CONFIG.APP_ID}/installations/new`;
     
     // Add state parameter for security and tracking
     const redirectUrl = `${installationUrl}?state=${encodeURIComponent(state)}`;

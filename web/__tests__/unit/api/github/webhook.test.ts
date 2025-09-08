@@ -11,7 +11,10 @@ vi.mock('@/actions/kubernetes', () => ({
 
 // Mock the GitHub library
 vi.mock('@/lib/github', () => ({
-  getInstallationOctokit: vi.fn()
+  getInstallationOctokit: vi.fn(),
+  GITHUB_CONFIG: {
+    WEBHOOK_SECRET: 'test-webhook-secret'
+  }
 }));
 
 // Mock the k8s-pull-request-pod library
@@ -75,7 +78,6 @@ describe('/api/github/webhook', () => {
   }
 
   beforeEach(() => {
-    process.env.GITHUB_WEBHOOK_SECRET = mockWebhookSecret;
     // Reset all mocks
     vi.clearAllMocks();
     
@@ -92,9 +94,6 @@ describe('/api/github/webhook', () => {
     });
   });
 
-  afterEach(() => {
-    delete process.env.GITHUB_WEBHOOK_SECRET;
-  });
 
   function createSignature(payload: string, secret: string): string {
     return `sha256=${crypto.createHmac('sha256', secret).update(payload).digest('hex')}`;
@@ -671,9 +670,7 @@ describe('/api/github/webhook', () => {
       });
     });
 
-    it('should handle missing webhook secret gracefully', async () => {
-      delete process.env.GITHUB_WEBHOOK_SECRET;
-
+    it('should reject request without signature header', async () => {
       const payload = { 
         action: 'created',
         installation: {
@@ -691,6 +688,7 @@ describe('/api/github/webhook', () => {
           'x-github-event': 'installation',
           'x-github-delivery': 'test-delivery-123',
           'content-type': 'application/json'
+          // Note: Missing x-hub-signature-256 header
         },
         body: Buffer.from(payloadString),
       });
@@ -700,8 +698,10 @@ describe('/api/github/webhook', () => {
       const response = await POST(req as any);
       const data = await response.json();
 
-      expect(response.status).toBe(200);
-      expect(data.success).toBe(true);
+      expect(response.status).toBe(401);
+      expect(data).toMatchObject({
+        error: 'Missing signature header'
+      });
     });
 
     it('should handle malformed JSON', async () => {

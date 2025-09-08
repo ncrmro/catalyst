@@ -12,6 +12,7 @@ import { PullRequest } from '@/actions/reports';
 import { getMockPullRequests } from '@/mocks/github';
 import { refreshTokenIfNeeded } from '@/lib/github-app/token-refresh';
 import { invalidateTokens } from '@/lib/github-app/token-refresh';
+import { GITHUB_CONFIG } from '@/lib/github';
 
 /**
  * GitHub provider - fetches real pull requests from GitHub API using GitHub App tokens or PAT
@@ -25,14 +26,13 @@ async function fetchGitHubPullRequests(): Promise<{ pullRequests: PullRequest[];
   }
 
   // Check for GitHub Personal Access Token in environment (for local development)
-  const githubPat = process.env.GITHUB_PAT || process.env.GITHUB_TOKEN;
   let octokit: Octokit;
   let authMethod: 'github-app' | 'pat' | 'none' = 'none';
 
-  if (githubPat) {
+  if (GITHUB_CONFIG.PAT) {
     console.log('Using GitHub Personal Access Token for pull requests');
     octokit = new Octokit({
-      auth: githubPat,
+      auth: GITHUB_CONFIG.PAT,
     });
     authMethod = 'pat';
   } else {
@@ -178,12 +178,11 @@ export interface PullRequestsResult {
  */
 export async function fetchUserPullRequestsWithTokenStatus(): Promise<PullRequestsResult> {
   // Check if we should return mocked data (using same env var as GitHub repos)
-  const githubReposMode = process.env.GITHUB_REPOS_MODE;
   const mocked = process.env.MOCKED === '1';
   
-  console.log('Environment check - MOCKED:', mocked, 'GITHUB_REPOS_MODE:', githubReposMode);
+  console.log('Environment check - MOCKED:', mocked, 'GITHUB_REPOS_MODE:', GITHUB_CONFIG.REPOS_MODE);
   
-  if (githubReposMode === 'mocked' || mocked) {
+  if (GITHUB_CONFIG.REPOS_MODE === 'mocked' || mocked) {
     console.log('Returning mocked pull requests data');
     return {
       pullRequests: getMockPullRequests(),
@@ -199,8 +198,7 @@ export async function fetchUserPullRequestsWithTokenStatus(): Promise<PullReques
   }
 
   // Check for PAT first, then GitHub App tokens
-  const githubPat = process.env.GITHUB_PAT || process.env.GITHUB_TOKEN;
-  const hasGitHubToken = !!githubPat || !!(await refreshTokenIfNeeded(session.user.id));
+  const hasGitHubToken = !!GITHUB_CONFIG.PAT || !!(await refreshTokenIfNeeded(session.user.id));
 
   try {
     // Fetch from all providers in parallel

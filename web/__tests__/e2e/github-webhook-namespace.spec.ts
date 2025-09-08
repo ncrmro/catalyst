@@ -39,8 +39,8 @@ test.describe('GitHub Webhook → Namespace E2E Integration', () => {
     };
     const payloadString = JSON.stringify(payload);
     
-    // For E2E tests, we'll test without signature validation (no secret configured)
-    // This simulates development/testing environment where webhook secret is optional
+    // Create valid signature for E2E test using the stub webhook secret
+    const signature = createSignature(payloadString, 'your_webhook_secret_here');
 
     const expectedNamespace = `e2eowner-e2erepo-gh-pr-${prNumber}`;
 
@@ -49,11 +49,12 @@ test.describe('GitHub Webhook → Namespace E2E Integration', () => {
       const existsBefore = await namespaceExists(k8s.coreApi, expectedNamespace);
       expect(existsBefore).toBe(false);
 
-      // Send webhook request without signature (simulating dev environment)
+      // Send webhook request with valid signature
       const response = await request.post('/api/github/webhook', {
         headers: {
           'x-github-event': 'pull_request',
           'x-github-delivery': `e2e-test-delivery-${prNumber}`,
+          'x-hub-signature-256': signature,
           'content-type': 'application/json'
         },
         data: payloadString
@@ -108,11 +109,15 @@ test.describe('GitHub Webhook → Namespace E2E Integration', () => {
 
     const expectedNamespace = `e2eowner-e2erepo-gh-pr-${prNumber}`;
 
+    // Create valid signature for E2E test
+    const signature = createSignature(payloadString, 'your_webhook_secret_here');
+
     // Send webhook request
     const response = await request.post('/api/github/webhook', {
       headers: {
         'x-github-event': 'pull_request',
         'x-github-delivery': `e2e-test-delivery-${prNumber}`,
+        'x-hub-signature-256': signature,
         'content-type': 'application/json'
       },
       data: payloadString
@@ -158,11 +163,15 @@ test.describe('GitHub Webhook → Namespace E2E Integration', () => {
 
         const expectedNamespace = `e2eowner-e2erepo-gh-pr-${prNumber}`;
 
+        // Create valid signature for E2E test
+        const signature = createSignature(payloadString, 'your_webhook_secret_here');
+
         // Send webhook request
         const response = await request.post('/api/github/webhook', {
           headers: {
             'x-github-event': 'pull_request',
             'x-github-delivery': `e2e-test-delivery-${prNumber}`,
+            'x-hub-signature-256': signature,
             'content-type': 'application/json'
           },
           data: payloadString

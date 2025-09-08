@@ -2,16 +2,23 @@ import { createMocks } from 'node-mocks-http';
 import { GET, POST } from '../../../../src/app/api/github/register/route';
 import { vi } from 'vitest';
 
+// Mock the GitHub config
+vi.mock('@/lib/github', () => ({
+  GITHUB_CONFIG: {
+    APP_ID: 'test-app-id',
+    APP_PRIVATE_KEY: 'test-private-key',
+    APP_CLIENT_ID: 'test-client-id',
+    APP_CLIENT_SECRET: 'test-client-secret',
+    WEBHOOK_SECRET: 'test-webhook-secret',
+  }
+}));
+
 describe('/api/github/register', () => {
   beforeEach(() => {
-    // Set test environment variables
-    process.env.GITHUB_APP_ID = 'test-app-id';
+    // Reset mocks if needed
+    vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    // Clean up environment variables
-    delete process.env.GITHUB_APP_ID;
-  });
 
   describe('GET', () => {
     it('should return registration URL with default state', async () => {
@@ -50,9 +57,7 @@ describe('/api/github/register', () => {
       expect(data.installation_url).toContain('state=custom-state');
     });
 
-    it('should handle missing GITHUB_APP_ID gracefully', async () => {
-      delete process.env.GITHUB_APP_ID;
-
+    it('should use configured app ID in URL', async () => {
       const { req } = createMocks({
         method: 'GET',
         url: 'http://localhost:3000/api/github/register',
@@ -62,7 +67,7 @@ describe('/api/github/register', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.installation_url).toContain('your-app-id');
+      expect(data.installation_url).toContain('test-app-id');
     });
   });
 

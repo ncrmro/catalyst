@@ -1,6 +1,9 @@
 import { getGitHubAppInstallations } from "@/actions/github-app";
 import Image from "next/image";
 
+// Force dynamic rendering - don't pre-render this page at build time
+export const dynamic = 'force-dynamic';
+
 export default async function AdminGitHubPage() {
   const installations = await getGitHubAppInstallations();
 

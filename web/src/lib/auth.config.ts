@@ -5,10 +5,13 @@
 import { Provider } from "next-auth/providers";
 import GitHub from "next-auth/providers/github";
 import { NextAuthConfig } from "next-auth";
+import { GITHUB_CONFIG } from "@/lib/github";
 
 
 const providers: Provider[] = [
     GitHub({
+      clientId: GITHUB_CONFIG.APP_CLIENT_ID,
+      clientSecret: GITHUB_CONFIG.APP_CLIENT_SECRET,
       authorization: {
         params: {
           scope: "read:user user:email read:org repo"
