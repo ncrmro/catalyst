@@ -49,24 +49,15 @@ Open [http://localhost:3000](http://localhost:3000) to view the main page, or vi
 For GitHub OAuth sign-in functionality, create a `.env.local` file in the web directory:
 
 ```env
-# GitHub OAuth Configuration (for Auth.js)
-# Get these from https://github.com/settings/applications/new
-AUTH_GITHUB_ID=your_github_client_id_here
-AUTH_GITHUB_SECRET=your_github_client_secret_here
-AUTH_SECRET=your_random_secret_here
-```
+# Auth.js Configuration
+AUTH_SECRET=your_random_secret_here  # Generate with: openssl rand -base64 33
 
-### GitHub App Integration
-
-For GitHub App functionality, also add these to your `.env.local`:
-
-```env
-# GitHub App Configuration
+# GitHub App Configuration (used for both GitHub App and Auth.js OAuth)
 GITHUB_APP_ID=your_app_id_here
-GITHUB_CLIENT_ID=your_client_id_here
-GITHUB_CLIENT_SECRET=your_client_secret_here
+GITHUB_APP_CLIENT_ID=your_client_id_here
+GITHUB_APP_CLIENT_SECRET=your_client_secret_here
 GITHUB_WEBHOOK_SECRET=your_webhook_secret_here
-GITHUB_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
+GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
 your_private_key_here
 -----END RSA PRIVATE KEY-----"
 ```
