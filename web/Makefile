@@ -15,11 +15,20 @@ build: ## Build all services
 seed: ## Seed the database with test data
 	npm run seed
 
+seed-projects: ## Seed the database with catalyst and meze projects
+	$(DC) run --rm app npm run seed:projects
+
 up: ## Start all services
 	$(DC) up --detach --wait
 	$(DC) run --rm -it app npm run db:migrate
 	$(DC) run --rm -it app npm run seed
 	$(DC) run --rm -it -e GITHUB_REPOS_MODE=mocked app npm run dev
+
+up-real: ## Start all services with real data (no mocks)
+	$(DC) up --detach --wait
+	$(DC) run --rm -it app npm run db:migrate
+	$(DC) run --rm -it app npm run seed
+	$(DC) run --rm -it app npm run dev
 
 down: ## Stop all services
 	$(DC) down --remove-orphans
