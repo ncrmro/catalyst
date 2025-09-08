@@ -1,0 +1,22 @@
+# Quick test configuration with minimal models (no API calls)
+# This configuration is safe to run as it doesn't consume API credits
+
+models:
+  - name: "OpenAI GPT-4"
+    provider: "openai"
+    model: "gpt-4"
+    enableGitHubMCP: false
+
+  - name: "Claude 3 Sonnet"
+    provider: "anthropic"
+    model: "claude-3-sonnet-20240229"
+    enableGitHubMCP: true
+
+mockData:
+  useRealData: true
+  skipApiCalls: true  # Important: keeps costs at zero
+
+output:
+  format: "detailed"
+  includeReports: false  # No real reports generated anyway
+  includeTimings: true

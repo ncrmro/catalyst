@@ -1,0 +1,23 @@
+# Table format test configuration
+models:
+  - name: "OpenAI GPT-4"
+    provider: "openai"
+    model: "gpt-4"
+    enableGitHubMCP: false
+
+  - name: "Claude Sonnet"
+    provider: "anthropic"
+    model: "claude-3-sonnet-20240229"
+    enableGitHubMCP: false
+
+  - name: "OpenAI GPT-3.5"
+    provider: "openai"
+    model: "gpt-3.5-turbo"
+    enableGitHubMCP: false
+
+mockData:
+  skipApiCalls: true
+
+output:
+  format: "table"
+  includeTimings: true
