@@ -96,7 +96,7 @@ class PeriodicAgentTester {
         agentMetadata = {
           projectsFetched: projectsResult.success,
           clustersFetched: clustersResult.success,
-          gitHubToolsAvailable: gitHubToolsResult.success && gitHubToolsResult.available,
+          gitHubToolsAvailable: Boolean(gitHubToolsResult.success && gitHubToolsResult.available),
         };
 
         // Create a mock report structure to test the agent configuration
@@ -129,7 +129,7 @@ class PeriodicAgentTester {
         agentMetadata = {
           projectsFetched: projectsResult.success,
           clustersFetched: clustersResult.success,
-          gitHubToolsAvailable: gitHubToolsResult.success && gitHubToolsResult.available,
+          gitHubToolsAvailable: Boolean(gitHubToolsResult.success && gitHubToolsResult.available),
         };
       }
 
