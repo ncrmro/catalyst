@@ -2,12 +2,20 @@
  * @vitest-environment node
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { createMocks } from 'node-mocks-http';
 import crypto from 'crypto';
 import { POST } from '@/app/api/github/webhook/route';
 import { db, pullRequests, repos, teams, users } from '@/db';
 import { eq, and } from 'drizzle-orm';
+
+// Mock the GitHub configuration
+vi.mock('@/lib/github', () => ({
+  getInstallationOctokit: vi.fn(),
+  GITHUB_CONFIG: {
+    WEBHOOK_SECRET: 'integration-test-webhook-secret'
+  }
+}));
 
 /**
  * Integration test for GitHub webhook database operations
@@ -66,8 +74,6 @@ describe('GitHub Webhook Database Integration', () => {
   }
 
   beforeAll(async () => {
-    // Set up test environment variables
-    process.env.GITHUB_WEBHOOK_SECRET = mockWebhookSecret;
     testRepoGitHubId = Math.floor(Math.random() * 1000000) + 100000; // Random GitHub ID for testing
     
     // Create test user first
@@ -122,9 +128,6 @@ describe('GitHub Webhook Database Integration', () => {
     if (testUserId) {
       await db.delete(users).where(eq(users.id, testUserId));
     }
-    
-    // Clean up environment
-    delete process.env.GITHUB_WEBHOOK_SECRET;
   });
 
   beforeEach(async () => {
