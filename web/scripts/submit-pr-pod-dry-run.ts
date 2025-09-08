@@ -55,7 +55,7 @@ async function createRBACResources(namespace: string = 'default', clusterName?: 
     await coreApi.createNamespacedServiceAccount({ namespace, body: serviceAccount });
     console.log('  ✓ ServiceAccount created');
   } catch (error: any) {
-    if (error.statusCode === 409) {
+    if (error.code === 409) {
       console.log('  ✓ ServiceAccount already exists');
     } else {
       throw error;
@@ -108,7 +108,7 @@ async function createRBACResources(namespace: string = 'default', clusterName?: 
     await rbacApi.createNamespacedRole({ namespace, body: role });
     console.log('  ✓ Role created');
   } catch (error: any) {
-    if (error.statusCode === 409) {
+    if (error.code === 409) {
       console.log('  ✓ Role already exists');
     } else {
       throw error;
@@ -139,7 +139,7 @@ async function createRBACResources(namespace: string = 'default', clusterName?: 
     await rbacApi.createNamespacedRoleBinding({ namespace, body: roleBinding });
     console.log('  ✓ RoleBinding created');
   } catch (error: any) {
-    if (error.statusCode === 409) {
+    if (error.code === 409) {
       console.log('  ✓ RoleBinding already exists');
     } else {
       throw error;
@@ -183,7 +183,7 @@ async function createPVCs(namespace: string = 'default', clusterName?: string): 
     await coreApi.createNamespacedPersistentVolumeClaim({ namespace, body: gitCachePVC });
     console.log('  ✓ Git cache PVC created');
   } catch (error: any) {
-    if (error.statusCode === 409) {
+    if (error.code === 409) {
       console.log('  ✓ Git cache PVC already exists');
     } else {
       throw error;
@@ -212,7 +212,7 @@ async function createPVCs(namespace: string = 'default', clusterName?: string): 
     await coreApi.createNamespacedPersistentVolumeClaim({ namespace, body: helmCachePVC });
     console.log('  ✓ Helm cache PVC created');
   } catch (error: any) {
-    if (error.statusCode === 409) {
+    if (error.code === 409) {
       console.log('  ✓ Helm cache PVC already exists');
     } else {
       throw error;

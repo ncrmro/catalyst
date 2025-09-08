@@ -33,14 +33,6 @@ npm run submit-pr-pod:dry-run
 - Creates PVCs for caching
 - Skips secret creation and job submission
 
-### `test-k8s-connection.ts`
-Simple utility to test Kubernetes cluster connectivity.
-
-**Usage:**
-```bash
-npx tsx scripts/test-k8s-connection.ts
-```
-
 ## Prerequisites
 
 1. **Kubernetes Cluster**: Configure `KUBECONFIG_PRIMARY` environment variable with base64-encoded kubeconfig
