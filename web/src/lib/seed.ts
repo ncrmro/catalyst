@@ -89,6 +89,105 @@ export async function createUserWithTeam(params: {
 }
 
 /**
+ * Create catalyst and meze projects for a team
+ * Used for development and demo purposes
+ */
+export async function createCatalystAndMezeProjects(teamId: string) {
+  console.log('Creating catalyst and meze projects for team:', teamId);
+  
+  // Create catalyst repo and project
+  const [catalystRepo] = await db
+    .insert(repos)
+    .values({
+      githubId: 756437234,
+      name: 'catalyst',
+      fullName: 'ncrmro/catalyst',
+      description: 'Platform for managing deployments and infrastructure',
+      url: 'https://github.com/ncrmro/catalyst',
+      isPrivate: false,
+      language: 'TypeScript',
+      ownerLogin: 'ncrmro',
+      ownerType: 'User',
+      ownerAvatarUrl: 'https://avatars.githubusercontent.com/u/8276365?v=4',
+      teamId,
+    })
+    .onConflictDoNothing()
+    .returning();
+
+  const [mezeRepo] = await db
+    .insert(repos)
+    .values({
+      githubId: 756437235,
+      name: 'meze',
+      fullName: 'ncrmro/meze',
+      description: 'Modern recipe management and meal planning application',
+      url: 'https://github.com/ncrmro/meze',
+      isPrivate: false,
+      language: 'TypeScript',
+      ownerLogin: 'ncrmro',
+      ownerType: 'User',
+      ownerAvatarUrl: 'https://avatars.githubusercontent.com/u/8276365?v=4',
+      teamId,
+    })
+    .onConflictDoNothing()
+    .returning();
+
+  // Create projects
+  const [catalystProject] = await db
+    .insert(projects)
+    .values({
+      name: 'Catalyst',
+      fullName: 'ncrmro/catalyst',
+      description: 'Platform for managing deployments and infrastructure',
+      ownerLogin: 'ncrmro',
+      ownerType: 'User',
+      ownerAvatarUrl: 'https://avatars.githubusercontent.com/u/8276365?v=4',
+      teamId,
+    })
+    .onConflictDoNothing()
+    .returning();
+
+  const [mezeProject] = await db
+    .insert(projects)
+    .values({
+      name: 'Meze',
+      fullName: 'ncrmro/meze',
+      description: 'Modern recipe management and meal planning application',
+      ownerLogin: 'ncrmro',
+      ownerType: 'User',
+      ownerAvatarUrl: 'https://avatars.githubusercontent.com/u/8276365?v=4',
+      teamId,
+    })
+    .onConflictDoNothing()
+    .returning();
+
+  // Link repos to projects if they were created
+  if (catalystRepo && catalystProject) {
+    await db
+      .insert(projectsRepos)
+      .values({
+        projectId: catalystProject.id,
+        repoId: catalystRepo.id,
+        isPrimary: true,
+      })
+      .onConflictDoNothing();
+  }
+
+  if (mezeRepo && mezeProject) {
+    await db
+      .insert(projectsRepos)
+      .values({
+        projectId: mezeProject.id,
+        repoId: mezeRepo.id,
+        isPrimary: true,
+      })
+      .onConflictDoNothing();
+  }
+
+  return { catalystProject, mezeProject, catalystRepo, mezeRepo };
+}
+
+/**
  * Generate repositories for a team
  * Used by both E2E tests and development seeding
  */

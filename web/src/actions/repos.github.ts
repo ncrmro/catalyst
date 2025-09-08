@@ -7,6 +7,7 @@ import { getUserTeamIds } from '@/lib/team-auth';
 import { eq, inArray, count } from 'drizzle-orm';
 import { fetchDatabaseRepos } from './repos.connected';
 import { getMockReposData, GitHubRepo, GitHubOrganization, ReposData } from '@/mocks/github';
+import { GITHUB_CONFIG } from '@/lib/github';
 
 /**
  * Server action to fetch repositories for the current user from the database
@@ -174,12 +175,11 @@ if (!String.prototype.hashCode) {
  */
 export async function fetchGitHubRepos(): Promise<ReposData> {
   // Check if we should return mocked data
-  const reposMode = process.env.GITHUB_REPOS_MODE;
   const mocked = process.env.MOCKED === '1';
   
-  console.log('Environment check - MOCKED:', mocked, 'GITHUB_REPOS_MODE:', reposMode);
+  console.log('Environment check - MOCKED:', mocked, 'GITHUB_REPOS_MODE:', GITHUB_CONFIG.REPOS_MODE);
   
-  if (reposMode === 'mocked' || mocked) {
+  if (GITHUB_CONFIG.REPOS_MODE === 'mocked' || mocked) {
     console.log('Returning mocked repos data');
     const mockData = getMockReposData();
     

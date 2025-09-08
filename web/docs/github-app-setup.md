@@ -78,8 +78,8 @@ your_private_key_here
 NEXTAUTH_URL=https://your-domain.com
 NEXTAUTH_SECRET=your_nextauth_secret_here
 AUTH_SECRET=123 # openssl rand -base64 33
-AUTH_GITHUB_ID=equal to above
-AUTH_GITHUB_SECRET=equal to above
+# Note: AUTH_GITHUB_ID and AUTH_GITHUB_SECRET are no longer needed
+# The GitHub App Client ID and Secret are used for Auth.js authentication
 ```
 
 ### Getting GitHub App Credentials

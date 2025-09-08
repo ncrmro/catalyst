@@ -1,4 +1,5 @@
 import { experimental_createMCPClient as createMCPClient } from 'ai';
+import { GITHUB_CONFIG } from '@/lib/github';
 
 /**
  * GitHub MCP Client configuration and initialization
@@ -115,7 +116,7 @@ let defaultGitHubMCPClient: GitHubMCPClient | null = null;
 export function getGitHubMCPClient(options?: GitHubMCPClientOptions): GitHubMCPClient {
   if (!defaultGitHubMCPClient) {
     defaultGitHubMCPClient = new GitHubMCPClient({
-      apiKey: process.env.GITHUB_MCP_API_KEY,
+      apiKey: GITHUB_CONFIG.MCP_API_KEY,
       ...options,
     });
   }

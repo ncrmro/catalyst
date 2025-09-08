@@ -1,12 +1,4 @@
-// Check if we're in NextJS build phase - don't validate env vars during build
-const isNextJsBuild = process.env.NEXT_PHASE === 'phase-production-build'
-// Environment variable validation - only at runtime, not during build
-const GITHUB_APP_CLIENT_ID = process.env.GITHUB_APP_CLIENT_ID;
-const GITHUB_APP_CLIENT_SECRET = process.env.GITHUB_APP_CLIENT_SECRET;
-
-if (!isNextJsBuild && (!GITHUB_APP_CLIENT_ID || !GITHUB_APP_CLIENT_SECRET)) {
-  console.error('GITHUB_APP_CLIENT_ID and GITHUB_APP_CLIENT_SECRET environment variables are required');
-}
+import { GITHUB_CONFIG } from '@/lib/github';
 
 /**
  * Exchange a refresh token for a new access token
@@ -19,10 +11,6 @@ export async function exchangeRefreshToken(refreshToken: string): Promise<{
   expiresAt: Date;
   scope: string;
 }> {
-  if (!GITHUB_APP_CLIENT_ID || !GITHUB_APP_CLIENT_SECRET) {
-    throw new Error('GITHUB_APP_CLIENT_ID and GITHUB_APP_CLIENT_SECRET environment variables are required');
-  }
-
   // GitHub API endpoint for refreshing tokens
   const response = await fetch('https://github.com/login/oauth/access_token', {
     method: 'POST',
@@ -32,8 +20,8 @@ export async function exchangeRefreshToken(refreshToken: string): Promise<{
       'User-Agent': 'Catalyst-App',
     },
     body: JSON.stringify({
-      client_id: GITHUB_APP_CLIENT_ID,
-      client_secret: GITHUB_APP_CLIENT_SECRET,
+      client_id: GITHUB_CONFIG.APP_CLIENT_ID,
+      client_secret: GITHUB_CONFIG.APP_CLIENT_SECRET,
       grant_type: 'refresh_token',
       refresh_token: refreshToken,
     }),
@@ -74,10 +62,6 @@ export async function exchangeAuthorizationCode(code: string, state?: string): P
   scope: string;
   installationId?: string;
 }> {
-  if (!GITHUB_APP_CLIENT_ID || !GITHUB_APP_CLIENT_SECRET) {
-    throw new Error('GITHUB_APP_CLIENT_ID and GITHUB_APP_CLIENT_SECRET environment variables are required');
-  }
-
   // Exchange code for access token
   const response = await fetch('https://github.com/login/oauth/access_token', {
     method: 'POST',
@@ -87,8 +71,8 @@ export async function exchangeAuthorizationCode(code: string, state?: string): P
       'User-Agent': 'Catalyst-App',
     },
     body: JSON.stringify({
-      client_id: GITHUB_APP_CLIENT_ID,
-      client_secret: GITHUB_APP_CLIENT_SECRET,
+      client_id: GITHUB_CONFIG.APP_CLIENT_ID,
+      client_secret: GITHUB_CONFIG.APP_CLIENT_SECRET,
       code: code,
       state: state,
     }),
@@ -124,12 +108,8 @@ export async function exchangeAuthorizationCode(code: string, state?: string): P
  * @returns Authorization URL
  */
 export function generateAuthorizationUrl(state?: string): string {
-  if (!GITHUB_APP_CLIENT_ID) {
-    throw new Error('GITHUB_APP_CLIENT_ID environment variable is required');
-  }
-
   const params = new URLSearchParams({
-    client_id: GITHUB_APP_CLIENT_ID,
+    client_id: GITHUB_CONFIG.APP_CLIENT_ID,
     redirect_uri: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/auth/callback/github`,
     scope: 'read:user user:email read:org repo',
     response_type: 'code',
