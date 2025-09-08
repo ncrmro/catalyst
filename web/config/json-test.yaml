@@ -1,0 +1,13 @@
+# JSON format test configuration
+models:
+  - name: "Quick Test"
+    provider: "openai"
+    model: "gpt-3.5-turbo"
+    enableGitHubMCP: false
+
+mockData:
+  skipApiCalls: true
+
+output:
+  format: "json"
+  includeReports: false

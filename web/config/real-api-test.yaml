@@ -1,0 +1,34 @@
+# Real API test configuration - WARNING: This will consume API credits!
+# Only use this when you have API keys configured and want to test real report generation
+
+models:
+  # Start with cheaper/faster models
+  - name: "Claude 3 Haiku (Fast & Cheap)"
+    provider: "anthropic"
+    model: "claude-3-haiku-20240307"
+    enableGitHubMCP: false
+
+  - name: "OpenAI GPT-3.5 Turbo (Fast & Cheap)"
+    provider: "openai"
+    model: "gpt-3.5-turbo"
+    enableGitHubMCP: false
+
+  # More expensive models - comment out to save costs
+  # - name: "Claude 3 Sonnet (Balanced)"
+  #   provider: "anthropic"
+  #   model: "claude-3-sonnet-20240229"
+  #   enableGitHubMCP: true
+
+  # - name: "OpenAI GPT-4 (Premium)"
+  #   provider: "openai"
+  #   model: "gpt-4"
+  #   enableGitHubMCP: true
+
+mockData:
+  useRealData: true
+  skipApiCalls: false  # WARNING: This will cost money!
+
+output:
+  format: "detailed"
+  includeReports: true  # Full reports will be generated
+  includeTimings: true

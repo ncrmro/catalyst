@@ -1,0 +1,56 @@
+# Periodic Report Agent Test Configuration
+# This file defines different AI models to test with the periodic report agent
+
+# List of model configurations to test
+models:
+  # OpenAI Models
+  - name: "OpenAI GPT-4 Turbo"
+    provider: "openai"
+    model: "gpt-4-turbo-preview"
+    enableGitHubMCP: false
+
+  - name: "OpenAI GPT-4"
+    provider: "openai" 
+    model: "gpt-4"
+    enableGitHubMCP: true
+
+  - name: "OpenAI GPT-3.5 Turbo"
+    provider: "openai"
+    model: "gpt-3.5-turbo"
+    enableGitHubMCP: false
+
+  # Anthropic Models
+  - name: "Claude 3 Opus"
+    provider: "anthropic"
+    model: "claude-3-opus-20240229"
+    enableGitHubMCP: true
+
+  - name: "Claude 3 Sonnet"
+    provider: "anthropic"
+    model: "claude-3-sonnet-20240229"
+    enableGitHubMCP: false
+
+  - name: "Claude 3 Haiku"
+    provider: "anthropic"
+    model: "claude-3-haiku-20240307"
+    enableGitHubMCP: false
+
+# Mock data configuration
+mockData:
+  # Whether to use real data from the database vs mock data
+  useRealData: true
+  
+  # Whether to skip actual AI API calls (recommended for testing to save costs)
+  # When true, only tests agent setup and data fetching, doesn't generate real reports
+  skipApiCalls: true
+
+# Output formatting options
+output:
+  # Format: 'json', 'table', or 'detailed'
+  format: "detailed"
+  
+  # Whether to include full report content in output (only applies if skipApiCalls is false)
+  includeReports: true
+  
+  # Whether to include execution timing information
+  includeTimings: true
