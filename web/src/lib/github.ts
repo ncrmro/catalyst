@@ -1,4 +1,5 @@
 import { App } from "@octokit/app";
+import { Octokit } from "@octokit/rest";
 
 // Check if we're in NextJS build phase - don't validate env vars during build
 const isNextJsBuild = process.env.NEXT_PHASE === 'phase-production-build';
@@ -106,4 +107,18 @@ export async function getInstallationOctokit(installationId: number) {
     console.error(`Failed to get Octokit for installation ${installationId}:`, error);
     throw new Error(`Failed to get Octokit for installation ${installationId}`);
   }
+}
+
+/**
+ * Get an Octokit instance using Personal Access Token
+ * Useful for scripts and non-session contexts
+ */
+export function getPATOctokit(): Octokit | null {
+  if (!GITHUB_CONFIG.PAT) {
+    return null;
+  }
+  
+  return new Octokit({
+    auth: GITHUB_CONFIG.PAT,
+  });
 }

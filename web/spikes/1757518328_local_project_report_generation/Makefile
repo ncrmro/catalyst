@@ -5,14 +5,14 @@
 # Default target
 help:
 	@echo "Available targets:"
-	@echo "  fetch    - Generate fake GitHub data and populate projects.yml"
-	@echo "  generate - Generate project reports from populated data"
+	@echo "  fetch    - Fetch real GitHub pull requests using PAT and populate projects.yml"
+	@echo "  generate - Generate AI-powered project reports from populated data"
 	@echo "  report   - Run fetch and generate in sequence"
 	@echo "  clean    - Remove generated files"
 	@echo "  reset    - Reset projects.yml to clean template"
 	@echo "  help     - Show this help message"
 
-# Generate fake GitHub data
+# Fetch real GitHub pull requests
 fetch:
 	@echo "Fetching GitHub data..."
 	cd ../.. && npx tsx spikes/1757518328_local_project_report_generation/fetch-github-data.ts

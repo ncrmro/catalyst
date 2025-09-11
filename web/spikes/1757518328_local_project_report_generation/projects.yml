@@ -2,138 +2,185 @@ projects:
   catalyst:
     repos:
       - ncrmro/catalyst
-    issues:
-      - id: 1000
-        number: 100
-        title: Fix memory leak in data processing
-        state: open
-        created_at: 2025-08-19T19:03:54.431Z
-        updated_at: 2025-09-08T19:03:54.431Z
-        author: contributor1
-        labels:
-          - bug
-          - high-priority
-        url: https://github.com/ncrmro/catalyst/issues/100
-        repository: ncrmro/catalyst
-      - id: 1001
-        number: 101
-        title: Add dark mode support
-        state: open
-        created_at: 2025-09-09T19:03:54.432Z
-        updated_at: 2025-09-09T19:03:54.432Z
-        author: contributor1
-        labels:
-          - enhancement
-          - ui/ux
-        url: https://github.com/ncrmro/catalyst/issues/101
-        repository: ncrmro/catalyst
-      - id: 1002
-        number: 102
-        title: Improve error handling in API calls
-        state: closed
-        created_at: 2025-09-03T19:03:54.432Z
-        updated_at: 2025-09-07T19:03:54.432Z
-        author: developer2
-        labels:
-          - bug
-          - medium-priority
-        url: https://github.com/ncrmro/catalyst/issues/102
-        repository: ncrmro/catalyst
+    issues: []
     pullRequests:
-      - id: 2000
-        number: 200
-        title: Implement user authentication system
-        state: open
-        draft: true
-        created_at: 2025-08-28T19:03:54.432Z
-        updated_at: 2025-09-08T19:03:54.432Z
-        author: developer2
-        labels:
-          - feature
-        url: https://github.com/ncrmro/catalyst/pull/200
-        repository: ncrmro/catalyst
-        base_branch: main
-        head_branch: feature/auth
-      - id: 2001
-        number: 201
-        title: Add responsive design for mobile
-        state: open
-        draft: false
-        created_at: 2025-09-05T19:03:54.432Z
-        updated_at: 2025-09-09T19:03:54.432Z
-        author: contributor1
-        labels:
-          - bugfix
-        url: https://github.com/ncrmro/catalyst/pull/201
-        repository: ncrmro/catalyst
-        base_branch: main
-        head_branch: feature/mobile
+      - id: 2806687765
+        title: Add TypeScript script for testing periodic report agent with different AI
+          models
+        number: 285
+        author: Copilot
+        author_avatar: https://avatars.githubusercontent.com/in/1143301?v=4
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/pull/285
+        created_at: 2025-09-08T03:18:45Z
+        updated_at: 2025-09-08T03:33:52Z
+        comments_count: 0
+        priority: medium
+        status: draft
+      - id: 2806603938
+        title: Add TypeScript script for PR pod image building and pushing
+        number: 284
+        author: Copilot
+        author_avatar: https://avatars.githubusercontent.com/in/1143301?v=4
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/pull/284
+        created_at: 2025-09-08T02:17:10Z
+        updated_at: 2025-09-08T03:21:48Z
+        comments_count: 0
+        priority: medium
+        status: draft
+      - id: 2805776900
+        title: Fix TypeScript build error in pull-requests.ts return types
+        number: 283
+        author: Copilot
+        author_avatar: https://avatars.githubusercontent.com/in/1143301?v=4
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/pull/283
+        created_at: 2025-09-07T05:29:23Z
+        updated_at: 2025-09-07T05:39:59Z
+        comments_count: 0
+        priority: medium
+        status: draft
+      - id: 2805597071
+        title: Add @ alias import rule to copilot instructions
+        number: 281
+        author: Copilot
+        author_avatar: https://avatars.githubusercontent.com/in/1143301?v=4
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/pull/281
+        created_at: 2025-09-07T00:56:21Z
+        updated_at: 2025-09-07T01:04:12Z
+        comments_count: 0
+        priority: medium
+        status: draft
+      - id: 2805472622
+        title: Create NextJS Starter Template with Authentication, Database, AI SDK, and
+          Testing
+        number: 280
+        author: Copilot
+        author_avatar: https://avatars.githubusercontent.com/in/1143301?v=4
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/pull/280
+        created_at: 2025-09-06T20:55:35Z
+        updated_at: 2025-09-06T21:15:10Z
+        comments_count: 0
+        priority: medium
+        status: draft
+      - id: 2790822806
+        title: Implement real Kubernetes AuthenticationConfiguration functionality for
+          GitHub OIDC with comprehensive testing
+        number: 272
+        author: Copilot
+        author_avatar: https://avatars.githubusercontent.com/in/1143301?v=4
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/pull/272
+        created_at: 2025-09-01T22:19:07Z
+        updated_at: 2025-09-01T22:34:46Z
+        comments_count: 0
+        priority: medium
+        status: draft
+      - id: 2786476400
+        title: Add Unit Tests to Kubernetes Helm Chart with Kind Cluster Integration
+        number: 251
+        author: Copilot
+        author_avatar: https://avatars.githubusercontent.com/in/1143301?v=4
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/pull/251
+        created_at: 2025-08-30T04:05:18Z
+        updated_at: 2025-08-30T19:27:33Z
+        comments_count: 0
+        priority: medium
+        status: draft
+      - id: 2779709823
+        title: Update test.kind.yml to use Kubernetes buildx driver and push to
+          in-cluster registry
+        number: 225
+        author: Copilot
+        author_avatar: https://avatars.githubusercontent.com/in/1143301?v=4
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/pull/225
+        created_at: 2025-08-27T21:53:27Z
+        updated_at: 2025-08-29T03:35:16Z
+        comments_count: 0
+        priority: medium
+        status: ready
+      - id: 2783114237
+        title: "chore: add initial pitchdeck"
+        number: 239
+        author: ncrmro
+        author_avatar: https://avatars.githubusercontent.com/u/8276365?v=4
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/pull/239
+        created_at: 2025-08-28T22:11:02Z
+        updated_at: 2025-08-28T22:11:28Z
+        comments_count: 0
+        priority: medium
+        status: ready
   meze:
     repos:
       - ncrmro/meze
-    issues:
-      - id: 1000
-        number: 100
-        title: Fix memory leak in data processing
-        state: open
-        created_at: 2025-08-13T19:03:54.433Z
-        updated_at: 2025-08-19T19:03:54.433Z
-        author: developer2
-        labels:
-          - bug
-          - high-priority
-        url: https://github.com/ncrmro/meze/issues/100
-        repository: ncrmro/meze
-      - id: 1001
-        number: 101
-        title: Add dark mode support
-        state: open
-        created_at: 2025-09-06T19:03:54.433Z
-        updated_at: 2025-09-07T19:03:54.433Z
-        author: contributor1
-        labels:
-          - enhancement
-          - ui/ux
-        url: https://github.com/ncrmro/meze/issues/101
-        repository: ncrmro/meze
-      - id: 1002
-        number: 102
-        title: Improve error handling in API calls
-        state: open
-        created_at: 2025-08-25T19:03:54.433Z
-        updated_at: 2025-08-25T19:03:54.433Z
-        author: ncrmro
-        labels:
-          - bug
-          - medium-priority
-        url: https://github.com/ncrmro/meze/issues/102
-        repository: ncrmro/meze
+    issues: []
     pullRequests:
-      - id: 2000
-        number: 200
-        title: Implement user authentication system
-        state: open
-        draft: false
-        created_at: 2025-09-10T19:03:54.433Z
-        updated_at: 2025-09-10T19:03:54.433Z
-        author: developer2
-        labels:
-          - feature
-        url: https://github.com/ncrmro/meze/pull/200
-        repository: ncrmro/meze
-        base_branch: main
-        head_branch: feature/auth
-      - id: 2001
-        number: 201
-        title: Add responsive design for mobile
-        state: closed
-        draft: false
-        created_at: 2025-08-28T19:03:54.433Z
-        updated_at: 2025-09-02T19:03:54.433Z
-        author: contributor1
-        labels:
-          - bugfix
-        url: https://github.com/ncrmro/meze/pull/201
-        repository: ncrmro/meze
-        base_branch: main
-        head_branch: feature/mobile
+      - id: 2783353585
+        title: Implement meal plan localStorage support for non-authenticated users
+        number: 203
+        author: Copilot
+        author_avatar: https://avatars.githubusercontent.com/in/1143301?v=4
+        repository: meze
+        url: https://github.com/ncrmro/meze/pull/203
+        created_at: 2025-08-29T01:17:16Z
+        updated_at: 2025-08-29T02:24:54Z
+        comments_count: 0
+        priority: medium
+        status: draft
+      - id: 2781896707
+        title: Move E2E testing best practices to dedicated README and update copilot
+          instructions
+        number: 187
+        author: Copilot
+        author_avatar: https://avatars.githubusercontent.com/in/1143301?v=4
+        repository: meze
+        url: https://github.com/ncrmro/meze/pull/187
+        created_at: 2025-08-28T14:02:37Z
+        updated_at: 2025-08-28T15:31:17Z
+        comments_count: 0
+        priority: medium
+        status: draft
+      - id: 2768939818
+        title: 44 recipe task graph
+        number: 133
+        author: ncrmro
+        author_avatar: https://avatars.githubusercontent.com/u/8276365?v=4
+        repository: meze
+        url: https://github.com/ncrmro/meze/pull/133
+        created_at: 2025-08-23T16:13:20Z
+        updated_at: 2025-08-27T02:40:10Z
+        comments_count: 0
+        priority: medium
+        status: ready
+      - id: 2773623547
+        title: "[WIP] In test action, create new job called preview-environment a new
+          turso db with the cli, seed it, deploy cloudflare preview environment
+          configured to use this turso db."
+        number: 157
+        author: Copilot
+        author_avatar: https://avatars.githubusercontent.com/in/1143301?v=4
+        repository: meze
+        url: https://github.com/ncrmro/meze/pull/157
+        created_at: 2025-08-26T03:09:04Z
+        updated_at: 2025-08-26T03:53:31Z
+        comments_count: 0
+        priority: medium
+        status: draft
+      - id: 2744190816
+        title: Add E2E tests on mobile with responsive navigation fixes
+        number: 88
+        author: Copilot
+        author_avatar: https://avatars.githubusercontent.com/in/1143301?v=4
+        repository: meze
+        url: https://github.com/ncrmro/meze/pull/88
+        created_at: 2025-08-13T21:39:22Z
+        updated_at: 2025-08-23T16:09:07Z
+        comments_count: 0
+        priority: medium
+        status: draft
