@@ -6,8 +6,8 @@ import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { parse, stringify } from 'yaml';
-import { fetchPullRequestsFromRepos } from '../../src/actions/pull-requests.js';
-import { PullRequest } from '../../src/actions/reports.js';
+import { getUserOctokit, fetchPullRequestsFromRepos, fetchIssuesFromRepos } from '../../src/lib/github.js';
+import { PullRequest, Issue } from '../../src/actions/reports.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -58,7 +58,7 @@ function getAllTemplateRepos(config: ProjectsConfig): string[] {
   return Object.values(config.projects).flatMap(project => project.repos);
 }
 
-function organizePRsByProject(config: ProjectsConfig, relevantPRs: PullRequest[]): void {
+function organizeDataByProject(config: ProjectsConfig, relevantPRs: PullRequest[], relevantIssues: Issue[]): void {
   for (const [projectName, project] of Object.entries(config.projects)) {
     const projectPRs = relevantPRs.filter(pr =>
       project.repos.some(repo => {
@@ -67,9 +67,15 @@ function organizePRsByProject(config: ProjectsConfig, relevantPRs: PullRequest[]
       })
     );
     
+    const projectIssues = relevantIssues.filter(issue =>
+      project.repos.some(repo => {
+        const [, repoName] = repo.split('/');
+        return issue.repository === repoName;
+      })
+    );
+    
     config.projects[projectName].pullRequests = projectPRs;
-    // Keep issues empty as requested
-    config.projects[projectName].issues = [];
+    config.projects[projectName].issues = projectIssues;
   }
 }
 
@@ -81,8 +87,11 @@ async function fetchRealGitHubData(): Promise<void> {
   const templateRepos = getAllTemplateRepos(config);
   console.log(`Template repositories: ${templateRepos.join(', ')}`);
   
-  console.log('Fetching real pull requests from specific repositories using PAT...');
-  const allPRs = await fetchPullRequestsFromRepos(templateRepos);
+  // Get authenticated Octokit instance (PAT only for CLI usage)
+  const octokit = await getUserOctokit('cli-user');
+  
+  console.log('Fetching real pull requests from specific repositories...');
+  const allPRs = await fetchPullRequestsFromRepos(octokit, templateRepos);
   
   if (allPRs.length === 0) {
     console.warn('No pull requests found in template repositories. Make sure GITHUB_PAT is set and repositories have open PRs.');
@@ -90,8 +99,17 @@ async function fetchRealGitHubData(): Promise<void> {
     console.log(`Found ${allPRs.length} total pull requests from template repositories`);
   }
   
-  // Organize PRs by project (no need to filter since we queried specific repos)
-  organizePRsByProject(config, allPRs);
+  console.log('Fetching real issues from specific repositories...');
+  const allIssues = await fetchIssuesFromRepos(octokit, templateRepos);
+  
+  if (allIssues.length === 0) {
+    console.warn('No issues found in template repositories. Make sure GITHUB_PAT is set and repositories have issues.');
+  } else {
+    console.log(`Found ${allIssues.length} total issues from template repositories`);
+  }
+  
+  // Organize data by project (no need to filter since we queried specific repos)
+  organizeDataByProject(config, allPRs, allIssues);
   
   // Save the updated configuration
   console.log('Saving updated configuration...');
@@ -99,11 +117,19 @@ async function fetchRealGitHubData(): Promise<void> {
   
   console.log('\nSummary:');
   for (const [projectName, project] of Object.entries(config.projects)) {
-    console.log(`- ${projectName}: ${project.pullRequests.length} pull requests`);
+    console.log(`- ${projectName}: ${project.pullRequests.length} pull requests, ${project.issues.length} issues`);
     
     if (project.pullRequests.length > 0) {
+      console.log('  Pull Requests:');
       project.pullRequests.forEach(pr => {
-        console.log(`  - "${pr.title}" (#${pr.number}) by ${pr.author} [${pr.status}]`);
+        console.log(`    - "${pr.title}" (#${pr.number}) by ${pr.author} [${pr.status}]`);
+      });
+    }
+    
+    if (project.issues.length > 0) {
+      console.log('  Issues:');
+      project.issues.forEach(issue => {
+        console.log(`    - "${issue.title}" (#${issue.number}) by ${issue.author} [${issue.state}]`);
       });
     }
   }

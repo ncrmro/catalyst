@@ -2,7 +2,541 @@ projects:
   catalyst:
     repos:
       - ncrmro/catalyst
-    issues: []
+    issues:
+      - id: 3391169983
+        title: Coordinated DAG Feature Development
+        number: 282
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/282
+        created_at: 2025-09-07T04:15:09Z
+        updated_at: 2025-09-07T04:15:09Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3390861554
+        title: NextJS Starter
+        number: 279
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/279
+        created_at: 2025-09-06T20:55:30Z
+        updated_at: 2025-09-06T20:55:30Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3384721777
+        title: Reauthenticate with Github
+        number: 276
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/276
+        created_at: 2025-09-04T17:38:58Z
+        updated_at: 2025-09-04T17:39:29Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3373557432
+        title: User Github Auth Via Github App
+        number: 270
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/270
+        created_at: 2025-09-01T18:57:43Z
+        updated_at: 2025-09-01T18:57:47Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3307412867
+        title: Repo clusters
+        number: 31
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/31
+        created_at: 2025-08-10T09:59:37Z
+        updated_at: 2025-09-01T18:55:52Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3307926796
+        title: Document composable CI/CD based on catalyst actions
+        number: 38
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/38
+        created_at: 2025-08-10T20:06:33Z
+        updated_at: 2025-09-01T18:55:40Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3370931494
+        title: Production Logging not Json
+        number: 268
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/268
+        created_at: 2025-09-01T01:40:32Z
+        updated_at: 2025-09-01T13:11:40Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3369825714
+        title: Pull Request pod Manifest
+        number: 255
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/255
+        created_at: 2025-08-31T05:12:23Z
+        updated_at: 2025-09-01T01:32:52Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3370402509
+        title: Pull Requests Page
+        number: 258
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/258
+        created_at: 2025-08-31T15:12:21Z
+        updated_at: 2025-08-31T23:15:22Z
+        labels:
+          - github
+          - user-ci
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3370475219
+        title: PR page sub cards partially expand on hover
+        number: 265
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/265
+        created_at: 2025-08-31T16:35:21Z
+        updated_at: 2025-08-31T16:35:21Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3340051966
+        title: "User periodic report of prioritized blockers, next priorities based on
+          active projects repos. "
+        number: 78
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/78
+        created_at: 2025-08-21T02:21:47Z
+        updated_at: 2025-08-31T15:46:27Z
+        labels:
+          - AI
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3312243336
+        title: User Repo Pull request created deployment
+        number: 63
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/63
+        created_at: 2025-08-12T02:04:20Z
+        updated_at: 2025-08-31T15:46:10Z
+        labels:
+          - user-ci
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3312245081
+        title: User repo pull request comment
+        number: 64
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/64
+        created_at: 2025-08-12T02:05:05Z
+        updated_at: 2025-08-31T15:45:57Z
+        labels:
+          - user-ci
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3307278491
+        title: Spike Github Repo Webhook Kubernetes workloads
+        number: 26
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/26
+        created_at: 2025-08-10T07:32:08Z
+        updated_at: 2025-08-31T15:45:19Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3347092252
+        title: Kubernetes Native CI
+        number: 123
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/123
+        created_at: 2025-08-22T23:46:18Z
+        updated_at: 2025-08-31T15:43:22Z
+        labels:
+          - user-ci
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3356335817
+        title: Generate a periodic report via a button
+        number: 194
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/194
+        created_at: 2025-08-26T16:25:18Z
+        updated_at: 2025-08-31T15:43:12Z
+        labels:
+          - AI
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3342939348
+        title: Repo Page
+        number: 83
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/83
+        created_at: 2025-08-21T19:29:14Z
+        updated_at: 2025-08-31T15:42:45Z
+        labels:
+          - enhancement
+        priority: medium
+        effort_estimate: medium
+        type: feature
+      - id: 3343982617
+        title: Project Pull request webhook event creates project environment
+        number: 95
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/95
+        created_at: 2025-08-22T03:21:03Z
+        updated_at: 2025-08-31T15:42:25Z
+        labels:
+          - user-ci
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3348773912
+        title: What conventions does Catalyst Introduce and why
+        number: 148
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/148
+        created_at: 2025-08-23T20:26:44Z
+        updated_at: 2025-08-31T15:42:16Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3360968314
+        title: Kubernetes Buildkit Reusable Action
+        number: 226
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/226
+        created_at: 2025-08-27T21:58:00Z
+        updated_at: 2025-08-31T15:42:02Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3356278469
+        title: Periodic Reports
+        number: 190
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/190
+        created_at: 2025-08-26T16:05:55Z
+        updated_at: 2025-08-31T15:41:00Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3365553903
+        title: Test Coverage
+        number: 248
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/248
+        created_at: 2025-08-29T05:42:15Z
+        updated_at: 2025-08-31T15:40:19Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3369804906
+        title: Pull Request Pod
+        number: 254
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/254
+        created_at: 2025-08-31T04:46:18Z
+        updated_at: 2025-08-31T15:31:33Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3370383656
+        title: Improved PR's (of agentic work)
+        number: 257
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/257
+        created_at: 2025-08-31T15:00:22Z
+        updated_at: 2025-08-31T15:00:22Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3365139258
+        title: Environment Template
+        number: 241
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/241
+        created_at: 2025-08-29T01:35:45Z
+        updated_at: 2025-08-31T03:57:33Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3368717913
+        title: Create a Helm Chart called catalyst-singleton with registry
+        number: 252
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/252
+        created_at: 2025-08-30T04:11:55Z
+        updated_at: 2025-08-30T04:11:55Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3368712570
+        title: Unit Tests in Kubernetes
+        number: 250
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/250
+        created_at: 2025-08-30T04:02:41Z
+        updated_at: 2025-08-30T04:05:15Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3343925583
+        title: Project production deployment
+        number: 92
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/92
+        created_at: 2025-08-22T02:50:44Z
+        updated_at: 2025-08-29T03:43:48Z
+        labels:
+          - enhancement
+        priority: medium
+        effort_estimate: medium
+        type: feature
+      - id: 3363914633
+        title: Add Next Logger
+        number: 233
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/233
+        created_at: 2025-08-28T16:13:57Z
+        updated_at: 2025-08-29T02:23:10Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3364227035
+        title: Project Manifest Table
+        number: 235
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/235
+        created_at: 2025-08-28T18:06:45Z
+        updated_at: 2025-08-28T22:41:04Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3364232240
+        title: Project Helm chart Table
+        number: 237
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/237
+        created_at: 2025-08-28T18:08:29Z
+        updated_at: 2025-08-28T19:26:16Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3357951953
+        title: Project Workloads
+        number: 213
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/213
+        created_at: 2025-08-27T04:27:33Z
+        updated_at: 2025-08-28T17:57:16Z
+        labels:
+          - enhancement
+        priority: medium
+        effort_estimate: medium
+        type: feature
+      - id: 3344217654
+        title: Github OIDC Environment Tokens
+        number: 104
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/104
+        created_at: 2025-08-22T05:40:34Z
+        updated_at: 2025-08-28T14:19:17Z
+        labels:
+          - github
+          - user-ci
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3359646609
+        title: Comment on opened PR
+        number: 217
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/217
+        created_at: 2025-08-27T14:42:47Z
+        updated_at: 2025-08-28T05:03:46Z
+        labels:
+          - github
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3361719104
+        title: Stacked Issue
+        number: 231
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/231
+        created_at: 2025-08-28T04:13:51Z
+        updated_at: 2025-08-28T04:14:05Z
+        labels:
+          - user-ci
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3357558771
+        title: MCP Server
+        number: 203
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/203
+        created_at: 2025-08-27T00:23:50Z
+        updated_at: 2025-08-28T02:43:50Z
+        labels:
+          - AI
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3344007867
+        title: Shared Project Environment Auxiliary Tooling
+        number: 96
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/96
+        created_at: 2025-08-22T03:34:15Z
+        updated_at: 2025-08-27T22:02:32Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3308326739
+        title: Reusable Workflow Branch Fast Forward
+        number: 50
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/50
+        created_at: 2025-08-11T03:26:47Z
+        updated_at: 2025-08-27T22:00:23Z
+        labels:
+          - user-ci
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3307860849
+        title: Reusable helm deploy
+        number: 36
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/36
+        created_at: 2025-08-10T18:50:33Z
+        updated_at: 2025-08-27T22:00:23Z
+        labels:
+          - user-ci
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3307169252
+        title: Reusable kind.test.yml workflow
+        number: 17
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/17
+        created_at: 2025-08-10T04:47:45Z
+        updated_at: 2025-08-27T22:00:22Z
+        labels:
+          - user-ci
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3349683501
+        title: During CI all container logs can be watched via kubectl
+        number: 156
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/156
+        created_at: 2025-08-24T16:32:45Z
+        updated_at: 2025-08-27T21:59:43Z
+        labels:
+          - user-ci
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3357944440
+        title: Automated Environment Discovery
+        number: 212
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/212
+        created_at: 2025-08-27T04:22:08Z
+        updated_at: 2025-08-27T21:47:48Z
+        labels:
+          - enhancement
+        priority: medium
+        effort_estimate: medium
+        type: feature
+      - id: 3328852927
+        title: Rails rewrite
+        number: 76
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/76
+        created_at: 2025-08-18T01:11:41Z
+        updated_at: 2025-08-27T21:47:48Z
+        labels:
+          - enhancement
+        priority: medium
+        effort_estimate: medium
+        type: feature
+      - id: 3343259887
+        title: Agents with MCP access to user namespaced resources
+        number: 88
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/88
+        created_at: 2025-08-21T21:34:29Z
+        updated_at: 2025-08-27T21:45:06Z
+        labels:
+          - enhancement
+          - AI
+        priority: medium
+        effort_estimate: medium
+        type: feature
+      - id: 3344414401
+        title: "MCP Server: Tell Agent to investigate issue happening in environment.
+          #124"
+        number: 111
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/111
+        created_at: 2025-08-22T07:08:30Z
+        updated_at: 2025-08-27T21:43:22Z
+        labels:
+          - AI
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3320280571
+        title: Github Access Token Brokne
+        number: 75
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/issues/75
+        created_at: 2025-08-14T00:33:09Z
+        updated_at: 2025-08-27T21:43:12Z
+        labels:
+          - github
+        priority: medium
+        effort_estimate: medium
+        type: improvement
     pullRequests:
       - id: 2806687765
         title: Add TypeScript script for testing periodic report agent with different AI
@@ -119,7 +653,381 @@ projects:
   meze:
     repos:
       - ncrmro/meze
-    issues: []
+    issues:
+      - id: 3361682099
+        title: Add Images Table
+        number: 179
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/179
+        created_at: 2025-08-28T03:52:41Z
+        updated_at: 2025-09-07T22:29:36Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3378164353
+        title: New Meal Page doesn't show new recipies
+        number: 228
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/228
+        created_at: 2025-09-03T03:32:36Z
+        updated_at: 2025-09-07T22:26:36Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3392072362
+        title: Meal plan page does it all
+        number: 236
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/236
+        created_at: 2025-09-07T22:24:50Z
+        updated_at: 2025-09-07T22:24:50Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3378168091
+        title: Generate Recipe AI AI
+        number: 230
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/230
+        created_at: 2025-09-03T03:34:20Z
+        updated_at: 2025-09-07T22:17:57Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3369479617
+        title: User Describes food AI generates it
+        number: 208
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/208
+        created_at: 2025-08-30T20:26:25Z
+        updated_at: 2025-09-07T22:17:48Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3372494729
+        title: New Foo
+        number: 219
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/219
+        created_at: 2025-09-01T12:28:54Z
+        updated_at: 2025-09-03T03:26:36Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3378155863
+        title: Filter Food by Dietary Restrictions
+        number: 227
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/227
+        created_at: 2025-09-03T03:26:18Z
+        updated_at: 2025-09-03T03:26:18Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3348742619
+        title: Allergy and Dietary Restrictions
+        number: 135
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/135
+        created_at: 2025-08-23T20:00:52Z
+        updated_at: 2025-09-03T03:25:45Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3369481903
+        title: Create recipe page should show create food
+        number: 210
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/210
+        created_at: 2025-08-30T20:29:47Z
+        updated_at: 2025-09-01T21:25:43Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3369483651
+        title: Sitemap
+        number: 211
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/211
+        created_at: 2025-08-30T20:32:18Z
+        updated_at: 2025-09-01T19:47:47Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3369484751
+        title: Food MD page
+        number: 213
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/213
+        created_at: 2025-08-30T20:34:20Z
+        updated_at: 2025-08-31T04:18:25Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3363791823
+        title: Refactor Food, Meals, Recipes pages to use slugs
+        number: 188
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/188
+        created_at: 2025-08-28T15:32:12Z
+        updated_at: 2025-08-30T20:30:44Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3361630151
+        title: Meal Plan Changes Update Shopping List Ingrednets.
+        number: 175
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/175
+        created_at: 2025-08-28T03:29:03Z
+        updated_at: 2025-08-30T20:21:06Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3368795791
+        title: Foods, Meals, Recipes must have a created_by when crated by user
+        number: 206
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/206
+        created_at: 2025-08-30T06:09:43Z
+        updated_at: 2025-08-30T14:57:55Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3365071310
+        title: Meals, recipes and foods should have created by
+        number: 197
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/197
+        created_at: 2025-08-29T00:49:32Z
+        updated_at: 2025-08-29T04:29:54Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3361764884
+        title: User Facing Food CRUD Page
+        number: 184
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/184
+        created_at: 2025-08-28T04:38:43Z
+        updated_at: 2025-08-29T04:06:59Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3365111251
+        title: Meal Plan Saved to Local Storage
+        number: 202
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/202
+        created_at: 2025-08-29T01:17:11Z
+        updated_at: 2025-08-29T01:17:11Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3365103416
+        title: User describes a meal, AI builds it
+        number: 200
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/200
+        created_at: 2025-08-29T01:11:26Z
+        updated_at: 2025-08-29T01:11:26Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3357852907
+        title: Home Page Refactor
+        number: 165
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/165
+        created_at: 2025-08-27T03:14:09Z
+        updated_at: 2025-08-29T00:50:20Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3365025429
+        title: Meal Plan without signing
+        number: 196
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/196
+        created_at: 2025-08-29T00:14:28Z
+        updated_at: 2025-08-29T00:19:47Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3365007927
+        title: Onboarding Tweaks
+        number: 194
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/194
+        created_at: 2025-08-29T00:02:50Z
+        updated_at: 2025-08-29T00:08:00Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3363861112
+        title: "Spike: LLM Markdown routes"
+        number: 190
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/190
+        created_at: 2025-08-28T15:55:36Z
+        updated_at: 2025-08-28T15:55:36Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3361456348
+        title: Sitemap + LLMs
+        number: 169
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/169
+        created_at: 2025-08-28T01:54:29Z
+        updated_at: 2025-08-28T15:34:13Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3361710987
+        title: Meal Recipies primary key
+        number: 182
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/182
+        created_at: 2025-08-28T04:08:32Z
+        updated_at: 2025-08-28T15:10:24Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3361643776
+        title: Slugs
+        number: 177
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/177
+        created_at: 2025-08-28T03:35:48Z
+        updated_at: 2025-08-28T05:04:10Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3340390553
+        title: CRUD Recipie page
+        number: 106
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/106
+        created_at: 2025-08-21T05:55:37Z
+        updated_at: 2025-08-28T05:02:25Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3361497331
+        title: Recipes ingredients should be unique
+        number: 171
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/171
+        created_at: 2025-08-28T02:18:25Z
+        updated_at: 2025-08-28T04:41:08Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3361695760
+        title: Foods Table Should use Zod Schema on inserts
+        number: 180
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/180
+        created_at: 2025-08-28T03:59:25Z
+        updated_at: 2025-08-28T04:37:13Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3328846891
+        title: Rewrite in Rails
+        number: 94
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/94
+        created_at: 2025-08-18T01:07:21Z
+        updated_at: 2025-08-28T01:28:57Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3348753820
+        title: Clarify Landing Page and CTA
+        number: 136
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/136
+        created_at: 2025-08-23T20:10:57Z
+        updated_at: 2025-08-28T01:28:29Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3357856636
+        title: Meal Plan Page Meal Plans shouldn't show recipes
+        number: 167
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/167
+        created_at: 2025-08-27T03:17:01Z
+        updated_at: 2025-08-27T04:44:22Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3356668093
+        title: Meal Plan Shopping List
+        number: 163
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/163
+        created_at: 2025-08-26T18:19:40Z
+        updated_at: 2025-08-27T00:54:11Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3353878478
+        title: Shopping List Persistance
+        number: 155
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/155
+        created_at: 2025-08-26T02:58:48Z
+        updated_at: 2025-08-26T18:15:48Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+      - id: 3348858061
+        title: Save dietary restrictions
+        number: 141
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/141
+        created_at: 2025-08-23T22:00:22Z
+        updated_at: 2025-08-26T03:46:27Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
     pullRequests:
       - id: 2783353585
         title: Implement meal plan localStorage support for non-authenticated users
