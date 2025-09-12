@@ -16,6 +16,18 @@ vi.mock('@/lib/github-app/token-refresh', () => ({
   invalidateTokens: vi.fn(),
 }));
 
+// Mock the GitHub lib functions
+vi.mock('@/lib/github', () => ({
+  GITHUB_CONFIG: {
+    PAT: null,
+    REPOS_MODE: 'live'
+  },
+  getUserOctokit: vi.fn(),
+  fetchPullRequestsFromRepos: vi.fn(),
+  fetchUserRepositoryPullRequests: vi.fn(),
+  isGitHubTokenError: vi.fn()
+}));
+
 // Mock the Octokit
 vi.mock('@octokit/rest', () => ({
   Octokit: vi.fn().mockImplementation(() => ({
@@ -73,7 +85,7 @@ describe('Pull Requests Actions', () => {
   it('combines results from both providers and sorts by updated_at', async () => {
     const { auth } = await import('@/auth');
     const { refreshTokenIfNeeded } = await import('@/lib/github-app/token-refresh');
-    const { Octokit } = await import('@octokit/rest');
+    const { fetchUserRepositoryPullRequests } = await import('@/lib/github');
 
     // Mock successful GitHub auth with user ID
     (auth as any).mockResolvedValue({
@@ -88,48 +100,25 @@ describe('Pull Requests Actions', () => {
       scope: 'read:user user:email read:org repo',
     });
 
-    // Mock Octokit responses
-    const mockOctokit = {
-      rest: {
-        users: {
-          getAuthenticated: vi.fn().mockResolvedValue({
-            data: { login: 'testuser' },
-          }),
-        },
-        repos: {
-          listForAuthenticatedUser: vi.fn().mockResolvedValue({
-            data: [
-              {
-                full_name: 'testuser/test-repo',
-                name: 'test-repo',
-              },
-            ],
-          }),
-        },
-        pulls: {
-          list: vi.fn().mockResolvedValue({
-            data: [
-              {
-                id: 1,
-                number: 1,
-                title: 'Test PR',
-                user: { login: 'testuser', avatar_url: 'https://example.com/avatar.png' },
-                html_url: 'https://github.com/testuser/test-repo/pull/1',
-                created_at: '2024-01-01T00:00:00Z',
-                updated_at: '2024-01-02T00:00:00Z',
-                draft: false,
-                labels: [],
-              },
-            ],
-          }),
-        },
-        listReviews: vi.fn().mockResolvedValue({
-          data: [],
-        }),
+    // Mock the fetchUserRepositoryPullRequests function to return the expected data
+    (fetchUserRepositoryPullRequests as any).mockResolvedValue([
+      {
+        id: 1,
+        number: 1,
+        title: 'Test PR',
+        author: 'testuser',
+        repository: 'test-repo',
+        html_url: 'https://github.com/testuser/test-repo/pull/1',
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-02T00:00:00Z',
+        status: 'ready',
+        priority: 'medium',
       },
-    };
+    ]);
 
-    (Octokit as any).mockImplementation(() => mockOctokit);
+    // Mock getUserOctokit to return a mock Octokit instance
+    const { getUserOctokit } = await import('@/lib/github');
+    (getUserOctokit as any).mockResolvedValue({});
 
     const result = await fetchUserPullRequests();
 
