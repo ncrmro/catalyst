@@ -31,6 +31,7 @@ export interface Issue {
   priority: 'high' | 'medium' | 'low';
   effort_estimate: 'small' | 'medium' | 'large';
   type: 'bug' | 'feature' | 'improvement' | 'idea';
+  state: 'open' | 'closed';
 }
 
 export interface RepoNarrative {

@@ -3,7 +3,6 @@ import { anthropic } from '@ai-sdk/anthropic';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { fetchProjects } from '@/actions/projects';
-import { getClusters } from '@/actions/clusters';
 import { getGitHubMCPClient, createGitHubMCPClient, GitHubMCPClient } from '@/lib/mcp-clients';
 
 // Schema for the generated report
@@ -16,32 +15,29 @@ const reportSchema = z.object({
     inactiveEnvironments: z.number(),
     insights: z.array(z.string()).describe('Key insights about projects')
   }),
-  clustersAnalysis: z.object({
-    totalClusters: z.number(),
-    insights: z.array(z.string()).describe('Key insights about clusters')
-  }),
   recommendations: z.array(z.string()).describe('Actionable recommendations'),
   nextSteps: z.array(z.string()).describe('Suggested next steps')
 });
 
 // System prompt for the periodic report agent
-const SYSTEM_PROMPT = `You are a Periodic Report Generator Agent for the Catalyst platform. Your role is to analyze the current state of projects and Kubernetes clusters to generate comprehensive periodic reports.
+const SYSTEM_PROMPT = `You are a Project Report Generator Agent for the Catalyst platform. Your role is to analyze pull requests and issues to generate comprehensive project reports.
 
 Your responsibilities include:
-1. Analyzing project data including repositories, environments, and deployment status
-2. Evaluating Kubernetes cluster health and resource utilization
-3. Identifying trends, issues, and opportunities for improvement
-4. Providing actionable recommendations and next steps
-5. Creating clear, concise reports that help teams understand their infrastructure status
+1. Summarizing recently merged pull requests with high-level rationale for why they were merged
+2. Analyzing relationships between merged PRs and open PRs to identify patterns
+3. Prioritizing open PR reviews based on user-facing features and project primary goals
+4. Identifying which open PRs contribute most to the project's core objectives
+5. Providing actionable recommendations for PR review priorities
 
 When generating reports:
-- Focus on actionable insights rather than just data summaries
-- Highlight potential issues or risks that need attention
-- Suggest concrete next steps for improvement
-- Keep the language professional but accessible to both technical and non-technical stakeholders
-- Include relevant metrics and trends when available
+- Focus on the "why" behind merged PRs - what problem they solved or feature they delivered
+- Connect merged work to open PRs to show development momentum and direction  
+- Prioritize open PRs that deliver user-facing value or advance core project goals
+- Highlight PRs that might be blocked or dependent on other work
+- Suggest which PRs should be reviewed first based on impact and strategic importance
+- Keep language clear and focused on development priorities and user impact
 
-The user will provide you with current data about projects and clusters to analyze.`;
+The user will provide you with project data including merged and open pull requests to analyze.`;
 
 export interface PeriodicReportOptions {
   provider?: 'anthropic' | 'openai';
@@ -82,7 +78,6 @@ export class PeriodicReportAgent {
   async generateReport(): Promise<z.infer<typeof reportSchema>> {
     // Fetch data using the action functions
     const projectsData = await this.fetchProjects();
-    const clustersData = await this.fetchClusters();
 
     // Check GitHub MCP availability for enhanced reporting context
     let gitHubToolsAvailable = false;
@@ -104,14 +99,11 @@ export class PeriodicReportAgent {
 
     const model = this.provider === 'anthropic' ? anthropic(this.model) : openai(this.model);
 
-    // Enhanced prompt that mentions GitHub integration capabilities
-    const prompt = `Generate a comprehensive periodic report for the Catalyst platform based on the following current data:
+    // Enhanced prompt focused on PR analysis and prioritization
+    const prompt = `Generate a comprehensive project report based on the following data:
 
 PROJECTS DATA:
 ${JSON.stringify(projectsData.data, null, 2)}
-
-CLUSTERS DATA:
-${JSON.stringify(clustersData.data, null, 2)}
 
 ${gitHubToolsAvailable ? `
 GITHUB INTEGRATION:
@@ -119,13 +111,13 @@ GitHub MCP tools are available (${gitHubToolsCount} tools) and can provide addit
 
 Analyze this data to create a detailed report covering:
 
-1. Current state of all projects and their environments
-2. Kubernetes cluster status and health
-3. Key insights and trends
-4. Recommendations for improvements
-5. Suggested next steps
+1. Summary of recently merged pull requests with rationale for why they were merged
+2. Analysis of open pull requests and their relationship to recent merged work
+3. Prioritization of open PRs based on user-facing features and core project goals
+4. Identification of PRs that should be reviewed first for maximum impact
+5. Recommendations for development priorities and next steps
 
-Focus on providing actionable insights that help teams maintain and improve their infrastructure.${gitHubToolsAvailable ? ' Consider leveraging GitHub data for more comprehensive analysis.' : ''}`;
+Focus on connecting merged work to open work, identifying patterns, and providing clear PR review priorities based on strategic value and user impact.${gitHubToolsAvailable ? ' Consider leveraging GitHub data for deeper PR relationship analysis.' : ''}`;
 
     const result = await generateObject({
       model,
@@ -154,21 +146,6 @@ Focus on providing actionable insights that help teams maintain and improve thei
     }
   }
 
-  async fetchClusters() {
-    try {
-      const clustersData = await getClusters();
-      return {
-        success: true,
-        data: clustersData
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        data: null
-      };
-    }
-  }
 
   async getGitHubTools() {
     if (!this.enableGitHubMCP || !this.gitHubMCPClient) {

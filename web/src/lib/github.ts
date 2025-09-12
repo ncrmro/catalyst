@@ -335,6 +335,7 @@ export async function fetchIssuesFromRepos(octokit: Octokit, repositories: strin
           priority,
           effort_estimate,
           type,
+          state: issue.state as 'open' | 'closed',
         });
       }
     } catch (error) {

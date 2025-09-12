@@ -9,38 +9,11 @@ import { parse } from 'yaml';
 import { generateObject } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
+import { PullRequest, Issue } from '../../src/actions/reports.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-interface Issue {
-  id: number;
-  number: number;
-  title: string;
-  state: string;
-  created_at: string;
-  updated_at: string;
-  author: string;
-  labels: string[];
-  url: string;
-  repository: string;
-}
-
-interface PullRequest {
-  id: number;
-  number: number;
-  title: string;
-  state: string;
-  draft: boolean;
-  created_at: string;
-  updated_at: string;
-  author: string;
-  labels: string[];
-  url: string;
-  repository: string;
-  base_branch: string;
-  head_branch: string;
-}
 
 interface Project {
   repos: string[];
@@ -140,20 +113,48 @@ function calculateAge(dateString: string): number {
 async function generateProjectReport(projectName: string, project: Project) {
   const model = openai('gpt-4o-mini');
 
-  // Calculate some statistics for the prompt
-  const openIssues = project.issues.filter(issue => issue.state === 'open');
-  const closedIssues = project.issues.filter(issue => issue.state === 'closed');
-  const openPRs = project.pullRequests.filter(pr => pr.state === 'open');
-  const closedPRs = project.pullRequests.filter(pr => pr.state === 'closed');
-  const draftPRs = project.pullRequests.filter(pr => pr.draft);
+  // Calculate statistics using reducers for efficiency
+  const prStats = project.pullRequests.reduce((acc, pr) => {
+    switch (pr.status) {
+      case 'draft':
+        acc.draft.push(pr);
+        break;
+      case 'ready':
+        acc.ready.push(pr);
+        break;
+      case 'changes_requested':
+        acc.changesRequested.push(pr);
+        break;
+    }
+    return acc;
+  }, {
+    draft: [] as PullRequest[],
+    ready: [] as PullRequest[],
+    changesRequested: [] as PullRequest[]
+  });
+
+  const issueStats = project.issues.reduce((acc, issue) => {
+    switch (issue.state) {
+      case 'open':
+        acc.open.push(issue);
+        break;
+      case 'closed':
+        acc.closed.push(issue);
+        break;
+    }
+    return acc;
+  }, {
+    open: [] as Issue[],
+    closed: [] as Issue[]
+  });
 
   const prompt = `Generate a comprehensive project report for the "${projectName}" project based on the following data:
 
 PROJECT OVERVIEW:
 - Project Name: ${projectName}
 - Repositories: ${project.repos.join(', ')}
-- Total Issues: ${project.issues.length} (${openIssues.length} open, ${closedIssues.length} closed)
-- Total Pull Requests: ${project.pullRequests.length} (${openPRs.length} open, ${closedPRs.length} closed, ${draftPRs.length} drafts)
+- Total Issues: ${project.issues.length} (${issueStats.open.length} open, ${issueStats.closed.length} closed)
+- Total Pull Requests: ${project.pullRequests.length} (${prStats.draft.length} drafts, ${prStats.ready.length} ready, ${prStats.changesRequested.length} changes requested)
 
 ISSUES DATA:
 ${JSON.stringify(project.issues, null, 2)}
