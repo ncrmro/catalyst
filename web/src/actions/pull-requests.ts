@@ -11,7 +11,7 @@ import { PullRequest } from '@/actions/reports';
 import { getMockPullRequests } from '@/mocks/github';
 import { refreshTokenIfNeeded } from '@/lib/github-app/token-refresh';
 import { invalidateTokens } from '@/lib/github-app/token-refresh';
-import { getUserOctokit, fetchPullRequestsFromRepos as coreFetchPullRequestsFromRepos, fetchUserRepositoryPullRequests, isGitHubTokenError } from '@/lib/github';
+import { getUserOctokit, fetchPullRequestsFromRepos as coreFetchPullRequestsFromRepos, fetchUserRepositoryPullRequests, isGitHubTokenError, GITHUB_CONFIG } from '@/lib/github';
 
 /**
  * GitHub provider - fetches real pull requests from GitHub API using GitHub App tokens or PAT

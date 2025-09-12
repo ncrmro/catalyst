@@ -3,6 +3,7 @@ import { anthropic } from '@ai-sdk/anthropic';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { fetchProjects } from '@/actions/projects';
+import { getClusters } from '@/actions/clusters';
 import { getGitHubMCPClient, createGitHubMCPClient, GitHubMCPClient } from '@/lib/mcp-clients';
 
 // Schema for the generated report
@@ -136,6 +137,22 @@ Focus on connecting merged work to open work, identifying patterns, and providin
       return {
         success: true,
         data: projectsData
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        data: null
+      };
+    }
+  }
+
+  async fetchClusters() {
+    try {
+      const clustersData = await getClusters();
+      return {
+        success: true,
+        data: clustersData
       };
     } catch (error) {
       return {
