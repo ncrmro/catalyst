@@ -393,7 +393,7 @@ export async function determinePRStatus(
   octokit: Octokit, 
   owner: string, 
   repo: string, 
-  pr: any
+  pr: { draft?: boolean; number: number }
 ): Promise<'draft' | 'ready' | 'changes_requested'> {
   if (pr.draft) {
     return 'draft';

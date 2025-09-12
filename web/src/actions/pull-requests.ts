@@ -7,7 +7,6 @@
  */
 
 import { auth } from '@/auth';
-import { Octokit } from '@octokit/rest';
 import { PullRequest } from '@/actions/reports';
 import { getMockPullRequests } from '@/mocks/github';
 import { refreshTokenIfNeeded } from '@/lib/github-app/token-refresh';

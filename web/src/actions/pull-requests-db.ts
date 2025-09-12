@@ -10,7 +10,6 @@ import { db, pullRequests, repos } from '@/db';
 import { eq, and, desc } from 'drizzle-orm';
 import { 
   createPullRequestSchema, 
-  updatePullRequestSchema, 
   type CreatePullRequest,
   type UpdatePullRequest 
 } from '@/schemas/pull-request';
