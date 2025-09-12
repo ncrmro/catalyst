@@ -1,0 +1,11 @@
+projects:
+  catalyst:
+    repos:
+      - ncrmro/catalyst
+    issues: []
+    pullRequests: []
+  meze:
+    repos:
+      - ncrmro/meze
+    issues: []
+    pullRequests: []

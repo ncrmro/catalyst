@@ -31,6 +31,7 @@ export interface Issue {
   priority: 'high' | 'medium' | 'low';
   effort_estimate: 'small' | 'medium' | 'large';
   type: 'bug' | 'feature' | 'improvement' | 'idea';
+  state: 'open' | 'closed';
 }
 
 export interface RepoNarrative {
@@ -158,7 +159,8 @@ function getMockReportsData(): Report[] {
           labels: ['bug', 'performance', 'api'],
           priority: 'high',
           effort_estimate: 'large',
-          type: 'bug'
+          type: 'bug',
+          state: 'open' as const
         },
         {
           id: 202,
@@ -171,7 +173,8 @@ function getMockReportsData(): Report[] {
           labels: ['feature', 'frontend', 'websockets'],
           priority: 'high',
           effort_estimate: 'large',
-          type: 'feature'
+          type: 'feature',
+          state: 'open' as const
         },
         {
           id: 203,
@@ -184,7 +187,8 @@ function getMockReportsData(): Report[] {
           labels: ['performance', 'database'],
           priority: 'medium',
           effort_estimate: 'medium',
-          type: 'improvement'
+          type: 'improvement',
+          state: 'open' as const
         },
         {
           id: 204,
@@ -197,7 +201,8 @@ function getMockReportsData(): Report[] {
           labels: ['feature', 'data', 'api'],
           priority: 'medium',
           effort_estimate: 'large',
-          type: 'feature'
+          type: 'feature',
+          state: 'open' as const
         },
         {
           id: 205,
@@ -210,7 +215,8 @@ function getMockReportsData(): Report[] {
           labels: ['ux', 'frontend', 'validation'],
           priority: 'low',
           effort_estimate: 'small',
-          type: 'improvement'
+          type: 'improvement',
+          state: 'open' as const
         }
       ],
       recommendations: [
@@ -346,7 +352,8 @@ function getMockReportsData(): Report[] {
           labels: ['bug', 'testing', 'ci'],
           priority: 'high',
           effort_estimate: 'medium',
-          type: 'bug'
+          type: 'bug',
+          state: 'open' as const
         },
         {
           id: 207,
@@ -359,7 +366,8 @@ function getMockReportsData(): Report[] {
           labels: ['feature', 'monitoring', 'health'],
           priority: 'medium',
           effort_estimate: 'small',
-          type: 'feature'
+          type: 'feature',
+          state: 'open' as const
         }
       ],
       recommendations: [
@@ -407,7 +415,8 @@ function getMockReportsData(): Report[] {
           labels: ['architecture', 'planning', 'microservices'],
           priority: 'high',
           effort_estimate: 'large',
-          type: 'idea'
+          type: 'idea',
+          state: 'open' as const
         }
       ],
       recommendations: [

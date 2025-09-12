@@ -21,13 +21,8 @@ vi.mock('../../../src/actions/projects', () => ({
   fetchProjects: vi.fn()
 }));
 
-vi.mock('../../../src/actions/clusters', () => ({
-  getClusters: vi.fn()
-}));
-
 import { PeriodicReportAgent, generatePeriodicReport } from '../../../src/agents/periodic-report';
 import { fetchProjects } from '../../../src/actions/projects';
-import { getClusters } from '../../../src/actions/clusters';
 import { generateObject } from 'ai';
 
 describe('PeriodicReportAgent', () => {
@@ -77,24 +72,6 @@ describe('PeriodicReportAgent', () => {
     expect(fetchProjects).toHaveBeenCalledTimes(1);
   });
 
-  it('should fetch clusters data successfully', async () => {
-    const mockClustersData = [
-      {
-        name: 'test-cluster',
-        endpoint: 'https://test.example.com',
-        source: 'KUBECONFIG_TEST'
-      }
-    ];
-
-    (getClusters as ReturnType<typeof vi.fn>).mockResolvedValue(mockClustersData);
-
-    const agent = new PeriodicReportAgent();
-    const result = await agent.fetchClusters();
-
-    expect(result.success).toBe(true);
-    expect(result.data).toEqual(mockClustersData);
-    expect(getClusters).toHaveBeenCalledTimes(1);
-  });
 
   it('should handle errors when fetching projects', async () => {
     const errorMessage = 'Failed to fetch projects';
@@ -108,17 +85,6 @@ describe('PeriodicReportAgent', () => {
     expect(result.data).toBe(null);
   });
 
-  it('should handle errors when fetching clusters', async () => {
-    const errorMessage = 'Failed to fetch clusters';
-    (getClusters as ReturnType<typeof vi.fn>).mockRejectedValue(new Error(errorMessage));
-
-    const agent = new PeriodicReportAgent();
-    const result = await agent.fetchClusters();
-
-    expect(result.success).toBe(false);
-    expect(result.error).toBe(errorMessage);
-    expect(result.data).toBe(null);
-  });
 
   it('should generate a report with mocked AI response', async () => {
     const mockProjectsData = {
@@ -149,33 +115,20 @@ describe('PeriodicReportAgent', () => {
       total_count: 1
     };
 
-    const mockClustersData = [
-      {
-        name: 'test-cluster',
-        endpoint: 'https://test.example.com',
-        source: 'KUBECONFIG_TEST'
-      }
-    ];
-
     const mockReport = {
       title: 'Weekly Infrastructure Report',
-      summary: 'Current infrastructure is stable with 1 project and 1 cluster.',
+      summary: 'Current infrastructure is stable with 1 project.',
       projectsAnalysis: {
         totalProjects: 1,
         activeEnvironments: 1,
         inactiveEnvironments: 0,
         insights: ['All projects are running smoothly']
       },
-      clustersAnalysis: {
-        totalClusters: 1,
-        insights: ['Cluster is healthy and responding']
-      },
       recommendations: ['Continue monitoring'],
       nextSteps: ['Review security settings']
     };
 
     (fetchProjects as ReturnType<typeof vi.fn>).mockResolvedValue(mockProjectsData);
-    (getClusters as ReturnType<typeof vi.fn>).mockResolvedValue(mockClustersData);
     (generateObject as ReturnType<typeof vi.fn>).mockResolvedValue({ object: mockReport });
 
     const agent = new PeriodicReportAgent();
@@ -195,16 +148,11 @@ describe('PeriodicReportAgent', () => {
         inactiveEnvironments: 0,
         insights: []
       },
-      clustersAnalysis: {
-        totalClusters: 0,
-        insights: []
-      },
       recommendations: [],
       nextSteps: []
     };
 
     (fetchProjects as ReturnType<typeof vi.fn>).mockResolvedValue({ projects: [], total_count: 0 });
-    (getClusters as ReturnType<typeof vi.fn>).mockResolvedValue([]);
     (generateObject as ReturnType<typeof vi.fn>).mockResolvedValue({ object: mockReport });
 
     const result = await generatePeriodicReport();

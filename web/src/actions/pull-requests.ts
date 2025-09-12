@@ -7,12 +7,11 @@
  */
 
 import { auth } from '@/auth';
-import { Octokit } from '@octokit/rest';
 import { PullRequest } from '@/actions/reports';
 import { getMockPullRequests } from '@/mocks/github';
 import { refreshTokenIfNeeded } from '@/lib/github-app/token-refresh';
 import { invalidateTokens } from '@/lib/github-app/token-refresh';
-import { GITHUB_CONFIG } from '@/lib/github';
+import { getUserOctokit, fetchPullRequestsFromRepos as coreFetchPullRequestsFromRepos, fetchUserRepositoryPullRequests, isGitHubTokenError, GITHUB_CONFIG } from '@/lib/github';
 
 /**
  * GitHub provider - fetches real pull requests from GitHub API using GitHub App tokens or PAT
@@ -25,119 +24,28 @@ async function fetchGitHubPullRequests(): Promise<{ pullRequests: PullRequest[];
     throw new Error('No authenticated user found for fetching pull requests');
   }
 
-  // Check for GitHub Personal Access Token in environment (for local development)
-  let octokit: Octokit;
+  // Determine auth method for logging
+  const isPATAllowed = process.env.NODE_ENV !== 'production' || process.env.GITHUB_ALLOW_PAT_FALLBACK === 'true';
   let authMethod: 'github-app' | 'pat' | 'none' = 'none';
-
-  if (GITHUB_CONFIG.PAT) {
+  
+  if (isPATAllowed && GITHUB_CONFIG.PAT) {
     console.log('Using GitHub Personal Access Token for pull requests');
-    octokit = new Octokit({
-      auth: GITHUB_CONFIG.PAT,
-    });
     authMethod = 'pat';
   } else {
-    // Get tokens from the database, refreshing if needed
-    const tokens = await refreshTokenIfNeeded(session.user.id);
-    
-    if (!tokens) {
-      console.warn('No GitHub App tokens found for user. User may need to authorize the GitHub App');
-      return { pullRequests: [], authMethod: 'none' };
-    }
-
-    octokit = new Octokit({
-      auth: tokens.accessToken,
-    });
     authMethod = 'github-app';
   }
 
   try {
-    // First, get the authenticated user to filter PRs by author
-    const { data: user } = await octokit.rest.users.getAuthenticated();
+    // Get authenticated Octokit instance with session management
+    const octokit = await getUserOctokit(session.user.id);
     
-    // Get user's repositories (both owned and collaborator repos)
-    const { data: repos } = await octokit.rest.repos.listForAuthenticatedUser({
-      per_page: 100,
-      sort: 'updated',
-      affiliation: 'owner,collaborator'
-    });
+    // Call core function to fetch user repository PRs
+    const pullRequests = await fetchUserRepositoryPullRequests(octokit);
 
-    const allPullRequests: PullRequest[] = [];
-
-    // Fetch pull requests from each repository where user is the author
-    for (const repo of repos) {
-      try {
-        const [owner, repoName] = repo.full_name.split('/');
-        if (!owner || !repoName) {
-          continue;
-        }
-
-        const { data: prs } = await octokit.rest.pulls.list({
-          owner,
-          repo: repoName,
-          state: 'open',
-          per_page: 100,
-          sort: 'updated',
-          direction: 'desc',
-        });
-
-        // Filter to only include PRs authored by the current user
-        const userPrs = prs.filter(pr => pr.user?.login === user.login);
-
-        for (const pr of userPrs) {
-          // Determine priority based on labels (simple heuristic)
-          const labels = pr.labels.map(label => typeof label === 'string' ? label : label.name || '');
-          let priority: 'high' | 'medium' | 'low' = 'medium';
-          if (labels.some(label => label.toLowerCase().includes('urgent') || label.toLowerCase().includes('critical'))) {
-            priority = 'high';
-          } else if (labels.some(label => label.toLowerCase().includes('minor') || label.toLowerCase().includes('low'))) {
-            priority = 'low';
-          }
-
-          // Determine status based on review state and draft status
-          let status: 'draft' | 'ready' | 'changes_requested' = 'ready';
-          if (pr.draft) {
-            status = 'draft';
-          } else {
-            // Check for requested changes in reviews (this is a simplified check)
-            try {
-              const { data: reviews } = await octokit.rest.pulls.listReviews({
-                owner,
-                repo: repoName,
-                pull_number: pr.number,
-              });
-              
-              if (reviews.some(review => review.state === 'CHANGES_REQUESTED')) {
-                status = 'changes_requested';
-              }
-            } catch (error) {
-              console.warn(`Could not fetch reviews for PR ${pr.number}:`, error);
-            }
-          }
-
-          allPullRequests.push({
-            id: pr.id,
-            title: pr.title,
-            number: pr.number,
-            author: pr.user?.login || 'unknown',
-            author_avatar: pr.user?.avatar_url || '',
-            repository: repoName,
-            url: pr.html_url,
-            created_at: pr.created_at,
-            updated_at: pr.updated_at,
-            comments_count: 0, // Comments count would need separate API calls for accurate count
-            priority,
-            status,
-          });
-        }
-      } catch (error) {
-        console.warn(`Could not fetch pull requests for repository ${repo.full_name}:`, error);
-      }
-    }
-
-    return { pullRequests: allPullRequests, authMethod };
+    return { pullRequests, authMethod };
   } catch (error) {
     // Handle potential token errors
-    if (isTokenError(error)) {
+    if (isGitHubTokenError(error)) {
       console.error('Token error during pull request fetch:', error);
       // Only invalidate tokens if using GitHub App auth (not PAT)
       if (authMethod === 'github-app') {
@@ -197,8 +105,9 @@ export async function fetchUserPullRequestsWithTokenStatus(): Promise<PullReques
     throw new Error('No authenticated user found');
   }
 
-  // Check for PAT first, then GitHub App tokens
-  const hasGitHubToken = !!GITHUB_CONFIG.PAT || !!(await refreshTokenIfNeeded(session.user.id));
+  // Check for PAT first (if allowed), then GitHub App tokens
+  const isPATAllowed = process.env.NODE_ENV !== 'production' || process.env.GITHUB_ALLOW_PAT_FALLBACK === 'true';
+  const hasGitHubToken = (isPATAllowed && !!GITHUB_CONFIG.PAT) || !!(await refreshTokenIfNeeded(session.user.id));
 
   try {
     // Fetch from all providers in parallel
@@ -233,20 +142,23 @@ export async function fetchUserPullRequests(): Promise<PullRequest[]> {
 }
 
 /**
- * Helper to identify token-related errors
- * @param error The error to check
- * @returns True if the error is token-related
+ * Fetch pull requests from specific repositories using session-based authentication
+ * Uses GitHub App user tokens from database with PAT fallback
  */
-function isTokenError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') {
-    return false;
-  }
+export async function fetchPullRequestsFromRepos(repositories: string[]): Promise<PullRequest[]> {
+  const session = await auth();
   
-  const err = error as { status?: number; message?: string };
-  return (
-    err?.status === 401 ||
-    err?.status === 403 ||
-    (err?.message?.includes('token') ?? false) ||
-    (err?.message?.includes('authentication') ?? false)
-  );
+  if (!session?.user?.id) {
+    throw new Error('No authenticated user found');
+  }
+
+  // Get authenticated Octokit instance with session management
+  const octokit = await getUserOctokit(session.user.id);
+  
+  // Call core function with authenticated instance
+  return await coreFetchPullRequestsFromRepos(octokit, repositories);
 }
+
+
+
+

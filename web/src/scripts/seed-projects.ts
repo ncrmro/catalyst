@@ -12,7 +12,6 @@ import 'dotenv/config';
 import { createCatalystAndMezeProjects } from '../lib/seed.js';
 import { db } from '../db/index.js';
 import { teams, users, teamsMemberships } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
 
 async function seedProjects() {
   console.log('🌱 Starting to seed catalyst and meze projects...');

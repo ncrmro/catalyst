@@ -10,7 +10,7 @@ help: ## Show this help message
 
 
 build: ## Build all services
-	$(DC) run --env NODE_ENV=production --rm -it app pnpm run build
+	$(DC) run --env NODE_ENV=production --rm --no-deps app npm run build
 
 seed: ## Seed the database with test data
 	npm run seed

@@ -304,6 +304,7 @@ async function fetchRealIssues(repositories: { id: number, name: string, full_na
           priority,
           effort_estimate,
           type,
+          state: issue.state as 'open' | 'closed',
         });
       }
     } catch (error) {
