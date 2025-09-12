@@ -185,7 +185,7 @@ export async function fetchPullRequestsFromRepos(octokit: Octokit, repositories:
         });
         console.log(`  Repository ${repoFullName} - Private: ${repoInfo.private}, Permissions: ${JSON.stringify(repoInfo.permissions || 'unknown')}`);
       } catch (repoError) {
-        console.warn(`  Cannot access repository ${repoFullName}:`, repoError.message);
+        console.warn(`  Cannot access repository ${repoFullName}:`, repoError instanceof Error ? repoError.message : repoError);
         // Continue to try fetching PRs anyway
       }
 

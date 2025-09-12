@@ -13,10 +13,6 @@ interface PeriodicReport {
     inactiveEnvironments: number;
     insights: string[];
   };
-  clustersAnalysis: {
-    totalClusters: number;
-    insights: string[];
-  };
   recommendations: string[];
   nextSteps: string[];
 }
@@ -157,10 +153,6 @@ export default function PeriodicReportGenerator({ className = "" }: PeriodicRepo
           <div className="text-2xl font-bold text-on-secondary-container">{report.projectsAnalysis.activeEnvironments}</div>
           <div className="text-sm text-on-secondary-container">Active Environments</div>
         </div>
-        <div className="bg-tertiary-container rounded-lg p-4">
-          <div className="text-2xl font-bold text-on-tertiary-container">{report.clustersAnalysis.totalClusters}</div>
-          <div className="text-sm text-on-tertiary-container">Total Clusters</div>
-        </div>
       </div>
 
       {/* Analysis Sections */}
@@ -176,17 +168,6 @@ export default function PeriodicReportGenerator({ className = "" }: PeriodicRepo
           </div>
         </div>
 
-        {/* Clusters Analysis */}
-        <div>
-          <h3 className="text-lg font-semibold text-on-surface mb-4">Clusters Insights</h3>
-          <div className="space-y-3">
-            {report.clustersAnalysis.insights.map((insight, index) => (
-              <div key={index} className="border border-outline rounded-lg p-3 bg-surface">
-                <p className="text-sm text-on-surface">{insight}</p>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Recommendations */}

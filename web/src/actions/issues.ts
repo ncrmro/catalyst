@@ -1,6 +1,6 @@
 'use server';
 
-import { auth } from "@/lib/auth.config";
+import { auth } from "@/auth";
 import { getUserOctokit, fetchIssuesFromRepos as coreFetchIssuesFromRepos } from "@/lib/github";
 import type { Issue } from "@/actions/reports";
 

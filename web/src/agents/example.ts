@@ -22,12 +22,9 @@ async function main() {
     
     // For demonstration, let's show the data fetching capabilities
     const projectsResult = await openaiAgent.fetchProjects();
-    const clustersResult = await openaiAgent.fetchClusters();
     
     console.log('✅ Projects fetched successfully:', projectsResult.success);
     console.log('📋 Total projects:', projectsResult.data?.total_count || 0);
-    console.log('✅ Clusters fetched successfully:', clustersResult.success);
-    console.log('🏗️  Total clusters:', clustersResult.data?.length || 0);
     console.log();
 
     // Example 2: Using GitHub MCP integration
