@@ -14,9 +14,51 @@ import { PullRequest, Issue } from '../../src/actions/reports.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+interface CommitInfo {
+  sha: string;
+  message: string;
+  fullMessage: string;
+  author: string;
+  date: string;
+}
+
+interface ReleaseInfo {
+  name: string;
+  tag: string;
+  published_at: string;
+  body: string;
+}
+
+interface MilestoneInfo {
+  id: number;
+  number: number;
+  title: string;
+  description: string | null;
+  state: 'open' | 'closed';
+  created_at: string;
+  updated_at: string;
+  due_on: string | null;
+  open_issues: number;
+  closed_issues: number;
+}
+
+interface RepositoryInfo {
+  name: string;
+  fullName: string;
+  description: string | null;
+  topics: string[];
+  language: string | null;
+  stars: number;
+  forks: number;
+  readme: string | null;
+  recentCommits: CommitInfo[];
+  latestRelease: ReleaseInfo | null;
+  milestones: MilestoneInfo[];
+}
 
 interface Project {
   repos: string[];
+  repositoryInfo: RepositoryInfo[];
   issues: Issue[];
   pullRequests: PullRequest[];
 }
@@ -31,66 +73,43 @@ const projectReportSchema = z.object({
   projectName: z.string().describe('Name of the project'),
   title: z.string().describe('Title of the project report'),
   summary: z.string().describe('Executive summary of the project state'),
-  repositoryAnalysis: z.object({
-    totalRepositories: z.number(),
-    repositories: z.array(z.string()).describe('List of repositories in the project'),
-    insights: z.array(z.string()).describe('Key insights about repository activity')
-  }),
-  issuesAnalysis: z.object({
-    totalIssues: z.number(),
-    openIssues: z.number(),
-    closedIssues: z.number(),
-    issuesByLabel: z.record(z.number()).describe('Count of issues by label'),
-    issuesByRepository: z.record(z.number()).describe('Count of issues by repository'),
-    oldestIssues: z.array(z.object({
-      title: z.string(),
-      repository: z.string(),
-      age_days: z.number(),
-      url: z.string(),
-      labels: z.array(z.string())
-    })).describe('Oldest unresolved issues'),
-    insights: z.array(z.string()).describe('Key insights about issues')
-  }),
-  pullRequestsAnalysis: z.object({
-    totalPRs: z.number(),
-    openPRs: z.number(),
-    closedPRs: z.number(),
-    draftPRs: z.number(),
-    readyPRs: z.number(),
-    prsByAuthor: z.record(z.number()).describe('Count of PRs by author'),
-    prsByRepository: z.record(z.number()).describe('Count of PRs by repository'),
-    stalePRs: z.array(z.object({
-      title: z.string(),
-      repository: z.string(),
-      author: z.string(),
-      age_days: z.number(),
-      url: z.string(),
-      isDraft: z.boolean()
-    })).describe('PRs that may need attention'),
-    insights: z.array(z.string()).describe('Key insights about pull requests')
-  }),
-  recommendations: z.array(z.string()).describe('Actionable recommendations for the project'),
-  nextSteps: z.array(z.string()).describe('Suggested next steps for project maintainers')
+  description: z.string().describe('What the project does based on README and repository info'),
+  technologyStack: z.array(z.string()).describe('Technologies and languages used'),
+  repositoryCount: z.number().describe('Number of repositories'),
+  totalStars: z.number().describe('Total stars across all repositories'),
+  totalForks: z.number().describe('Total forks across all repositories'),
+  recentActivity: z.string().describe('Summary of recent development activity'),
+  issuesSummary: z.string().describe('Summary of issues and their status'),
+  pullRequestsSummary: z.string().describe('Summary of pull requests and their status'),
+  keyInsights: z.array(z.string()).describe('Key insights about project health and development'),
+  recommendations: z.array(z.string()).describe('Actionable recommendations for improvement'),
+  nextSteps: z.array(z.string()).describe('Suggested next steps for maintainers')
 });
 
-const SYSTEM_PROMPT = `You are a Project Report Generator that analyzes GitHub repository data to provide insights about development activity, issues, and pull requests for a specific project.
+const SYSTEM_PROMPT = `You are a Project Report Generator that analyzes comprehensive GitHub repository data to provide insights about development activity, issues, and pull requests for a specific project.
 
 Your responsibilities include:
-1. Analyzing project activity across all repositories in the project
-2. Highlighting issues that need attention (old, high-priority, etc.)
-3. Identifying pull requests that may be stale or need review
-4. Providing actionable insights for project maintainers
-5. Suggesting next steps to improve project health and development velocity
+1. Understanding what the project does based on repository descriptions and README content
+2. Analyzing project activity across all repositories in the project
+3. Identifying the technology stack and development patterns
+4. Highlighting issues that need attention (old, high-priority, etc.)
+5. Identifying pull requests that may be stale or need review
+6. Providing actionable insights for project maintainers
+7. Suggesting next steps to improve project health and development velocity
 
 When generating reports:
+- Use repository descriptions and README content to understand project purpose
+- Analyze technology stack from repository languages and topics
+- Consider repository popularity (stars/forks) in your analysis
 - Focus on actionable insights rather than just data summaries
 - Highlight potential bottlenecks or areas needing attention
 - Consider the age of issues and PRs when making recommendations
 - Look for patterns in labels, authors, and repository activity
 - Keep recommendations specific and achievable for the project scope
 - Consider the project as a cohesive unit across multiple repositories
+- Reference recent commit activity to understand development velocity
 
-The user will provide you with data for a specific project including its repositories, issues, and pull requests.`;
+The user will provide you with comprehensive data for a specific project including repository metadata, README content, recent commits, releases, issues, and pull requests.`;
 
 async function loadProjectsConfig(): Promise<ProjectsConfig> {
   const configPath = path.join(__dirname, 'projects.yml');
@@ -148,13 +167,36 @@ async function generateProjectReport(projectName: string, project: Project) {
     closed: [] as Issue[]
   });
 
-  const prompt = `Generate a comprehensive project report for the "${projectName}" project based on the following data:
+  // Calculate repository statistics
+  const totalStars = project.repositoryInfo.reduce((sum, repo) => sum + repo.stars, 0);
+  const totalForks = project.repositoryInfo.reduce((sum, repo) => sum + repo.forks, 0);
+  const technologies = [...new Set(project.repositoryInfo.map(repo => repo.language).filter(Boolean))];
+  const topics = [...new Set(project.repositoryInfo.flatMap(repo => repo.topics))];
+  const totalMilestones = project.repositoryInfo.reduce((sum, repo) => sum + repo.milestones.length, 0);
+  const openMilestones = project.repositoryInfo.reduce((sum, repo) => 
+    sum + repo.milestones.filter(m => m.state === 'open').length, 0);
+  
+  // Calculate milestone statistics for issues and PRs
+  const issuesWithMilestones = project.issues.filter(issue => issue.milestone).length;
+  const prsWithMilestones = project.pullRequests.filter(pr => pr.milestone).length;
+
+  const prompt = `You must generate a comprehensive project report as a JSON object that matches the provided schema exactly. Generate a report for the "${projectName}" project based on the following data:
 
 PROJECT OVERVIEW:
 - Project Name: ${projectName}
 - Repositories: ${project.repos.join(', ')}
+- Total Stars: ${totalStars}
+- Total Forks: ${totalForks}
+- Technologies: ${technologies.join(', ')}
+- Topics: ${topics.join(', ')}
 - Total Issues: ${project.issues.length} (${issueStats.open.length} open, ${issueStats.closed.length} closed)
 - Total Pull Requests: ${project.pullRequests.length} (${prStats.draft.length} drafts, ${prStats.ready.length} ready, ${prStats.changesRequested.length} changes requested)
+- Milestones: ${totalMilestones} total (${openMilestones} open)
+- Issues with Milestones: ${issuesWithMilestones}/${project.issues.length}
+- PRs with Milestones: ${prsWithMilestones}/${project.pullRequests.length}
+
+REPOSITORY INFORMATION:
+${JSON.stringify(project.repositoryInfo, null, 2)}
 
 ISSUES DATA:
 ${JSON.stringify(project.issues, null, 2)}
@@ -163,25 +205,32 @@ PULL REQUESTS DATA:
 ${JSON.stringify(project.pullRequests, null, 2)}
 
 Please analyze this project data and provide:
-1. Repository activity analysis across all repos in the project
-2. Issues analysis with focus on aging issues, patterns, and priority
-3. Pull request analysis with attention to stale PRs and development velocity
-4. Actionable recommendations for project improvement
-5. Specific next steps for maintainers
+1. Project overview with description derived from repository README content
+2. Technology stack analysis from repository languages and topics
+3. Repository activity analysis across all repos in the project
+4. Issues analysis with focus on aging issues, patterns, and priority
+5. Pull request analysis with attention to stale PRs and development velocity
+6. Milestone analysis for project planning and organization insights
+7. Actionable recommendations for project improvement
+8. Specific next steps for maintainers
 
 Focus on insights that help improve:
-- Development velocity and efficiency
+- Understanding what the project does and its purpose
+- Development velocity and efficiency based on recent commit activity
 - Issue resolution and prioritization
 - Code review processes and PR management
+- Project planning and milestone-based organization
 - Overall project health and maintainability
+- Technology stack coherence and modernization
 
-Consider this project as a cohesive unit and provide recommendations that take into account the multi-repository nature of the project.`;
+Use the repository descriptions, README content, and recent commits to provide context-aware recommendations that align with the project's actual goals and purpose.`;
 
   const result = await generateObject({
     model,
     system: SYSTEM_PROMPT,
     prompt,
     schema: projectReportSchema,
+    schemaName: 'ProjectReport',
   });
 
   return result.object;
@@ -189,12 +238,6 @@ Consider this project as a cohesive unit and provide recommendations that take i
 
 function formatProjectReport(report: any): string {
   const formatList = (items: string[]) => items.map(item => `  - ${item}`).join('\n');
-  const formatIssueTable = (items: any[]) => items.map(item => 
-    `  - **${item.title}** (${item.repository}) - ${item.age_days} days old - [Link](${item.url})\n    Labels: ${item.labels.join(', ')}`
-  ).join('\n');
-  const formatPRTable = (items: any[]) => items.map(item => 
-    `  - **${item.title}** by ${item.author} (${item.repository}) - ${item.age_days} days old${item.isDraft ? ' [DRAFT]' : ''} - [Link](${item.url})`
-  ).join('\n');
 
   return `
 # ${report.title}
@@ -204,50 +247,28 @@ function formatProjectReport(report: any): string {
 ## Executive Summary
 ${report.summary}
 
-## Repository Analysis
-**Total Repositories:** ${report.repositoryAnalysis.totalRepositories}
+## Project Description
+${report.description}
 
-**Repositories in Project:**
-${formatList(report.repositoryAnalysis.repositories)}
+## Technology Stack
+${formatList(report.technologyStack)}
 
-**Key Insights:**
-${formatList(report.repositoryAnalysis.insights)}
+## Project Metrics
+- **Repositories:** ${report.repositoryCount}
+- **Total Stars:** ${report.totalStars}
+- **Total Forks:** ${report.totalForks}
 
-## Issues Analysis
-**Total Issues:** ${report.issuesAnalysis.totalIssues}
-**Open Issues:** ${report.issuesAnalysis.openIssues}
-**Closed Issues:** ${report.issuesAnalysis.closedIssues}
+## Recent Activity
+${report.recentActivity}
 
-**Issues by Label:**
-${Object.entries(report.issuesAnalysis.issuesByLabel).map(([label, count]) => `  - ${label}: ${count}`).join('\n')}
+## Issues Summary
+${report.issuesSummary}
 
-**Issues by Repository:**
-${Object.entries(report.issuesAnalysis.issuesByRepository).map(([repo, count]) => `  - ${repo}: ${count}`).join('\n')}
+## Pull Requests Summary
+${report.pullRequestsSummary}
 
-**Oldest Issues Needing Attention:**
-${formatIssueTable(report.issuesAnalysis.oldestIssues)}
-
-**Key Insights:**
-${formatList(report.issuesAnalysis.insights)}
-
-## Pull Requests Analysis
-**Total PRs:** ${report.pullRequestsAnalysis.totalPRs}
-**Open PRs:** ${report.pullRequestsAnalysis.openPRs}
-**Closed PRs:** ${report.pullRequestsAnalysis.closedPRs}
-**Draft PRs:** ${report.pullRequestsAnalysis.draftPRs}
-**Ready PRs:** ${report.pullRequestsAnalysis.readyPRs}
-
-**PRs by Author:**
-${Object.entries(report.pullRequestsAnalysis.prsByAuthor).map(([author, count]) => `  - ${author}: ${count}`).join('\n')}
-
-**PRs by Repository:**
-${Object.entries(report.pullRequestsAnalysis.prsByRepository).map(([repo, count]) => `  - ${repo}: ${count}`).join('\n')}
-
-**Stale PRs Needing Attention:**
-${formatPRTable(report.pullRequestsAnalysis.stalePRs)}
-
-**Key Insights:**
-${formatList(report.pullRequestsAnalysis.insights)}
+## Key Insights
+${formatList(report.keyInsights)}
 
 ## Recommendations
 ${formatList(report.recommendations)}

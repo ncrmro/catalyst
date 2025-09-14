@@ -17,6 +17,13 @@ export interface PullRequest {
   comments_count: number;
   priority: 'high' | 'medium' | 'low';
   status: 'draft' | 'ready' | 'changes_requested';
+  milestone: {
+    id: number;
+    number: number;
+    title: string;
+    state: string;
+    due_on: string | null;
+  } | null;
 }
 
 export interface Issue {
@@ -32,6 +39,14 @@ export interface Issue {
   effort_estimate: 'small' | 'medium' | 'large';
   type: 'bug' | 'feature' | 'improvement' | 'idea';
   state: 'open' | 'closed';
+  author: string;
+  milestone: {
+    id: number;
+    number: number;
+    title: string;
+    state: string;
+    due_on: string | null;
+  } | null;
 }
 
 export interface RepoNarrative {

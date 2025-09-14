@@ -2,6 +2,241 @@ projects:
   catalyst:
     repos:
       - ncrmro/catalyst
+    repositoryInfo:
+      - name: catalyst
+        fullName: ncrmro/catalyst
+        description: null
+        topics: []
+        language: TypeScript
+        stars: 0
+        forks: 0
+        readme: >
+          # Catalyst
+
+
+          A development platform designed to help you ship faster. Provides
+          opinionated deployments, CI/CD pipelines, and boilerplates. Simply
+          connect your Git repositories and we handle the rest.
+
+
+          Built on open standards, allowing you to deploy anywhere. Designed for
+          agentic workflows.
+
+
+          Available as a managed platform or self-hosted solution.
+
+
+          # How Catalyst Helps
+
+
+          - An agent or user works on a new feature and opens a pull request.
+
+          - A preview environment is created for that agent.
+
+          - CI is built and ran in the same environment as the preview
+          environment keeping things fast.
+
+          - Both agents (via MCP server) and users can inspect all internal
+          services and public URLs of a service.
+        recentCommits:
+          - sha: 917ea96
+            message: "chore: add claude code"
+            fullMessage: "chore: add claude code"
+            author: Nicholas Romero
+            date: 2025-09-14T12:21:55Z
+          - sha: b3a21c6
+            message: "refactor: githutb code with local cli PAT based report generation
+              (#288)"
+            fullMessage: >-
+              refactor: githutb code with local cli PAT based report generation
+              (#288)
+
+
+              * chore: spike iniital commit
+
+
+              * feat: working pull request script
+
+
+              * refactor: getOctokit an pull request functinoality
+
+
+              * feat: add issues and pull requests to pull request summary
+
+
+              * chore: fix lint
+
+
+              * fix: ci
+
+
+              * chore: commit bug fixes
+            author: Nicholas Romero
+            date: 2025-09-12T19:58:10Z
+          - sha: c1fe6db
+            message: "chore: check in seed projects"
+            fullMessage: "chore: check in seed projects"
+            author: Nicholas Romero
+            date: 2025-09-08T18:39:25Z
+          - sha: 66c3b03
+            message: "docs: update after changing github auth"
+            fullMessage: "docs: update after changing github auth"
+            author: Nicholas Romero
+            date: 2025-09-08T18:17:44Z
+          - sha: fd1aa65
+            message: "refactor: github env values (#287)"
+            fullMessage: |-
+              refactor: github env values (#287)
+
+              * refactor: github env values
+
+              * chore: update .env example secrets
+
+              * fix: unit tests
+
+              * fix: e2e webhook tests
+
+              * chore: handle config mocks
+            author: Nicholas Romero
+            date: 2025-09-08T17:49:48Z
+          - sha: 35aba97
+            message: "spike: move namespace and mostly working helm"
+            fullMessage: >-
+              spike: move namespace and mostly working helm
+
+
+              No helm test yet because of the dev image not being available and
+              it
+
+              seems like we are being capped at the registry bandwidth
+            author: Nicholas Romero
+            date: 2025-09-07T23:42:05Z
+          - sha: 91cbff6
+            message: "chore: allow PAT in local development"
+            fullMessage: "chore: allow PAT in local development"
+            author: Nicholas Romero
+            date: 2025-09-07T05:51:32Z
+          - sha: 4aa333b
+            message: "spike: pr pod builds and deploys helm"
+            fullMessage: "spike: pr pod builds and deploys helm"
+            author: Nicholas Romero
+            date: 2025-09-07T04:13:35Z
+          - sha: bc9f195
+            message: Add provider-agnostic pull requests table with Zod validation and
+              webhook database integration tests (#277)
+            fullMessage: >-
+              Add provider-agnostic pull requests table with Zod validation and
+              webhook database integration tests (#277)
+
+
+              * Initial plan
+
+
+              * Add pull requests table with database operations and webhook
+              integration
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Complete pull requests table implementation with tests and
+              documentation
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Implement Zod schemas for pull request database operations
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Add comprehensive webhook database integration test
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Fix webhook build and test issues with Zod schema separation
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Fix failing unit test for gitfoobar provider logging
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Update imports to use @ alias instead of relative paths
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              ---------
+
+
+              Co-authored-by: copilot-swe-agent[bot]
+              <198982749+Copilot@users.noreply.github.com>
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+              Co-authored-by: Nicholas Romero <ncrmro@gmail.com>
+            author: Copilot
+            date: 2025-09-07T03:17:03Z
+          - sha: f898c28
+            message: "fix: pr job pod verification step"
+            fullMessage: "fix: pr job pod verification step"
+            author: Nicholas Romero
+            date: 2025-09-07T00:46:08Z
+        latestRelease: null
+        milestones:
+          - id: 13589044
+            number: 2
+            title: v0.2 - Project Pull Requests
+            description: |-
+              - Easy to view Copilot Review
+              - Easy to review Pull Request
+              - View Test failure images
+            state: open
+            created_at: 2025-08-31T15:34:05Z
+            updated_at: 2025-09-04T17:38:58Z
+            due_on: null
+            open_issues: 1
+            closed_issues: 1
+          - id: 13589054
+            number: 3
+            title: v0.3 Agentic Projects
+            description: Agent should organize and prioritize reviews based on milestones.
+            state: open
+            created_at: 2025-08-31T15:39:21Z
+            updated_at: 2025-08-31T15:46:27Z
+            due_on: null
+            open_issues: 3
+            closed_issues: 0
+          - id: 13589057
+            number: 4
+            title: v0.0.5 Standardized Conventions and Docs
+            description: ""
+            state: open
+            created_at: 2025-08-31T15:41:48Z
+            updated_at: 2025-09-01T18:55:40Z
+            due_on: null
+            open_issues: 4
+            closed_issues: 0
+          - id: 13568553
+            number: 1
+            title: v0.1 - PR's Automatically make preview Environments
+            description: ""
+            state: open
+            created_at: 2025-08-27T16:19:02Z
+            updated_at: 2025-09-01T01:32:52Z
+            due_on: 2025-08-31T07:00:00Z
+            open_issues: 3
+            closed_issues: 3
     issues:
       - id: 3391169983
         title: Coordinated DAG Feature Development
@@ -15,6 +250,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3390861554
         title: NextJS Starter
         number: 279
@@ -27,6 +264,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3384721777
         title: Reauthenticate with Github
         number: 276
@@ -39,6 +278,13 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone:
+          id: 13589044
+          number: 2
+          title: v0.2 - Project Pull Requests
+          state: open
+          due_on: null
       - id: 3373557432
         title: User Github Auth Via Github App
         number: 270
@@ -51,6 +297,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3307412867
         title: Repo clusters
         number: 31
@@ -63,6 +311,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3307926796
         title: Document composable CI/CD based on catalyst actions
         number: 38
@@ -75,6 +325,13 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone:
+          id: 13589057
+          number: 4
+          title: v0.0.5 Standardized Conventions and Docs
+          state: open
+          due_on: null
       - id: 3370931494
         title: Production Logging not Json
         number: 268
@@ -87,6 +344,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3369825714
         title: Pull Request pod Manifest
         number: 255
@@ -99,6 +358,13 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone:
+          id: 13568553
+          number: 1
+          title: v0.1 - PR's Automatically make preview Environments
+          state: open
+          due_on: 2025-08-31T07:00:00Z
       - id: 3370402509
         title: Pull Requests Page
         number: 258
@@ -113,6 +379,13 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone:
+          id: 13589044
+          number: 2
+          title: v0.2 - Project Pull Requests
+          state: open
+          due_on: null
       - id: 3370475219
         title: PR page sub cards partially expand on hover
         number: 265
@@ -125,6 +398,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3340051966
         title: "User periodic report of prioritized blockers, next priorities based on
           active projects repos. "
@@ -139,6 +414,13 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone:
+          id: 13589054
+          number: 3
+          title: v0.3 Agentic Projects
+          state: open
+          due_on: null
       - id: 3312243336
         title: User Repo Pull request created deployment
         number: 63
@@ -152,6 +434,13 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone:
+          id: 13568553
+          number: 1
+          title: v0.1 - PR's Automatically make preview Environments
+          state: open
+          due_on: 2025-08-31T07:00:00Z
       - id: 3312245081
         title: User repo pull request comment
         number: 64
@@ -165,6 +454,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3307278491
         title: Spike Github Repo Webhook Kubernetes workloads
         number: 26
@@ -177,6 +468,13 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone:
+          id: 13568553
+          number: 1
+          title: v0.1 - PR's Automatically make preview Environments
+          state: open
+          due_on: 2025-08-31T07:00:00Z
       - id: 3347092252
         title: Kubernetes Native CI
         number: 123
@@ -190,6 +488,13 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone:
+          id: 13589057
+          number: 4
+          title: v0.0.5 Standardized Conventions and Docs
+          state: open
+          due_on: null
       - id: 3356335817
         title: Generate a periodic report via a button
         number: 194
@@ -203,6 +508,13 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone:
+          id: 13589054
+          number: 3
+          title: v0.3 Agentic Projects
+          state: open
+          due_on: null
       - id: 3342939348
         title: Repo Page
         number: 83
@@ -216,6 +528,13 @@ projects:
         effort_estimate: medium
         type: feature
         state: closed
+        author: ncrmro
+        milestone:
+          id: 13568553
+          number: 1
+          title: v0.1 - PR's Automatically make preview Environments
+          state: open
+          due_on: 2025-08-31T07:00:00Z
       - id: 3343982617
         title: Project Pull request webhook event creates project environment
         number: 95
@@ -229,6 +548,13 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone:
+          id: 13568553
+          number: 1
+          title: v0.1 - PR's Automatically make preview Environments
+          state: open
+          due_on: 2025-08-31T07:00:00Z
       - id: 3348773912
         title: What conventions does Catalyst Introduce and why
         number: 148
@@ -241,6 +567,13 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone:
+          id: 13589057
+          number: 4
+          title: v0.0.5 Standardized Conventions and Docs
+          state: open
+          due_on: null
       - id: 3360968314
         title: Kubernetes Buildkit Reusable Action
         number: 226
@@ -253,6 +586,13 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone:
+          id: 13589057
+          number: 4
+          title: v0.0.5 Standardized Conventions and Docs
+          state: open
+          due_on: null
       - id: 3356278469
         title: Periodic Reports
         number: 190
@@ -265,6 +605,13 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone:
+          id: 13589054
+          number: 3
+          title: v0.3 Agentic Projects
+          state: open
+          due_on: null
       - id: 3365553903
         title: Test Coverage
         number: 248
@@ -277,6 +624,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3369804906
         title: Pull Request Pod
         number: 254
@@ -289,6 +638,13 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone:
+          id: 13568553
+          number: 1
+          title: v0.1 - PR's Automatically make preview Environments
+          state: open
+          due_on: 2025-08-31T07:00:00Z
       - id: 3370383656
         title: Improved PR's (of agentic work)
         number: 257
@@ -301,6 +657,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3365139258
         title: Environment Template
         number: 241
@@ -313,6 +671,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3368717913
         title: Create a Helm Chart called catalyst-singleton with registry
         number: 252
@@ -325,6 +685,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3368712570
         title: Unit Tests in Kubernetes
         number: 250
@@ -337,6 +699,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3343925583
         title: Project production deployment
         number: 92
@@ -350,6 +714,8 @@ projects:
         effort_estimate: medium
         type: feature
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3363914633
         title: Add Next Logger
         number: 233
@@ -362,6 +728,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3364227035
         title: Project Manifest Table
         number: 235
@@ -374,6 +742,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3364232240
         title: Project Helm chart Table
         number: 237
@@ -386,6 +756,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3357951953
         title: Project Workloads
         number: 213
@@ -399,6 +771,8 @@ projects:
         effort_estimate: medium
         type: feature
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3344217654
         title: Github OIDC Environment Tokens
         number: 104
@@ -413,6 +787,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3359646609
         title: Comment on opened PR
         number: 217
@@ -426,6 +802,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3361719104
         title: Stacked Issue
         number: 231
@@ -439,6 +817,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3357558771
         title: MCP Server
         number: 203
@@ -452,6 +832,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3344007867
         title: Shared Project Environment Auxiliary Tooling
         number: 96
@@ -464,6 +846,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3308326739
         title: Reusable Workflow Branch Fast Forward
         number: 50
@@ -477,6 +861,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3307860849
         title: Reusable helm deploy
         number: 36
@@ -490,6 +876,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3307169252
         title: Reusable kind.test.yml workflow
         number: 17
@@ -503,6 +891,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3349683501
         title: During CI all container logs can be watched via kubectl
         number: 156
@@ -516,6 +906,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3357944440
         title: Automated Environment Discovery
         number: 212
@@ -529,6 +921,8 @@ projects:
         effort_estimate: medium
         type: feature
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3328852927
         title: Rails rewrite
         number: 76
@@ -542,6 +936,8 @@ projects:
         effort_estimate: medium
         type: feature
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3343259887
         title: Agents with MCP access to user namespaced resources
         number: 88
@@ -556,34 +952,22 @@ projects:
         effort_estimate: medium
         type: feature
         state: open
-      - id: 3344414401
-        title: "MCP Server: Tell Agent to investigate issue happening in environment.
-          #124"
-        number: 111
-        repository: catalyst
-        url: https://github.com/ncrmro/catalyst/issues/111
-        created_at: 2025-08-22T07:08:30Z
-        updated_at: 2025-08-27T21:43:22Z
-        labels:
-          - AI
-        priority: medium
-        effort_estimate: medium
-        type: improvement
-        state: open
-      - id: 3320280571
-        title: Github Access Token Brokne
-        number: 75
-        repository: catalyst
-        url: https://github.com/ncrmro/catalyst/issues/75
-        created_at: 2025-08-14T00:33:09Z
-        updated_at: 2025-08-27T21:43:12Z
-        labels:
-          - github
-        priority: medium
-        effort_estimate: medium
-        type: improvement
-        state: closed
+        author: ncrmro
+        milestone: null
     pullRequests:
+      - id: 2821196394
+        title: Fix CI test failures by adding missing imports and methods
+        number: 289
+        author: Copilot
+        author_avatar: https://avatars.githubusercontent.com/in/1143301?v=4
+        repository: catalyst
+        url: https://github.com/ncrmro/catalyst/pull/289
+        created_at: 2025-09-12T04:26:10Z
+        updated_at: 2025-09-12T19:58:12Z
+        comments_count: 0
+        priority: medium
+        status: draft
+        milestone: null
       - id: 2806687765
         title: Add TypeScript script for testing periodic report agent with different AI
           models
@@ -597,6 +981,7 @@ projects:
         comments_count: 0
         priority: medium
         status: draft
+        milestone: null
       - id: 2806603938
         title: Add TypeScript script for PR pod image building and pushing
         number: 284
@@ -609,6 +994,7 @@ projects:
         comments_count: 0
         priority: medium
         status: draft
+        milestone: null
       - id: 2805776900
         title: Fix TypeScript build error in pull-requests.ts return types
         number: 283
@@ -621,6 +1007,7 @@ projects:
         comments_count: 0
         priority: medium
         status: draft
+        milestone: null
       - id: 2805597071
         title: Add @ alias import rule to copilot instructions
         number: 281
@@ -633,6 +1020,7 @@ projects:
         comments_count: 0
         priority: medium
         status: draft
+        milestone: null
       - id: 2805472622
         title: Create NextJS Starter Template with Authentication, Database, AI SDK, and
           Testing
@@ -646,6 +1034,7 @@ projects:
         comments_count: 0
         priority: medium
         status: draft
+        milestone: null
       - id: 2790822806
         title: Implement real Kubernetes AuthenticationConfiguration functionality for
           GitHub OIDC with comprehensive testing
@@ -659,6 +1048,7 @@ projects:
         comments_count: 0
         priority: medium
         status: draft
+        milestone: null
       - id: 2786476400
         title: Add Unit Tests to Kubernetes Helm Chart with Kind Cluster Integration
         number: 251
@@ -671,6 +1061,7 @@ projects:
         comments_count: 0
         priority: medium
         status: draft
+        milestone: null
       - id: 2779709823
         title: Update test.kind.yml to use Kubernetes buildx driver and push to
           in-cluster registry
@@ -684,6 +1075,7 @@ projects:
         comments_count: 0
         priority: medium
         status: ready
+        milestone: null
       - id: 2783114237
         title: "chore: add initial pitchdeck"
         number: 239
@@ -696,10 +1088,664 @@ projects:
         comments_count: 0
         priority: medium
         status: ready
+        milestone: null
   meze:
     repos:
       - ncrmro/meze
+    repositoryInfo:
+      - name: meze
+        fullName: ncrmro/meze
+        description: null
+        topics: []
+        language: TypeScript
+        stars: 0
+        forks: 0
+        readme: |-
+          This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+
+          ## Getting Started
+
+          First, run the development server:
+
+          ```bash
+          npm run dev
+          # or
+          yarn dev
+          # or
+          pnpm dev
+          # or
+          bun dev
+          ```
+
+          Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+          You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+
+
+          ## What is Meze
+
+          Meze is a comprehensive meal prepping platform that makes nutrition and meal planning effortless, leading to healthier living, better aesthetics, and often reduced food costs. We solve the complexity of nutrition science, meal planning, cooking coordination, and grocery shopping by providing an integrated solution that guides users through the entire meal prep lifecycle.
+
+          ### The Problem We Solve
+
+          - **Nutrition is complex**: Understanding macronutrients, micronutrients, and personal dietary needs
+          - **Meal planning is overwhelming**: Deciding what to eat, when, and how much
+          - **Shopping is inefficient**: Creating lists, finding ingredients, managing costs
+          - **Cooking coordination is chaotic**: Especially for households with multiple people
+          - **Food waste is costly**: Poor planning leads to expired ingredients and wasted money
+
+          ### Our Solution: The Complete Meze Flow
+
+          Meze streamlines the entire meal prep process through six integrated phases:
+
+          #### 1. **PLAN** 📋
+          **Data Models**: `users`, `households`, `meals`, `nutrients`, `users_nutrient_targets`
+
+          - Set personalized nutrition goals based on user profiles and health objectives
+          - Create meal plans that align with household preferences and dietary restrictions
+          - Generate balanced meal combinations that meet individual macro/micronutrient targets
+          - Schedule meal preps by date for household coordination
+          - Account for household member preferences and dietary restrictions
+
+          #### 2. **ORDER GROCERIES** 🛒
+          **Data Models**: `grocery_orders`, `grocery_orders_ingredients`, `foods`
+
+          - Automatically generate smart grocery lists based on planned meals
+          - Calculate exact quantities needed to minimize food waste
+          - **Future Feature**: Integrate with grocery store APIs to:
+            - Place orders directly through partner stores
+            - Compare prices across multiple retailers
+            - Schedule pickup/delivery times
+            - Track order status and substitutions
+
+          #### 3. **PREP** 🔪
+          **Data Models**: `meals_preps`, `households`, `foods`
+
+          - Receive step-by-step prep instructions optimized for efficiency
+          - Coordinate prep tasks among household members
+          - Batch similar preparation steps across multiple meals
+          - Track prep progress and completion status
+          - Provide prep time estimates and scheduling recommendations
+
+          #### 4. **COOK** 👨‍🍳
+          - Access cooking instructions with precise timing and techniques
+          - Coordinate cooking schedules for multiple meals
+          - Provide equipment and cookware recommendations
+          - Offer cooking tips and technique guides
+          - Support various cooking methods (meal prep containers, fresh cooking, etc.)
+
+          #### 5. **STORE** 📦
+          - Provide optimal food storage guidelines for maximum freshness
+          - Label and organize prepared meals by date and contents
+          - Track expiration dates and consumption schedules
+          - Optimize refrigerator and freezer space utilization
+          - Send reminders for meal consumption timing
+
+          #### 6. **CLEAN** 🧽
+          - Generate efficient cleanup checklists
+          - Coordinate cleanup tasks among household members
+          - Provide tips for maintaining clean prep spaces
+          - Track kitchen inventory and supply needs
+          - Schedule regular deep cleaning and maintenance
+
+          ### Key Features
+
+          **For Individuals:**
+          - Personalized nutrition tracking with macro/micronutrient goals
+          - Custom meal plans based on preferences and restrictions
+          - Smart grocery list generation with cost optimization
+          - Progress tracking and health metrics
+
+          **For Households:**
+          - Multi-member meal planning and coordination
+          - Shared grocery lists and shopping responsibilities
+          - Task delegation for prep, cooking, and cleanup
+          - Family-style meal scaling and portion control
+
+          **Smart Integrations:**
+          - Grocery store API connections for seamless ordering
+          - Nutrition database with detailed food information
+          - Cost tracking and budget optimization
+          - Progress analytics and health insights
+          - **Markdown API for foods and recipes** - programmatic access to structured data
+
+          ### Technology Stack
+
+          - **Frontend**: Next.js 15 with React 19, TypeScript, and TailwindCSS
+          - **Backend**: Next.js API routes with server actions
+          - **Database**: SQLite with Drizzle ORM
+          - **APIs**: RESTful APIs including markdown generation endpoints
+          - **Deployment**: Cloudflare Pages with OpenNext
+          - **Data**: Structured JSON models for MVP, scalable to full database
+
+          ### Current Status
+
+          Currently in MVP development phase with:
+          - ✅ Core data models defined
+          - ✅ Basic Next.js application structure
+          - 🚧 User interface development
+          - 🚧 Meal planning algorithms
+          - 🚧 Grocery list generation
+          - 📋 Grocery store API integrations (planned)
+
+          ## Testing
+
+          Meze uses a comprehensive three-tier testing approach:
+
+          ### Test Structure
+          - **Unit Tests** (`tests/unit/`): Test individual functions and utilities using Jest
+          - **Integration Tests** (`tests/integration/`): Test interactions between components, actions, and data layers using Jest
+          - **End-to-End Tests** (`tests/e2e/`): Test complete user workflows using Playwright
+
+          ### Running Tests
+          ```bash
+          # Run all tests
+          npm test
+
+          # Run specific test types
+          npm run test:unit        # Unit tests only
+          npm run test:integration # Integration tests only
+          npm run test:e2e         # E2E tests only
+
+          # Run CI pipeline (linting + all tests)
+          make ci
+          ```
+
+          See [tests/README.md](tests/README.md) for detailed testing documentation.
+
+          ## Getting Started with Development
+
+          First, run the development server:
+
+          ```bash
+          npm run db:migrate
+          npm run dev
+          ```
+
+          Alternatively, you can use Docker Compose for development:
+
+          ```bash
+          # Start all services in detached mode, run migrations, and follow logs
+          make up
+
+          # Stop all services
+          make down
+
+          # Clean all services and delete database files
+          make destroy
+          ```
+
+          ### Database Migration Management
+
+          When working with database migrations on different branches, you may encounter conflicts. To resolve these:
+
+          ```bash
+          # Reset drizzle folder from main branch and regenerate migrations
+          make migration-reconcile
+          ```
+
+          This command can be used to:
+          - Regenerate migrations after rebasing on a branch with migration conflicts
+          - Consolidate multiple migrations on a feature branch before committing and merging
+          - Clean up migration files to ensure consistency before creating a pull request
+
+          Meze transforms the overwhelming process of healthy eating into a simple, automated system that anyone can follow, making nutritious meal prepping accessible to busy individuals and families alike.
+        recentCommits:
+          - sha: 95b6e70
+            message: "chore: clean up styles"
+            fullMessage: "chore: clean up styles"
+            author: Nicholas Romero
+            date: 2025-09-12T18:32:36Z
+          - sha: f86c4e2
+            message: Feat/ai meal gen (#238)
+            fullMessage: >-
+              Feat/ai meal gen (#238)
+
+
+              * feat: generate meal plan via AI
+
+
+              * refactor: ai gen schemas
+
+
+              * chore: add make lint commandi
+
+
+              * feat: fix food generation and add support for control/meta form
+              submit
+
+
+              * chore: refactor foods to use root db schema for all types
+
+
+              * feat: working recipe generated
+
+
+              * chore: add chat inspector
+
+
+              * chore: fix any
+
+
+              * chore: fetch nutrients on food page
+
+
+              * feat: working recipe generation
+
+
+              * fea: working meal generator
+
+
+              * feat: working meal recipes
+
+
+              * chore: fix type errors
+            author: Nicholas Romero
+            date: 2025-09-12T04:36:30Z
+          - sha: 7cc80a0
+            message: "refactor: food to be agent based (#237)"
+            fullMessage: >-
+              refactor: food to be agent based (#237)
+
+
+              * refactor: food to be agent based
+
+
+              * chore: error
+
+
+              * chore: throw errors rather in making things up
+
+
+              * Update src/agents/food-generator.ts
+
+
+              Co-authored-by: Copilot
+              <175728472+Copilot@users.noreply.github.com>
+
+
+              * chore: remove typeof window undefined
+
+
+              * chore:
+
+
+              * chore:
+
+
+              * chore: make sitemap dynamic
+
+
+              ---------
+
+
+              Co-authored-by: Copilot
+              <175728472+Copilot@users.noreply.github.com>
+            author: Nicholas Romero
+            date: 2025-09-08T02:31:27Z
+          - sha: 15d9746
+            message: Implement AI Recipe Generation with Tool-Based Food Search and Creation
+              plus Enhanced Navigation and Code Improvements (#231)
+            fullMessage: >-
+              Implement AI Recipe Generation with Tool-Based Food Search and
+              Creation plus Enhanced Navigation and Code Improvements (#231)
+
+
+              * Initial plan
+
+
+              * Implement AI recipe generation feature with food search and
+              creation
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Add comprehensive integration tests for AI recipe generation
+
+
+              * Refactor AI recipe generation to use generateText with tools and
+              recipe insert schema
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Delete obsolete recipe generation tests
+
+
+              * Refactor AI tools and improve validation - move tools to
+              separate file, add nutritional requirements, improve localStorage
+              parsing
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Update src/app/recipes/generate/AIRecipeGenerator.tsx
+
+
+              Co-authored-by: Copilot
+              <175728472+Copilot@users.noreply.github.com>
+
+
+              * Remove unnecessary code block in ai-tools.ts
+
+
+              * Fix: Prevent AI from automatically creating foods in recipe
+              generation with comprehensive testing (#234)
+
+
+              * Initial plan
+
+
+              * Remove createFood tool from AI recipe generation and update
+              prompts
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Fix TypeScript error in test by using proper type annotation
+
+
+              * chore: add openai api key to copilot
+
+
+              * Add comprehensive e2e test for AI recipe generation and fix
+              reset bug
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * chore: comment out open ai api key
+
+
+              * chore: require openai api key on startup
+
+
+              * chore: add openai api key to .env
+
+
+              * Changes before error encountered
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Fix: Remove unused import causing build failure in AI recipe
+              generation
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              ---------
+
+
+              Co-authored-by: copilot-swe-agent[bot]
+              <198982749+Copilot@users.noreply.github.com>
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+              Co-authored-by: Nicholas Romero <ncrmro@gmail.com>
+
+
+              * Add e2e test for recipe generation navigation links
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Add AI recipe generation links to new recipe and new meal pages
+              with return navigation support
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Fix AI recipe generation e2e tests to handle actual environment
+              behavior
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Fix food creation return URL to use specific return path instead
+              of always going to recipe generation
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Fix food creation return URL logic to support multiple contexts
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Fix e2e test URL expectations for food creation return flow
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Fix e2e test to properly test recipe state preservation during
+              food creation flow
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Address PR feedback: Improve AI tools, consolidate actions,
+              extend schemas
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Move recipe generation LLM logic to agents folder with research
+              step (#235)
+
+
+              * Initial plan
+
+
+              * Complete recipe generator agent implementation with research
+              step and food search tools
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Refactor recipe generator: convert class to function, move
+              searchFoodsPublic to ai-tools
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Rename searchFoodsPublic to searchFoods in ai-tools
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              ---------
+
+
+              Co-authored-by: copilot-swe-agent[bot]
+              <198982749+Copilot@users.noreply.github.com>
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              ---------
+
+
+              Co-authored-by: copilot-swe-agent[bot]
+              <198982749+Copilot@users.noreply.github.com>
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+              Co-authored-by: Nicholas Romero <ncrmro@gmail.com>
+
+              Co-authored-by: Copilot
+              <175728472+Copilot@users.noreply.github.com>
+            author: Copilot
+            date: 2025-09-07T19:32:58Z
+          - sha: 26de2a4
+            message: Enable unauthenticated access to food pages with comprehensive E2E
+              tests (#232)
+            fullMessage: >-
+              Enable unauthenticated access to food pages with comprehensive E2E
+              tests (#232)
+
+
+              * Initial plan
+
+
+              * Enable unauthenticated access to food pages with E2E tests
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Update src/app/foods/FoodsClient.tsx
+
+
+              Co-authored-by: Copilot
+              <175728472+Copilot@users.noreply.github.com>
+
+
+              * Update tests/e2e/foods-unauthenticated.spec.ts
+
+
+              Co-authored-by: Copilot
+              <175728472+Copilot@users.noreply.github.com>
+
+
+              * Update tests/e2e/foods-unauthenticated.spec.ts
+
+
+              Co-authored-by: Copilot
+              <175728472+Copilot@users.noreply.github.com>
+
+
+              * Fix E2E test by adding data-testid to food items for better test
+              targeting
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              ---------
+
+
+              Co-authored-by: copilot-swe-agent[bot]
+              <198982749+Copilot@users.noreply.github.com>
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+              Co-authored-by: Nicholas Romero <ncrmro@gmail.com>
+
+              Co-authored-by: Copilot
+              <175728472+Copilot@users.noreply.github.com>
+            author: Copilot
+            date: 2025-09-06T18:30:13Z
+          - sha: d16692b
+            message: "chore: append openai api key from gh secret into .env during copilot
+              setup"
+            fullMessage: >-
+              chore: append openai api key from gh secret into .env during
+              copilot setup
+
+
+              chore: comment out open ai api key
+
+
+              chore: require openai api key on startup
+
+
+              chore: add openai api key to .env
+            author: Nicholas Romero
+            date: 2025-09-06T15:11:26Z
+          - sha: 043bc58
+            message: "chore: add openai api key to copilot"
+            fullMessage: "chore: add openai api key to copilot"
+            author: Nicholas Romero
+            date: 2025-09-06T15:11:26Z
+          - sha: 39accb4
+            message: Add "Add Recipe" button to New Meal Page with localStorage state
+              management using proper Zod validation (#229)
+            fullMessage: >-
+              Add "Add Recipe" button to New Meal Page with localStorage state
+              management using proper Zod validation (#229)
+
+
+              * Initial plan
+
+
+              * Implement Add Recipe button functionality with localStorage
+              state management
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Add Zod schema validation to meal-storage.ts for safe
+              localStorage parsing
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              * Use Zod insert schema for meal state validation and extend with
+              recipeIds
+
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+
+
+              ---------
+
+
+              Co-authored-by: copilot-swe-agent[bot]
+              <198982749+Copilot@users.noreply.github.com>
+
+              Co-authored-by: ncrmro <8276365+ncrmro@users.noreply.github.com>
+            author: Copilot
+            date: 2025-09-03T05:11:38Z
+          - sha: 9ed1761
+            message: Implement AI-powered food generation with natural language chat
+              interface and robust validation (#209)
+            fullMessage: Implement AI-powered food generation with natural language chat
+              interface and robust validation (#209)
+            author: Copilot
+            date: 2025-09-03T03:07:17Z
+          - sha: 285c11e
+            message: "fix: food descriptions column migrations"
+            fullMessage: "fix: food descriptions column migrations"
+            author: Nicholas Romero
+            date: 2025-09-02T02:07:57Z
+        latestRelease: null
+        milestones: []
     issues:
+      - id: 3412305858
+        title: Refactor actions
+        number: 239
+        repository: meze
+        url: https://github.com/ncrmro/meze/issues/239
+        created_at: 2025-09-13T00:42:00Z
+        updated_at: 2025-09-13T03:27:06Z
+        labels: []
+        priority: medium
+        effort_estimate: medium
+        type: improvement
+        state: open
+        author: ncrmro
+        milestone: null
       - id: 3361682099
         title: Add Images Table
         number: 179
@@ -712,6 +1758,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3378164353
         title: New Meal Page doesn't show new recipies
         number: 228
@@ -724,6 +1772,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3392072362
         title: Meal plan page does it all
         number: 236
@@ -736,6 +1786,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3378168091
         title: Generate Recipe AI AI
         number: 230
@@ -748,6 +1800,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3369479617
         title: User Describes food AI generates it
         number: 208
@@ -760,6 +1814,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3372494729
         title: New Foo
         number: 219
@@ -772,6 +1828,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3378155863
         title: Filter Food by Dietary Restrictions
         number: 227
@@ -784,6 +1842,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3348742619
         title: Allergy and Dietary Restrictions
         number: 135
@@ -796,6 +1856,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3369481903
         title: Create recipe page should show create food
         number: 210
@@ -808,6 +1870,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3369483651
         title: Sitemap
         number: 211
@@ -820,6 +1884,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3369484751
         title: Food MD page
         number: 213
@@ -832,6 +1898,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3363791823
         title: Refactor Food, Meals, Recipes pages to use slugs
         number: 188
@@ -844,6 +1912,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3361630151
         title: Meal Plan Changes Update Shopping List Ingrednets.
         number: 175
@@ -856,6 +1926,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3368795791
         title: Foods, Meals, Recipes must have a created_by when crated by user
         number: 206
@@ -868,6 +1940,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3365071310
         title: Meals, recipes and foods should have created by
         number: 197
@@ -880,6 +1954,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3361764884
         title: User Facing Food CRUD Page
         number: 184
@@ -892,6 +1968,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3365111251
         title: Meal Plan Saved to Local Storage
         number: 202
@@ -904,6 +1982,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3365103416
         title: User describes a meal, AI builds it
         number: 200
@@ -916,6 +1996,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3357852907
         title: Home Page Refactor
         number: 165
@@ -928,6 +2010,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3365025429
         title: Meal Plan without signing
         number: 196
@@ -940,6 +2024,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3365007927
         title: Onboarding Tweaks
         number: 194
@@ -952,6 +2038,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3363861112
         title: "Spike: LLM Markdown routes"
         number: 190
@@ -964,6 +2052,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3361456348
         title: Sitemap + LLMs
         number: 169
@@ -976,6 +2066,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3361710987
         title: Meal Recipies primary key
         number: 182
@@ -988,6 +2080,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3361643776
         title: Slugs
         number: 177
@@ -1000,6 +2094,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3340390553
         title: CRUD Recipie page
         number: 106
@@ -1012,6 +2108,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3361497331
         title: Recipes ingredients should be unique
         number: 171
@@ -1024,6 +2122,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3361695760
         title: Foods Table Should use Zod Schema on inserts
         number: 180
@@ -1036,6 +2136,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3328846891
         title: Rewrite in Rails
         number: 94
@@ -1048,6 +2150,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3348753820
         title: Clarify Landing Page and CTA
         number: 136
@@ -1060,6 +2164,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3357856636
         title: Meal Plan Page Meal Plans shouldn't show recipes
         number: 167
@@ -1072,6 +2178,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3356668093
         title: Meal Plan Shopping List
         number: 163
@@ -1084,6 +2192,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
       - id: 3353878478
         title: Shopping List Persistance
         number: 155
@@ -1096,6 +2206,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: open
+        author: ncrmro
+        milestone: null
       - id: 3348858061
         title: Save dietary restrictions
         number: 141
@@ -1108,6 +2220,8 @@ projects:
         effort_estimate: medium
         type: improvement
         state: closed
+        author: ncrmro
+        milestone: null
     pullRequests:
       - id: 2783353585
         title: Implement meal plan localStorage support for non-authenticated users
@@ -1121,6 +2235,7 @@ projects:
         comments_count: 0
         priority: medium
         status: draft
+        milestone: null
       - id: 2781896707
         title: Move E2E testing best practices to dedicated README and update copilot
           instructions
@@ -1134,6 +2249,7 @@ projects:
         comments_count: 0
         priority: medium
         status: draft
+        milestone: null
       - id: 2768939818
         title: 44 recipe task graph
         number: 133
@@ -1146,6 +2262,7 @@ projects:
         comments_count: 0
         priority: medium
         status: ready
+        milestone: null
       - id: 2773623547
         title: "[WIP] In test action, create new job called preview-environment a new
           turso db with the cli, seed it, deploy cloudflare preview environment
@@ -1160,6 +2277,7 @@ projects:
         comments_count: 0
         priority: medium
         status: draft
+        milestone: null
       - id: 2744190816
         title: Add E2E tests on mobile with responsive navigation fixes
         number: 88
@@ -1172,3 +2290,4 @@ projects:
         comments_count: 0
         priority: medium
         status: draft
+        milestone: null

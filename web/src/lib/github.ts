@@ -245,6 +245,13 @@ export async function fetchPullRequestsFromRepos(octokit: Octokit, repositories:
           comments_count: 0, // Comments count would need separate API calls for accurate count
           priority,
           status,
+          milestone: pr.milestone ? {
+            id: pr.milestone.id,
+            number: pr.milestone.number,
+            title: pr.milestone.title,
+            state: pr.milestone.state,
+            due_on: pr.milestone.due_on,
+          } : null,
         });
       }
     } catch (error) {
@@ -336,6 +343,14 @@ export async function fetchIssuesFromRepos(octokit: Octokit, repositories: strin
           effort_estimate,
           type,
           state: issue.state as 'open' | 'closed',
+          author: issue.user?.login || 'unknown',
+          milestone: issue.milestone ? {
+            id: issue.milestone.id,
+            number: issue.milestone.number,
+            title: issue.milestone.title,
+            state: issue.milestone.state,
+            due_on: issue.milestone.due_on,
+          } : null,
         });
       }
     } catch (error) {
@@ -490,6 +505,13 @@ export async function fetchUserRepositoryPullRequests(octokit: Octokit): Promise
             comments_count: 0, // Comments count would need separate API calls for accurate count
             priority,
             status,
+            milestone: pr.milestone ? {
+              id: pr.milestone.id,
+              number: pr.milestone.number,
+              title: pr.milestone.title,
+              state: pr.milestone.state,
+              due_on: pr.milestone.due_on,
+            } : null,
           });
         }
       } catch (error) {

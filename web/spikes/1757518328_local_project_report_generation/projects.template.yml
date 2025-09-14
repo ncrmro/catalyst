@@ -2,10 +2,12 @@ projects:
   catalyst:
     repos:
       - ncrmro/catalyst
+    repositoryInfo: []
     issues: []
     pullRequests: []
   meze:
     repos:
       - ncrmro/meze
+    repositoryInfo: []
     issues: []
     pullRequests: []
