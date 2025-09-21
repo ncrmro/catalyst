@@ -1,6 +1,16 @@
 # FastAPI AI Batch Processor Example
 
-This example demonstrates a FastAPI server that integrates with PostgreSQL and OpenAI's Batch API for processing AI requests in batches.
+This example demonstrates a production-ready FastAPI server that integrates with PostgreSQL and OpenAI's Batch API for cost-effective AI request processing.
+
+> 💡 **Cost Savings**: Using OpenAI's Batch API provides 50% cost reduction compared to standard API calls, making this ideal for processing large volumes of AI requests.
+
+## 🎯 What This Example Demonstrates
+
+- **Modern FastAPI Development** - Async/await, type hints, automatic API documentation
+- **Database Integration** - SQLAlchemy 2.x with PostgreSQL, proper migrations with Alembic  
+- **AI Batch Processing** - OpenAI Batch API integration with job management
+- **Production Practices** - Docker setup, structured logging, comprehensive testing
+- **Automated Processing** - Cron-compatible scripts for hands-off operation
 
 ## Features
 
@@ -103,9 +113,19 @@ Run with Docker:
 docker-compose up
 ```
 
-## Cost Optimization
+## 📚 Documentation
 
-This example uses OpenAI's Batch API which provides:
-- 50% cost reduction compared to standard API
-- 24-hour processing window
-- Ideal for non-time-sensitive workloads
+- **[README.md](README.md)** - Quick start and overview
+- **[USAGE.md](USAGE.md)** - Detailed usage examples and API documentation  
+- **[PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)** - Comprehensive project documentation
+- **Validation** - Run `python validate.py` to verify project structure
+
+## 🔧 Project Validation
+
+Before getting started, validate the project structure:
+
+```bash
+python validate.py
+```
+
+This will check all files, syntax, and configurations to ensure everything is set up correctly.
