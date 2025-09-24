@@ -28,7 +28,7 @@ async function main(): Promise<void> {
   try {
     console.log('Starting database seeding...');
     
-    // Create default users and seed their teams with projects
+    // seedDefaultUsers now automatically handles mocked vs non-mocked mode
     const result = await seedDefaultUsers() as SeedResult;
     
     if (result.success) {

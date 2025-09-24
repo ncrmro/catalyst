@@ -288,7 +288,18 @@ async function handlePullRequestEvent(payload: {
         const prJobName = `pr-${pull_request.number}-${repository.name}`;
         podJobResult = await createPullRequestPodJob({
           name: prJobName,
-          namespace: namespaceResult.success ? namespaceResult.namespace?.name || 'default' : 'default'
+          namespace: namespaceResult.success ? namespaceResult.namespace?.name || 'default' : 'default',
+          env: {
+            REPO_URL: `https://github.com/${repository.full_name}.git`,
+            PR_BRANCH: pull_request.head.ref,
+            PR_NUMBER: pull_request.number.toString(),
+            GITHUB_USER: repository.owner.login,
+            IMAGE_NAME: `${repository.name}/web`,
+            NEEDS_BUILD: 'true',
+            SHALLOW_CLONE: 'true',
+            MANIFEST_DOCKERFILE: '/web/Dockerfile',
+            TARGET_NAMESPACE: namespaceResult.success ? namespaceResult.namespace?.name || '' : ''
+          }
         });
         console.log(`Pull request pod job created for PR ${pull_request.number}:`, podJobResult);
       } catch (podJobError) {

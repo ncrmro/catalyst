@@ -104,15 +104,25 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 echo -e "${BLUE}=== GitHub PR Webhook Trigger ===${NC}"
 echo ""
 
-# Load GITHUB_WEBHOOK_SECRET from .env (now in web directory)
+# Load environment variables from .env (now in web directory)
 if [ -f "$ROOT_DIR/.env" ]; then
     export GITHUB_WEBHOOK_SECRET=$(grep "^GITHUB_WEBHOOK_SECRET=" "$ROOT_DIR/.env" | cut -d'=' -f2)
-    echo -e "${GREEN}Loaded GITHUB_WEBHOOK_SECRET from .env${NC}"
+    export APP_PORT=$(grep "^APP_PORT=" "$ROOT_DIR/.env" | cut -d'=' -f2)
+    echo -e "${GREEN}Loaded GITHUB_WEBHOOK_SECRET and APP_PORT from .env${NC}"
 else
     echo -e "${RED}ERROR: Could not find .env file${NC}"
-    echo "Please ensure .env exists with GITHUB_WEBHOOK_SECRET set."
+    echo "Please ensure .env exists with GITHUB_WEBHOOK_SECRET and APP_PORT set."
     exit 1
 fi
+
+# Set default port if not found in .env
+if [ -z "$APP_PORT" ]; then
+    APP_PORT="3000"
+    echo -e "${YELLOW}APP_PORT not found in .env, using default: $APP_PORT${NC}"
+fi
+
+# Update webhook URL with dynamic port
+WEBHOOK_URL="http://localhost:$APP_PORT/api/github/webhook"
 
 if [ -z "$GITHUB_WEBHOOK_SECRET" ]; then
     echo -e "${RED}ERROR: GITHUB_WEBHOOK_SECRET not found in .env${NC}"
@@ -175,7 +185,7 @@ PAYLOAD=$(cat <<EOF
     "updated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   },
   "repository": {
-    "id": $(date +%s | tail -c 6),
+    "id": $(($(date +%s) % 1000000)),
     "full_name": "$REPO",
     "owner": {
       "login": "$OWNER"
