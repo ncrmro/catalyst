@@ -7,72 +7,102 @@
  * - Pull requests
  * 
  * Used by actions when MOCKED=1 or GITHUB_REPOS_MODE=mocked environment variables are set
+ * Data is loaded from github-data.yaml for realistic real-world scenarios
+ * All data is validated using Zod schemas to ensure type safety
  */
 
 import { PullRequest } from '@/actions/reports';
+import * as yaml from 'js-yaml';
+import * as fs from 'fs';
+import * as path from 'path';
+import { 
+  githubMockDataSchema,
+  type GitHubRepo,
+  type GitHubOrganization,
+  type GitHubMockData,
+  type ReposData,
+  type MockPullRequest
+} from '@/schemas/github-mock';
+import { z } from 'zod';
 
-/*
- * Note: These interfaces are based on @octokit/rest API responses but simplified for our use case.
- * For full type definitions, use:
- * 
- * import { GetResponseDataTypeFromEndpointMethod } from "@octokit/types";
- * import { Octokit } from "@octokit/rest";
- * 
- * const octokit = new Octokit();
- * type FullGitHubRepo = GetResponseDataTypeFromEndpointMethod<
- *   typeof octokit.repos.listForAuthenticatedUser
- * >[0];
- * type FullGitHubOrganization = GetResponseDataTypeFromEndpointMethod<
- *   typeof octokit.orgs.listForAuthenticatedUser  
- * >[0];
+// Re-export types from schema for backward compatibility
+export type { 
+  GitHubRepo, 
+  GitHubOrganization, 
+  ReposData, 
+  GitHubMockData 
+} from '@/schemas/github-mock';
+
+/**
+ * Load mock data from YAML file with Zod validation
  */
+function loadMockDataFromYaml(): GitHubMockData {
+  try {
+    // Use import.meta.url to get current file directory in ES modules
+    const currentDir = path.dirname(new URL(import.meta.url).pathname);
+    const yamlPath = path.join(currentDir, 'github-data.yaml');
+    const fileContents = fs.readFileSync(yamlPath, 'utf8');
+    const rawData = yaml.load(fileContents);
+    
+    // Validate the data using Zod schema
+    const validatedData = githubMockDataSchema.parse(rawData);
+    
+    console.log('✅ Loaded and validated GitHub mock data from YAML');
+    console.log(`  - ${validatedData.user_repos.length} user repositories`);
+    console.log(`  - ${validatedData.organizations.length} organizations`);
+    console.log(`  - ${Object.keys(validatedData.org_repos).length} organization repo groups`);
+    console.log(`  - ${validatedData.pull_requests.length} pull requests`);
+    if (validatedData.projects) {
+      console.log(`  - ${validatedData.projects.length} projects`);
+    }
+    
+    // Convert MockPullRequest to PullRequest format for compatibility
+    const pullRequests: PullRequest[] = validatedData.pull_requests.map(pr => ({
+      ...pr,
+      created_at: pr.created_at,
+      updated_at: pr.updated_at
+    }));
+    
+    return {
+      ...validatedData,
+      pull_requests: pullRequests
+    } as GitHubMockData & { pull_requests: PullRequest[] };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error('❌ YAML validation failed:', error.errors);
+      console.error('Please check github-data.yaml matches the expected schema');
+    } else if (error instanceof Error) {
+      console.warn('⚠️ Failed to load YAML mock data:', error.message);
+    } else {
+      console.warn('⚠️ Unknown error loading YAML mock data:', error);
+    }
+    
+    // Fallback to minimal static data if YAML loading/validation fails
+    console.log('ℹ️ Falling back to static mock data');
+    return {
+      user_repos: mockUserRepos,
+      organizations: mockOrganizations,
+      org_repos: mockOrgRepos,
+      pull_requests: mockPullRequests,
+      projects: []
+    };
+  }
+}
 
-// GitHub Repository Interface
-// Simplified subset of @octokit/rest repos.listForAuthenticatedUser response
-export interface GitHubRepo {
-  id: number;
-  name: string;
-  full_name: string;
-  description: string | null;
-  private: boolean;
-  owner: {
-    login: string;
-    type: 'User' | 'Organization';
-    avatar_url: string;
+// Load data from YAML on module import with proper error handling
+let mockData: GitHubMockData & { pull_requests: PullRequest[] };
+try {
+  mockData = loadMockDataFromYaml();
+} catch (error) {
+  console.error('Failed to initialize mock data:', error);
+  // Initialize with empty validated data as fallback
+  mockData = {
+    user_repos: [],
+    organizations: [],
+    org_repos: {},
+    pull_requests: [],
+    projects: []
   };
-  html_url: string;
-  clone_url?: string;
-  ssh_url?: string;
-  created_at?: string;
-  updated_at: string;
-  pushed_at?: string;
-  language: string | null;
-  stargazers_count: number;
-  forks_count: number;
-  open_issues_count: number;
-  connection?: {
-    projectId: string;
-    isPrimary: boolean;
-  } | null;
-  database_id?: string;
-  teamId?: string;
-}
-
-// GitHub Organization Interface
-// Simplified subset of @octokit/rest orgs.listForAuthenticatedUser response
-export interface GitHubOrganization {
-  login: string;
-  id: number;
-  avatar_url: string;
-  description: string | null;
-}
-
-// Repository Data Structure
-export interface ReposData {
-  user_repos: GitHubRepo[];
-  organizations: GitHubOrganization[];
-  org_repos: Record<string, GitHubRepo[]>;
-  github_integration_enabled: boolean;
 }
 
 /**
@@ -286,9 +316,9 @@ export const mockPullRequests: PullRequest[] = [
  */
 export function getMockReposData(): ReposData {
   return {
-    user_repos: mockUserRepos,
-    organizations: mockOrganizations,
-    org_repos: mockOrgRepos,
+    user_repos: mockData.user_repos || mockUserRepos,
+    organizations: mockData.organizations || mockOrganizations,
+    org_repos: mockData.org_repos || mockOrgRepos,
     github_integration_enabled: true
   };
 }
@@ -297,5 +327,53 @@ export function getMockReposData(): ReposData {
  * Get mock pull requests data
  */
 export function getMockPullRequests(): PullRequest[] {
-  return mockPullRequests;
+  return mockData.pull_requests || mockPullRequests;
+}
+
+/**
+ * Get mock project data (if available from YAML)
+ */
+export function getMockProjects() {
+  return mockData.projects || [];
+}
+
+/**
+ * Get specific repository by full name from mock data
+ */
+export function getMockRepoByFullName(fullName: string): GitHubRepo | undefined {
+  const allRepos = [
+    ...(mockData.user_repos || []),
+    ...Object.values(mockData.org_repos || {}).flat()
+  ];
+  
+  return allRepos.find(repo => repo.full_name === fullName);
+}
+
+/**
+ * Reload mock data from YAML (useful for testing)
+ */
+export function reloadMockData(): GitHubMockData & { pull_requests: PullRequest[] } {
+  mockData = loadMockDataFromYaml();
+  return mockData;
+}
+
+/**
+ * Validate a GitHub repository object against the schema
+ */
+export function validateGitHubRepo(repo: unknown): GitHubRepo {
+  try {
+    return githubMockDataSchema.shape.user_repos.element.parse(repo);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      throw new Error(`Invalid GitHub repository data: ${error.errors.map(e => e.message).join(', ')}`);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Get the current mock data (for debugging/testing)
+ */
+export function getCurrentMockData(): GitHubMockData & { pull_requests: PullRequest[] } {
+  return mockData;
 }

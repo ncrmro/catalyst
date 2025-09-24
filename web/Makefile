@@ -18,16 +18,16 @@ seed: ## Seed the database with test data
 seed-projects: ## Seed the database with catalyst and meze projects
 	$(DC) run --rm app npm run seed:projects
 
-up: ## Start all services
+up: ## Start all services with mocked GitHub data
 	$(DC) up --detach --wait
-	$(DC) run --rm -it app npm run db:migrate
-	$(DC) run --rm -it app npm run seed
-	$(DC) run --rm -it -e GITHUB_REPOS_MODE=mocked app npm run dev
+	$(DC) run --rm --env GITHUB_REPOS_MODE=mocked --env MOCKED=1 app npm run db:migrate
+	$(DC) run --rm --env GITHUB_REPOS_MODE=mocked --env MOCKED=1 app npm run seed
+	$(DC) run --rm -it --env GITHUB_REPOS_MODE=mocked --env MOCKED=1 app npm run dev
 
-up-real: ## Start all services with real data (no mocks)
+up-real: ## Start all services with real GitHub integration
 	$(DC) up --detach --wait
-	$(DC) run --rm -it app npm run db:migrate
-	$(DC) run --rm -it app npm run seed
+	$(DC) run --rm app npm run db:migrate
+	$(DC) run --rm app npm run seed
 	$(DC) run --rm -it app npm run dev
 
 down: ## Stop all services
@@ -35,6 +35,10 @@ down: ## Stop all services
 
 destroy: ## Clean all services
 	$(DC) down --remove-orphans --volumes
+
+reset: ## Clean and restart all services with fresh data
+	$(MAKE) destroy
+	$(MAKE) up
 
 dbshell: ## Connect to PostgreSQL database shell
 	$(DC) exec db psql -U postgres -d catalyst
