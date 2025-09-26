@@ -21,27 +21,22 @@ Integration tests mock the `GITHUB_PAT` environment variable because:
 
 ### Implementation Details
 
-The following integration test files mock `GITHUB_PAT`:
+The following integration test files mock `GITHUB_CONFIG` to provide a mock PAT:
 
 - `k8s-pull-request-pod.test.ts` - Basic PR pod functionality
 - `k8s-pull-request-pod-docker-build.test.ts` - Docker build integration
+- `webhook-database.test.ts` - Webhook processing with PR pod creation
 
 **Example Setup:**
 ```typescript
-beforeAll(async () => {
-  // Mock GITHUB_PAT for CI environments where no real PAT is available
-  // Note: PR pods need this token for git repository cloning
-  process.env.GITHUB_PAT = 'mock-github-pat-for-integration-tests';
-  
-  // ... rest of setup
-});
+import { vi } from 'vitest';
 
-afterAll(async () => {
-  // Clean up mocked environment
-  delete process.env.GITHUB_PAT;
-  
-  // ... rest of cleanup
-});
+// Mock the GitHub configuration
+vi.mock('@/lib/github', () => ({
+  GITHUB_CONFIG: {
+    PAT: 'mock-github-pat-for-integration-tests'
+  }
+}));
 ```
 
 ### When Real PATs Are Needed
@@ -69,7 +64,7 @@ When moving from static PATs to GitHub App tokens:
 
 1. Update `createGitHubPATSecret()` to accept token parameters
 2. Modify webhook handlers to pass installation tokens
-3. Update integration tests to mock the token service layer
+3. Update integration tests to mock the token service layer instead of `GITHUB_CONFIG`
 4. Add tests for token refresh and error scenarios
 
 ## Test Structure

@@ -63,6 +63,12 @@ describe('Pull Requests Actions', () => {
     const { auth } = await import('@/auth');
     const { refreshTokenIfNeeded } = await import('@/lib/github-app/token-refresh');
     
+    // Temporarily disable mocked mode to test real provider logic
+    const originalMocked = process.env.MOCKED;
+    const originalReposMode = process.env.GITHUB_REPOS_MODE;
+    delete process.env.MOCKED;
+    process.env.GITHUB_REPOS_MODE = 'live';
+    
     // Mock auth to return a user (so the function doesn't return early)
     (auth as any).mockResolvedValue({
       user: { id: 'test-user-id' }
@@ -80,6 +86,14 @@ describe('Pull Requests Actions', () => {
     expect(consoleSpy).toHaveBeenCalledWith('gitfoobar provider: returning empty pull requests array');
     
     consoleSpy.mockRestore();
+    
+    // Restore original environment variables
+    if (originalMocked !== undefined) {
+      process.env.MOCKED = originalMocked;
+    }
+    if (originalReposMode !== undefined) {
+      process.env.GITHUB_REPOS_MODE = originalReposMode;
+    }
   });
 
   it('combines results from both providers and sorts by updated_at', async () => {

@@ -19,7 +19,14 @@ import {
 } from '../../src/lib/k8s-pull-request-pod';
 import { getClusterConfig, getCoreV1Api } from '../../src/lib/k8s-client';
 
-import { beforeAll, afterAll, describe, it, expect } from 'vitest';
+import { beforeAll, afterAll, describe, it, expect, vi } from 'vitest';
+
+// Mock the GitHub configuration
+vi.mock('@/lib/github', () => ({
+  GITHUB_CONFIG: {
+    PAT: 'mock-github-pat-for-integration-tests'
+  }
+}));
 
 describe('Pull Request Pod Manifest Integration', () => {
   const testNamespace = 'default';
@@ -27,10 +34,6 @@ describe('Pull Request Pod Manifest Integration', () => {
   let createdJobName: string;
 
   beforeAll(async () => {
-    // Mock GITHUB_PAT for CI environments where no real PAT is available
-    // Note: PR pods need this token for git repository cloning
-    process.env.GITHUB_PAT = 'mock-github-pat-for-integration-tests';
-    
     // Verify KUBECONFIG_PRIMARY is set - test will fail if it's not defined
     expect(process.env.KUBECONFIG_PRIMARY).toBeDefined();
     
@@ -44,9 +47,6 @@ describe('Pull Request Pod Manifest Integration', () => {
   });
 
   afterAll(async () => {
-    // Clean up mocked environment
-    delete process.env.GITHUB_PAT;
-    
     // Clean up any created resources
     try {
       await cleanupPullRequestPodJob(testName, testNamespace, 'PRIMARY');

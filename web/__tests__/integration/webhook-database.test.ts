@@ -13,7 +13,8 @@ import { eq, and } from 'drizzle-orm';
 vi.mock('@/lib/github', () => ({
   getInstallationOctokit: vi.fn(),
   GITHUB_CONFIG: {
-    WEBHOOK_SECRET: 'integration-test-webhook-secret'
+    WEBHOOK_SECRET: 'integration-test-webhook-secret',
+    PAT: 'mock-github-pat-for-integration-tests'
   }
 }));
 
@@ -31,16 +32,6 @@ describe('GitHub Webhook Database Integration', () => {
   let testRepoId: string;
   let testRepoGitHubId: number;
 
-  beforeAll(async () => {
-    // Mock GITHUB_PAT for CI environments where no real PAT is available
-    // Note: Webhook processing creates PR pods which need this token
-    process.env.GITHUB_PAT = 'mock-github-pat-for-integration-tests';
-  });
-
-  afterAll(async () => {
-    // Clean up mocked environment
-    delete process.env.GITHUB_PAT;
-  });
 
   function createSignature(payload: string, secret: string): string {
     return `sha256=${crypto.createHmac('sha256', secret).update(payload).digest('hex')}`;
