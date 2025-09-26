@@ -284,7 +284,18 @@ describe('/api/github/webhook', () => {
       // Verify pull request pod job creation was called with correct parameters
       expect(mockCreatePullRequestPodJob).toHaveBeenCalledWith({
         name: 'pr-42-repo',
-        namespace: 'user-repo-gh-pr-42'
+        namespace: 'user-repo-gh-pr-42',
+        env: {
+          REPO_URL: 'https://github.com/user/repo.git',
+          PR_BRANCH: 'feature/test',
+          PR_NUMBER: '42',
+          GITHUB_USER: 'user',
+          IMAGE_NAME: 'repo/web',
+          NEEDS_BUILD: 'true',
+          SHALLOW_CLONE: 'true',
+          MANIFEST_DOCKERFILE: '/web/Dockerfile',
+          TARGET_NAMESPACE: 'user-repo-gh-pr-42'
+        }
       });
       
       // Verify GitHub comment was created
@@ -390,7 +401,8 @@ describe('/api/github/webhook', () => {
         pull_request: {
           number: 42,
           title: 'Test PR',
-          user: { login: 'testuser' }
+          user: { login: 'testuser' },
+          head: { ref: 'feature/test' }
         },
         repository: { 
           full_name: 'user/repo',
@@ -440,7 +452,18 @@ describe('/api/github/webhook', () => {
       // Verify pull request pod job creation was attempted
       expect(mockCreatePullRequestPodJob).toHaveBeenCalledWith({
         name: 'pr-42-repo',
-        namespace: 'user-repo-gh-pr-42'
+        namespace: 'user-repo-gh-pr-42',
+        env: {
+          REPO_URL: 'https://github.com/user/repo.git',
+          PR_BRANCH: 'feature/test', // This test doesn't set head.ref, but webhook uses it
+          PR_NUMBER: '42',
+          GITHUB_USER: 'user',
+          IMAGE_NAME: 'repo/web',
+          NEEDS_BUILD: 'true',
+          SHALLOW_CLONE: 'true',
+          MANIFEST_DOCKERFILE: '/web/Dockerfile',
+          TARGET_NAMESPACE: 'user-repo-gh-pr-42'
+        }
       });
     });
 
@@ -563,7 +586,8 @@ describe('/api/github/webhook', () => {
         pull_request: {
           number: 42,
           title: 'Test PR',
-          user: { login: 'testuser' }
+          user: { login: 'testuser' },
+          head: { ref: 'feature/test' }
         },
         repository: { 
           full_name: 'user/repo',
@@ -610,7 +634,18 @@ describe('/api/github/webhook', () => {
       // Verify pull request pod job creation was still called (fallback to default namespace)
       expect(mockCreatePullRequestPodJob).toHaveBeenCalledWith({
         name: 'pr-42-repo',
-        namespace: 'default'
+        namespace: 'default',
+        env: {
+          REPO_URL: 'https://github.com/user/repo.git',
+          PR_BRANCH: 'feature/test',
+          PR_NUMBER: '42',
+          GITHUB_USER: 'user',
+          IMAGE_NAME: 'repo/web',
+          NEEDS_BUILD: 'true',
+          SHALLOW_CLONE: 'true',
+          MANIFEST_DOCKERFILE: '/web/Dockerfile',
+          TARGET_NAMESPACE: ''
+        }
       });
     });
 
