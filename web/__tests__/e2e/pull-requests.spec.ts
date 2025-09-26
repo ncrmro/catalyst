@@ -43,7 +43,7 @@ test.describe('Pull Requests Page', () => {
 
     // Check that priority and status information is shown
     await expect(page.locator('text=high priority').first()).toBeVisible();
-    await expect(page.locator('text=medium priority')).toBeVisible();
+    await expect(page.locator('text=medium priority').first()).toBeVisible();
     await expect(page.locator('text=low priority')).toBeVisible();
     await expect(page.locator('text=ready').first()).toBeVisible();
     await expect(page.locator('text=draft')).toBeVisible();

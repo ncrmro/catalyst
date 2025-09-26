@@ -47,14 +47,7 @@ function loadMockDataFromYaml(): GitHubMockData {
     // Validate the data using Zod schema
     const validatedData = githubMockDataSchema.parse(rawData);
     
-    console.log('✅ Loaded and validated GitHub mock data from YAML');
-    console.log(`  - ${validatedData.user_repos.length} user repositories`);
-    console.log(`  - ${validatedData.organizations.length} organizations`);
-    console.log(`  - ${Object.keys(validatedData.org_repos).length} organization repo groups`);
-    console.log(`  - ${validatedData.pull_requests.length} pull requests`);
-    if (validatedData.projects) {
-      console.log(`  - ${validatedData.projects.length} projects`);
-    }
+    // GitHub mock data loaded and validated successfully
     
     // Convert MockPullRequest to PullRequest format for compatibility
     const pullRequests: PullRequest[] = validatedData.pull_requests.map(pr => ({
