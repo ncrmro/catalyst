@@ -295,12 +295,8 @@ export async function createPullRequestPodJob(options: PullRequestPodOptions): P
   const BatchV1Api = await getBatchV1Api();
   const batchApi = kc.makeApiClient(BatchV1Api);
 
-  // Ensure job name stays under Kubernetes 63 character limit
-  const timestamp = Date.now().toString();
-  const baseJobName = `pr-job-${name}-${timestamp}`;
-  const jobName = baseJobName.length > 63 
-    ? `pr-job-${name.substring(0, 10)}-${timestamp}`.substring(0, 63)
-    : baseJobName;
+  // Use generateName for unique job names - Kubernetes will append a random suffix
+  const jobGenerateName = `pr-job-${name}-`;
   
   const serviceAccountName = `${name}-buildx-sa`;
 
@@ -316,7 +312,7 @@ export async function createPullRequestPodJob(options: PullRequestPodOptions): P
       apiVersion: 'batch/v1',
       kind: 'Job',
       metadata: {
-        name: jobName,
+        generateName: jobGenerateName,
         namespace: namespace,
         labels: {
           'app': 'catalyst-pr-job',
@@ -531,10 +527,11 @@ export async function createPullRequestPodJob(options: PullRequestPodOptions): P
       }
     };
 
-    await batchApi.createNamespacedJob({ namespace, body: job });
+    const response = await batchApi.createNamespacedJob({ namespace, body: job });
+    const actualJobName = response.metadata?.name || jobGenerateName;
 
     return {
-      jobName,
+      jobName: actualJobName,
       serviceAccountName,
       namespace,
       created: true
