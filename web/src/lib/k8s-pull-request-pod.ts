@@ -218,6 +218,35 @@ export async function createBuildxServiceAccount(
 
 /**
  * Create GitHub PAT secret for repository access
+ * 
+ * IMPORTANT: This function creates a Kubernetes secret containing a GitHub Personal Access Token
+ * that is used by PR pods for git repository operations (cloning, fetching, etc.).
+ * 
+ * TOKEN REQUIREMENTS:
+ * - For PUBLIC repositories: Token is still required for rate limiting and consistency
+ * - For PRIVATE repositories: Token MUST have appropriate repository access permissions
+ * - For GitHub Container Registry: Token may need 'read:packages' scope for image pulls
+ * 
+ * ENVIRONMENT SETUP:
+ * - Production: Should use GitHub App installation tokens (future implementation)
+ * - Development: Uses GITHUB_PAT environment variable
+ * - CI/Integration Tests: Uses mocked GITHUB_PAT value
+ * 
+ * INTEGRATION TESTS:
+ * Integration tests mock this environment variable because:
+ * 1. CI environments don't have real GitHub PATs configured
+ * 2. Tests use public repositories that don't require authentication for cloning
+ * 3. The mocked token allows testing the full code path without external dependencies
+ * 
+ * FUTURE CONSIDERATIONS:
+ * If PR pods need to access private repositories or push to registries, this function
+ * should be updated to:
+ * 1. Accept user-specific or installation-specific tokens
+ * 2. Use GitHub App installation tokens instead of static PATs
+ * 3. Support token rotation and refresh mechanisms
+ * 
+ * @param namespace Kubernetes namespace to create the secret in
+ * @param clusterName Optional cluster name for multi-cluster support
  */
 export async function createGitHubPATSecret(
   namespace: string = 'default',

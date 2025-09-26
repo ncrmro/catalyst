@@ -27,6 +27,10 @@ describe('Pull Request Pod Manifest Integration', () => {
   let createdJobName: string;
 
   beforeAll(async () => {
+    // Mock GITHUB_PAT for CI environments where no real PAT is available
+    // Note: PR pods need this token for git repository cloning
+    process.env.GITHUB_PAT = 'mock-github-pat-for-integration-tests';
+    
     // Verify KUBECONFIG_PRIMARY is set - test will fail if it's not defined
     expect(process.env.KUBECONFIG_PRIMARY).toBeDefined();
     
@@ -40,6 +44,9 @@ describe('Pull Request Pod Manifest Integration', () => {
   });
 
   afterAll(async () => {
+    // Clean up mocked environment
+    delete process.env.GITHUB_PAT;
+    
     // Clean up any created resources
     try {
       await cleanupPullRequestPodJob(testName, testNamespace, 'PRIMARY');

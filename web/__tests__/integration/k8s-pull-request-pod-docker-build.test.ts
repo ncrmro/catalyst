@@ -36,6 +36,10 @@ describe('Pull Request Pod Docker Build Integration', () => {
   const podReadyTimeout = 120000; // 2 minutes
 
   beforeAll(async () => {
+    // Mock GITHUB_PAT for CI environments where no real PAT is available
+    // Note: PR pods need this token for git repository cloning
+    process.env.GITHUB_PAT = 'mock-github-pat-for-integration-tests';
+    
     // Verify KUBECONFIG_PRIMARY is set
     expect(process.env.KUBECONFIG_PRIMARY).toBeDefined();
     
@@ -48,6 +52,9 @@ describe('Pull Request Pod Docker Build Integration', () => {
   });
 
   afterAll(async () => {
+    // Clean up mocked environment
+    delete process.env.GITHUB_PAT;
+    
     // Clean up any created resources
     try {
       await cleanupPullRequestPodJob(testName, testNamespace, 'PRIMARY');
