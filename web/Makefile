@@ -33,8 +33,9 @@ up-real: ## Start all services with real GitHub integration
 down: ## Stop all services
 	$(DC) down --remove-orphans
 
-destroy: ## Clean all services
+destroy: ## Clean all services and Next.js cache
 	$(DC) down --remove-orphans --volumes
+	rm -rf .next
 
 reset: ## Clean and restart all services with fresh data
 	$(MAKE) destroy
