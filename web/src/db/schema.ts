@@ -7,9 +7,11 @@ import {
   integer,
   unique,
   uniqueIndex,
+  jsonb,
 } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 import type { AdapterAccountType } from "@auth/core/adapters"
+import { z } from 'zod'
  
 export const users = pgTable("user", {
   id: text("id")
@@ -460,3 +462,77 @@ export const pullRequestsRelations = relations(pullRequests, ({ one }) => ({
     references: [repos.id]
   })
 }))
+
+// Zod schemas for report data validation
+const pullRequestSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+  number: z.number(),
+  author: z.string(),
+  author_avatar: z.string(),
+  repository: z.string(),
+  url: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  comments_count: z.number(),
+  priority: z.enum(['high', 'medium', 'low']),
+  status: z.enum(['draft', 'ready', 'changes_requested'])
+})
+
+const issueSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+  number: z.number(),
+  repository: z.string(),
+  url: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  labels: z.array(z.string()),
+  priority: z.enum(['high', 'medium', 'low']),
+  effort_estimate: z.enum(['small', 'medium', 'large']),
+  type: z.enum(['bug', 'feature', 'improvement', 'idea']),
+  state: z.enum(['open', 'closed'])
+})
+
+const repoNarrativeSchema = z.object({
+  repository: z.string(),
+  recently_delivered_features: z.array(z.string()),
+  ideal_next_tasks: z.array(z.string()),
+  current_blockers: z.array(z.string())
+})
+
+// Complete report schema for runtime validation
+export const reportSchema = z.object({
+  id: z.string(),
+  generated_at: z.string(),
+  period_start: z.string(),
+  period_end: z.string(),
+  summary: z.object({
+    total_prs_awaiting_review: z.number(),
+    total_priority_issues: z.number(),
+    goal_focus: z.string()
+  }),
+  prs_awaiting_review: z.array(pullRequestSchema),
+  priority_issues: z.array(issueSchema),
+  recommendations: z.array(z.string()),
+  narrative_report: z.optional(z.object({
+    overview: z.string(),
+    repositories: z.array(repoNarrativeSchema)
+  }))
+})
+
+// Infer TypeScript type from Zod schema
+export type ReportData = z.infer<typeof reportSchema>
+
+/**
+ * Reports Table
+ * 
+ * Stores generated reports using a JSONB field with Zod schema validation
+ * and Drizzle's $type<T>() for compile-time type safety.
+ */
+export const reports = pgTable("reports", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  data: jsonb("data").$type<ReportData>().notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+})

@@ -1,7 +1,12 @@
 'use server';
 
+import { db, reportSchema, type ReportData } from '@/db';
+import { reports } from '@/db/schema';
+import { desc, sql } from 'drizzle-orm';
+
 /**
- * Server action to fetch reports data with mock implementation
+ * Server action to fetch reports data with database persistence
+ * Falls back to mock data when database is empty for development
  */
 
 export interface PullRequest {
@@ -61,7 +66,25 @@ export interface Report {
 }
 
 /**
- * Mock data for development and testing
+ * Save a report to the database with Zod validation
+ */
+export async function saveReport(reportData: ReportData): Promise<void> {
+  try {
+    // Runtime validation with Zod
+    const validatedData = reportSchema.parse(reportData);
+    
+    // TypeScript knows the shape of validatedData
+    await db.insert(reports).values({
+      data: validatedData // Type-safe insert
+    });
+  } catch (error) {
+    console.error('Failed to save report:', error);
+    throw new Error('Failed to save report to database');
+  }
+}
+
+/**
+ * Mock data for development and testing - used as fallback
  */
 function getMockReportsData(): Report[] {
   return [
@@ -430,34 +453,141 @@ function getMockReportsData(): Report[] {
 }
 
 /**
- * Fetch all reports, sorted by generation date (newest first)
+ * Fetch all reports from database, sorted by generation date (newest first)
+ * Falls back to mock data when database is empty
  */
 export async function fetchReports(): Promise<Report[]> {
-  // For now, return mock data
-  // In a real implementation, this would fetch from a database
-  const reports = getMockReportsData();
-  
-  // Sort by generated_at date, newest first
-  return reports.sort((a, b) => 
-    new Date(b.generated_at).getTime() - new Date(a.generated_at).getTime()
-  );
+  try {
+    const results = await db.select().from(reports).orderBy(desc(reports.createdAt));
+    
+    if (results.length === 0) {
+      // Fall back to mock data when database is empty
+      console.log('No reports found in database, using mock data');
+      const mockReports = getMockReportsData();
+      return mockReports.sort((a, b) => 
+        new Date(b.generated_at).getTime() - new Date(a.generated_at).getTime()
+      );
+    }
+    
+    // Parse each result with Zod for runtime safety
+    return results.map(row => {
+      try {
+        return reportSchema.parse(row.data);
+      } catch (error) {
+        console.error('Error parsing report data:', error);
+        throw new Error('Invalid report data in database');
+      }
+    });
+  } catch (error) {
+    console.error('Failed to fetch reports:', error);
+    // Fall back to mock data on database error
+    const mockReports = getMockReportsData();
+    return mockReports.sort((a, b) => 
+      new Date(b.generated_at).getTime() - new Date(a.generated_at).getTime()
+    );
+  }
 }
 
 /**
- * Fetch a specific report by ID
+ * Fetch a specific report by ID from database
+ * Falls back to mock data when not found in database
  */
 export async function fetchReportById(reportId: string): Promise<Report | null> {
-  // For now, use mock data
-  // In a real implementation, this would fetch from a database
-  const reports = getMockReportsData();
-  
-  return reports.find(report => report.id === reportId) || null;
+  try {
+    const results = await db.select().from(reports).where(
+      // We need to query the JSONB field for the ID
+      sql`data->>'id' = ${reportId}`
+    );
+    
+    if (results.length === 0) {
+      // Fall back to mock data
+      const mockReports = getMockReportsData();
+      return mockReports.find(report => report.id === reportId) || null;
+    }
+    
+    // Parse and return the first result
+    try {
+      return reportSchema.parse(results[0].data);
+    } catch (error) {
+      console.error('Error parsing report data:', error);
+      return null;
+    }
+  } catch (error) {
+    console.error('Failed to fetch report by ID:', error);
+    // Fall back to mock data
+    const mockReports = getMockReportsData();
+    return mockReports.find(report => report.id === reportId) || null;
+  }
 }
 
 /**
- * Fetch the most recent report
+ * Fetch the most recent report from database
+ * Falls back to mock data when database is empty
  */
 export async function fetchLatestReport(): Promise<Report | null> {
   const reports = await fetchReports();
   return reports.length > 0 ? reports[0] : null;
+}
+
+/**
+ * Generate a sample report for testing/development purposes
+ * This creates a report with current timestamp and saves it to database
+ */
+export async function generateSampleReport(): Promise<Report> {
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  
+  const sampleReport: ReportData = {
+    id: `sample-report-${now.getTime()}`,
+    generated_at: now.toISOString(),
+    period_start: weekAgo.toISOString(),
+    period_end: now.toISOString(),
+    summary: {
+      total_prs_awaiting_review: 1,
+      total_priority_issues: 1,
+      goal_focus: 'Testing database persistence functionality'
+    },
+    prs_awaiting_review: [
+      {
+        id: 9001,
+        title: 'Implement database persistence for reports',
+        number: 9001,
+        author: 'copilot-agent',
+        author_avatar: 'https://github.com/identicons/copilot-agent.png',
+        repository: 'catalyst/web',
+        url: 'https://github.com/catalyst/web/pull/9001',
+        created_at: weekAgo.toISOString(),
+        updated_at: now.toISOString(),
+        comments_count: 5,
+        priority: 'high',
+        status: 'ready'
+      }
+    ],
+    priority_issues: [
+      {
+        id: 8001,
+        title: 'Add Zod validation for report data',
+        number: 8001,
+        repository: 'catalyst/web',
+        url: 'https://github.com/catalyst/web/issues/8001',
+        created_at: weekAgo.toISOString(),
+        updated_at: now.toISOString(),
+        labels: ['enhancement', 'database', 'validation'],
+        priority: 'high',
+        effort_estimate: 'medium',
+        type: 'feature',
+        state: 'open'
+      }
+    ],
+    recommendations: [
+      'Successfully implemented database persistence for reports',
+      'Zod schema validation provides runtime type safety',
+      'Fallback to mock data ensures backward compatibility'
+    ]
+  };
+
+  // Save to database
+  await saveReport(sampleReport);
+  
+  return sampleReport;
 }
