@@ -458,7 +458,10 @@ function getMockReportsData(): Report[] {
  */
 export async function fetchReports(): Promise<Report[]> {
   try {
-    const results = await db.select().from(reports).orderBy(desc(reports.createdAt));
+    // Order by the generated_at field inside the JSONB data for consistent sorting
+    const results = await db.select().from(reports).orderBy(
+      sql`(data->>'generated_at')::timestamp DESC`
+    );
     
     if (results.length === 0) {
       // Fall back to mock data when database is empty
