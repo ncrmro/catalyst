@@ -270,37 +270,43 @@ export async function createGitHubPATSecret(
 
   const secretName = 'github-pat-secret';
 
-  try {
-    // Delete existing secret if it exists
-    try {
-      await coreApi.deleteNamespacedSecret({ name: secretName, namespace });
-    } catch (error) {
-      // Ignore if secret doesn't exist
-    }
-
-    // Create new secret
-    const secret = {
-      apiVersion: 'v1',
-      kind: 'Secret',
-      metadata: {
-        name: secretName,
-        namespace: namespace,
-        labels: {
-          'app': 'catalyst-pr-job',
-          'created-by': 'catalyst-web-app'
-        }
-      },
-      type: 'Opaque',
-      data: {
-        'token': Buffer.from(githubPat).toString('base64'),
-        'ghcr_token': Buffer.from(githubGhcrPat || githubPat).toString('base64')
+  const secret = {
+    apiVersion: 'v1',
+    kind: 'Secret',
+    metadata: {
+      name: secretName,
+      namespace: namespace,
+      labels: {
+        'app': 'catalyst-pr-job',
+        'created-by': 'catalyst-web-app'
       }
-    };
+    },
+    type: 'Opaque',
+    data: {
+      'token': Buffer.from(githubPat).toString('base64'),
+      'ghcr_token': Buffer.from(githubGhcrPat || githubPat).toString('base64')
+    }
+  };
 
+  try {
+    // Try to create the secret first
     await coreApi.createNamespacedSecret({ namespace, body: secret });
-  } catch (error) {
-    console.error('Error creating GitHub PAT secret:', error);
-    throw error;
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorBody = (error as { body?: string })?.body || '';
+    
+    // If secret already exists, update it instead
+    if (errorBody.includes('already exists') || errorMessage.includes('already exists')) {
+      try {
+        await coreApi.replaceNamespacedSecret({ name: secretName, namespace, body: secret });
+      } catch (updateError) {
+        console.error('Error updating GitHub PAT secret:', updateError);
+        throw updateError;
+      }
+    } else {
+      console.error('Error creating GitHub PAT secret:', error);
+      throw error;
+    }
   }
 }
 
