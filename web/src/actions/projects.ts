@@ -83,7 +83,7 @@ export async function fetchProjectById(projectId: string) {
 /**
  * Fetch pull requests for a specific project across all its repositories
  */
-export async function fetchProjectPullRequests(projectId: string): Promise<import('@/actions/reports').PullRequest[]> {
+export async function fetchProjectPullRequests(projectId: string): Promise<import('@/types/reports').PullRequest[]> {
   try {
     const project = await fetchProjectById(projectId);
     if (!project) {
@@ -110,7 +110,7 @@ export async function fetchProjectPullRequests(projectId: string): Promise<impor
 /**
  * Fetch priority issues for a specific project across all its repositories
  */
-export async function fetchProjectIssues(projectId: string): Promise<import('@/actions/reports').Issue[]> {
+export async function fetchProjectIssues(projectId: string): Promise<import('@/types/reports').Issue[]> {
   try {
     const project = await fetchProjectById(projectId);
     if (!project) {
@@ -137,7 +137,7 @@ export async function fetchProjectIssues(projectId: string): Promise<import('@/a
 /**
  * Fetch real pull requests from GitHub API for given repositories
  */
-async function fetchRealPullRequests(repositories: { id: number, name: string, full_name: string, url: string }[]): Promise<import('@/actions/reports').PullRequest[]> {
+async function fetchRealPullRequests(repositories: { id: number, name: string, full_name: string, url: string }[]): Promise<import('@/types/reports').PullRequest[]> {
   const session = await auth();
   
   if (!session?.accessToken) {
@@ -149,7 +149,7 @@ async function fetchRealPullRequests(repositories: { id: number, name: string, f
     auth: session.accessToken,
   });
 
-  const allPullRequests: import('@/actions/reports').PullRequest[] = [];
+  const allPullRequests: import('@/types/reports').PullRequest[] = [];
 
   for (const repo of repositories) {
     try {
@@ -225,7 +225,7 @@ async function fetchRealPullRequests(repositories: { id: number, name: string, f
 /**
  * Fetch real issues from GitHub API for given repositories
  */
-async function fetchRealIssues(repositories: { id: number, name: string, full_name: string, url: string }[]): Promise<import('@/actions/reports').Issue[]> {
+async function fetchRealIssues(repositories: { id: number, name: string, full_name: string, url: string }[]): Promise<import('@/types/reports').Issue[]> {
   const session = await auth();
   
   if (!session?.accessToken) {
@@ -237,7 +237,7 @@ async function fetchRealIssues(repositories: { id: number, name: string, full_na
     auth: session.accessToken,
   });
 
-  const allIssues: import('@/actions/reports').Issue[] = [];
+  const allIssues: import('@/types/reports').Issue[] = [];
 
   for (const repo of repositories) {
     try {

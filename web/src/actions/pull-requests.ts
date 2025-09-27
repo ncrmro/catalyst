@@ -7,7 +7,7 @@
  */
 
 import { auth } from '@/auth';
-import { PullRequest } from '@/actions/reports';
+import { PullRequest } from '@/types/reports';
 import { getMockPullRequests } from '@/mocks/github';
 import { refreshTokenIfNeeded } from '@/lib/github-app/token-refresh';
 import { invalidateTokens } from '@/lib/github-app/token-refresh';

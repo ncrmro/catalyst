@@ -1,6 +1,6 @@
 import { fetchProjectById, fetchProjectPullRequests, fetchProjectIssues } from '@/actions/projects';
 import { fetchProjectManifests, type ProjectManifest } from '@/actions/project-manifests';
-import { type PullRequest, type Issue } from '@/actions/reports';
+import { type PullRequest, type Issue } from '@/types/reports';
 import { ProjectManifestsForm } from '@/components/projects/project-manifests-form';
 import Image from 'next/image';
 import Link from 'next/link';

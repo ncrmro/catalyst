@@ -3,21 +3,8 @@ import { anthropic } from '@ai-sdk/anthropic';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { fetchProjects } from '@/actions/projects';
+import { reportSchema } from '@/types/reports';
 import { getGitHubMCPClient, createGitHubMCPClient, GitHubMCPClient } from '@/lib/mcp-clients';
-
-// Schema for the generated report
-const reportSchema = z.object({
-  title: z.string().describe('Title of the periodic report'),
-  summary: z.string().describe('Executive summary of the current state'),
-  projectsAnalysis: z.object({
-    totalProjects: z.number(),
-    activeEnvironments: z.number(),
-    inactiveEnvironments: z.number(),
-    insights: z.array(z.string()).describe('Key insights about projects')
-  }),
-  recommendations: z.array(z.string()).describe('Actionable recommendations'),
-  nextSteps: z.array(z.string()).describe('Suggested next steps')
-});
 
 // System prompt for the periodic report agent
 const SYSTEM_PROMPT = `You are a Project Report Generator Agent for the Catalyst platform. Your role is to analyze pull requests and issues to generate comprehensive project reports.

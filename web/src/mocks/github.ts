@@ -11,7 +11,7 @@
  * All data is validated using Zod schemas to ensure type safety
  */
 
-import { PullRequest } from '@/actions/reports';
+import { PullRequest } from '@/types/reports';
 import * as yaml from 'js-yaml';
 import * as fs from 'fs';
 import * as path from 'path';
