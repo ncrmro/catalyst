@@ -142,12 +142,130 @@ async function getMockReportsData(): Promise<Report[]> {
           effort_estimate: 'large',
           type: 'bug',
           state: 'open' as const
+        },
+        {
+          id: 202,
+          title: 'Implement real-time notifications system',
+          number: 298,
+          repository: 'catalyst/web-ui',
+          url: 'https://github.com/catalyst/web-ui/issues/298',
+          created_at: '2024-01-14T14:20:00Z',
+          updated_at: '2024-01-20T11:30:00Z',
+          labels: ['feature', 'frontend', 'websockets'],
+          priority: 'high',
+          effort_estimate: 'large',
+          type: 'feature',
+          state: 'open' as const
+        },
+        {
+          id: 203,
+          title: 'Database connection pool optimization',
+          number: 167,
+          repository: 'catalyst/core-service',
+          url: 'https://github.com/catalyst/core-service/issues/167',
+          created_at: '2024-01-18T09:15:00Z',
+          updated_at: '2024-01-21T12:00:00Z',
+          labels: ['performance', 'database'],
+          priority: 'medium',
+          effort_estimate: 'medium',
+          type: 'improvement',
+          state: 'open' as const
+        },
+        {
+          id: 204,
+          title: 'Add support for bulk data import/export',
+          number: 345,
+          repository: 'catalyst/data-service',
+          url: 'https://github.com/catalyst/data-service/issues/345',
+          created_at: '2024-01-12T16:45:00Z',
+          updated_at: '2024-01-19T10:20:00Z',
+          labels: ['feature', 'data', 'api'],
+          priority: 'medium',
+          effort_estimate: 'large',
+          type: 'feature',
+          state: 'open' as const
+        },
+        {
+          id: 205,
+          title: 'Improve error messages for validation failures',
+          number: 123,
+          repository: 'catalyst/web-ui',
+          url: 'https://github.com/catalyst/web-ui/issues/123',
+          created_at: '2024-01-19T13:30:00Z',
+          updated_at: '2024-01-21T16:15:00Z',
+          labels: ['ux', 'frontend', 'validation'],
+          priority: 'low',
+          effort_estimate: 'small',
+          type: 'improvement',
+          state: 'open' as const
         }
       ],
       recommendations: [
         'Focus on merging the authentication middleware PR (#247) as it\'s blocking several other security improvements',
-        'Address the API rate limiting issue (#412) to improve system reliability under load'
-      ]
+        'Address the API rate limiting issue (#412) to improve system reliability under load',
+        'Consider scheduling a team discussion about the real-time notifications implementation approach',
+        'Review and merge the memory leak fix (#178) to prevent production issues',
+        'Plan technical debt reduction sprint focusing on database optimization'
+      ],
+      narrative_report: {
+        overview: "This week has been focused on improving API reliability and user experience across our three core repositories. The team has made significant progress on authentication security, user interface improvements, and backend performance optimizations. However, some critical issues around rate limiting and memory management require immediate attention to maintain system stability.",
+        repositories: [
+          {
+            repository: "catalyst/api-gateway",
+            recently_delivered_features: [
+              "Implemented comprehensive API request logging and monitoring dashboard",
+              "Added support for JWT token refresh functionality",
+              "Deployed circuit breaker pattern for external service calls"
+            ],
+            ideal_next_tasks: [
+              "Complete authentication middleware implementation (#247) to enhance security",
+              "Integrate distributed tracing for better observability",
+              "Add automated API documentation generation"
+            ],
+            current_blockers: [
+              "API rate limiting causing timeouts for large datasets (#412) - affecting user experience",
+              "Legacy authentication tokens need migration strategy before middleware deployment",
+              "External service dependencies causing intermittent failures"
+            ]
+          },
+          {
+            repository: "catalyst/web-ui",
+            recently_delivered_features: [
+              "Redesigned user dashboard with improved navigation and performance",
+              "Added real-time status indicators for all background processes",
+              "Implemented responsive design for mobile and tablet devices"
+            ],
+            ideal_next_tasks: [
+              "Implement real-time notifications system (#298) for better user engagement",
+              "Add dark mode theme support for improved accessibility",
+              "Optimize bundle size and implement code splitting for faster load times"
+            ],
+            current_blockers: [
+              "WebSocket connection instability causing notification delays",
+              "Browser compatibility issues with older Safari versions",
+              "Form validation improvements blocked by backend API changes"
+            ]
+          },
+          {
+            repository: "catalyst/core-service",
+            recently_delivered_features: [
+              "Optimized database queries resulting in 40% performance improvement",
+              "Implemented automated backup and recovery procedures",
+              "Added comprehensive health check endpoints for monitoring"
+            ],
+            ideal_next_tasks: [
+              "Complete database connection pool optimization (#167) for better resource utilization",
+              "Implement data retention policies for long-term storage management",
+              "Add support for read replicas to distribute query load"
+            ],
+            current_blockers: [
+              "Memory leak in background job processor (#178) affecting system stability",
+              "Database connection pool exhaustion during peak hours",
+              "Legacy code dependencies blocking modern framework upgrades"
+            ]
+          }
+        ]
+      }
     }
   ];
 }
