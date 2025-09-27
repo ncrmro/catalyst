@@ -17,21 +17,22 @@ test.describe('GitHub Repositories Page', () => {
     // Check that user repositories section is shown
     await expect(page.locator('h3').filter({ hasText: 'Your Repositories' })).toBeVisible();
 
-    // Check that specific mocked repositories are displayed
-    await expect(page.locator('text=testuser/my-awesome-project')).toBeVisible();
-    await expect(page.locator('text=testuser/personal-website')).toBeVisible();
+    // Check that specific mocked repositories are displayed (from YAML data)
+    await expect(page.locator('text=ncrmro/catalyst')).toBeVisible();
+    await expect(page.locator('text=ncrmro/meze')).toBeVisible();
+    await expect(page.locator('text=ncrmro/dotfiles')).toBeVisible();
 
-    // Check organization names are displayed
-    await expect(page.getByRole('heading', { name: 'awesome-org' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'open-source-collective' })).toBeVisible();
+    // Check organization names are displayed (from YAML data)
+    await expect(page.getByRole('heading', { name: 'catalyst-dev' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'open-source-lab' })).toBeVisible();
 
-    // Check specific organization repositories
-    await expect(page.locator('text=awesome-org/main-product')).toBeVisible();
-    await expect(page.locator('text=awesome-org/infrastructure')).toBeVisible();
-    await expect(page.locator('text=open-source-collective/community-tools')).toBeVisible();
+    // Check specific organization repositories (from YAML data)
+    await expect(page.locator('text=catalyst-dev/catalyst-infra')).toBeVisible();
+    await expect(page.locator('text=catalyst-dev/catalyst-helm-charts')).toBeVisible();
+    await expect(page.locator('text=open-source-lab/k8s-operator-examples')).toBeVisible();
 
-    // Check that repository cards contain expected information
-    const firstRepo = page.locator('[href="https://github.com/testuser/my-awesome-project"]').first();
+    // Check that repository cards contain expected information (from YAML data)
+    const firstRepo = page.locator('[href="https://github.com/ncrmro/catalyst"]').first();
     await expect(firstRepo).toBeVisible();
 
     // Check that Connect buttons are present

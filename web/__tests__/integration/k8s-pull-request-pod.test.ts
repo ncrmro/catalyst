@@ -19,7 +19,14 @@ import {
 } from '../../src/lib/k8s-pull-request-pod';
 import { getClusterConfig, getCoreV1Api } from '../../src/lib/k8s-client';
 
-import { beforeAll, afterAll, describe, it, expect } from 'vitest';
+import { beforeAll, afterAll, describe, it, expect, vi } from 'vitest';
+
+// Mock the GitHub configuration
+vi.mock('@/lib/github', () => ({
+  GITHUB_CONFIG: {
+    PAT: 'mock-github-pat-for-integration-tests'
+  }
+}));
 
 describe('Pull Request Pod Manifest Integration', () => {
   const testNamespace = 'default';

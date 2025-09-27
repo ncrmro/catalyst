@@ -1,7 +1,8 @@
-import { db, repos, projects, projectsRepos, users, teams, teamsMemberships } from '@/db';
+import { db, repos, projects, projectsRepos, users, teams, teamsMemberships, projectEnvironments } from '@/db';
 import type { InferSelectModel } from 'drizzle-orm';
 import { eq } from 'drizzle-orm';
 import { TestInfo } from '@playwright/test';
+import { getMockProjects, getMockReposData } from '@/mocks/github';
 
 /**
  * Get user details from a dev password used in authentication
@@ -467,18 +468,198 @@ export async function seedUser(options: {
 }
 
 /**
+ * Seed mock data from YAML into the database
+ * Creates repos, projects, and environments based on YAML mock data
+ */
+export async function seedMockDataFromYaml() {
+  try {
+    console.log('📋 Loading YAML mock data...');
+    const mockProjects = getMockProjects();
+    const mockReposData = getMockReposData();
+    
+    if (mockProjects.length === 0) {
+      return { success: false, message: 'No mock projects found in YAML data' };
+    }
+
+    // Get all teams to seed projects for each
+    const allTeams = await db.select().from(teams);
+    if (allTeams.length === 0) {
+      return { success: false, message: 'No teams found for seeding mock projects' };
+    }
+
+    console.log(`📋 Seeding for ${allTeams.length} teams`);
+
+    const allRepos = [
+      ...mockReposData.user_repos,
+      ...Object.values(mockReposData.org_repos).flat()
+    ];
+
+    let totalProjectsCreated = 0;
+    let totalReposCreated = 0;
+
+    // Seed for each team
+    for (const team of allTeams) {
+      console.log(`📋 Seeding for team: ${team.name} (${team.id})`);
+
+      // Seed repositories from YAML for this team
+      console.log('📋 Seeding repositories from YAML...');
+      for (const mockRepo of allRepos) {
+        try {
+          const [repo] = await db
+            .insert(repos)
+            .values({
+              githubId: mockRepo.id + allTeams.indexOf(team) * 1000000, // Make unique per team
+              name: mockRepo.name,
+              fullName: mockRepo.full_name,
+              description: mockRepo.description,
+              url: mockRepo.html_url,
+              isPrivate: mockRepo.private,
+              language: mockRepo.language,
+              ownerLogin: mockRepo.owner.login,
+              ownerType: mockRepo.owner.type,
+              ownerAvatarUrl: mockRepo.owner.avatar_url,
+              teamId: team.id,
+              stargazersCount: mockRepo.stargazers_count,
+              forksCount: mockRepo.forks_count,
+              openIssuesCount: mockRepo.open_issues_count,
+              createdAt: new Date(mockRepo.created_at || '2023-10-15T14:30:00Z'),
+              updatedAt: new Date(mockRepo.updated_at),
+              pushedAt: mockRepo.pushed_at ? new Date(mockRepo.pushed_at) : null,
+            })
+            .onConflictDoNothing()
+            .returning();
+          
+          if (repo) {
+            totalReposCreated++;
+            console.log(`✅ Seeded repo: ${mockRepo.full_name} for team ${team.name}`);
+          }
+        } catch (error) {
+          console.warn(`⚠️ Failed to seed repo ${mockRepo.full_name} for team ${team.name}:`, error);
+        }
+      }
+
+      // Seed projects from YAML for this team
+      console.log('📋 Seeding projects from YAML...');
+      for (const mockProject of mockProjects) {
+        try {
+          const [project] = await db
+            .insert(projects)
+            .values({
+              id: `${mockProject.id}-${team.id}`,
+              name: mockProject.name,
+              fullName: mockProject.primary_repo,
+              description: mockProject.description,
+              ownerLogin: mockProject.team,
+              ownerType: 'User',
+              ownerAvatarUrl: 'https://avatars.githubusercontent.com/u/8276365?v=4',
+              teamId: team.id,
+              previewEnvironmentsCount: mockProject.environments.length,
+              createdAt: new Date('2023-10-15T14:30:00Z'),
+              updatedAt: new Date('2024-01-22T16:45:00Z'),
+            })
+            .onConflictDoNothing()
+            .returning();
+
+          if (project) {
+            totalProjectsCreated++;
+            console.log(`✅ Seeded project: ${mockProject.name} for team ${team.name}`);
+
+            // Link primary repo to project first so we can use it for environments
+            const primaryRepo = allRepos.find(r => r.full_name === mockProject.primary_repo);
+            let repoRecord = null;
+            
+            if (primaryRepo) {
+              try {
+                // Find the repo for this specific team
+                [repoRecord] = await db
+                  .select()
+                  .from(repos)
+                  .where(eq(repos.githubId, primaryRepo.id + allTeams.indexOf(team) * 1000000))
+                  .limit(1);
+
+                if (repoRecord) {
+                  await db
+                    .insert(projectsRepos)
+                    .values({
+                      projectId: project.id,
+                      repoId: repoRecord.id,
+                      isPrimary: true,
+                    })
+                    .onConflictDoNothing();
+                  
+                  console.log(`  ✅ Linked primary repo: ${primaryRepo.full_name} for team ${team.name}`);
+                }
+              } catch (error) {
+                console.warn(`  ⚠️ Failed to link primary repo ${primaryRepo.full_name} for team ${team.name}:`, error);
+              }
+            }
+
+            // Seed project environments (requires both projectId and repoId)
+            if (repoRecord) {
+              for (const env of mockProject.environments) {
+                try {
+                  await db
+                    .insert(projectEnvironments)
+                    .values({
+                      projectId: project.id,
+                      repoId: repoRecord.id,
+                      environment: env.name,
+                      createdAt: new Date('2023-10-15T14:30:00Z'),
+                      updatedAt: new Date('2024-01-22T16:45:00Z'),
+                    })
+                    .onConflictDoNothing();
+                  
+                  console.log(`  ✅ Seeded environment: ${env.name} for team ${team.name}`);
+                } catch (error) {
+                  console.warn(`  ⚠️ Failed to seed environment ${env.name} for team ${team.name}:`, error);
+                }
+              }
+            } else {
+              console.warn(`  ⚠️ Cannot create environments for ${mockProject.name} in team ${team.name}: no primary repo found`);
+            }
+          } else {
+            console.warn(`⚠️ Project ${mockProject.name} for team ${team.name} was not created (likely already exists)`);
+          }
+        } catch (error) {
+          console.error(`❌ Failed to seed project ${mockProject.name} for team ${team.name}:`, error);
+        }
+      }
+    }
+
+    return {
+      success: true,
+      message: `Mock data seeded: ${totalProjectsCreated} projects, ${totalReposCreated} repositories for ${allTeams.length} teams`,
+      data: {
+        projectsCount: totalProjectsCreated,
+        repositoriesCount: totalReposCreated,
+        teamsCount: allTeams.length,
+      }
+    };
+  } catch (error) {
+    console.error('❌ Error seeding mock data from YAML:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error seeding mock data'
+    };
+  }
+}
+
+/**
  * Seed default users for development
  * For use by scripts/seed.js
  */
 export async function seedDefaultUsers() {
   const results = [];
   
+  // Check if we're in mocked mode
+  const isMockedMode = process.env.GITHUB_REPOS_MODE === 'mocked' || process.env.MOCKED === '1';
+  
   // Create regular user
   results.push(await seedUser({
     email: 'bob@alice.com',
     name: 'Bob Alice',
     admin: false,
-    createProjects: true
+    createProjects: false // We'll handle projects separately for mocked mode
   }));
   
   // Create admin user
@@ -486,8 +667,34 @@ export async function seedDefaultUsers() {
     email: 'admin@example.com',
     name: 'Test Admin',
     admin: true,
-    createProjects: true
+    createProjects: false // We'll handle projects separately for mocked mode
   }));
+
+  // If we're in mocked mode, seed the YAML mock data into the database
+  if (isMockedMode) {
+    console.log('📋 Seeding YAML mock data into database...');
+    const mockSeedResult = await seedMockDataFromYaml();
+    return {
+      success: results.every(r => r.success) && mockSeedResult.success,
+      message: mockSeedResult.success 
+        ? 'Default users and mock projects seeded from YAML'
+        : 'Users seeded but mock data failed',
+      results: [...results, mockSeedResult]
+    };
+  } else {
+    // Regular mode - create projects normally
+    console.log('🌱 Creating standard projects...');
+    // Get the first user's team for seeding projects
+    const firstUserResult = results[0];
+    if (firstUserResult.success && firstUserResult.data?.teamId) {
+      const standardProjects = await createCatalystAndMezeProjects(firstUserResult.data.teamId);
+      return {
+        success: results.every(r => r.success),
+        message: 'Default users and standard projects seeded',
+        results
+      };
+    }
+  }
   
   return {
     success: results.every(r => r.success),

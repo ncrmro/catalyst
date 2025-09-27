@@ -13,7 +13,8 @@ import { eq, and } from 'drizzle-orm';
 vi.mock('@/lib/github', () => ({
   getInstallationOctokit: vi.fn(),
   GITHUB_CONFIG: {
-    WEBHOOK_SECRET: 'integration-test-webhook-secret'
+    WEBHOOK_SECRET: 'integration-test-webhook-secret',
+    PAT: 'mock-github-pat-for-integration-tests'
   }
 }));
 
@@ -30,6 +31,7 @@ describe('GitHub Webhook Database Integration', () => {
   let testTeamId: string;
   let testRepoId: string;
   let testRepoGitHubId: number;
+
 
   function createSignature(payload: string, secret: string): string {
     return `sha256=${crypto.createHmac('sha256', secret).update(payload).digest('hex')}`;

@@ -6,6 +6,7 @@ import {
   primaryKey,
   integer,
   unique,
+  uniqueIndex,
 } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 import type { AdapterAccountType } from "@auth/core/adapters"
@@ -223,7 +224,7 @@ export const projects = pgTable("project", {
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull(),
-  fullName: text("full_name").notNull().unique(),
+  fullName: text("full_name").notNull(),
   description: text("description"),
   ownerLogin: text("owner_login").notNull(),
   ownerType: text("owner_type").notNull(), // 'User' | 'Organization'
@@ -234,6 +235,11 @@ export const projects = pgTable("project", {
   previewEnvironmentsCount: integer("preview_environments_count").notNull().default(0),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+}, (table) => {
+  return {
+    // Make full_name unique per team, not globally
+    uniqueFullNamePerTeam: uniqueIndex("project_full_name_team_id_unique").on(table.fullName, table.teamId)
+  }
 })
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({

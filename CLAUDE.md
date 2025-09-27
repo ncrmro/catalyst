@@ -46,10 +46,11 @@ npm run seed:projects # Seed specific projects (catalyst/meze)
 
 **Docker/Make Commands (from `/web`):**
 ```bash
-make up               # Start all services with mocked GitHub data
+make up               # Start all services with mocked GitHub data (YAML-based)
 make up-real          # Start all services with real GitHub integration
 make down             # Stop all services
 make destroy          # Clean all services and volumes
+make reset            # Clean and restart all services with fresh data
 make dbshell          # Connect to PostgreSQL shell
 make ci               # Run comprehensive CI tests locally
 make ci-docker        # Run CI tests in Docker
@@ -130,6 +131,23 @@ Optional:
 - **E2E Tests**: Full user workflows with Playwright
 
 Tests use mocked GitHub API responses in development/test mode via `GITHUB_REPOS_MODE=mocked`.
+
+## Mock vs Real Data Modes
+
+The application supports two development modes:
+
+### Mocked Mode (Default for `make up`)
+- Environment: `GITHUB_REPOS_MODE=mocked` and `MOCKED=1`
+- GitHub API responses come from `src/mocks/github-data.yaml`
+- Database seeding creates only users (no projects)
+- Projects/repos data comes from YAML mock data
+- Best for: Development, testing, offline work
+
+### Real Mode (`make up-real`)
+- Environment: Normal GitHub API integration
+- Database seeding creates users with projects
+- All data comes from actual GitHub API calls
+- Best for: Testing GitHub integration, production-like testing
 
 ## Deployment
 

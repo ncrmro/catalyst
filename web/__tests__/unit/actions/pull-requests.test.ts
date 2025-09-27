@@ -54,14 +54,35 @@ describe('Pull Requests Actions', () => {
 
   it('throws error when no authenticated user is found', async () => {
     const { auth } = await import('@/auth');
+    
+    // Temporarily disable mocked mode to test real error logic
+    const originalMocked = process.env.MOCKED;
+    const originalReposMode = process.env.GITHUB_REPOS_MODE;
+    delete process.env.MOCKED;
+    process.env.GITHUB_REPOS_MODE = 'live';
+    
     (auth as any).mockResolvedValue(null);
 
     await expect(fetchUserPullRequests()).rejects.toThrow('No authenticated user found');
+    
+    // Restore original environment variables
+    if (originalMocked !== undefined) {
+      process.env.MOCKED = originalMocked;
+    }
+    if (originalReposMode !== undefined) {
+      process.env.GITHUB_REPOS_MODE = originalReposMode;
+    }
   });
 
   it('includes gitfoobar provider results (empty array)', async () => {
     const { auth } = await import('@/auth');
     const { refreshTokenIfNeeded } = await import('@/lib/github-app/token-refresh');
+    
+    // Temporarily disable mocked mode to test real provider logic
+    const originalMocked = process.env.MOCKED;
+    const originalReposMode = process.env.GITHUB_REPOS_MODE;
+    delete process.env.MOCKED;
+    process.env.GITHUB_REPOS_MODE = 'live';
     
     // Mock auth to return a user (so the function doesn't return early)
     (auth as any).mockResolvedValue({
@@ -80,12 +101,26 @@ describe('Pull Requests Actions', () => {
     expect(consoleSpy).toHaveBeenCalledWith('gitfoobar provider: returning empty pull requests array');
     
     consoleSpy.mockRestore();
+    
+    // Restore original environment variables
+    if (originalMocked !== undefined) {
+      process.env.MOCKED = originalMocked;
+    }
+    if (originalReposMode !== undefined) {
+      process.env.GITHUB_REPOS_MODE = originalReposMode;
+    }
   });
 
   it('combines results from both providers and sorts by updated_at', async () => {
     const { auth } = await import('@/auth');
     const { refreshTokenIfNeeded } = await import('@/lib/github-app/token-refresh');
     const { fetchUserRepositoryPullRequests } = await import('@/lib/github');
+
+    // Temporarily disable mocked mode to test real provider logic
+    const originalMocked = process.env.MOCKED;
+    const originalReposMode = process.env.GITHUB_REPOS_MODE;
+    delete process.env.MOCKED;
+    process.env.GITHUB_REPOS_MODE = 'live';
 
     // Mock successful GitHub auth with user ID
     (auth as any).mockResolvedValue({
@@ -132,5 +167,13 @@ describe('Pull Requests Actions', () => {
       status: 'ready',
       priority: 'medium',
     });
+    
+    // Restore original environment variables
+    if (originalMocked !== undefined) {
+      process.env.MOCKED = originalMocked;
+    }
+    if (originalReposMode !== undefined) {
+      process.env.GITHUB_REPOS_MODE = originalReposMode;
+    }
   });
 });
