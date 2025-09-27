@@ -1,128 +1,171 @@
-# Catalyst - GitHub App Integration
+# Catalyst Web Application
 
-This is a [Next.js](https://nextjs.org) project that provides a complete GitHub App integration solution with endpoints for registration, webhook handling, and OAuth callbacks.
+Catalyst is a Next.js 15 application providing GitHub integration, Kubernetes deployment capabilities, and AI-powered development workflows.
 
-## Features
+## Quick Start
 
-- **GitHub OAuth Authentication**: Sign in with your GitHub account using Auth.js
-- **GitHub App Registration**: Complete workflow for installing GitHub Apps
-- **Webhook Processing**: Handle GitHub events including installations, pushes, and pull requests
-- **OAuth Callbacks**: Process GitHub App installation callbacks
-- **Integration Tests**: Comprehensive test suite for all endpoints
-- **Documentation**: Complete setup guide for GitHub App configuration
-
-## GitHub App Endpoints
-
-The application provides three main API endpoints:
-
-### `/api/github/register`
-- **GET**: Initiates GitHub App installation process
-- **POST**: Handles installation setup actions
-- Returns installation URLs and processes installation data
-
-### `/api/github/webhook`
-- **POST**: Receives and processes GitHub webhook events
-- Supports installation, push, pull request, and repository events
-- Includes signature verification for security
-
-### `/api/github/callback`
-- **GET**: Handles OAuth callbacks after GitHub App installation
-- Processes installation confirmations and updates
-- Supports different setup actions (install, request, update)
-
-## Getting Started
-
-First, install dependencies and run the development server:
+**Prerequisites:** Node.js (v18+), npm, Docker, kubectl, yq
 
 ```bash
-cd web
+# 1. Setup
+git clone <repository-url>
+cd catalyst/web
 npm install
-npm run dev
+
+# 2. Create .env.local (see Environment Setup below)
+
+# 3. Start development environment
+make up               # Mocked GitHub data (recommended)
+# OR
+make up-real          # Real GitHub integration
+
+# 4. Open http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to view the main page, or visit [http://localhost:3000/github](http://localhost:3000/github) to access the GitHub App setup interface.
+## Environment Setup
 
-## Environment Configuration
+Create `.env.local` in `/web` directory:
 
-### GitHub OAuth Authentication
-
-For GitHub OAuth sign-in functionality, create a `.env.local` file in the web directory:
+### Required Variables
 
 ```env
-# Auth.js Configuration
-AUTH_SECRET=your_random_secret_here  # Generate with: openssl rand -base64 33
+# Kubernetes config (use script to generate)
+KUBECONFIG_PRIMARY="<base64-encoded-kubeconfig>"
 
-# GitHub App Configuration (used for both GitHub App and Auth.js OAuth)
+# GitHub Personal Access Token (for local dev)
+GITHUB_PAT=ghp_your_token_here
+
+# Auth secret
+AUTH_SECRET=your_random_secret_here
+
+# Database (defaults work with Docker Compose)
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/catalyst
+
+# Development mode (enables mocked GitHub data)
+GITHUB_REPOS_MODE=mocked
+MOCKED=1
+```
+
+### Generate KUBECONFIG_PRIMARY
+
+```bash
+# From /web directory
+./scripts/kubeconfig-to-base64.sh ~/.kube/config
+```
+
+Copy the output to your `.env.local` file.
+
+### Generate GitHub PAT
+
+1. Go to [GitHub Settings > Personal access tokens](https://github.com/settings/tokens)
+2. Create token with scopes: `repo`, `read:org`, `user:email`, `write:packages`
+3. Add to `.env.local`
+
+### Optional Variables
+
+```env
+# Token encryption (auto-generated if not provided)
+TOKEN_ENCRYPTION_KEY=your_64_character_hex_encryption_key_here
+
+# AI providers
+OPENAI_API_KEY=your_openai_api_key_here
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+
+# Feature flags
+FF_USER_CLUSTERS=1
+
+# GitHub App (advanced - not required for local dev)
 GITHUB_APP_ID=your_app_id_here
 GITHUB_APP_CLIENT_ID=your_client_id_here
 GITHUB_APP_CLIENT_SECRET=your_client_secret_here
 GITHUB_WEBHOOK_SECRET=your_webhook_secret_here
-GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
-your_private_key_here
------END RSA PRIVATE KEY-----"
+GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----..."
 ```
 
-**Note**: The GitHub OAuth app (for authentication) and GitHub App (for repository integration) are separate applications with different purposes.
+## Development Commands
 
-## Testing
-
-Run the integration test suite:
-
+### Services
 ```bash
-cd web
-npm test
+make up               # Start all services with mocked data
+make up-real          # Start all services with real GitHub
+make down             # Stop all services
+make reset            # Clean and restart with fresh data
+npm run dev           # Next.js dev server only
 ```
 
-### E2E Testing
-
-Run end-to-end tests with Playwright:
-
+### Testing
 ```bash
-npm run test:e2e
+npm test              # All tests
+npm run test:unit     # Unit tests
+npm run test:integration  # Integration tests
+npm run test:e2e      # E2E tests (Playwright)
+npm run test:watch    # Watch mode
+npm run test:coverage # With coverage
+make ci               # Full CI suite
 ```
 
-#### Smoke Tests for Helm Deployments
-
-A simplified smoke test suite is available for testing deployed applications:
-
+### Code Quality
 ```bash
-npm run test:e2e -- __tests__/e2e/smoke.spec.ts
+npm run lint          # Linting
+npm run typecheck     # TypeScript checking
 ```
 
-These smoke tests can be run against deployed services using the development image that contains all necessary test dependencies.
+### Database
+```bash
+npm run db:generate   # Generate migrations
+npm run db:migrate    # Apply migrations
+npm run db:studio     # Open Drizzle Studio
+npm run seed          # Seed test data
+make dbshell          # PostgreSQL shell
+```
 
-The test suite includes comprehensive coverage of:
-- GitHub App registration endpoints
-- Webhook event processing
-- OAuth callback handling
-- Error scenarios and edge cases
+## Development Modes
 
-## Documentation
+| Mode | Command | Data Source | Best For |
+|------|---------|-------------|----------|
+| **Mocked** | `make up` | YAML files | Development, testing, offline work |
+| **Real** | `make up-real` | GitHub API | GitHub integration testing |
 
-Complete setup documentation is available at `web/docs/github-app-setup.md`, which includes:
-- Step-by-step GitHub App creation
-- Environment configuration
-- API endpoint documentation
-- Security considerations
-- Troubleshooting guide
+**Recommendation:** Start with mocked mode for most development, switch to real mode when testing GitHub features.
 
-## CI/CD
+## Troubleshooting
 
-The project includes GitHub Actions workflows:
-- **test-web**: Linting, building, and testing
-- **integration**: Comprehensive endpoint testing
+**KUBECONFIG_PRIMARY not set**
+```bash
+./scripts/kubeconfig-to-base64.sh ~/.kube/config
+```
 
-## Technology Stack
+**GitHub API rate limit**
+```bash
+make down && make up  # Switch to mocked mode
+```
 
-- **Next.js 15**: React framework with App Router
-- **TypeScript**: Type-safe development
-- **Jest**: Testing framework
-- **Tailwind CSS**: Styling
-- **Octokit**: GitHub API integration
+**Database connection failed**
+```bash
+docker ps | grep postgres  # Check if running
+make down && make up        # Restart services
+```
+
+**yq command not found**
+```bash
+# macOS
+brew install yq
+# Ubuntu/Debian  
+sudo apt-get install yq
+```
+
+## Architecture
+
+- **Next.js 15** with App Router and TypeScript
+- **PostgreSQL** with Drizzle ORM
+- **GitHub Integration** (App tokens + PAT support)
+- **Kubernetes** cluster management
+- **MCP Server** at `/api/mcp` for AI agents
+- **Background Agents** for reports and monitoring
 
 ## Learn More
 
-- [Next.js Documentation](https://nextjs.org/docs)
-- [GitHub Apps Documentation](https://docs.github.com/en/developers/apps)
-- [GitHub Webhooks Guide](https://docs.github.com/en/developers/webhooks-and-events/webhooks)
-
+- [Next.js Docs](https://nextjs.org/docs)
+- [Drizzle ORM](https://orm.drizzle.team/)
+- [GitHub Apps](https://docs.github.com/en/developers/apps)
+- [Kubernetes](https://kubernetes.io/docs/)
