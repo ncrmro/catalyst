@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import { PullRequest } from '@/actions/reports';
+import { PullRequest } from '@/types/reports';
 
 interface PullRequestCardProps {
   pr: PullRequest;

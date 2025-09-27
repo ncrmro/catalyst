@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth";
 import { getUserOctokit, fetchIssuesFromRepos as coreFetchIssuesFromRepos } from "@/lib/github";
-import type { Issue } from "@/actions/reports";
+import type { Issue } from "@/types/reports";
 
 /**
  * Fetch issues from specific repositories using session-based authentication

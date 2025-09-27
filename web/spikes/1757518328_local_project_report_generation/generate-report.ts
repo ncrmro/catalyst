@@ -9,7 +9,7 @@ import { parse } from 'yaml';
 import { generateObject } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
-import { PullRequest, Issue } from '../../src/actions/reports.js';
+import { PullRequest, Issue } from '../../src/types/reports.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

@@ -1,4 +1,5 @@
-import { fetchReports, fetchLatestReport, type Report, type RepoNarrative } from '@/actions/reports';
+import { fetchReports, fetchLatestReport } from '@/actions/reports';
+import type { Report, RepoNarrative } from '@/types/reports';
 import Image from 'next/image';
 import Link from 'next/link';
 

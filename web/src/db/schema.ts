@@ -7,9 +7,11 @@ import {
   integer,
   unique,
   uniqueIndex,
+  jsonb,
 } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 import type { AdapterAccountType } from "@auth/core/adapters"
+import type { ReportData } from "@/types/reports"
  
 export const users = pgTable("user", {
   id: text("id")
@@ -460,3 +462,16 @@ export const pullRequestsRelations = relations(pullRequests, ({ one }) => ({
     references: [repos.id]
   })
 }))
+
+/**
+ * Reports Table
+ * 
+ * Stores generated periodic reports with JSONB data field for flexible report structure.
+ * Uses Zod schema validation for runtime safety and TypeScript type inference.
+ */
+export const reports = pgTable("reports", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  data: jsonb("data").$type<ReportData>().notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+})

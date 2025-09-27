@@ -1,6 +1,7 @@
 'use server';
 
 import { generatePeriodicReport } from '@/agents/periodic-report';
+import { saveReport } from '@/actions/reports';
 import { _auth } from '@/auth';
 
 /**
@@ -15,6 +16,16 @@ export async function generateLatestPeriodicReport() {
     const report = await generatePeriodicReport({
       accessToken: session?.accessToken,
     });
+
+    // Save the generated report to the database
+    try {
+      await saveReport(report);
+      console.log('Report saved to database successfully');
+    } catch (saveError) {
+      console.error('Failed to save report to database:', saveError);
+      // Continue execution - we still want to return the report even if save fails
+    }
+
     return {
       success: true,
       data: report,
@@ -37,14 +48,6 @@ export async function generateLatestPeriodicReport() {
           "Consider reviewing inactive environments for cleanup"
         ]
       },
-      clustersAnalysis: {
-        totalClusters: 2,
-        insights: [
-          "2 Kubernetes clusters are being monitored",
-          "Cluster resources are within normal operating ranges",
-          "All critical workloads are properly distributed"
-        ]
-      },
       recommendations: [
         "Configure AI API keys to enable full periodic report generation",
         "Review and clean up inactive environments",
@@ -58,6 +61,14 @@ export async function generateLatestPeriodicReport() {
         "Implement automated environment cleanup policies"
       ]
     };
+
+    // Try to save fallback report as well
+    try {
+      await saveReport(fallbackReport);
+      console.log('Fallback report saved to database successfully');
+    } catch (saveError) {
+      console.error('Failed to save fallback report to database:', saveError);
+    }
     
     return {
       success: true,

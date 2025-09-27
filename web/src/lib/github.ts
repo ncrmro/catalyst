@@ -1,6 +1,6 @@
 import { App } from "@octokit/app";
 import { Octokit } from "@octokit/rest";
-import type { PullRequest, Issue } from "@/actions/reports";
+import type { PullRequest, Issue } from "@/types/reports";
 
 // Check if we're in NextJS build phase - don't validate env vars during build
 const isNextJsBuild = process.env.NEXT_PHASE === 'phase-production-build';
