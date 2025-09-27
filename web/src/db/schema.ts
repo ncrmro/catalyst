@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 import type { AdapterAccountType } from "@auth/core/adapters"
+import type { ReportData } from "@/types/reports"
  
 export const users = pgTable("user", {
   id: text("id")
@@ -470,7 +471,7 @@ export const pullRequestsRelations = relations(pullRequests, ({ one }) => ({
  */
 export const reports = pgTable("reports", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-  data: jsonb("data").$type<import('@/types/reports').ReportData>().notNull(),
+  data: jsonb("data").$type<ReportData>().notNull(),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 })
