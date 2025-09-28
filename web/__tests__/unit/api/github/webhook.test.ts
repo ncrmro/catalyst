@@ -20,7 +20,8 @@ vi.mock('@/lib/github', () => ({
 // Mock the k8s-pull-request-pod library
 vi.mock('@/lib/k8s-pull-request-pod', () => ({
   createPullRequestPodJob: vi.fn(),
-  cleanupPullRequestPodJob: vi.fn()
+  cleanupPullRequestPodJob: vi.fn(),
+  cleanupPullRequestHelmRelease: vi.fn()
 }));
 
 // Mock the pull requests database operations
@@ -31,7 +32,7 @@ vi.mock('@/actions/pull-requests-db', () => ({
 
 import { createKubernetesNamespace, deleteKubernetesNamespace } from '@/actions/kubernetes';
 import { getInstallationOctokit } from '@/lib/github';
-import { createPullRequestPodJob, cleanupPullRequestPodJob } from '@/lib/k8s-pull-request-pod';
+import { createPullRequestPodJob, cleanupPullRequestPodJob, cleanupPullRequestHelmRelease } from '@/lib/k8s-pull-request-pod';
 import { upsertPullRequest, findRepoByGitHubData } from '@/actions/pull-requests-db';
 
 describe('/api/github/webhook', () => {
@@ -41,6 +42,7 @@ describe('/api/github/webhook', () => {
   const mockGetInstallationOctokit = getInstallationOctokit as ReturnType<typeof vi.fn>;
   const mockCreatePullRequestPodJob = createPullRequestPodJob as ReturnType<typeof vi.fn>;
   const mockCleanupPullRequestPodJob = cleanupPullRequestPodJob as ReturnType<typeof vi.fn>;
+  const mockCleanupPullRequestHelmRelease = cleanupPullRequestHelmRelease as ReturnType<typeof vi.fn>;
   const mockUpsertPullRequest = upsertPullRequest as ReturnType<typeof vi.fn>;
   const mockFindRepoByGitHubData = findRepoByGitHubData as ReturnType<typeof vi.fn>;
 
@@ -294,7 +296,8 @@ describe('/api/github/webhook', () => {
           NEEDS_BUILD: 'true',
           SHALLOW_CLONE: 'true',
           MANIFEST_DOCKERFILE: '/web/Dockerfile',
-          TARGET_NAMESPACE: 'user-repo-gh-pr-42'
+          TARGET_NAMESPACE: 'user-repo-gh-pr-42',
+          PROJECT_NAME: 'repo'
         }
       });
       
@@ -462,7 +465,8 @@ describe('/api/github/webhook', () => {
           NEEDS_BUILD: 'true',
           SHALLOW_CLONE: 'true',
           MANIFEST_DOCKERFILE: '/web/Dockerfile',
-          TARGET_NAMESPACE: 'user-repo-gh-pr-42'
+          TARGET_NAMESPACE: 'user-repo-gh-pr-42',
+          PROJECT_NAME: 'repo'
         }
       });
     });
@@ -644,7 +648,8 @@ describe('/api/github/webhook', () => {
           NEEDS_BUILD: 'true',
           SHALLOW_CLONE: 'true',
           MANIFEST_DOCKERFILE: '/web/Dockerfile',
-          TARGET_NAMESPACE: ''
+          TARGET_NAMESPACE: '',
+          PROJECT_NAME: 'repo'
         }
       });
     });
