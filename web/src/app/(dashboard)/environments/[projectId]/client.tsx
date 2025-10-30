@@ -1,25 +1,12 @@
 'use client';
 
 import { configureProjectEnvironments } from '@/actions/environments';
+import type { ProjectWithRelations } from '@/actions/projects';
 import Link from 'next/link';
 import { useState } from 'react';
 
 interface EnvironmentsPageClientProps {
-  project: {
-    id: string;
-    name: string;
-    fullName: string;
-    teamId: string;
-    repositories: {
-      repoId: string;
-      isPrimary: boolean;
-      repo: {
-        id: string;
-        name: string;
-        fullName: string;
-      };
-    }[];
-  };
+  project: ProjectWithRelations;
 }
 
 // Client component to handle form submission and feedback

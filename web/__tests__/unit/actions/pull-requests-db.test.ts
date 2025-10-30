@@ -101,11 +101,15 @@ vi.mock('@/db', () => ({
 }));
 
 // Mock Drizzle ORM functions
-vi.mock('drizzle-orm', () => ({
-  eq: vi.fn((column, value) => ({ column, value, type: 'eq' })),
-  and: vi.fn((...conditions) => ({ conditions, type: 'and' })),
-  desc: vi.fn((column) => ({ column, type: 'desc' }))
-}));
+vi.mock('drizzle-orm', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('drizzle-orm')>();
+  return {
+    ...actual,
+    eq: vi.fn((column, value) => ({ column, value, type: 'eq' })),
+    and: vi.fn((...conditions) => ({ conditions, type: 'and' })),
+    desc: vi.fn((column) => ({ column, type: 'desc' }))
+  };
+});
 
 describe('Pull Requests Database Operations', () => {
   const mockPullRequestData: CreatePullRequestData = {
@@ -351,19 +355,21 @@ describe('Pull Requests Database Operations', () => {
   describe('findRepoByGitHubData', () => {
     it('should find repository by GitHub ID', async () => {
       const { db } = await import('@/db');
-      
+
       const mockRepo = {
         id: 'repo-uuid-1',
         githubId: 12345,
         name: 'test-repo',
         fullName: 'owner/test-repo'
       };
-      
+
+      // Create a query object that supports orderBy chaining
+      const queryMock = Promise.resolve([mockRepo]) as any;
+      queryMock.orderBy = vi.fn(() => queryMock);
+
       (db.select as any).mockReturnValue({
         from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            limit: vi.fn(() => Promise.resolve([mockRepo]))
-          }))
+          where: vi.fn(() => queryMock)
         }))
       });
 
@@ -375,12 +381,14 @@ describe('Pull Requests Database Operations', () => {
 
     it('should return null when repository not found', async () => {
       const { db } = await import('@/db');
-      
+
+      // Create a query object that supports orderBy chaining
+      const queryMock = Promise.resolve([]) as any;
+      queryMock.orderBy = vi.fn(() => queryMock);
+
       (db.select as any).mockReturnValue({
         from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            limit: vi.fn(() => Promise.resolve([]))
-          }))
+          where: vi.fn(() => queryMock)
         }))
       });
 

@@ -1,16 +1,17 @@
-'use server';
+"use server";
 
 /**
  * Server action to fetch projects data for the current user and organizations
  */
 
-import { db } from '@/db';
-import { projects } from '@/db/schema';
-import { eq, inArray } from 'drizzle-orm';
-import { auth } from '@/auth';
-import { Octokit } from '@octokit/rest';
-import { getUserTeamIds } from '@/lib/team-auth';
-import type { PullRequest, Issue } from '@/types/reports';
+import { getProjects, type ProjectWithRelations } from "@/models/projects";
+import { auth } from "@/auth";
+import { Octokit } from "@octokit/rest";
+import { getUserTeamIds } from "@/lib/team-auth";
+import type { PullRequest, Issue } from "@/types/reports";
+
+// Re-export types for frontend components
+export type { ProjectWithRelations } from "@/models/projects";
 
 // Define type for simplified project repository format
 export interface ProjectRepo {
@@ -28,23 +29,15 @@ export interface ProjectRepo {
 export async function fetchProjects() {
   // Get user's team IDs for authorization
   const userTeamIds = await getUserTeamIds();
-  
+
   // Fetch projects with related repositories and environments
-  const projectsWithRelations = await db.query.projects.findMany({
-    where: inArray(projects.teamId, userTeamIds),
-    with: {
-      repositories: {
-        with: {
-          repo: true,
-        }
-      },
-      environments: true,
-    }
+  const projectsWithRelations = await getProjects({
+    teamIds: userTeamIds,
   });
 
   return {
     projects: projectsWithRelations,
-    total_count: projectsWithRelations.length
+    total_count: projectsWithRelations.length,
   };
 }
 
@@ -55,19 +48,13 @@ export async function fetchProjects() {
 export async function fetchProjectById(projectId: string) {
   // Get user's team IDs for authorization
   const userTeamIds = await getUserTeamIds();
-  
+
   // Fetch the project with its relations
-  const projectData = await db.query.projects.findFirst({
-    where: eq(projects.id, projectId),
-    with: {
-      repositories: {
-        with: {
-          repo: true,
-        }
-      },
-      environments: true,
-    }
+  const projects = await getProjects({
+    ids: [projectId],
   });
+
+  const projectData = projects.length > 0 ? projects[0] : null;
 
   if (!projectData) {
     return null;
@@ -84,7 +71,9 @@ export async function fetchProjectById(projectId: string) {
 /**
  * Fetch pull requests for a specific project across all its repositories
  */
-export async function fetchProjectPullRequests(projectId: string): Promise<PullRequest[]> {
+export async function fetchProjectPullRequests(
+  projectId: string,
+): Promise<PullRequest[]> {
   try {
     const project = await fetchProjectById(projectId);
     if (!project) {
@@ -92,7 +81,7 @@ export async function fetchProjectPullRequests(projectId: string): Promise<PullR
     }
 
     // Extract repositories from the project data
-    const repositories = project.repositories.map(relation => ({
+    const repositories = project.repositories.map((relation) => ({
       id: relation.repo.githubId,
       name: relation.repo.name,
       full_name: relation.repo.fullName,
@@ -100,10 +89,10 @@ export async function fetchProjectPullRequests(projectId: string): Promise<PullR
     }));
 
     // Fetch real pull requests from GitHub API
-    console.log('Fetching real pull requests for project', projectId);
+    console.log("Fetching real pull requests for project", projectId);
     return await fetchRealPullRequests(repositories);
   } catch (error) {
-    console.error('Error fetching project pull requests:', error);
+    console.error("Error fetching project pull requests:", error);
     return [];
   }
 }
@@ -119,7 +108,7 @@ export async function fetchProjectIssues(projectId: string): Promise<Issue[]> {
     }
 
     // Extract repositories from the project data
-    const repositories = project.repositories.map(relation => ({
+    const repositories = project.repositories.map((relation) => ({
       id: relation.repo.githubId,
       name: relation.repo.name,
       full_name: relation.repo.fullName,
@@ -127,10 +116,10 @@ export async function fetchProjectIssues(projectId: string): Promise<Issue[]> {
     }));
 
     // Fetch real issues from GitHub API
-    console.log('Fetching real issues for project', projectId);
+    console.log("Fetching real issues for project", projectId);
     return await fetchRealIssues(repositories);
   } catch (error) {
-    console.error('Error fetching project issues:', error);
+    console.error("Error fetching project issues:", error);
     return [];
   }
 }
@@ -138,11 +127,13 @@ export async function fetchProjectIssues(projectId: string): Promise<Issue[]> {
 /**
  * Fetch real pull requests from GitHub API for given repositories
  */
-async function fetchRealPullRequests(repositories: { id: number, name: string, full_name: string, url: string }[]): Promise<PullRequest[]> {
+async function fetchRealPullRequests(
+  repositories: { id: number; name: string; full_name: string; url: string }[],
+): Promise<PullRequest[]> {
   const session = await auth();
-  
+
   if (!session?.accessToken) {
-    console.warn('No GitHub access token found for fetching pull requests');
+    console.warn("No GitHub access token found for fetching pull requests");
     return [];
   }
 
@@ -154,7 +145,7 @@ async function fetchRealPullRequests(repositories: { id: number, name: string, f
 
   for (const repo of repositories) {
     try {
-      const [owner, repoName] = repo.full_name.split('/');
+      const [owner, repoName] = repo.full_name.split("/");
       if (!owner || !repoName) {
         console.warn(`Invalid repository name format: ${repo.full_name}`);
         continue;
@@ -163,26 +154,40 @@ async function fetchRealPullRequests(repositories: { id: number, name: string, f
       const { data: prs } = await octokit.rest.pulls.list({
         owner,
         repo: repoName,
-        state: 'open',
+        state: "open",
         per_page: 100,
-        sort: 'updated',
-        direction: 'desc',
+        sort: "updated",
+        direction: "desc",
       });
 
       for (const pr of prs) {
         // Determine priority based on labels (simple heuristic)
-        const labels = pr.labels.map(label => typeof label === 'string' ? label : label.name || '');
-        let priority: 'high' | 'medium' | 'low' = 'medium';
-        if (labels.some(label => label.toLowerCase().includes('urgent') || label.toLowerCase().includes('critical'))) {
-          priority = 'high';
-        } else if (labels.some(label => label.toLowerCase().includes('minor') || label.toLowerCase().includes('low'))) {
-          priority = 'low';
+        const labels = pr.labels.map((label) =>
+          typeof label === "string" ? label : label.name || "",
+        );
+        let priority: "high" | "medium" | "low" = "medium";
+        if (
+          labels.some(
+            (label) =>
+              label.toLowerCase().includes("urgent") ||
+              label.toLowerCase().includes("critical"),
+          )
+        ) {
+          priority = "high";
+        } else if (
+          labels.some(
+            (label) =>
+              label.toLowerCase().includes("minor") ||
+              label.toLowerCase().includes("low"),
+          )
+        ) {
+          priority = "low";
         }
 
         // Determine status based on review state and draft status
-        let status: 'draft' | 'ready' | 'changes_requested' = 'ready';
+        let status: "draft" | "ready" | "changes_requested" = "ready";
         if (pr.draft) {
-          status = 'draft';
+          status = "draft";
         } else {
           // Check for requested changes in reviews (this is a simplified check)
           try {
@@ -191,9 +196,11 @@ async function fetchRealPullRequests(repositories: { id: number, name: string, f
               repo: repoName,
               pull_number: pr.number,
             });
-            
-            if (reviews.some(review => review.state === 'CHANGES_REQUESTED')) {
-              status = 'changes_requested';
+
+            if (
+              reviews.some((review) => review.state === "CHANGES_REQUESTED")
+            ) {
+              status = "changes_requested";
             }
           } catch (error) {
             console.warn(`Could not fetch reviews for PR ${pr.number}:`, error);
@@ -204,8 +211,8 @@ async function fetchRealPullRequests(repositories: { id: number, name: string, f
           id: pr.id,
           title: pr.title,
           number: pr.number,
-          author: pr.user?.login || 'unknown',
-          author_avatar: pr.user?.avatar_url || '',
+          author: pr.user?.login || "unknown",
+          author_avatar: pr.user?.avatar_url || "",
           repository: repoName,
           url: pr.html_url,
           created_at: pr.created_at,
@@ -216,7 +223,10 @@ async function fetchRealPullRequests(repositories: { id: number, name: string, f
         });
       }
     } catch (error) {
-      console.warn(`Could not fetch pull requests for repository ${repo.full_name}:`, error);
+      console.warn(
+        `Could not fetch pull requests for repository ${repo.full_name}:`,
+        error,
+      );
     }
   }
 
@@ -226,11 +236,13 @@ async function fetchRealPullRequests(repositories: { id: number, name: string, f
 /**
  * Fetch real issues from GitHub API for given repositories
  */
-async function fetchRealIssues(repositories: { id: number, name: string, full_name: string, url: string }[]): Promise<Issue[]> {
+async function fetchRealIssues(
+  repositories: { id: number; name: string; full_name: string; url: string }[],
+): Promise<Issue[]> {
   const session = await auth();
-  
+
   if (!session?.accessToken) {
-    console.warn('No GitHub access token found for fetching issues');
+    console.warn("No GitHub access token found for fetching issues");
     return [];
   }
 
@@ -242,7 +254,7 @@ async function fetchRealIssues(repositories: { id: number, name: string, full_na
 
   for (const repo of repositories) {
     try {
-      const [owner, repoName] = repo.full_name.split('/');
+      const [owner, repoName] = repo.full_name.split("/");
       if (!owner || !repoName) {
         console.warn(`Invalid repository name format: ${repo.full_name}`);
         continue;
@@ -251,12 +263,12 @@ async function fetchRealIssues(repositories: { id: number, name: string, full_na
       const { data: issues } = await octokit.rest.issues.listForRepo({
         owner,
         repo: repoName,
-        state: 'open',
+        state: "open",
         per_page: 100,
-        sort: 'updated',
-        direction: 'desc',
+        sort: "updated",
+        direction: "desc",
         // Only get issues, not pull requests
-        filter: 'all',
+        filter: "all",
       });
 
       for (const issue of issues) {
@@ -265,32 +277,77 @@ async function fetchRealIssues(repositories: { id: number, name: string, full_na
           continue;
         }
 
-        const labels = issue.labels.map(label => typeof label === 'string' ? label : label.name || '');
-        
+        const labels = issue.labels.map((label) =>
+          typeof label === "string" ? label : label.name || "",
+        );
+
         // Determine priority based on labels
-        let priority: 'high' | 'medium' | 'low' = 'medium';
-        if (labels.some(label => label.toLowerCase().includes('urgent') || label.toLowerCase().includes('critical') || label.toLowerCase().includes('high'))) {
-          priority = 'high';
-        } else if (labels.some(label => label.toLowerCase().includes('minor') || label.toLowerCase().includes('low'))) {
-          priority = 'low';
+        let priority: "high" | "medium" | "low" = "medium";
+        if (
+          labels.some(
+            (label) =>
+              label.toLowerCase().includes("urgent") ||
+              label.toLowerCase().includes("critical") ||
+              label.toLowerCase().includes("high"),
+          )
+        ) {
+          priority = "high";
+        } else if (
+          labels.some(
+            (label) =>
+              label.toLowerCase().includes("minor") ||
+              label.toLowerCase().includes("low"),
+          )
+        ) {
+          priority = "low";
         }
 
         // Determine effort estimate based on labels
-        let effort_estimate: 'small' | 'medium' | 'large' = 'medium';
-        if (labels.some(label => label.toLowerCase().includes('small') || label.toLowerCase().includes('quick'))) {
-          effort_estimate = 'small';
-        } else if (labels.some(label => label.toLowerCase().includes('large') || label.toLowerCase().includes('epic'))) {
-          effort_estimate = 'large';
+        let effort_estimate: "small" | "medium" | "large" = "medium";
+        if (
+          labels.some(
+            (label) =>
+              label.toLowerCase().includes("small") ||
+              label.toLowerCase().includes("quick"),
+          )
+        ) {
+          effort_estimate = "small";
+        } else if (
+          labels.some(
+            (label) =>
+              label.toLowerCase().includes("large") ||
+              label.toLowerCase().includes("epic"),
+          )
+        ) {
+          effort_estimate = "large";
         }
 
         // Determine type based on labels
-        let type: 'bug' | 'feature' | 'improvement' | 'idea' = 'improvement';
-        if (labels.some(label => label.toLowerCase().includes('bug') || label.toLowerCase().includes('defect'))) {
-          type = 'bug';
-        } else if (labels.some(label => label.toLowerCase().includes('feature') || label.toLowerCase().includes('enhancement'))) {
-          type = 'feature';
-        } else if (labels.some(label => label.toLowerCase().includes('idea') || label.toLowerCase().includes('proposal'))) {
-          type = 'idea';
+        let type: "bug" | "feature" | "improvement" | "idea" = "improvement";
+        if (
+          labels.some(
+            (label) =>
+              label.toLowerCase().includes("bug") ||
+              label.toLowerCase().includes("defect"),
+          )
+        ) {
+          type = "bug";
+        } else if (
+          labels.some(
+            (label) =>
+              label.toLowerCase().includes("feature") ||
+              label.toLowerCase().includes("enhancement"),
+          )
+        ) {
+          type = "feature";
+        } else if (
+          labels.some(
+            (label) =>
+              label.toLowerCase().includes("idea") ||
+              label.toLowerCase().includes("proposal"),
+          )
+        ) {
+          type = "idea";
         }
 
         allIssues.push({
@@ -305,11 +362,14 @@ async function fetchRealIssues(repositories: { id: number, name: string, full_na
           priority,
           effort_estimate,
           type,
-          state: issue.state as 'open' | 'closed',
+          state: issue.state as "open" | "closed",
         });
       }
     } catch (error) {
-      console.warn(`Could not fetch issues for repository ${repo.full_name}:`, error);
+      console.warn(
+        `Could not fetch issues for repository ${repo.full_name}:`,
+        error,
+      );
     }
   }
 

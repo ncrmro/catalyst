@@ -1,4 +1,4 @@
-import { fetchProjectById, fetchProjectPullRequests, fetchProjectIssues } from '@/actions/projects';
+import { fetchProjectById, fetchProjectPullRequests, fetchProjectIssues, type ProjectWithRelations } from '@/actions/projects';
 import { fetchProjectManifests, type ProjectManifest } from '@/actions/project-manifests';
 import { type PullRequest, type Issue } from '@/types/reports';
 import { ProjectManifestsForm } from '@/components/projects/project-manifests-form';
@@ -6,41 +6,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
-
-// Define type for the project from the database structure
-type ProjectData = {
-  id: string;
-  name: string;
-  fullName: string;
-  description: string | null;
-  ownerLogin: string;
-  ownerType: string;
-  ownerAvatarUrl: string | null;
-  previewEnvironmentsCount: number;
-  createdAt: Date;
-  updatedAt: Date;
-  repositories: {
-    isPrimary: boolean;
-    repo: {
-      id: string;
-      githubId: number;
-      name: string;
-      fullName: string;
-      url: string;
-    }
-  }[];
-  environments: {
-    id: string;
-    projectId: string;
-    repoId: string;
-    environment: string;
-    latestDeployment: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-    status?: string;
-    url?: string;
-  }[];
-};
 
 function getPriorityColor(priority: 'high' | 'medium' | 'low') {
   switch (priority) {
@@ -200,8 +165,8 @@ export async function generateMetadata({ params }: ProjectPageProps): Promise<Me
 
 export default async function ProjectPage({ params }: ProjectPageProps) {
   const { projectId } = await params;
-  
-  let project: ProjectData | null;
+
+  let project: ProjectWithRelations | null;
   let pullRequests: PullRequest[];
   let issues: Issue[];
   let manifests: ProjectManifest[];
@@ -389,24 +354,10 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                 <div key={env.id} className="bg-surface border border-outline rounded-lg p-4 shadow-sm">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-medium text-on-surface">{env.environment}</h3>
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      env.status === 'active' ? 'bg-success-container text-on-success-container' :
-                      env.status === 'deploying' ? 'bg-warning-container text-on-warning-container' :
-                      'bg-surface-variant text-on-surface-variant'
-                    }`}>
-                      {env.status || 'active'}
+                    <span className="px-2 py-1 text-xs rounded-full bg-success-container text-on-success-container">
+                      active
                     </span>
                   </div>
-                  {env.url && (
-                    <a 
-                      href={env.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-primary hover:opacity-80"
-                    >
-                      View Environment →
-                    </a>
-                  )}
                   {env.latestDeployment && (
                     <p className="text-xs text-on-surface-variant mt-2">
                       Last deployed: {new Date(env.updatedAt).toLocaleDateString()}

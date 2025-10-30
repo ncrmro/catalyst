@@ -25,9 +25,11 @@
  * ```
  */
 
-import { Factory, db } from '@/lib/factories';
-import type { InsertUser } from '@/lib/db/schema.auth';
-import { users } from '@/lib/db/schema.auth';
+import { Factory, faker, db } from '@/lib/factories';
+import { users } from '@/db/schema';
+import type { InferInsertModel } from 'drizzle-orm';
+
+type InsertUser = InferInsertModel<typeof users>;
 
 /**
  * User factory with trait methods for common user types.
@@ -72,10 +74,9 @@ class UserFactory extends Factory<InsertUser> {
   }
 }
 
-export const userFactory = UserFactory.define(({ sequence }) => ({
-  id: sequence, // For predictable test IDs
-  name: Factory.faker.person.fullName(),
-  email: Factory.faker.internet.email(),
+export const userFactory = UserFactory.define(() => ({
+  name: faker.person.fullName(),
+  email: faker.internet.email(),
   emailVerified: null,
   image: null,
   admin: false,
