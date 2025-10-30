@@ -161,7 +161,7 @@ describe("Repos Model Integration", () => {
       createdRepoIds.push(repo.id);
 
       // Connect repo to project
-      const projectRepo = await projectRepoFactory.create({
+      await projectRepoFactory.create({
         projectId: testProjectId,
         repoId: repo.id,
         isPrimary: true,

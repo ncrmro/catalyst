@@ -87,7 +87,7 @@ describe("Project-Repos Model Integration", () => {
   describe("getProjectRepos", () => {
     it("should return project-repo links by project IDs", async () => {
       const repo = await repoFactory.create({ teamId: testTeamId });
-      const projectRepo = await projectRepoFactory.create({
+      await projectRepoFactory.create({
         projectId: testProjectId,
         repoId: repo.id,
         isPrimary: false,

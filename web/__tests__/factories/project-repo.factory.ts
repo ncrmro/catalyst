@@ -1,4 +1,4 @@
-import { Factory, db } from "@/lib/factories";
+import { Factory } from "@/lib/factories";
 import {
   createProjectRepoLinks,
   type InsertProjectRepo,

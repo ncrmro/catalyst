@@ -1,4 +1,4 @@
-import { Factory, faker, db } from "@/lib/factories";
+import { Factory, faker } from "@/lib/factories";
 import {
   upsertPullRequests,
   type InsertPullRequest,

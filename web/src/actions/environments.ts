@@ -6,7 +6,6 @@ import {
   environmentExists,
 } from "@/models/environments";
 import { getProjects, incrementPreviewCount } from "@/models/projects";
-import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getUserTeamIds } from "@/lib/team-auth";
@@ -87,7 +86,7 @@ export async function createProjectEnvironment(
     if (!primaryRepo) {
       return {
         success: false,
-        message: "Project has no primary repository configured",
+        message: "Project has repositories but none are marked as primary",
       };
     }
 

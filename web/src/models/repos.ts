@@ -51,19 +51,20 @@ export async function getRepos(params: GetReposParams) {
     return [];
   }
 
-  const query = db
-    .select()
-    .from(repos)
-    .where(and(...conditions));
-
-  // Add ordering
+  // Build query with ordering
   if (orderBy === "pushedAt") {
-    query.orderBy(repos.pushedAt);
+    return db
+      .select()
+      .from(repos)
+      .where(and(...conditions))
+      .orderBy(repos.pushedAt);
   } else {
-    query.orderBy(repos.updatedAt);
+    return db
+      .select()
+      .from(repos)
+      .where(and(...conditions))
+      .orderBy(repos.updatedAt);
   }
-
-  return query;
 }
 
 /**

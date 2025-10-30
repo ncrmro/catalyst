@@ -1,4 +1,4 @@
-import { Factory, faker, db } from "@/lib/factories";
+import { Factory, faker } from "@/lib/factories";
 import { createProjects, type InsertProject } from "@/models/projects";
 
 class ProjectFactory extends Factory<InsertProject> {
