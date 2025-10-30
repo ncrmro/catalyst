@@ -3,47 +3,9 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { EnvironmentBadge } from './environment-badge';
+import type { ProjectWithRelations } from '@/actions/projects';
 
-// Define type for the project from the database structure
-type ProjectData = {
-  id: string;
-  name: string;
-  fullName: string;
-  description: string | null;
-  ownerLogin: string;
-  ownerType: string;
-  ownerAvatarUrl: string | null;
-  previewEnvironmentsCount: number;
-  createdAt: Date;
-  updatedAt: Date;
-  repositories: {
-    isPrimary: boolean;
-    repo: {
-      id: string;
-      githubId: number;
-      name: string;
-      fullName: string;
-      url: string;
-    }
-  }[];
-  environments: {
-    id: string;
-    projectId: string;
-    repoId: string;
-    environment: string;
-    latestDeployment: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-    name?: string;
-    type?: string;
-    branch?: string;
-    cronSchedule?: string;
-    status?: string;
-    url?: string;
-  }[];
-};
-
-export function ProjectCard({ project }: { project: ProjectData }) {
+export function ProjectCard({ project }: { project: ProjectWithRelations }) {
   // Find primary repo or use first one
   const primaryRepoConnection = project.repositories.find(repo => repo.isPrimary) || project.repositories[0];
   const primaryRepo = primaryRepoConnection?.repo;

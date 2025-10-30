@@ -1,18 +1,24 @@
-'use server';
+"use server";
 
 /**
- * Database operations for pull requests
- * Handles CRUD operations for the pull_requests table
+ * Server actions for pull requests
+ * Handles PR operations using the models layer
  */
 
-import { z } from 'zod';
-import { db, pullRequests, repos } from '@/db';
-import { eq, and, desc } from 'drizzle-orm';
-import { 
-  createPullRequestSchema, 
+import { z } from "zod";
+import {
+  upsertPullRequests,
+  findPullRequestByProvider,
+  getPullRequests,
+  getPullRequestsWithRepos,
+  type InsertPullRequest,
+} from "@/models/pull-requests";
+import { getRepos } from "@/models/repos";
+import {
+  createPullRequestSchema,
   type CreatePullRequest,
-  type UpdatePullRequest 
-} from '@/schemas/pull-request';
+  type UpdatePullRequest,
+} from "@/schemas/pull-request";
 
 /**
  * TypeScript types inferred from Zod schemas
@@ -28,57 +34,34 @@ export async function upsertPullRequest(data: CreatePullRequestData) {
   try {
     // Validate input data using Zod schema
     const validatedData = createPullRequestSchema.parse(data);
-    
-    // First, try to find existing PR
-    const existingPr = await db
-      .select()
-      .from(pullRequests)
-      .where(
-        and(
-          eq(pullRequests.repoId, validatedData.repoId),
-          eq(pullRequests.provider, validatedData.provider),
-          eq(pullRequests.providerPrId, validatedData.providerPrId)
-        )
-      )
-      .limit(1);
 
-    const prData = {
+    // Convert arrays to JSON strings for database storage
+    const dbData: InsertPullRequest = {
       ...validatedData,
-      labels: validatedData.labels.length > 0 ? JSON.stringify(validatedData.labels) : null,
-      assignees: validatedData.assignees.length > 0 ? JSON.stringify(validatedData.assignees) : null,
-      reviewers: validatedData.reviewers.length > 0 ? JSON.stringify(validatedData.reviewers) : null,
-      updatedAt: new Date(),
+      labels: validatedData.labels ? JSON.stringify(validatedData.labels) : null,
+      assignees: validatedData.assignees ? JSON.stringify(validatedData.assignees) : null,
+      reviewers: validatedData.reviewers ? JSON.stringify(validatedData.reviewers) : null,
     };
 
-    if (existingPr.length > 0) {
-      // Update existing PR
-      const [updatedPr] = await db
-        .update(pullRequests)
-        .set(prData)
-        .where(eq(pullRequests.id, existingPr[0].id))
-        .returning();
-      
-      return { success: true, pullRequest: updatedPr, operation: 'update' as const };
-    } else {
-      // Create new PR
-      const [newPr] = await db
-        .insert(pullRequests)
-        .values(prData)
-        .returning();
-      
-      return { success: true, pullRequest: newPr, operation: 'create' as const };
-    }
+    // Use model to upsert PR
+    const [result] = await upsertPullRequests(dbData);
+
+    return {
+      success: true,
+      pullRequest: result.pullRequest,
+      operation: result.operation,
+    };
   } catch (error) {
-    console.error('Error upserting pull request:', error);
+    console.error("Error upserting pull request:", error);
     if (error instanceof z.ZodError) {
-      return { 
-        success: false, 
-        error: `Validation error: ${error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`
+      return {
+        success: false,
+        error: `Validation error: ${error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ")}`,
       };
     }
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
@@ -87,29 +70,18 @@ export async function upsertPullRequest(data: CreatePullRequestData) {
  * Find pull request by repository and provider-specific ID
  */
 export async function findPullRequestByProviderData(
-  repoId: string, 
-  provider: string, 
-  providerPrId: string
+  repoId: string,
+  provider: string,
+  providerPrId: string,
 ) {
   try {
-    const [pr] = await db
-      .select()
-      .from(pullRequests)
-      .where(
-        and(
-          eq(pullRequests.repoId, repoId),
-          eq(pullRequests.provider, provider),
-          eq(pullRequests.providerPrId, providerPrId)
-        )
-      )
-      .limit(1);
-
-    return { success: true, pullRequest: pr || null };
+    const pr = await findPullRequestByProvider(repoId, provider, providerPrId);
+    return { success: true, pullRequest: pr };
   } catch (error) {
-    console.error('Error finding pull request:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    console.error("Error finding pull request:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
@@ -119,19 +91,13 @@ export async function findPullRequestByProviderData(
  */
 export async function getPullRequestsByRepo(repoId: string, limit = 50) {
   try {
-    const prs = await db
-      .select()
-      .from(pullRequests)
-      .where(eq(pullRequests.repoId, repoId))
-      .orderBy(desc(pullRequests.updatedAt))
-      .limit(limit);
-
+    const prs = await getPullRequests({ repoIds: [repoId], limit });
     return { success: true, pullRequests: prs };
   } catch (error) {
-    console.error('Error getting pull requests by repo:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    console.error("Error getting pull requests by repo:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
@@ -141,23 +107,16 @@ export async function getPullRequestsByRepo(repoId: string, limit = 50) {
  */
 export async function getOpenPullRequests(limit = 100) {
   try {
-    const prs = await db
-      .select({
-        pullRequest: pullRequests,
-        repo: repos,
-      })
-      .from(pullRequests)
-      .innerJoin(repos, eq(pullRequests.repoId, repos.id))
-      .where(eq(pullRequests.state, 'open'))
-      .orderBy(desc(pullRequests.updatedAt))
-      .limit(limit);
-
+    const prs = await getPullRequestsWithRepos({
+      state: "open",
+      limit,
+    });
     return { success: true, pullRequests: prs };
   } catch (error) {
-    console.error('Error getting open pull requests:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    console.error("Error getting open pull requests:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
@@ -168,18 +127,14 @@ export async function getOpenPullRequests(limit = 100) {
  */
 export async function findRepoByGitHubData(githubId: number) {
   try {
-    const [repo] = await db
-      .select()
-      .from(repos)
-      .where(eq(repos.githubId, githubId))
-      .limit(1);
-
-    return { success: true, repo: repo || null };
+    const repos = await getRepos({ githubIds: [githubId] });
+    const repo = repos.length > 0 ? repos[0] : null;
+    return { success: true, repo };
   } catch (error) {
-    console.error('Error finding repo by GitHub ID:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    console.error("Error finding repo by GitHub ID:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
