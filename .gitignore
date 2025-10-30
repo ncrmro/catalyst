@@ -2,3 +2,4 @@
 # Helm chart dependencies
 charts/*/charts/
 **/kubeconfig.devbox.yml
+worktree

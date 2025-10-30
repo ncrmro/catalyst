@@ -2,6 +2,21 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## README Documentation
+
+**IMPORTANT**: When working in any directory below, always read the corresponding README.md for architecture patterns, best practices, and domain-specific guidance.
+
+```
+web/
+├── __tests__/README.md           # Testing architecture (unit, integration, e2e, agents)
+│   ├── e2e/README.md             # E2E testing patterns with Playwright
+│   └── factories/README.md       # Test data factory patterns
+├── src/
+│   ├── actions/README.md         # Actions layer (boundary between React and backend)
+│   ├── db/README.md              # Database layer (schemas, migrations, patterns)
+│   └── models/README.md          # Models layer (complex queries, business logic)
+```
+
 ## Spikes
 
 When user requests a spike always read spikes/README.md for how to create and implement a new spike. Spikes follow the naming pattern `TIMESTAMP_SPIKE_NAME` where TIMESTAMP is Unix timestamp.
@@ -11,13 +26,15 @@ When user requests a spike always read spikes/README.md for how to create and im
 ### Web Application (in `/web` directory)
 
 **Development:**
+
 ```bash
 npm run dev           # Start development server
-npm run build         # Build for production  
+npm run build         # Build for production
 npm start             # Start production server
 ```
 
 **Testing:**
+
 ```bash
 npm test              # Run all tests
 npm run test:unit     # Unit tests only
@@ -29,12 +46,14 @@ npm run test:coverage # Run tests with coverage
 ```
 
 **Code Quality:**
+
 ```bash
 npm run lint          # Run linter
 npm run typecheck     # Type checking with TypeScript
 ```
 
 **Database (Drizzle ORM):**
+
 ```bash
 npm run db:generate   # Generate migrations from schema changes
 npm run db:migrate    # Apply migrations to database
@@ -45,6 +64,7 @@ npm run seed:projects # Seed specific projects (catalyst/meze)
 ```
 
 **Docker/Make Commands (from `/web`):**
+
 ```bash
 make up               # Start all services with mocked GitHub data (YAML-based)
 make up-real          # Start all services with real GitHub integration
@@ -63,6 +83,7 @@ make ci-docker        # Run CI tests in Docker
 **Catalyst Platform**: A development platform for faster shipping with opinionated deployments, CI/CD pipelines, and boilerplates. Integrates with Git repositories to create preview environments for pull requests.
 
 **Web Application (`/web`)**: Next.js 15 application with:
+
 - **Authentication**: NextAuth.js with GitHub OAuth and optional team-based access control
 - **Database**: PostgreSQL with Drizzle ORM, schema defined in `src/db/schema.ts`
 - **GitHub Integration**: GitHub App for webhook handling and repository interaction
@@ -70,6 +91,7 @@ make ci-docker        # Run CI tests in Docker
 - **MCP Server**: Model Context Protocol server at `/api/mcp` for AI agent interactions
 
 **Key Database Tables**:
+
 - `users`, `accounts`, `sessions`: Authentication and user management
 - `teams`, `teamsMemberships`: Team-based access control
 - `repos`, `projects`, `projectEnvironments`: Repository and deployment management
@@ -81,6 +103,7 @@ make ci-docker        # Run CI tests in Docker
 ### GitHub App Integration
 
 The application supports both GitHub App and Personal Access Token (PAT) authentication:
+
 - **GitHub App**: For organization-wide access, webhook handling, and automated workflows
 - **PAT**: For simpler personal use cases
 - Token encryption using AES-256-GCM for secure storage
@@ -98,6 +121,7 @@ The application supports both GitHub App and Personal Access Token (PAT) authent
 ### Agent System (`/web/src/agents`)
 
 Periodic background tasks that run on intervals:
+
 - Report generation for projects
 - Cleanup of stale resources
 - Monitoring and alerting
@@ -105,6 +129,7 @@ Periodic background tasks that run on intervals:
 ### MCP (Model Context Protocol) Integration
 
 The application exposes an MCP server that allows AI agents to:
+
 - List and manage projects
 - Deploy applications
 - Access cluster information
@@ -113,12 +138,14 @@ The application exposes an MCP server that allows AI agents to:
 ## Environment Variables
 
 Required for production:
+
 - `DATABASE_URL`: PostgreSQL connection string
 - `NEXTAUTH_URL`: Application URL for authentication
 - `NEXTAUTH_SECRET`: Secret for session encryption
 - `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`: GitHub OAuth credentials
 
 Optional:
+
 - `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`: For GitHub App functionality
 - `GITHUB_WEBHOOK_SECRET`: For validating webhook payloads
 - `ENCRYPTION_KEY`: For encrypting stored tokens (auto-generated if not set)
@@ -137,6 +164,7 @@ Tests use mocked GitHub API responses in development/test mode via `GITHUB_REPOS
 The application supports two development modes:
 
 ### Mocked Mode (Default for `make up`)
+
 - Environment: `GITHUB_REPOS_MODE=mocked` and `MOCKED=1`
 - GitHub API responses come from `src/mocks/github-data.yaml`
 - Database seeding creates only users (no projects)
@@ -144,6 +172,7 @@ The application supports two development modes:
 - Best for: Development, testing, offline work
 
 ### Real Mode (`make up-real`)
+
 - Environment: Normal GitHub API integration
 - Database seeding creates users with projects
 - All data comes from actual GitHub API calls
@@ -152,6 +181,7 @@ The application supports two development modes:
 ## Deployment
 
 The application can be deployed via:
+
 1. **Docker Compose**: For local development and testing
 2. **Helm Charts**: For Kubernetes deployments
 3. **Direct Node.js**: Using `npm run build` and `npm start:production`

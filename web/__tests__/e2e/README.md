@@ -1,227 +1,321 @@
-# E2E Testing Guidelines
+# E2E Testing with Playwright
 
-This document outlines the standards and patterns used in the Catalyst E2E test suite.
+## Overview
 
-## Table of Contents
+End-to-end tests verify complete user workflows using Playwright. Tests are organized using the **Page Object Model** pattern with reusable **fixtures** for authentication and onboarding.
 
-- [Architecture](#architecture)
-- [Page Object Model (POM)](#page-object-model-pom)
-- [Test Fixtures](#test-fixtures)
-- [Best Practices](#best-practices)
-- [Testing Patterns](#testing-patterns)
-- [Troubleshooting](#troubleshooting)
+## Core Principles
 
-## Architecture
+### 1. **Never use `networkidle`**
 
-Our E2E tests are built with Playwright and organized with the following structure:
+Use specific element visibility checks instead:
 
-```
-__tests__/e2e/
-├── fixtures/          # Custom test fixtures
-├── page-objects/      # Page Object Models
-├── *.spec.ts          # Test files
-├── helpers.ts         # Shared testing utilities
-└── README.md          # This documentation
+```typescript
+// ❌ BAD - Don't use networkidle
+await page.waitForLoadState("networkidle");
+
+// ✅ GOOD - Wait for specific elements
+await page.getByRole("heading", { name: "Dashboard" }).waitFor();
 ```
 
-## Page Object Model (POM)
+### 2. **No Branching Logic**
 
-The Page Object Model is a design pattern that creates an object repository for web UI elements. It helps reduce code duplication and improves test maintenance.
+**CRITICAL**: Never add conditional logic (if/else, switch, ternary) in:
 
-### Structure
+- Test files (`*.spec.ts`)
+- Fixtures (`fixtures/*.ts`)
+- Page objects (`page-objects/*.ts`)
 
-1. **BasePage**: Defines common elements and actions across all pages
-   - Navigation elements
-   - Header/footer elements
-   - Common utility methods
+```typescript
+// ❌ BAD - No branching logic
+if (isMobile) {
+  await page.click(".mobile-menu");
+} else {
+  await page.click(".desktop-menu");
+}
 
-2. **Feature-specific Pages**: Extend BasePage with page-specific elements and methods
-   - Page-specific locators
-   - Page-specific actions
-   - Page state verification methods
+// ✅ GOOD - Handle both cases in page object
+await basePage.navigateToProjects(); // Handles mobile/desktop internally
+```
+
+**Real-world anti-pattern to NEVER use:**
+
+```typescript
+// ❌ TERRIBLE - NEVER DO THIS - Conditional navigation logic in tests
+await test.step("Navigate to meal plan nutrition page", async () => {
+  const nutritionLink = page.getByRole("link", { name: /nutrition/i }).first();
+
+  if (await nutritionLink.isVisible()) {
+    await nutritionLink.click();
+    await page.waitForLoadState("networkidle");
+  } else {
+    // Fallback: navigate directly
+    await page.goto("/meal-plan");
+    await page.waitForLoadState("networkidle");
+
+    const currentUrl = page.url();
+    await page.goto("/meal-plans/1");
+    await page.waitForLoadState("networkidle");
+  }
+});
+
+// ✅ GOOD - Deterministic navigation in page object
+await projectsPage.gotoEnvironmentPage(projectId);
+```
+
+**Why this is bad:**
+
+- Creates non-deterministic tests (different paths on each run)
+- Hides bugs (code works in one path but not the other)
+- Makes tests flaky and hard to debug
+- Violates the E2E principle of testing what users actually do
+
+**The fix:**
+
+- Tests should be deterministic - same path every time
+- Put any conditional logic in page objects if absolutely necessary
+- Better yet: eliminate conditions by ensuring test state is predictable
+
+### 3. **Use Page Object Models**
+
+All navigation and interaction should go through page objects in `page-objects/`:
+
+- `BasePage.ts`: Common navigation (navbar, account dropdown, sign out)
+- `ProjectsPage.ts`: Project management and operations
+- And more...
+
+### 4. **Use Base Fixtures**
+
+Import from `./fixtures/base-fixtures` for pre-configured user contexts:
+
+```typescript
+import { test, expect } from "./fixtures/base-fixtures";
+
+test("my test", async ({ page }) => {
+  // User is already authenticated
+  await page.goto("/projects");
+});
+```
+
+## Available Fixtures
+
+### Authentication States
+
+- **`page`**: Authenticated user context (cookie-based, fast)
+- **`authenticatedAdmin`**: Admin user context (cookie-based, fast)
+- **`unauthenticatedPage`**: Clean slate for testing auth flows
+
+### Domain-Specific Fixtures
+
+- **`projects-fixture.ts`**: Project setup with repos
+- **`environments-fixture.ts`**: Environment creation
+- **`k8s-fixture.ts`**: Kubernetes cluster setup
 
 ### Example Usage
 
 ```typescript
-// In a test file
-test('should navigate through project workflow', async ({ projectsPage }) => {
-  await test.step('Navigate to projects page', async () => {
-    await projectsPage.goto();
-    await projectsPage.verifyProjectsListPageLoaded();
-  });
+import { test, expect } from "./fixtures/base-fixtures";
+import { ProjectsPage } from "./page-objects/ProjectsPage";
 
-  await test.step('Create new project', async () => {
-    await projectsPage.clickCreateProject();
-    // ... more test steps
-  });
+test("create project", async ({ page }) => {
+  const projectsPage = new ProjectsPage(page);
+
+  await projectsPage.goto();
+  await projectsPage.createProject("My Project");
+  await expect(page.getByText("My Project")).toBeVisible();
 });
 ```
 
-### Benefits
+## Page Object Pattern
 
-- **Separation of concerns**: Test logic is separated from page interaction details
-- **Reusability**: Page objects can be used across multiple tests
-- **Maintainability**: When the UI changes, you only need to update the POM, not every test
-- **Readability**: Tests become more concise and easier to understand
+### Structure
 
-## Test Fixtures
-
-Fixtures in Playwright allow you to set up test environment, share objects between tests, and encapsulate common setup logic.
-
-### Custom Fixtures
-
-We've created custom fixtures to:
-- Automatically handle authentication
-- Initialize Page Object Models
-- Set up test data
-
-### Example
+All page objects should extend or follow the `BasePage` pattern:
 
 ```typescript
-// In fixtures/projects-fixture.ts
-export const test = base.extend<{
-  projectsPage: ProjectsPage;
-}>({
-  projectsPage: async ({ page }, use, testInfo) => {
-    // Perform login and seed data automatically
-    await loginAndSeedForE2E(page, testInfo);
-    
-    // Create and initialize the ProjectsPage POM
-    const projectsPage = new ProjectsPage(page);
-    
-    // Provide the initialized ProjectsPage to the test
-    await use(projectsPage);
+import { Page, Locator } from "@playwright/test";
+
+export class MyPage {
+  readonly page: Page;
+  readonly someElement: Locator;
+
+  constructor(page: Page) {
+    this.page = page;
+    this.someElement = page.getByRole("button", { name: "Click Me" });
+  }
+
+  async performAction() {
+    await this.someElement.click();
+  }
+}
+```
+
+### Common Patterns
+
+- **Navigation**: Use `BasePage` methods (`navigateToMealPlan()`, `navigateToAccount()`)
+- **Forms**: Define locators for inputs and submit buttons
+- **Assertions**: Keep assertions in test files, not page objects
+- **Mobile/Desktop**: Handle both in page object methods (no branching in tests)
+
+## Fixtures
+
+### Base Fixtures (`fixtures/base-fixtures.ts`)
+
+Provides fast cookie-based authentication:
+
+- Creates test users with deterministic credentials
+- Sets authentication cookies (faster than UI login)
+- Cleans up contexts automatically after tests
+
+### Domain-Specific Fixtures
+
+- **`projects-fixture.ts`**: Project setup with repos
+- **`environments-fixture.ts`**: Environment creation
+- **`k8s-fixture.ts`**: Kubernetes cluster setup
+
+### Creating Custom Fixtures
+
+```typescript
+import { test as base } from "./base-fixtures";
+
+export const test = base.extend<{ myFixture: MyType }>({
+  myFixture: async ({ page }, use) => {
+    // Setup code
+    const myData = await setupMyData(page);
+
+    await use(myData);
+
+    // Cleanup code (optional)
   },
+});
+```
+
+## Running Tests
+
+```bash
+npm run test:e2e         # All E2E tests
+npm run test:e2e:ui      # With Playwright UI
+make ci                  # Full CI pipeline (includes E2E)
+```
+
+### Debugging
+
+```bash
+npm run test:e2e:ui                    # Interactive UI mode
+npx playwright test --debug            # Debug mode
+npx playwright test --headed           # Show browser
+npx playwright test <file> --headed    # Run specific file
+```
+
+## Test Organization
+
+### File Naming
+
+- `<feature>.spec.ts`: Feature-specific tests
+- `<feature>-<specific>.spec.ts`: More specific tests
+
+### Test Structure
+
+```typescript
+import { test, expect } from "./fixtures/base-fixtures";
+import { MyPage } from "./page-objects/MyPage";
+
+test.describe("Feature Name", () => {
+  test("should do something", async ({ page }) => {
+    const myPage = new MyPage(page);
+
+    // Arrange
+    await myPage.goto();
+
+    // Act
+    await myPage.performAction();
+
+    // Assert
+    await expect(page.getByText("Expected Result")).toBeVisible();
+  });
 });
 ```
 
 ## Best Practices
 
-### DO
+1. **Fast Authentication**: Use fixtures (cookie-based) instead of UI login
+2. **Specific Waits**: Wait for specific elements, never `networkidle`
+3. **Page Objects**: Encapsulate page interactions and navigation
+4. **No Branching**: Handle mobile/desktop in page objects, not tests
+5. **Clean Tests**: Keep tests readable and focused on user actions
+6. **Assertions in Tests**: Page objects should not contain assertions
+7. **Reusable Fixtures**: Extract common setup into fixtures
 
-✅ Use the Page Object Model pattern  
-✅ Use test.step() for clear test organization  
-✅ Add explicit assertions to verify page state  
-✅ Break tests into logical steps  
-✅ Use descriptive test and function names  
-✅ Prefer higher-level actions in POMs (e.g., `loginUser()` instead of `fillUsername()`, `fillPassword()`, `clickLogin()`)  
-✅ Keep test files focused on one feature area  
+## Common Patterns
 
-### DON'T
-
-❌ Use `waitForTimeout()` - it leads to flaky tests  
-❌ Use `page.waitForLoadState('networkidle')` - it's unreliable in modern web apps  
-❌ Put assertions in Page Object Models (POMs should return state, tests should assert)  
-❌ Create long, monolithic tests that test many things  
-❌ Use hard-coded waits or sleeps  
-
-### Waiting Patterns
-
-Instead of arbitrary timeouts or `networkidle`, use these more reliable patterns:
+### Navigation
 
 ```typescript
-// Good: Wait for specific elements or state
-await expect(page.getByRole('heading')).toBeVisible();
-await expect(page).toHaveURL('/expected-url');
-
-// Good: Wait for network request to complete
-await page.waitForResponse(response => 
-  response.url().includes('/api/data') && response.status() === 200
-);
-
-// Bad: Arbitrary timeouts
-await page.waitForTimeout(1000);
-
-// Bad: Waiting for networkidle
-await page.waitForLoadState('networkidle');
+// Use BasePage for common navigation
+const basePage = new BasePage(page);
+await basePage.navigateToProjects(); // Handles mobile/desktop
+await basePage.navigateToAccount();
+await basePage.signOut();
 ```
 
-## Testing Patterns
-
-### Test Organization with test.step()
-
-Use `test.step()` to organize tests into logical sections:
+### Form Submission
 
 ```typescript
-test('should complete checkout process', async ({ page }) => {
-  await test.step('Add item to cart', async () => {
-    // Test steps for adding item
-  });
-  
-  await test.step('Proceed to checkout', async () => {
-    // Test steps for checkout
-  });
-  
-  await test.step('Complete payment', async () => {
-    // Test steps for payment
-  });
-});
-```
+// Define form locators in page object
+export class MyFormPage {
+  readonly nameInput: Locator;
+  readonly submitButton: Locator;
 
-### Single-line Operations
-
-For single-line operations, use comments instead of test.step():
-
-```typescript
-// Navigate to home page
-await page.goto('/');
-
-// Click login button
-await page.getByRole('button', { name: 'Login' }).click();
-```
-
-### Handling No Data Scenarios
-
-Always make tests fail explicitly when expected data is not found:
-
-```typescript
-// Bad: Silently skipping with console.log
-if (projectCount === 0) {
-  console.log('No projects found, skipping test');
-  return;
+  async fillForm(name: string) {
+    await this.nameInput.fill(name);
+    await this.submitButton.click();
+  }
 }
+```
 
-// Good: Explicitly fail or skip with message
-expect(projectCount, 'At least one project is required').toBeGreaterThan(0);
+### Waiting for Results
 
-// Alternative: Use test.skip() with clear message
-if (projectCount === 0) {
-  test.skip('No projects available for testing');
-}
+```typescript
+// Wait for specific elements after actions
+await submitButton.click();
+await page.getByText("Success").waitFor();
+await expect(page.getByText("Success")).toBeVisible();
 ```
 
 ## Troubleshooting
 
-### Common Issues
+### Tests Timing Out
 
-1. **Flaky tests**: Usually caused by timing issues or race conditions
-   - Replace arbitrary waits with explicit waits for specific elements or states
-   - Use `await expect().toBeVisible()` instead of checking if element exists
+- Ensure specific element waits instead of `networkidle`
+- Check if development server is running
+- Verify database migrations are applied
 
-2. **Selector issues**: Elements not found or ambiguous selectors
-   - Use Playwright's built-in selectors like `getByRole()`, `getByText()`
-   - Add test IDs to important elements with `data-testid` attributes
+### Authentication Issues
 
-3. **Authentication issues**:
-   - Ensure the `loginAndSeedForE2E()` function is working correctly
-   - Check that session cookies are being properly set
+- Check `AUTH_SECRET` environment variable
+- Verify cookie domain matches test URL
+- Use `authenticatedUser` fixture for debugging
 
-### Debugging Tips
+### Flaky Tests
 
-1. **Visual debugging**:
-   ```bash
-   npx playwright test --debug
-   ```
+- Add explicit waits for dynamic content
+- Use `waitFor()` before assertions
+- Avoid time-based waits (use element visibility)
 
-2. **Take screenshots on failure**:
-   ```typescript
-   // This is configured in playwright.config.ts
-   use: {
-     screenshot: 'only-on-failure',
-   }
-   ```
+## File Structure
 
-3. **Trace viewing**:
-   ```bash
-   npx playwright show-trace trace.zip
-   ```
+```
+tests/e2e/
+├── fixtures/
+│   ├── base-fixtures.ts         # Authentication fixtures
+│   ├── projects-fixture.ts      # Project-specific fixtures
+│   ├── environments-fixture.ts  # Environment fixtures
+│   └── k8s-fixture.ts           # Kubernetes fixtures
+├── page-objects/
+│   ├── BasePage.ts              # Common navigation
+│   ├── ProjectsPage.ts          # Project operations
+│   └── ...                      # Other page objects
+├── helpers.ts                   # Shared helper functions
+├── global-setup.ts              # Global test setup
+└── *.spec.ts                    # Test files
+```
