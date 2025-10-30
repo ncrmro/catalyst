@@ -2,7 +2,7 @@
 
 import { getUserPrimaryTeamId } from "@/lib/team-auth";
 import { getProjects, createProjects } from "@/models/projects";
-import { getRepos, upsertRepos } from "@/models/repos";
+import { upsertRepos } from "@/models/repos";
 import { createProjectRepoLinks, setPrimaryRepo } from "@/models/project-repos";
 
 interface GitHubRepo {
@@ -203,19 +203,19 @@ async function connectRepoToProjectReal(
       },
     ]);
 
-    // If this is set as primary, unset any existing primary repos for this project
-    if (isPrimary) {
-      await setPrimaryRepo(finalProjectId, repoRecord.id);
-    }
-
     // Create the project-repo relationship
     await createProjectRepoLinks([
       {
         projectId: finalProjectId,
         repoId: repoRecord.id,
-        isPrimary,
+        isPrimary: false, // Always create as non-primary first
       },
     ]);
+
+    // If this is set as primary, update it and unset any other primary repos
+    if (isPrimary) {
+      await setPrimaryRepo(finalProjectId, repoRecord.id);
+    }
 
     return { success: true, projectId: finalProjectId };
   } catch (error) {

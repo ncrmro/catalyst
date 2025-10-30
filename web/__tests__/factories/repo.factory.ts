@@ -1,4 +1,4 @@
-import { Factory, faker, db } from "@/lib/factories";
+import { Factory, faker } from "@/lib/factories";
 import { upsertRepos, type InsertRepo } from "@/models/repos";
 
 class RepoFactory extends Factory<InsertRepo> {

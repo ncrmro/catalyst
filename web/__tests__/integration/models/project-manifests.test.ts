@@ -97,7 +97,7 @@ describe("Project Manifests Model Integration", () => {
 
   describe("getProjectManifests", () => {
     it("should return manifests by project IDs", async () => {
-      const manifest = await projectManifestFactory.create({
+      await projectManifestFactory.create({
         projectId: testProjectId,
         repoId: testRepoId,
         path: "package.json",
@@ -124,7 +124,7 @@ describe("Project Manifests Model Integration", () => {
     });
 
     it("should return manifests by repo IDs", async () => {
-      const manifest = await projectManifestFactory.create({
+      await projectManifestFactory.create({
         projectId: testProjectId,
         repoId: testRepoId,
         path: "manifest.yaml",
@@ -142,7 +142,7 @@ describe("Project Manifests Model Integration", () => {
     });
 
     it("should return manifests by paths", async () => {
-      const manifest = await projectManifestFactory.create({
+      await projectManifestFactory.create({
         projectId: testProjectId,
         repoId: testRepoId,
         path: "catalyst.yaml",
@@ -160,7 +160,7 @@ describe("Project Manifests Model Integration", () => {
     });
 
     it("should filter by multiple criteria", async () => {
-      const manifest = await projectManifestFactory.create({
+      await projectManifestFactory.create({
         projectId: testProjectId,
         repoId: testRepoId,
         path: "docker-compose.yml",
@@ -199,7 +199,7 @@ describe("Project Manifests Model Integration", () => {
 
   describe("manifestExists", () => {
     it("should return true when manifest exists", async () => {
-      const manifest = await projectManifestFactory.create({
+      await projectManifestFactory.create({
         projectId: testProjectId,
         repoId: testRepoId,
         path: "exists-test.yaml",
@@ -230,7 +230,7 @@ describe("Project Manifests Model Integration", () => {
     });
 
     it("should return false when project ID doesn't match", async () => {
-      const manifest = await projectManifestFactory.create({
+      await projectManifestFactory.create({
         projectId: testProjectId,
         repoId: testRepoId,
         path: "match-test.yaml",
@@ -251,7 +251,7 @@ describe("Project Manifests Model Integration", () => {
     });
 
     it("should return false when repo ID doesn't match", async () => {
-      const manifest = await projectManifestFactory.create({
+      await projectManifestFactory.create({
         projectId: testProjectId,
         repoId: testRepoId,
         path: "match-test-2.yaml",
@@ -272,7 +272,7 @@ describe("Project Manifests Model Integration", () => {
     });
 
     it("should return false when path doesn't match", async () => {
-      const manifest = await projectManifestFactory.create({
+      await projectManifestFactory.create({
         projectId: testProjectId,
         repoId: testRepoId,
         path: "correct-path.yaml",
@@ -381,7 +381,7 @@ describe("Project Manifests Model Integration", () => {
 
   describe("deleteProjectManifests", () => {
     it("should delete a project manifest", async () => {
-      const manifest = await projectManifestFactory.create({
+      await projectManifestFactory.create({
         projectId: testProjectId,
         repoId: testRepoId,
         path: "to-delete.yaml",
@@ -412,7 +412,7 @@ describe("Project Manifests Model Integration", () => {
     });
 
     it("should not affect other manifests when deleting", async () => {
-      const [manifest1, manifest2] = await Promise.all([
+      await Promise.all([
         projectManifestFactory.create({
           projectId: testProjectId,
           repoId: testRepoId,
