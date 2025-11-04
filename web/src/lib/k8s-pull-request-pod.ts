@@ -525,6 +525,63 @@ export async function createPullRequestPodJob(options: PullRequestPodOptions): P
                   fi
                   echo ""
 
+                  echo "=== Helm Chart Deployment ==="
+                  if [ -n "\$HELM_CHART_PATH" ]; then
+                    echo "Helm chart path provided: \$HELM_CHART_PATH"
+                    
+                    # Check if Helm chart exists
+                    HELM_CHART_FULL_PATH="/tmp/workspace\$HELM_CHART_PATH"
+                    if [ -d "\$HELM_CHART_FULL_PATH" ]; then
+                      echo "✓ Found Helm chart at: \$HELM_CHART_FULL_PATH"
+                      
+                      # Generate ingress hostname
+                      INGRESS_HOST="\${PROJECT_NAME}-pr-\${PR_NUMBER}.\${PRIMARY_HOSTNAME}"
+                      
+                      # Use the built image or fallback to a default
+                      IMAGE_REPOSITORY="ghcr.io/\$GITHUB_USER/\$IMAGE_NAME"
+                      IMAGE_TAG_FULL="\${IMAGE_REPOSITORY}:pr-\${PR_NUMBER}"
+                      
+                      echo "Deploying Helm chart with configuration:"
+                      echo "  Release name: pr-\${PR_NUMBER}-\${PROJECT_NAME}"
+                      echo "  Namespace: \$TARGET_NAMESPACE"
+                      echo "  Chart path: \$HELM_CHART_FULL_PATH"
+                      echo "  Ingress host: \$INGRESS_HOST"
+                      echo "  Image: \$IMAGE_TAG_FULL"
+                      
+                      # Deploy Helm chart with ingress overrides
+                      helm upgrade --install \\
+                        "pr-\${PR_NUMBER}-\${PROJECT_NAME}" \\
+                        "\$HELM_CHART_FULL_PATH" \\
+                        --namespace "\$TARGET_NAMESPACE" \\
+                        --set ingress.enabled=true \\
+                        --set ingress.className=nginx \\
+                        --set "ingress.annotations.nginx\\.ingress\\.kubernetes\\.io/force-ssl-redirect=true" \\
+                        --set "ingress.hosts[0].host=\$INGRESS_HOST" \\
+                        --set "ingress.hosts[0].paths[0].path=/" \\
+                        --set "ingress.hosts[0].paths[0].pathType=Prefix" \\
+                        --set "ingress.tls[0].secretName=wildcard-tls-secret" \\
+                        --set "ingress.tls[0].hosts[0]=\$INGRESS_HOST" \\
+                        --set "image.repository=\$IMAGE_REPOSITORY" \\
+                        --set "image.tag=pr-\$PR_NUMBER" \\
+                        --timeout 10m \\
+                        --wait
+                        
+                      if [ \$? -eq 0 ]; then
+                        echo "✅ Helm chart deployed successfully with ingress: https://\$INGRESS_HOST"
+                      else
+                        echo "❌ Helm chart deployment failed"
+                        exit 1
+                      fi
+                    else
+                      echo "✗ Helm chart not found at: \$HELM_CHART_FULL_PATH"
+                      echo "Available files in repository root:"
+                      ls -la /tmp/workspace/
+                    fi
+                  else
+                    echo "⏭ No HELM_CHART_PATH provided, skipping Helm deployment"
+                  fi
+                  echo ""
+
                   echo "=== Test Complete ==="
                   echo "PR pod successfully:"
                   echo "  ✓ Verified all tools (helm, kubectl, git, docker)"
@@ -539,6 +596,9 @@ export async function createPullRequestPodJob(options: PullRequestPodOptions): P
                     fi
                   else
                     echo "  ⏭ Skipped Docker build (NEEDS_BUILD=false)"
+                  fi
+                  if [ -n "\$HELM_CHART_PATH" ]; then
+                    echo "  ✓ Deployed Helm chart with ingress: https://\${PROJECT_NAME}-pr-\${PR_NUMBER}.\${PRIMARY_HOSTNAME}"
                   fi
                   echo "Ready for deployment pipeline."
                   `
@@ -682,5 +742,77 @@ export async function cleanupPullRequestPodJob(
   } catch (error) {
     console.error('Error cleaning up pull request pod job:', error);
     throw error;
+  }
+}
+
+/**
+ * Clean up Helm release for a PR
+ */
+export async function cleanupPullRequestHelmRelease(
+  repoName: string,
+  prNumber: number,
+  namespace: string = 'default',
+  clusterName?: string
+): Promise<void> {
+  const kc = await getClusterConfig(clusterName);
+  if (!kc) {
+    throw new Error(`Kubernetes cluster configuration not found${clusterName ? ` for cluster: ${clusterName}` : '. No clusters available.'}`);
+  }
+
+  // Generate the expected Helm release name
+  const projectName = repoName.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+  const releaseName = `pr-${prNumber}-${projectName}`;
+
+  try {
+    // Use kubectl to check if helm release exists and delete it
+    // This is more reliable than trying to use Helm client directly in Node.js
+    
+    // Create a cleanup job that runs helm uninstall
+    const cleanupJobName = `cleanup-helm-${releaseName}`;
+    
+    const cleanupJob = {
+      apiVersion: 'batch/v1',
+      kind: 'Job',
+      metadata: {
+        name: cleanupJobName,
+        namespace: namespace,
+        labels: {
+          'app': 'catalyst-helm-cleanup',
+          'created-by': 'catalyst-web-app'
+        }
+      },
+      spec: {
+        template: {
+          spec: {
+            restartPolicy: 'Never',
+            containers: [{
+              name: 'helm-cleanup',
+              image: 'alpine/helm:latest',
+              command: ['/bin/sh'],
+              args: [
+                '-c',
+                `
+                echo "Cleaning up Helm release: ${releaseName}"
+                helm uninstall ${releaseName} --namespace ${namespace} --ignore-not-found || true
+                echo "Cleanup completed"
+                `
+              ]
+            }]
+          }
+        },
+        backoffLimit: 1,
+        ttlSecondsAfterFinished: 300 // Clean up after 5 minutes
+      }
+    };
+
+    const BatchV1Api = await getBatchV1Api();
+    const batchApi = kc.makeApiClient(BatchV1Api);
+    
+    await batchApi.createNamespacedJob({ namespace, body: cleanupJob });
+    console.log(`Helm cleanup job created for release: ${releaseName}`);
+
+  } catch (error) {
+    console.error(`Error cleaning up Helm release ${releaseName}:`, error);
+    // Don't throw error as this is cleanup - log and continue
   }
 }

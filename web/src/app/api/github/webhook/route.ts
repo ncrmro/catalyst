@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createKubernetesNamespace, deleteKubernetesNamespace } from '@/actions/kubernetes';
 import { getInstallationOctokit, GITHUB_CONFIG } from '@/lib/github';
-import { createPullRequestPodJob, cleanupPullRequestPodJob, PullRequestPodResult } from '@/lib/k8s-pull-request-pod';
+import { createPullRequestPodJob, cleanupPullRequestPodJob, cleanupPullRequestHelmRelease, PullRequestPodResult } from '@/lib/k8s-pull-request-pod';
 import { upsertPullRequest, findRepoByGitHubData } from '@/actions/pull-requests-db';
 
 /**
@@ -286,20 +286,36 @@ async function handlePullRequestEvent(payload: {
       let podJobResult: PullRequestPodResult | null = null;
       try {
         const prJobName = `pr-${pull_request.number}-${repository.name}`;
+        
+        // Generate sanitized project name for subdomain
+        const projectName = repository.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+        
+        // Environment variables for PR pod
+        const envVars: Record<string, string> = {
+          REPO_URL: `https://github.com/${repository.full_name}.git`,
+          PR_BRANCH: pull_request.head.ref,
+          PR_NUMBER: pull_request.number.toString(),
+          GITHUB_USER: repository.owner.login,
+          IMAGE_NAME: `${repository.name}/web`,
+          NEEDS_BUILD: 'true',
+          SHALLOW_CLONE: 'true',
+          MANIFEST_DOCKERFILE: '/web/Dockerfile',
+          TARGET_NAMESPACE: namespaceResult.success ? namespaceResult.namespace?.name || '' : '',
+          PROJECT_NAME: projectName
+        };
+        
+        // Add Helm chart and hostname configuration if available
+        const primaryHostname = process.env.PRIMARY_HOSTNAME;
+        if (primaryHostname) {
+          envVars.PRIMARY_HOSTNAME = primaryHostname;
+          // Default to assuming charts/nextjs exists - this can be enhanced later with repo content detection
+          envVars.HELM_CHART_PATH = '/charts/nextjs';
+        }
+        
         podJobResult = await createPullRequestPodJob({
           name: prJobName,
           namespace: namespaceResult.success ? namespaceResult.namespace?.name || 'default' : 'default',
-          env: {
-            REPO_URL: `https://github.com/${repository.full_name}.git`,
-            PR_BRANCH: pull_request.head.ref,
-            PR_NUMBER: pull_request.number.toString(),
-            GITHUB_USER: repository.owner.login,
-            IMAGE_NAME: `${repository.name}/web`,
-            NEEDS_BUILD: 'true',
-            SHALLOW_CLONE: 'true',
-            MANIFEST_DOCKERFILE: '/web/Dockerfile',
-            TARGET_NAMESPACE: namespaceResult.success ? namespaceResult.namespace?.name || '' : ''
-          }
+          env: envVars
         });
         console.log(`Pull request pod job created for PR ${pull_request.number}:`, podJobResult);
       } catch (podJobError) {
@@ -349,6 +365,14 @@ async function handlePullRequestEvent(payload: {
         console.log(`Pull request pod job cleaned up for PR ${pull_request.number}`);
       } catch (podJobError) {
         console.error(`Failed to cleanup pull request pod job for PR ${pull_request.number}:`, podJobError);
+      }
+      
+      // Clean up Helm release if it exists
+      try {
+        await cleanupPullRequestHelmRelease(repository.name, pull_request.number, 'default');
+        console.log(`Helm release cleanup initiated for PR ${pull_request.number}`);
+      } catch (helmCleanupError) {
+        console.error(`Failed to cleanup Helm release for PR ${pull_request.number}:`, helmCleanupError);
       }
       
       const deleteResult = await deleteKubernetesNamespace(owner, repo, environment);
