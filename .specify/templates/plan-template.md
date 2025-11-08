@@ -1,183 +1,104 @@
-# Implementation Plan: [FEATURE_NAME]
+# Implementation Plan: [FEATURE]
 
-**Date:** [YYYY-MM-DD]
-**Author:** [AUTHOR_NAME]
-**Related Spec:** [Link to spec.md if exists]
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
-## Overview
+**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 
-[Brief 1-2 sentence description of what will be implemented]
+## Summary
 
-## Constitution Alignment Check
+[Extract from feature spec: primary requirement + technical approach from research]
 
-Before proceeding, verify alignment with constitutional principles:
+## Technical Context
 
-- [ ] **Agentic-First Design:** Will this feature be accessible via MCP server?
-- [ ] **Fast Feedback Loops:** Does this maintain/improve CI/preview environment performance?
-- [ ] **Deployment Portability:** Does this rely only on open standards (K8s, Helm, Docker)?
-- [ ] **Security by Default:** Are credentials encrypted? Is RBAC enforced?
-- [ ] **Test-Driven Quality:** Are unit tests (>80%) and E2E tests planned?
-- [ ] **Layered Architecture:** Does this respect Actions/Models/Database boundaries?
+<!--
+  ACTION REQUIRED: Replace the content in this section with the technical details
+  for the project. The structure here is presented in advisory capacity to guide
+  the iteration process.
+-->
 
-**Violations:** [List any principle violations with justification, or state "None"]
+**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
+**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
+**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
+**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
+**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Project Type**: [single/web/mobile - determines source structure]  
+**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
+**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
+**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
-## Implementation Phases
+## Constitution Check
 
-### Phase 1: [Phase Name]
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-**Goal:** [What this phase achieves]
+[Gates determined based on constitution file]
 
-**Tasks:**
-1. [Specific task]
-2. [Specific task]
+## Project Structure
 
-**Deliverables:**
-- [Concrete output]
-- [Concrete output]
+### Documentation (this feature)
 
-**Success Criteria:**
-- [Measurable criterion]
-- [Measurable criterion]
-
-### Phase 2: [Phase Name]
-
-**Goal:** [What this phase achieves]
-
-**Tasks:**
-1. [Specific task]
-2. [Specific task]
-
-**Deliverables:**
-- [Concrete output]
-
-**Success Criteria:**
-- [Measurable criterion]
-
-## Architecture Changes
-
-### Database Schema Changes
-
-[Describe new tables, columns, indexes, or state "None"]
-
-```sql
--- Example migration
-ALTER TABLE projects ADD COLUMN deployment_config JSONB;
+```text
+specs/[###-feature]/
+├── plan.md              # This file (/speckit.plan command output)
+├── research.md          # Phase 0 output (/speckit.plan command)
+├── data-model.md        # Phase 1 output (/speckit.plan command)
+├── quickstart.md        # Phase 1 output (/speckit.plan command)
+├── contracts/           # Phase 1 output (/speckit.plan command)
+└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
 ```
 
-### API Changes
+### Source Code (repository root)
+<!--
+  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
+  for this feature. Delete unused options and expand the chosen structure with
+  real paths (e.g., apps/admin, packages/something). The delivered plan must
+  not include Option labels.
+-->
 
-[Describe new endpoints, MCP tools, or state "None"]
+```text
+# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
+src/
+├── models/
+├── services/
+├── cli/
+└── lib/
 
-**New MCP Tools:**
-- `tool_name`: [Description]
+tests/
+├── contract/
+├── integration/
+└── unit/
 
-**New REST Endpoints:**
-- `POST /api/resource`: [Description]
+# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
+backend/
+├── src/
+│   ├── models/
+│   ├── services/
+│   └── api/
+└── tests/
 
-### Layer Modifications
+frontend/
+├── src/
+│   ├── components/
+│   ├── pages/
+│   └── services/
+└── tests/
 
-**Actions Layer:**
-- [Changes to server components/actions]
+# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
+api/
+└── [same as backend above]
 
-**Models Layer:**
-- [New business logic functions]
+ios/ or android/
+└── [platform-specific structure: feature modules, UI flows, platform tests]
+```
 
-**Database Layer:**
-- [Schema/migration changes]
+**Structure Decision**: [Document the selected structure and reference the real
+directories captured above]
 
-## Dependencies
+## Complexity Tracking
 
-**External:**
-- [npm packages, services, APIs]
+> **Fill ONLY if Constitution Check has violations that must be justified**
 
-**Internal:**
-- [Other features/components this depends on]
-
-**Blockers:**
-- [Any blockers or prerequisite work]
-
-## Testing Strategy
-
-### Unit Tests
-
-**Coverage Target:** >80%
-
-**Key Test Scenarios:**
-1. [Scenario]
-2. [Scenario]
-
-### Integration Tests
-
-**Scenarios:**
-1. [Database operation scenario]
-2. [API endpoint scenario]
-
-### E2E Tests
-
-**User Workflows:**
-1. [End-to-end workflow]
-2. [End-to-end workflow]
-
-## Rollout Plan
-
-### Development
-
-1. [Step]
-2. [Step]
-
-### Staging
-
-1. [Validation step]
-2. [Validation step]
-
-### Production
-
-1. [Deployment step]
-2. [Monitoring/verification step]
-
-**Rollback Plan:** [Describe rollback procedure if issues arise]
-
-## Monitoring & Observability
-
-**Metrics to Track:**
-- [Metric name]: [Purpose]
-- [Metric name]: [Purpose]
-
-**Alerts to Configure:**
-- [Alert condition]: [Action]
-
-**Logs to Add:**
-- [Log point]: [Information captured]
-
-## Documentation Updates
-
-- [ ] Update README.md if user-facing changes
-- [ ] Update API documentation
-- [ ] Update MCP tool documentation
-- [ ] Update architecture diagrams if applicable
-
-## Risk Assessment
-
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| [Risk description] | Low/Med/High | Low/Med/High | [Mitigation strategy] |
-
-## Timeline Estimate
-
-| Phase | Duration | Dependencies |
-|-------|----------|--------------|
-| Phase 1 | [X days] | [Dependencies] |
-| Phase 2 | [X days] | Phase 1 |
-| **Total** | **[X days]** | |
-
-## Open Questions
-
-1. [Question requiring resolution before implementation]
-2. [Question requiring resolution]
-
-**Resolution Deadline:** [Date by which questions must be answered]
-
----
-
-**Plan Status:** [Draft / Approved / In Progress / Completed]
-**Last Updated:** [YYYY-MM-DD]
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+|-----------|------------|-------------------------------------|
+| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
