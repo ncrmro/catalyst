@@ -126,7 +126,8 @@ export async function deployHelmChart(params: {
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Unknown deployment error",
+      error:
+        error instanceof Error ? error.message : "Unknown deployment error",
     };
   }
 }
@@ -158,12 +159,15 @@ export async function upsertGitHubComment(params: {
 
     // If commentId provided, update existing comment
     if (params.commentId) {
-      await octokit.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
-        owner: params.owner,
-        repo: params.repo,
-        comment_id: params.commentId,
-        body: params.body,
-      });
+      await octokit.request(
+        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
+        {
+          owner: params.owner,
+          repo: params.repo,
+          comment_id: params.commentId,
+          body: params.body,
+        },
+      );
 
       return {
         success: true,
@@ -173,12 +177,15 @@ export async function upsertGitHubComment(params: {
     }
 
     // Otherwise, create new comment
-    const response = await octokit.request("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", {
-      owner: params.owner,
-      repo: params.repo,
-      issue_number: params.prNumber,
-      body: params.body,
-    });
+    const response = await octokit.request(
+      "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
+      {
+        owner: params.owner,
+        repo: params.repo,
+        issue_number: params.prNumber,
+        body: params.body,
+      },
+    );
 
     return {
       success: true,
@@ -188,7 +195,10 @@ export async function upsertGitHubComment(params: {
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to post GitHub comment",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to post GitHub comment",
     };
   }
 }
@@ -259,4 +269,163 @@ export async function listActivePreviewPods(params: {
     .select()
     .from(pullRequestPods)
     .where(and(...conditions));
+}
+
+/**
+ * Create preview deployment - Full orchestration workflow
+ *
+ * Coordinates the entire deployment process:
+ * 1. Check for existing deployment (idempotency)
+ * 2. Create database record with "pending" status
+ * 3. Generate namespace and public URL
+ * 4. Deploy Helm chart to Kubernetes
+ * 5. Post GitHub comment with deployment info
+ * 6. Update database with deployment status
+ *
+ * @param params - Deployment parameters
+ * @returns Deployment result with pod, URLs, and status
+ */
+export async function createPreviewDeployment(params: {
+  pullRequestId: string;
+  repoName: string;
+  repoOwner: string;
+  prNumber: number;
+  branch: string;
+  commitSha: string;
+  imageTag: string;
+  installationId: number;
+  chartPath?: string;
+  resources?: {
+    cpu: string;
+    memory: string;
+    pods: number;
+  };
+}): Promise<{
+  success: boolean;
+  pod?: SelectPullRequestPod;
+  publicUrl?: string;
+  helmRelease?: {
+    releaseName: string;
+    namespace: string;
+  };
+  githubComment?: {
+    commentId: number;
+    action: "created" | "updated";
+  };
+  error?: string;
+}> {
+  try {
+    // 1. Check for existing deployment with same commit SHA (idempotency)
+    const existing = await db
+      .select()
+      .from(pullRequestPods)
+      .where(
+        and(
+          eq(pullRequestPods.pullRequestId, params.pullRequestId),
+          eq(pullRequestPods.commitSha, params.commitSha),
+        ),
+      )
+      .limit(1);
+
+    if (existing.length > 0) {
+      // Return existing deployment
+      return {
+        success: true,
+        pod: existing[0],
+        publicUrl: existing[0].publicUrl || undefined,
+      };
+    }
+
+    // 2. Generate namespace and public URL
+    const namespace = generateNamespace(params.repoName, params.prNumber);
+    const publicUrl = generatePublicUrl(namespace);
+    const deploymentName = `${namespace}-app`;
+
+    // 3. Create database record with "pending" status
+    const [pod] = await createPreviewPods({
+      pullRequestId: params.pullRequestId,
+      commitSha: params.commitSha,
+      namespace,
+      deploymentName,
+      status: "pending",
+      publicUrl,
+      branch: params.branch,
+      imageTag: params.imageTag,
+      resourcesAllocated: params.resources || {
+        cpu: "500m",
+        memory: "512Mi",
+        pods: 1,
+      },
+    });
+
+    // 4. Deploy Helm chart
+    const helmResult = await deployHelmChart({
+      namespace,
+      chartPath: params.chartPath || "./charts/nextjs",
+      releaseName: deploymentName,
+      values: {
+        image: {
+          repository: `ghcr.io/${params.repoOwner}/${params.repoName}`,
+          tag: params.imageTag,
+        },
+        resources: params.resources || {
+          limits: { cpu: "500m", memory: "512Mi" },
+        },
+      },
+    });
+
+    // Handle deployment failure
+    if (!helmResult.success) {
+      await updatePodStatus(pod.id, "failed", helmResult.error);
+      return {
+        success: false,
+        pod: { ...pod, status: "failed", errorMessage: helmResult.error },
+        error: helmResult.error,
+      };
+    }
+
+    // 5. Update pod status to "deploying" (Helm succeeded, waiting for pods)
+    await updatePodStatus(pod.id, "deploying");
+
+    // 6. Post GitHub comment
+    const commentBody = `## 🚀 Preview Environment
+
+**Status**: Deploying
+**URL**: ${publicUrl}
+**Branch**: \`${params.branch}\`
+**Commit**: \`${params.commitSha.substring(0, 7)}\`
+
+Preview environment is being deployed. This may take a few minutes...`;
+
+    const commentResult = await upsertGitHubComment({
+      owner: params.repoOwner,
+      repo: params.repoName,
+      prNumber: params.prNumber,
+      body: commentBody,
+      installationId: params.installationId,
+    });
+
+    // Return success result
+    return {
+      success: true,
+      pod: { ...pod, status: "deploying" },
+      publicUrl,
+      helmRelease: {
+        releaseName: deploymentName,
+        namespace,
+      },
+      githubComment: commentResult.success
+        ? {
+            commentId: commentResult.commentId!,
+            action: commentResult.action!,
+          }
+        : undefined,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Unknown deployment error",
+    };
+  }
 }
