@@ -4,6 +4,7 @@ import { createKubernetesNamespace, deleteKubernetesNamespace } from '@/actions/
 import { getInstallationOctokit, GITHUB_CONFIG } from '@/lib/github';
 import { createPullRequestPodJob, cleanupPullRequestPodJob, PullRequestPodResult } from '@/lib/k8s-pull-request-pod';
 import { upsertPullRequest, findRepoByGitHubData } from '@/actions/pull-requests-db';
+import { createPreviewDeployment } from '@/actions/preview-environments';
 
 /**
  * GitHub App Webhook Endpoint
@@ -260,77 +261,71 @@ async function handlePullRequestEvent(payload: {
     console.warn(`Repository with GitHub ID ${repository.id} not found in database. Skipping PR database operation.`);
   }
 
-  // Create namespace when PR is opened
-  if (action === 'opened') {
+  // Create/update preview environment when PR is opened or synchronized
+  if (action === 'opened' || action === 'synchronize') {
+    // Get PR database record if it exists
+    let pullRequestDbId: string | undefined;
+    if (repoResult.success && repoResult.repo && dbResult?.success && dbResult.pullRequest) {
+      pullRequestDbId = dbResult.pullRequest.id;
+    }
+
+    // Only deploy if we have a PR ID in database
+    if (!pullRequestDbId) {
+      console.warn(`Skipping preview deployment for PR ${pull_request.number}: PR not found in database`);
+      return NextResponse.json({
+        success: true,
+        message: `Pull request ${action} processed but preview deployment skipped (PR not in database)`,
+        pr_number: pull_request.number,
+      });
+    }
+
     try {
-      // Extract team and project from repository full_name (owner/repo)
-      const [owner, repo] = repository.full_name.split('/');
-      const environment = `gh-pr-${pull_request.number}`;
-      
-      // Comment on the PR with "hello from catalyst"
-      try {
-        const octokit = await getInstallationOctokit(installation.id);
-        await octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
-          owner: repository.owner.login,
-          repo: repository.name,
-          issue_number: pull_request.number,
-          body: 'hello from catalyst',
+      // Use new orchestration function for preview deployment
+      const deploymentResult = await createPreviewDeployment({
+        pullRequestId: pullRequestDbId,
+        repoName: repository.name,
+        repoOwner: repository.owner.login,
+        prNumber: pull_request.number,
+        branch: pull_request.head.ref,
+        commitSha: pull_request.head.sha,
+        imageTag: `pr-${pull_request.number}`,
+        installationId: installation.id,
+      });
+
+      if (deploymentResult.success) {
+        console.log(`Preview deployment ${action === 'opened' ? 'created' : 'updated'} for PR ${pull_request.number}:`, {
+          pod_id: deploymentResult.pod?.id,
+          namespace: deploymentResult.pod?.namespace,
+          public_url: deploymentResult.publicUrl,
         });
-      } catch (commentError) {
-        console.error(`Failed to comment on PR ${pull_request.number}:`, commentError);
-      }
-      
-      const namespaceResult = await createKubernetesNamespace(owner, repo, environment);
-      
-      // Create pull request pod job for buildx support
-      let podJobResult: PullRequestPodResult | null = null;
-      try {
-        const prJobName = `pr-${pull_request.number}-${repository.name}`;
-        podJobResult = await createPullRequestPodJob({
-          name: prJobName,
-          namespace: namespaceResult.success ? namespaceResult.namespace?.name || 'default' : 'default',
-          env: {
-            REPO_URL: `https://github.com/${repository.full_name}.git`,
-            PR_BRANCH: pull_request.head.ref,
-            PR_NUMBER: pull_request.number.toString(),
-            GITHUB_USER: repository.owner.login,
-            IMAGE_NAME: `${repository.name}/web`,
-            NEEDS_BUILD: 'true',
-            SHALLOW_CLONE: 'true',
-            MANIFEST_DOCKERFILE: '/web/Dockerfile',
-            TARGET_NAMESPACE: namespaceResult.success ? namespaceResult.namespace?.name || '' : ''
-          }
-        });
-        console.log(`Pull request pod job created for PR ${pull_request.number}:`, podJobResult);
-      } catch (podJobError) {
-        console.error(`Failed to create pull request pod job for PR ${pull_request.number}:`, podJobError);
-      }
-      
-      if (namespaceResult.success) {
+
         return NextResponse.json({
           success: true,
-          message: `Pull request ${action} processed and namespace created`,
+          message: `Pull request ${action} processed and preview environment ${action === 'opened' ? 'created' : 'updated'}`,
           pr_number: pull_request.number,
-          namespace: namespaceResult.namespace,
-          podJob: podJobResult
+          deployment: {
+            pod_id: deploymentResult.pod?.id,
+            namespace: deploymentResult.pod?.namespace,
+            status: deploymentResult.pod?.status,
+            public_url: deploymentResult.publicUrl,
+          },
         });
       } else {
-        console.error(`Failed to create namespace for PR ${pull_request.number}:`, namespaceResult.error);
+        console.error(`Failed to create preview deployment for PR ${pull_request.number}:`, deploymentResult.error);
         return NextResponse.json({
           success: true,
-          message: `Pull request ${action} processed but namespace creation failed`,
+          message: `Pull request ${action} processed but preview deployment failed`,
           pr_number: pull_request.number,
-          namespace_error: namespaceResult.error,
-          podJob: podJobResult
+          deployment_error: deploymentResult.error,
         });
       }
     } catch (error) {
-      console.error(`Error creating namespace for PR ${pull_request.number}:`, error);
+      console.error(`Error creating preview deployment for PR ${pull_request.number}:`, error);
       return NextResponse.json({
         success: true,
-        message: `Pull request ${action} processed but namespace creation failed`,
+        message: `Pull request ${action} processed but preview deployment failed`,
         pr_number: pull_request.number,
-        namespace_error: error instanceof Error ? error.message : 'Unknown error'
+        deployment_error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
