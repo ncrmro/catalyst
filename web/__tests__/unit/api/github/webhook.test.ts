@@ -29,10 +29,16 @@ vi.mock('@/actions/pull-requests-db', () => ({
   findRepoByGitHubData: vi.fn()
 }));
 
+// Mock the preview environments actions
+vi.mock('@/actions/preview-environments', () => ({
+  createPreviewDeployment: vi.fn()
+}));
+
 import { createKubernetesNamespace, deleteKubernetesNamespace } from '@/actions/kubernetes';
 import { getInstallationOctokit } from '@/lib/github';
 import { createPullRequestPodJob, cleanupPullRequestPodJob } from '@/lib/k8s-pull-request-pod';
 import { upsertPullRequest, findRepoByGitHubData } from '@/actions/pull-requests-db';
+import { createPreviewDeployment } from '@/actions/preview-environments';
 
 describe('/api/github/webhook', () => {
   const mockWebhookSecret = 'test-webhook-secret';
@@ -43,6 +49,7 @@ describe('/api/github/webhook', () => {
   const mockCleanupPullRequestPodJob = cleanupPullRequestPodJob as ReturnType<typeof vi.fn>;
   const mockUpsertPullRequest = upsertPullRequest as ReturnType<typeof vi.fn>;
   const mockFindRepoByGitHubData = findRepoByGitHubData as ReturnType<typeof vi.fn>;
+  const mockCreatePreviewDeployment = createPreviewDeployment as ReturnType<typeof vi.fn>;
 
   // Helper function to create complete pull request payload
   function createPullRequestPayload(action: string, prData: any = {}) {
@@ -80,17 +87,24 @@ describe('/api/github/webhook', () => {
   beforeEach(() => {
     // Reset all mocks
     vi.clearAllMocks();
-    
+
     // Set up default mocks for database operations
     mockFindRepoByGitHubData.mockResolvedValue({
       success: true,
       repo: null // Default to no repo found to avoid side effects
     });
-    
+
     mockUpsertPullRequest.mockResolvedValue({
       success: true,
       operation: 'create',
       pullRequest: { id: 'mock-pr-id' }
+    });
+
+    // Set up default mock for preview deployments
+    mockCreatePreviewDeployment.mockResolvedValue({
+      success: true,
+      pod: { id: 'mock-pod-id', namespace: 'mock-namespace' },
+      publicUrl: 'https://mock-url.example.com'
     });
   });
 
