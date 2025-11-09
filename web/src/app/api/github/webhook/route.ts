@@ -199,8 +199,9 @@ async function handlePullRequestEvent(payload: {
 
   // Find the repository in our database
   const repoResult = await findRepoByGitHubData(repository.id);
-  
+
   // Create/update pull request record in database
+  let dbResult: Awaited<ReturnType<typeof upsertPullRequest>> | undefined;
   if (repoResult.success && repoResult.repo) {
     try {
       // Determine status based on draft and state
@@ -244,7 +245,7 @@ async function handlePullRequestEvent(payload: {
         closedAt: pull_request.closed_at ? new Date(pull_request.closed_at) : undefined,
       };
 
-      const dbResult = await upsertPullRequest(prData);
+      dbResult = await upsertPullRequest(prData);
       if (dbResult.success) {
         console.log(`Pull request ${dbResult.operation}d in database:`, {
           pr_id: dbResult.pullRequest?.id,
