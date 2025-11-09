@@ -7,12 +7,13 @@ import {
   integer,
   unique,
   uniqueIndex,
+  index,
   jsonb,
-} from "drizzle-orm/pg-core"
-import { relations } from "drizzle-orm"
-import type { AdapterAccountType } from "@auth/core/adapters"
-import type { ReportData } from "@/types/reports"
- 
+} from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
+import type { AdapterAccountType } from "@auth/core/adapters";
+import type { ReportData } from "@/types/reports";
+
 export const users = pgTable("user", {
   id: text("id")
     .primaryKey()
@@ -22,7 +23,7 @@ export const users = pgTable("user", {
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
   admin: boolean("admin").notNull().default(false),
-})
+});
 
 export const usersRelations = relations(users, ({ one, many }) => ({
   accounts: many(accounts),
@@ -34,8 +35,8 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     fields: [users.id],
     references: [githubUserTokens.userId],
   }),
-}))
- 
+}));
+
 export const accounts = pgTable(
   "account",
   {
@@ -59,31 +60,31 @@ export const accounts = pgTable(
         columns: [account.provider, account.providerAccountId],
       }),
     },
-  ]
-)
+  ],
+);
 
 export const accountsRelations = relations(accounts, ({ one }) => ({
   user: one(users, {
     fields: [accounts.userId],
-    references: [users.id]
-  })
-}))
- 
+    references: [users.id],
+  }),
+}));
+
 export const sessions = pgTable("session", {
   sessionToken: text("sessionToken").primaryKey(),
   userId: text("userId")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   expires: timestamp("expires", { mode: "date" }).notNull(),
-})
+});
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
   user: one(users, {
     fields: [sessions.userId],
-    references: [users.id]
-  })
-}))
- 
+    references: [users.id],
+  }),
+}));
+
 export const verificationTokens = pgTable(
   "verificationToken",
   {
@@ -97,9 +98,9 @@ export const verificationTokens = pgTable(
         columns: [verificationToken.identifier, verificationToken.token],
       }),
     },
-  ]
-)
- 
+  ],
+);
+
 export const authenticators = pgTable(
   "authenticator",
   {
@@ -120,15 +121,15 @@ export const authenticators = pgTable(
         columns: [authenticator.userId, authenticator.credentialID],
       }),
     },
-  ]
-)
+  ],
+);
 
 export const authenticatorsRelations = relations(authenticators, ({ one }) => ({
   user: one(users, {
     fields: [authenticators.userId],
-    references: [users.id]
-  })
-}))
+    references: [users.id],
+  }),
+}));
 
 export const teams = pgTable("teams", {
   id: text("id")
@@ -145,18 +146,18 @@ export const teams = pgTable("teams", {
   updatedAt: timestamp("updatedAt", { mode: "date" })
     .notNull()
     .$defaultFn(() => new Date()),
-})
+});
 
 export const teamsRelations = relations(teams, ({ one, many }) => ({
   owner: one(users, {
     fields: [teams.ownerId],
     references: [users.id],
-    relationName: "teamOwner"
+    relationName: "teamOwner",
   }),
   memberships: many(teamsMemberships),
   repos: many(repos),
-  projects: many(projects)
-}))
+  projects: many(projects),
+}));
 
 export const teamsMemberships = pgTable("teams_memberships", {
   id: text("id")
@@ -172,18 +173,21 @@ export const teamsMemberships = pgTable("teams_memberships", {
   createdAt: timestamp("createdAt", { mode: "date" })
     .notNull()
     .$defaultFn(() => new Date()),
-})
+});
 
-export const teamsMembershipsRelations = relations(teamsMemberships, ({ one }) => ({
-  team: one(teams, {
-    fields: [teamsMemberships.teamId],
-    references: [teams.id]
+export const teamsMembershipsRelations = relations(
+  teamsMemberships,
+  ({ one }) => ({
+    team: one(teams, {
+      fields: [teamsMemberships.teamId],
+      references: [teams.id],
+    }),
+    user: one(users, {
+      fields: [teamsMemberships.userId],
+      references: [users.id],
+    }),
   }),
-  user: one(users, {
-    fields: [teamsMemberships.userId],
-    references: [users.id]
-  })
-}))
+);
 
 export const repos = pgTable("repo", {
   id: text("id")
@@ -208,51 +212,60 @@ export const repos = pgTable("repo", {
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   pushedAt: timestamp("pushed_at", { mode: "date" }),
-})
+});
 
 export const reposRelations = relations(repos, ({ one, many }) => ({
   team: one(teams, {
     fields: [repos.teamId],
-    references: [teams.id]
+    references: [teams.id],
   }),
   projectConnections: many(projectsRepos),
   environments: many(projectEnvironments),
   manifests: many(projectManifests),
-  pullRequests: many(pullRequests)
-}))
+  pullRequests: many(pullRequests),
+}));
 
-export const projects = pgTable("project", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  name: text("name").notNull(),
-  fullName: text("full_name").notNull(),
-  description: text("description"),
-  ownerLogin: text("owner_login").notNull(),
-  ownerType: text("owner_type").notNull(), // 'User' | 'Organization'
-  ownerAvatarUrl: text("owner_avatar_url"),
-  teamId: text("team_id")
-    .notNull()
-    .references(() => teams.id, { onDelete: "cascade" }),
-  previewEnvironmentsCount: integer("preview_environments_count").notNull().default(0),
-  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
-}, (table) => {
-  return {
-    // Make full_name unique per team, not globally
-    uniqueFullNamePerTeam: uniqueIndex("project_full_name_team_id_unique").on(table.fullName, table.teamId)
-  }
-})
+export const projects = pgTable(
+  "project",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    name: text("name").notNull(),
+    fullName: text("full_name").notNull(),
+    description: text("description"),
+    ownerLogin: text("owner_login").notNull(),
+    ownerType: text("owner_type").notNull(), // 'User' | 'Organization'
+    ownerAvatarUrl: text("owner_avatar_url"),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    previewEnvironmentsCount: integer("preview_environments_count")
+      .notNull()
+      .default(0),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => {
+    return {
+      // Make full_name unique per team, not globally
+      uniqueFullNamePerTeam: uniqueIndex("project_full_name_team_id_unique").on(
+        table.fullName,
+        table.teamId,
+      ),
+    };
+  },
+);
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({
   team: one(teams, {
     fields: [projects.teamId],
-    references: [teams.id]
+    references: [teams.id],
   }),
   repositories: many(projectsRepos),
   environments: many(projectEnvironments),
-  manifests: many(projectManifests)
-}))
+  manifests: many(projectManifests),
+}));
 
 export const projectsRepos = pgTable(
   "projects_repos",
@@ -272,19 +285,19 @@ export const projectsRepos = pgTable(
         columns: [projectsRepos.projectId, projectsRepos.repoId],
       }),
     },
-  ]
-)
+  ],
+);
 
 export const projectsReposRelations = relations(projectsRepos, ({ one }) => ({
   project: one(projects, {
     fields: [projectsRepos.projectId],
-    references: [projects.id]
+    references: [projects.id],
   }),
   repo: one(repos, {
     fields: [projectsRepos.repoId],
-    references: [repos.id]
-  })
-}))
+    references: [repos.id],
+  }),
+}));
 
 export const projectEnvironments = pgTable(
   "project_environments",
@@ -308,39 +321,42 @@ export const projectEnvironments = pgTable(
       uniqueComposite: unique().on(
         projectEnvironments.projectId,
         projectEnvironments.repoId,
-        projectEnvironments.environment
+        projectEnvironments.environment,
       ),
     },
-  ]
-)
+  ],
+);
 
-export const projectEnvironmentsRelations = relations(projectEnvironments, ({ one }) => ({
-  project: one(projects, {
-    fields: [projectEnvironments.projectId],
-    references: [projects.id]
+export const projectEnvironmentsRelations = relations(
+  projectEnvironments,
+  ({ one }) => ({
+    project: one(projects, {
+      fields: [projectEnvironments.projectId],
+      references: [projects.id],
+    }),
+    repo: one(repos, {
+      fields: [projectEnvironments.repoId],
+      references: [repos.id],
+    }),
   }),
-  repo: one(repos, {
-    fields: [projectEnvironments.repoId],
-    references: [repos.id]
-  })
-}))
+);
 
 /**
  * Project Manifests Table
- * 
+ *
  * Tracks manifest files within repositories that provide hints about project type
  * and deployment configuration. The `path` field points to a specific file somewhere
  * in the repository that indicates how the project should be set up for development
  * and deployment environments.
- * 
+ *
  * Projects can have multiple manifests, each providing different deployment hints:
  * - Dockerfile: Indicates containerization capabilities
  * - Chart.yaml: Kubernetes Helm package configuration
  * - package.json: JavaScript/Node.js package configuration
  * - Cargo.toml: Rust package configuration
- * - Project.toml: Python/Julia package configuration  
+ * - Project.toml: Python/Julia package configuration
  * - Gemfile: Ruby/Rails package configuration
- * 
+ *
  * These manifest files help the system automatically detect project types and
  * suggest appropriate deployment strategies when users haven't explicitly
  * configured deployment settings.
@@ -359,59 +375,65 @@ export const projectManifests = pgTable(
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },
   (table) => [
-    primaryKey({ columns: [table.projectId, table.repoId, table.path]}),
-  ]
-)
+    primaryKey({ columns: [table.projectId, table.repoId, table.path] }),
+  ],
+);
 
-export const projectManifestsRelations = relations(projectManifests, ({ one }) => ({
-  project: one(projects, {
-    fields: [projectManifests.projectId],
-    references: [projects.id]
+export const projectManifestsRelations = relations(
+  projectManifests,
+  ({ one }) => ({
+    project: one(projects, {
+      fields: [projectManifests.projectId],
+      references: [projects.id],
+    }),
+    repo: one(repos, {
+      fields: [projectManifests.repoId],
+      references: [repos.id],
+    }),
   }),
-  repo: one(repos, {
-    fields: [projectManifests.repoId],
-    references: [repos.id]
-  })
-}))
+);
 
 /**
  * GitHub App User Tokens Table
- * 
+ *
  * Stores encrypted GitHub App user tokens with refresh capabilities.
  * This table enables secure token management for GitHub App authentication
  * with automatic refresh before expiration (8-hour tokens, 6-month refresh tokens).
  */
-export const githubUserTokens = pgTable('github_user_tokens', {
-  userId: text('user_id')
+export const githubUserTokens = pgTable("github_user_tokens", {
+  userId: text("user_id")
     .references(() => users.id, { onDelete: "cascade" })
     .notNull()
     .primaryKey(),
-  installationId: text('installation_id'),
-  accessTokenEncrypted: text('access_token_encrypted'),
-  accessTokenIv: text('access_token_iv'),
-  accessTokenAuthTag: text('access_token_auth_tag'),
-  refreshTokenEncrypted: text('refresh_token_encrypted'),
-  refreshTokenIv: text('refresh_token_iv'),
-  refreshTokenAuthTag: text('refresh_token_auth_tag'),
-  tokenExpiresAt: timestamp('token_expires_at'),
-  tokenScope: text('token_scope'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+  installationId: text("installation_id"),
+  accessTokenEncrypted: text("access_token_encrypted"),
+  accessTokenIv: text("access_token_iv"),
+  accessTokenAuthTag: text("access_token_auth_tag"),
+  refreshTokenEncrypted: text("refresh_token_encrypted"),
+  refreshTokenIv: text("refresh_token_iv"),
+  refreshTokenAuthTag: text("refresh_token_auth_tag"),
+  tokenExpiresAt: timestamp("token_expires_at"),
+  tokenScope: text("token_scope"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
 
-export const githubUserTokensRelations = relations(githubUserTokens, ({ one }) => ({
-  user: one(users, {
-    fields: [githubUserTokens.userId],
-    references: [users.id]
-  })
-}))
+export const githubUserTokensRelations = relations(
+  githubUserTokens,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [githubUserTokens.userId],
+      references: [users.id],
+    }),
+  }),
+);
 
 /**
  * Pull Requests Table
- * 
+ *
  * Stores pull request information from various git providers (GitHub, GitLab, etc.).
  * Designed to be provider-agnostic while maintaining relationships with repositories.
- * 
+ *
  * This table tracks pull requests across different git providers and enables
  * consistent reporting and management regardless of the underlying provider.
  */
@@ -441,7 +463,7 @@ export const pullRequests = pgTable(
     changedFilesCount: integer("changed_files_count").notNull().default(0),
     additionsCount: integer("additions_count").notNull().default(0),
     deletionsCount: integer("deletions_count").notNull().default(0),
-    priority: text("priority").notNull().default('medium'), // 'high', 'medium', 'low'
+    priority: text("priority").notNull().default("medium"), // 'high', 'medium', 'low'
     labels: text("labels"), // JSON array of labels
     assignees: text("assignees"), // JSON array of assignees
     reviewers: text("reviewers"), // JSON array of reviewers
@@ -453,25 +475,91 @@ export const pullRequests = pgTable(
   (table) => [
     // Ensure unique PR per provider per repo
     unique().on(table.repoId, table.provider, table.providerPrId),
-  ]
-)
+  ],
+);
 
-export const pullRequestsRelations = relations(pullRequests, ({ one }) => ({
-  repo: one(repos, {
-    fields: [pullRequests.repoId],
-    references: [repos.id]
-  })
-}))
+export const pullRequestsRelations = relations(
+  pullRequests,
+  ({ one, many }) => ({
+    repo: one(repos, {
+      fields: [pullRequests.repoId],
+      references: [repos.id],
+    }),
+    pods: many(pullRequestPods),
+  }),
+);
+
+/**
+ * Pull Request Pods Table
+ *
+ * Tracks deployed preview environments for pull requests.
+ * Each pod represents a Kubernetes deployment of a PR's code in an isolated namespace.
+ *
+ * Status Flow:
+ * pending → deploying → running (or failed)
+ * running → deleting → deleted (on PR close)
+ * failed → pending (on retry)
+ */
+export const pullRequestPods = pgTable(
+  "pull_request_pods",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    pullRequestId: text("pull_request_id")
+      .notNull()
+      .references(() => pullRequests.id, { onDelete: "cascade" }),
+    commitSha: text("commit_sha").notNull(),
+    namespace: text("namespace").notNull(),
+    deploymentName: text("deployment_name").notNull(),
+    status: text("status")
+      .notNull()
+      .$type<"pending" | "deploying" | "running" | "failed" | "deleting">(),
+    publicUrl: text("public_url"),
+    branch: text("branch").notNull(),
+    imageTag: text("image_tag"),
+    errorMessage: text("error_message"),
+    resourcesAllocated: jsonb("resources_allocated").$type<{
+      cpu: string;
+      memory: string;
+      pods: number;
+    }>(),
+    lastDeployedAt: timestamp("last_deployed_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at", { mode: "date" }),
+  },
+  (table) => [
+    // Ensure unique deployment per commit
+    unique("unique_pr_commit").on(table.pullRequestId, table.commitSha),
+    // Index for filtering active deployments
+    index("idx_pod_status").on(table.status),
+    // Index for K8s namespace lookups
+    index("idx_pod_namespace").on(table.namespace),
+  ],
+);
+
+export const pullRequestPodsRelations = relations(
+  pullRequestPods,
+  ({ one }) => ({
+    pullRequest: one(pullRequests, {
+      fields: [pullRequestPods.pullRequestId],
+      references: [pullRequests.id],
+    }),
+  }),
+);
 
 /**
  * Reports Table
- * 
+ *
  * Stores generated periodic reports with JSONB data field for flexible report structure.
  * Uses Zod schema validation for runtime safety and TypeScript type inference.
  */
 export const reports = pgTable("reports", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
   data: jsonb("data").$type<ReportData>().notNull(),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
-})
+});

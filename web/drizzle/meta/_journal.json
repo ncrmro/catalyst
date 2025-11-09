@@ -85,6 +85,20 @@
       "when": 1758952884091,
       "tag": "0011_quiet_infant_terrible",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1762661901571,
+      "tag": "0012_legal_la_nuit",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1762661946558,
+      "tag": "0013_thin_cloak",
+      "breakpoints": true
     }
   ]
 }
