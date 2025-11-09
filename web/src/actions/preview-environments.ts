@@ -7,7 +7,7 @@
  * Provides authentication, type re-exports, and clean interfaces.
  */
 
-import { auth } from "@/lib/auth";
+import { auth } from "@/auth";
 import {
   createPreviewDeployment as createDeployment,
   generateNamespace as genNamespace,
