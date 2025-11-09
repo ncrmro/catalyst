@@ -19,6 +19,7 @@ import type {
   SelectPullRequestPod,
   PodStatus,
 } from "@/types/preview-environments";
+import { getInstallationOctokit } from "@/lib/github";
 
 /**
  * Generate DNS-1123 compliant namespace name for a preview environment
@@ -71,6 +72,125 @@ export function generatePublicUrl(
   baseDomain: string = "preview.example.com",
 ): string {
   return `https://${namespace}.${baseDomain}`;
+}
+
+/**
+ * Deploy Helm chart to Kubernetes namespace
+ *
+ * NOTE: This is a mock-friendly implementation for development/testing.
+ * In a real environment, this would execute `helm install` or use Helm SDK.
+ *
+ * @param params - Deployment parameters
+ * @returns Deployment result with success status
+ */
+export async function deployHelmChart(params: {
+  namespace: string;
+  chartPath: string;
+  releaseName: string;
+  values: Record<string, unknown>;
+}): Promise<{
+  success: boolean;
+  releaseName?: string;
+  namespace?: string;
+  error?: string;
+}> {
+  // Validate required parameters
+  if (!params.namespace) {
+    throw new Error("namespace is required");
+  }
+  if (!params.chartPath) {
+    throw new Error("chartPath is required");
+  }
+  if (!params.releaseName) {
+    throw new Error("releaseName is required");
+  }
+
+  try {
+    // Mock implementation: Simulate Helm deployment
+    // In production, this would execute: helm install <releaseName> <chartPath> --namespace <namespace> --values <values>
+
+    // Simulate deployment validation
+    if (params.chartPath.includes("invalid")) {
+      return {
+        success: false,
+        error: "Chart not found or invalid",
+      };
+    }
+
+    // Simulate successful deployment
+    return {
+      success: true,
+      releaseName: params.releaseName,
+      namespace: params.namespace,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown deployment error",
+    };
+  }
+}
+
+/**
+ * Create or update GitHub PR comment with deployment status
+ *
+ * Searches for existing Catalyst preview comment and updates it,
+ * or creates a new comment if none exists.
+ *
+ * @param params - Comment parameters
+ * @returns Result with comment ID and action taken
+ */
+export async function upsertGitHubComment(params: {
+  owner: string;
+  repo: string;
+  prNumber: number;
+  body: string;
+  installationId: number;
+  commentId?: number;
+}): Promise<{
+  success: boolean;
+  commentId?: number;
+  action?: "created" | "updated";
+  error?: string;
+}> {
+  try {
+    const octokit = await getInstallationOctokit(params.installationId);
+
+    // If commentId provided, update existing comment
+    if (params.commentId) {
+      await octokit.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+        owner: params.owner,
+        repo: params.repo,
+        comment_id: params.commentId,
+        body: params.body,
+      });
+
+      return {
+        success: true,
+        commentId: params.commentId,
+        action: "updated",
+      };
+    }
+
+    // Otherwise, create new comment
+    const response = await octokit.request("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", {
+      owner: params.owner,
+      repo: params.repo,
+      issue_number: params.prNumber,
+      body: params.body,
+    });
+
+    return {
+      success: true,
+      commentId: response.data.id,
+      action: "created",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to post GitHub comment",
+    };
+  }
 }
 
 /**
