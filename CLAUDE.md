@@ -76,6 +76,32 @@ make ci               # Run comprehensive CI tests locally
 make ci-docker        # Run CI tests in Docker
 ```
 
+**Kind VM (Local Kubernetes) Commands (from `/web`):**
+
+```bash
+# VM Management
+make kind-vm-start    # Start Kind VM and configure kubeconfig
+make kind-vm-stop     # Stop Kind VM
+make kind-vm-status   # Check if VM is running
+make kind-vm-setup    # Re-fetch kubeconfig from VM
+
+# Development Workflows
+make test-k8s         # Run K8s integration tests (auto-starts VM)
+make up-with-k8s      # Start VM + database + app services
+make dev-with-k8s     # Start VM and show setup instructions
+
+# Using kubectl with Kind VM
+export KUBECONFIG=$(pwd)/.kube/config  # Configure kubectl
+kubectl get nodes     # Verify cluster access
+k9s                   # Monitor cluster interactively
+
+# NPM Scripts (auto-start VM if needed)
+npm run test:integration:prpod  # Run PR pod integration tests
+npm run test:integration:k8s    # Run all K8s integration tests
+```
+
+See `KIND_VM_README.md` for detailed integration documentation.
+
 ## Architecture Overview
 
 ### Core Components

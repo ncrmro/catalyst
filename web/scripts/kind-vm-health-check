@@ -1,0 +1,21 @@
+#!/bin/bash
+# Quick health check: returns 0 if Kind VM SSH port is open and Kind cluster is ready
+
+# Load KIND_SSH_PORT from .env if it exists
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    export $(grep "^KIND_SSH_PORT=" "$PROJECT_ROOT/.env" | xargs)
+fi
+
+KIND_SSH_PORT=${KIND_SSH_PORT:-2222}
+
+# Test if SSH port is open and responding with a quick TCP connection
+if ! timeout 2 bash -c "</dev/tcp/localhost/$KIND_SSH_PORT" 2>/dev/null; then
+    exit 1
+fi
+
+# Check if Kind cluster is ready via SSH (with nix-shell for sshpass)
+# Suppress warnings and only check exit code
+nix-shell -p sshpass --run "sshpass -p 'test' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=2 nixos@localhost -p $KIND_SSH_PORT 'kind get clusters 2>/dev/null | grep -q kind'" 2>/dev/null

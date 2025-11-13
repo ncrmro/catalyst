@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+"""
+Ensures Kind VM is running and healthy before tests.
+
+This script:
+1. Checks if Kind VM is already running and healthy (reuses if healthy)
+2. Kills stale QEMU processes if VM is unhealthy
+3. Starts a new VM if needed
+4. Configures kubeconfig for kubectl access
+5. Sets environment variables for integration tests
+"""
+
+import os
+import sys
+import time
+import subprocess
+from pathlib import Path
+
+
+def get_project_root():
+    """Get the project root directory."""
+    script_dir = Path(__file__).parent.resolve()
+    return script_dir.parent
+
+
+def is_vm_healthy():
+    """Quick health check: is VM running and SSH accessible? (~2 seconds)."""
+    script_dir = Path(__file__).parent.resolve()
+    health_check = script_dir / "kind-vm-health-check"
+    try:
+        result = subprocess.run(
+            ["bash", str(health_check)],
+            capture_output=True,
+            timeout=5
+        )
+        return result.returncode == 0
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return False
+
+
+def kill_stale_qemu():
+    """Kill any stale QEMU processes and wait for locks to release."""
+    try:
+        result = subprocess.run(
+            ["pkill", "-9", "-f", "qemu-system-x86_64"],
+            capture_output=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            # Process was killed, give time for locks to release
+            time.sleep(2)
+    except Exception:
+        pass
+
+
+def load_env_vars(project_root):
+    """Load environment variables from .env file and set NIX_BUILD_* vars."""
+    env_file = project_root / ".env"
+    if not env_file.exists():
+        return os.environ.copy()
+    
+    env = os.environ.copy()
+    with open(env_file) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#') and '=' in line:
+                key, value = line.split('=', 1)
+                key = key.strip()
+                value = value.strip()
+                
+                # Map KIND_* to NIX_BUILD_KIND_* for VM build
+                if key.startswith('KIND_') and key.endswith('_PORT'):
+                    nix_key = f"NIX_BUILD_{key}"
+                    env[nix_key] = value
+                    env[key] = value  # Also keep original for scripts
+    
+    return env
+
+
+def start_vm(project_root):
+    """Start the Kind VM in the background."""
+    print("Kind VM not running, starting...")
+    print("This may take 30-60 seconds...")
+    
+    # Load .env and set NIX_BUILD_* variables
+    env = load_env_vars(project_root)
+
+    # Start VM in background, redirecting output to log file
+    with open("/tmp/kind-vm.log", "w") as log_file:
+        vm_process = subprocess.Popen(
+            ["nix", "run", "--impure", ".#vm"],
+            cwd=project_root,
+            env=env,
+            stdout=log_file,
+            stderr=subprocess.STDOUT
+        )
+
+    print(f"Waiting for Kind VM to boot (max 90s)...")
+
+    for i in range(1, 91):
+        if is_vm_healthy():
+            print(f"✓ Kind VM ready after {i}s")
+            return vm_process.pid
+
+        if i == 90:
+            print("✗ Timeout waiting for Kind VM")
+            print(f"  VM process: {vm_process.pid}")
+            print("  Check logs: tail -f /tmp/kind-vm.log")
+            print("  Or SSH manually: ssh nixos@localhost -p {} -o StrictHostKeyChecking=no".format(
+                os.getenv('KIND_SSH_PORT', '2222')))
+            sys.exit(1)
+
+        # Show progress every 10 seconds
+        if i % 10 == 0:
+            print(f"  Still waiting... ({i}s elapsed)")
+
+        time.sleep(1)
+
+    return vm_process.pid
+
+
+def configure_kubeconfig(script_dir):
+    """Run the kind-vm-setup.sh script to configure kubeconfig."""
+    print("Configuring kubeconfig...")
+
+    setup_script = script_dir / "kind-vm-setup.sh"
+
+    try:
+        result = subprocess.run(
+            ["bash", str(setup_script)],
+            check=True,
+            capture_output=True,
+            text=True
+        )
+        print(result.stdout, end='')
+    except subprocess.CalledProcessError as e:
+        print(f"✗ Failed to configure kubeconfig: {e}")
+        print(e.stderr)
+        sys.exit(1)
+
+
+def set_environment_variables(project_root):
+    """Set environment variables for kubeconfig."""
+    kube_config = project_root / ".kube" / "config"
+
+    # Set for current process and subprocesses
+    os.environ["KUBECONFIG"] = str(kube_config)
+
+    # Read kubeconfig and base64 encode for KUBECONFIG_PRIMARY
+    try:
+        import base64
+        with open(kube_config, 'rb') as f:
+            kubeconfig_content = f.read()
+        os.environ["KUBECONFIG_PRIMARY"] = base64.b64encode(kubeconfig_content).decode('utf-8')
+    except FileNotFoundError:
+        print(f"⚠ Warning: Kubeconfig not found at {kube_config}")
+
+    print("✓ Environment configured")
+    print(f"  KUBECONFIG={kube_config}")
+    print("  KUBECONFIG_PRIMARY set (base64 encoded)")
+
+    # Note for users
+    print("\nNote: Environment variables are set for this process and subprocesses.")
+    print("To use kubectl in your shell, run:")
+    print(f"  export KUBECONFIG={kube_config}")
+
+
+def main():
+    """Main entry point."""
+    script_dir = Path(__file__).parent.resolve()
+    project_root = get_project_root()
+
+    # Check if VM is already healthy (fast path: ~2 seconds)
+    if is_vm_healthy():
+        print("✓ Kind VM already running and healthy")
+    else:
+        # VM is not healthy - clean up any stale processes before starting
+        print("Kind VM is unhealthy or not running, cleaning up stale processes...")
+        kill_stale_qemu()
+        # Wait a bit longer to ensure disk lock is fully released
+        time.sleep(2)
+        # Now start a fresh VM
+        start_vm(project_root)
+
+    # Configure kubeconfig (always, in case it was reset)
+    configure_kubeconfig(script_dir)
+
+    # Set environment variables
+    set_environment_variables(project_root)
+
+
+if __name__ == "__main__":
+    main()

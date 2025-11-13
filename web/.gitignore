@@ -43,3 +43,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# NixOS VM artifacts
+*.qcow2
+nixos.img
+result
+result-*
+
+# Kind VM kubeconfig (local)
+.kube/config
