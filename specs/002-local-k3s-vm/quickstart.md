@@ -52,15 +52,6 @@ Before starting, ensure you have:
    sudo systemctl enable libvirtd
    ```
 
-6. **User permissions**:
-
-   ```bash
-   # Add your user to libvirt group:
-   sudo usermod -aG libvirt $USER
-
-   # Log out and back in for group changes to take effect
-   ```
-
 ## Quick Start Steps
 
 ### 1. Create the K3s VM (5 minutes)

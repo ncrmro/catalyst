@@ -190,25 +190,32 @@ runcmd:
 
 ### 5. VM Disk Image
 
-**Location**: `/var/lib/libvirt/images/<vm-name>.qcow2` (libvirt default storage pool)
+**Location**: `.k3s-vm-images/<vm-name>.qcow2` (local project directory, gitignored)
 
 **Purpose**: Persistent storage for VM filesystem and K3s cluster data
 
 **Format**: QCOW2 (QEMU Copy-On-Write version 2)
 
-**Schema**: Binary disk image format (managed by libvirt/QEMU)
+**Schema**: Binary disk image format (managed by QEMU)
 
 **Size**: Configured via `VM_DISK` (default 20GB)
 
 **Lifecycle**:
 
 - Created during `bin/k3s-vm setup` as overlay image from Ubuntu cloud image
-- Base image: Ubuntu 22.04 cloud image (downloaded once, reused)
+- Base image: Ubuntu 22.04 cloud image at `.k3s-vm-images/ubuntu-22.04-cloudimg-amd64.img` (downloaded once, reused)
 - Overlay image: `qemu-img create -f qcow2 -F qcow2 -b <base-image> <vm-name>.qcow2 20G`
 - Persists across start/stop (all K3s data preserved)
-- Deleted by `reset` command (`virsh undefine --remove-all-storage`)
+- Deleted by `reset` command (base image preserved for reuse)
 
 **State Transitions**: N/A (binary file, state managed by VM running/stopped)
+
+**Storage Advantages**:
+- No system-wide permissions needed (no libvirt group)
+- No sudo required for any operations
+- Self-contained within project
+- Easy cleanup (delete .k3s-vm-images directory)
+- Base image shared across multiple VM setups
 
 ## Relationships
 
@@ -234,12 +241,12 @@ project-root/
 │   └── k9s             # Wrapper: KUBECONFIG=web/.kube/config k9s "$@"
 ├── .k3s-vm/
 │   └── config          # VM configuration (gitignored)
+├── .k3s-vm-images/
+│   ├── ubuntu-22.04-cloudimg-amd64.img  # Base cloud image (gitignored)
+│   └── <vm-name>.qcow2                  # VM disk image (gitignored)
 └── web/
     └── .kube/
         └── config      # Kubeconfig (gitignored)
-
-/var/lib/libvirt/images/
-└── <vm-name>.qcow2     # VM disk image (system storage)
 
 /tmp/
 └── k3s-vm-cloud-init-<random>.yaml  # Temporary cloud-init (deleted after setup)
