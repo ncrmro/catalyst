@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# kubectl wrapper for local K3s cluster
+# Automatically sets KUBECONFIG to local cluster configuration
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+KUBECONFIG_PATH="$SCRIPT_DIR/../web/.kube/config"
+
+# Check if kubeconfig exists
+if [[ ! -f "$KUBECONFIG_PATH" ]]; then
+    echo "ERROR: Kubeconfig not found: web/.kube/config" >&2
+    echo "Run 'bin/k3s-vm setup' first" >&2
+    exit 1
+fi
+
+# Export KUBECONFIG and execute kubectl with all arguments
+export KUBECONFIG="$KUBECONFIG_PATH"
+exec kubectl "$@"

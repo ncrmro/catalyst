@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# k9s wrapper for local K3s cluster
+# Automatically sets KUBECONFIG to local cluster configuration
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+KUBECONFIG_PATH="$SCRIPT_DIR/../web/.kube/config"
+
+# Check if kubeconfig exists
+if [[ ! -f "$KUBECONFIG_PATH" ]]; then
+    echo "ERROR: Kubeconfig not found: web/.kube/config" >&2
+    echo "Run 'bin/k3s-vm setup' first" >&2
+    exit 1
+fi
+
+# Check if k9s is installed
+if ! command -v k9s &> /dev/null; then
+    echo "ERROR: k9s command not found" >&2
+    echo "" >&2
+    echo "Install k9s:" >&2
+    echo "  On NixOS: Add 'k9s' to environment.systemPackages" >&2
+    echo "  On Ubuntu/Debian: Download from https://github.com/derailed/k9s/releases" >&2
+    echo "  On macOS: brew install k9s" >&2
+    exit 1
+fi
+
+# Export KUBECONFIG and execute k9s with all arguments
+export KUBECONFIG="$KUBECONFIG_PATH"
+exec k9s "$@"

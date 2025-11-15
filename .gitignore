@@ -3,3 +3,8 @@
 charts/*/charts/
 **/kubeconfig.devbox.yml
 worktree
+
+# K3s VM local development
+web/.kube/
+.k3s-vm/
+.k3s-vm-images/

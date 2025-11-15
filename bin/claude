@@ -68,8 +68,28 @@ def main():
 
             branch_name = args[i + 1]
 
+            # Strip "worktree/" prefix if present (for UX flexibility)
+            if branch_name.startswith("worktree/"):
+                branch_name = branch_name[len("worktree/"):]
+
             # Construct the full worktree path
             worktree_path = os.path.join(project_root, "worktree", branch_name)
+
+            # Check if worktree exists, create it if not
+            if not os.path.exists(worktree_path):
+                print(f"Worktree not found at {worktree_path}", file=sys.stderr)
+                print(f"Creating worktree for branch '{branch_name}'...", file=sys.stderr)
+
+                # Call bin/worktree to create the worktree
+                worktree_script = os.path.join(project_root, "bin", "worktree")
+                try:
+                    subprocess.run([worktree_script, branch_name], check=True)
+                except subprocess.CalledProcessError as e:
+                    print(f"Error creating worktree: {e}", file=sys.stderr)
+                    sys.exit(1)
+                except FileNotFoundError:
+                    print(f"Error: bin/worktree script not found at {worktree_script}", file=sys.stderr)
+                    sys.exit(1)
 
             # Update workspace path for TypeScript LSP
             workspace_path = worktree_path
