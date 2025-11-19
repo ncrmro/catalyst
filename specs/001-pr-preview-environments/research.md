@@ -791,3 +791,269 @@ From spec-002 completion summary:
 5. **IMPLEMENTATION.md tracking**: Documented challenges as they occurred - valuable reference
 
 **Recommendation for spec-001**: Follow the same structure - phases, checkpoints, independent stories.
+
+---
+
+## 9. Phase 1 Research Findings (Completed: 2025-11-19)
+
+### Purpose
+
+Phase 1 focused on auditing the existing codebase to understand what infrastructure already exists before implementing the PR preview environments feature. This research documents the current state, identifies reusable components, and highlights gaps that need to be filled.
+
+### Task T001: Architecture Documentation Review
+
+**Completed**: All architecture READMEs reviewed and patterns documented.
+
+#### Models Layer (`web/src/models/README.md`)
+
+- **Purpose**: Complex database operations and business logic following Rails conventions
+- **Key Pattern**: Bulk operations with array parameters preferred over multiple specific functions
+- **Responsibilities**: Multi-table joins, transactions, validations, data transformations
+- **Usage**: No authentication (handled by actions layer), pure database operations only
+
+**Application to spec-001**:
+
+- Preview environment models will follow bulk operation pattern (e.g., `getPreviewPods({ ids, repoIds, status })`)
+- Complex deployment orchestration logic belongs in models layer
+- Transaction support needed for atomic namespace + database + Helm operations
+
+#### Actions Layer (`web/src/actions/README.md`)
+
+- **Purpose**: Boundary between React components and backend (DB/Models/Agents)
+- **Key Pattern**: "use server" directive, re-export types used by components
+- **Responsibilities**: Authentication via `auth()`, request handling, type re-exports
+- **Import Rules**: ALL React components must import from actions, never directly from models/db
+
+**Application to spec-001**:
+
+- `web/src/actions/preview-environments.ts` will be the single import point for UI components
+- Must re-export types: `SelectPullRequestPod`, `InsertPullRequestPod`, `PodStatus`
+- Authentication checks required for all preview environment operations
+
+#### Database Layer (`web/src/db/README.md`)
+
+- **Migration Pattern**: Generate with `npm run db:generate`, apply with `npm run db:migrate`
+- **Primary Keys**: UUIDs via `crypto.randomUUID()` for most entities
+- **Relationships**: Use Drizzle's `relations()` for type-safe joins
+- **Indexes**: Required for frequently queried columns (status, namespace)
+- **Custom Migrations**: Use `npx drizzle-kit generate --custom --name=<name>` for manual SQL
+
+**Application to spec-001**:
+
+- `pullRequestPods` table needs UUID primary key, foreign key to `pullRequests.id` with cascade delete
+- Unique constraint on `(pullRequestId, commitSha)` for idempotency (per section 7 above)
+- Indexes on `status` and `namespace` for query performance
+- Migration reconciliation may be needed if working across branches
+
+### Task T002: Kubernetes Client Review
+
+**Completed**: `web/src/lib/k8s-client.ts` (303 lines) reviewed.
+
+**Key Capabilities**:
+
+- **Multi-cluster Support**: Loads kubeconfigs from environment variables (`KUBECONFIG_*`)
+- **Cluster Registry**: Global registry with caching (30-second TTL) for cluster info
+- **Config Loading**: Supports both environment variables and default kubeconfig fallback
+- **Cluster Selection**: `getConfigForCluster(clusterName)` for cluster-specific operations
+- **ESM Compatibility**: Handles ESM issues with Jest via dynamic imports
+
+**Architecture Pattern**:
+
+```typescript
+class KubeConfigRegistry {
+  private configs: Map<string, KubeConfig> = new Map();
+  async initialize() {
+    /* Load from KUBECONFIG_* env vars */
+  }
+  async getConfigForCluster(clusterName: string): Promise<KubeConfig | null>;
+}
+```
+
+**Application to spec-001**:
+
+- Preview deployments can target specific clusters via `clusterName` parameter
+- Multi-cluster preview environments supported out of the box
+- Cluster caching prevents repeated config parsing
+- Error handling: Throws if no clusters configured (fail-fast design)
+
+### Task T003: Pull Request Pod Utilities Review
+
+**Completed**: `web/src/lib/k8s-pull-request-pod.ts` (686 lines) reviewed.
+
+**Key Capabilities**:
+
+- **Service Account Creation**: `createBuildxServiceAccount()` with RBAC for pod creation
+- **GitHub PAT Secrets**: `createGitHubPATSecret()` for git clone authentication
+- **Job-based Builds**: `createPullRequestPodJob()` creates Kubernetes Jobs (not Deployments)
+- **Docker Buildx**: Jobs configured with buildx kubernetes driver for image building
+- **Job Status**: `getPullRequestPodJobStatus()` checks job completion
+- **Cleanup**: `cleanupPullRequestPodJob()` removes jobs, service accounts, roles, secrets
+
+**Job Configuration Pattern**:
+
+```typescript
+{
+  apiVersion: 'batch/v1',
+  kind: 'Job',
+  spec: {
+    backoffLimit: 3,              // Retry up to 3 times
+    ttlSecondsAfterFinished: 3600, // Auto-cleanup after 1 hour
+    template: {
+      spec: {
+        serviceAccountName: '<name>-buildx-sa',
+        containers: [{
+          image: 'ghcr.io/ncrmro/catalyst/web:latest',
+          resources: {
+            limits: { cpu: '2', memory: '4Gi' },
+            requests: { cpu: '500m', memory: '512Mi' }
+          }
+        }]
+      }
+    }
+  }
+}
+```
+
+**Application to spec-001**:
+
+- **Hybrid Approach Confirmed**: Keep Jobs for Docker builds, add Helm for application deployment
+- Jobs already handle Docker image building with buildx
+- Helm deployment will consume image tags from completed Jobs
+- Resource limits already defined (can be reused for Helm values)
+- Cleanup operations must be extended to include Helm releases
+
+**Gap Analysis**:
+
+- ✅ Image building infrastructure complete
+- ❌ No Helm chart deployment logic (FR-002)
+- ❌ No public URL generation or ingress setup
+- ❌ No deployment status tracking in database
+
+### Task T004: GitHub Webhook Handler Review
+
+**Completed**: `web/src/app/api/github/webhook/route.ts` (388 lines) reviewed.
+
+**Current Implementation**:
+
+**Security** (Lines 14-39):
+
+- ✅ Webhook signature validation using HMAC SHA-256
+- ✅ Signature comparison prevents unauthorized requests
+- ✅ Returns 401 for missing/invalid signatures
+
+**Event Handling** (Lines 44-60):
+
+- ✅ Handles `installation`, `installation_repositories`, `push`, `pull_request` events
+- ✅ Returns 200 for unhandled events (prevents GitHub retries)
+
+**Pull Request Events** (Lines 219-388):
+
+- ✅ **opened** action (Lines 264-336):
+  - Creates namespace via `createKubernetesNamespace()`
+  - Creates pull request pod job via `createPullRequestPodJob()`
+  - Posts "hello from catalyst" comment (Lines 271-278)
+  - Stores PR metadata in database via `upsertPullRequest()`
+- ✅ **closed** action (Lines 339-381):
+  - Deletes namespace via `deleteKubernetesNamespace()`
+  - Cleans up pod job via `cleanupPullRequestPodJob()`
+- ❌ **synchronize** action: NOT IMPLEMENTED (FR-007 gap)
+- ❌ **reopened** action: NOT IMPLEMENTED
+
+**Database Integration** (Lines 219-261):
+
+```typescript
+const prData = {
+  repoId: dbRepo.id,
+  provider: "github",
+  providerPrId: pull_request.id.toString(),
+  number: pull_request.number,
+  title: pull_request.title,
+  // ... 20+ fields mapped from webhook payload
+};
+await upsertPullRequest(prData);
+```
+
+**Comment Pattern** (Lines 271-278):
+
+```typescript
+await octokit.request(
+  "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
+  {
+    owner: repository.owner.login,
+    repo: repository.name,
+    issue_number: pull_request.number,
+    body: "hello from catalyst",
+  }
+);
+```
+
+**Application to spec-001**:
+
+**Strengths to Leverage**:
+
+- Webhook signature validation already secure (meets FR-004 security requirements)
+- Database upsert pattern prevents duplicate PR records
+- Error handling returns 200 OK to prevent GitHub retries (aligns with section 3 above)
+- Namespace lifecycle (create on open, delete on close) partially implemented
+
+**Required Enhancements**:
+
+1. **Add `synchronize` handler** (FR-007):
+   - Detect new commits via `pull_request.head.sha`
+   - Cancel in-progress deployments (check job status)
+   - Create new deployment with fresh commit SHA
+2. **Replace simple comment with upsert pattern** (section 4 above):
+   - Search for existing comment with marker `<!-- catalyst-preview-deployment -->`
+   - Update if found, create if not
+   - Include deployment status, public URL, timestamps
+3. **Add idempotency checks** (section 7 above):
+   - Query `pullRequestPods` table for existing pod with same `(pullRequestId, commitSha)`
+   - Skip deployment if already processed
+4. **Structured error handling**:
+   - Catch deployment failures, post error details to PR comment
+   - Track failure count for retry logic (max 3 attempts)
+
+**Code Reuse Opportunities**:
+
+- Octokit instance creation: `getInstallationOctokit(installation.id)` reusable
+- Namespace naming pattern: `gh-pr-${pull_request.number}` consistent with spec
+- Repository lookup: `findRepoByGitHubData()` already filters by team
+
+### Summary of Phase 1 Findings
+
+**Architecture Patterns Validated**:
+
+- ✅ Models → Actions → Components layering enforced
+- ✅ Bulk operation pattern for database queries
+- ✅ Database migrations via Drizzle generate/migrate workflow
+- ✅ Webhook security with signature validation
+- ✅ Multi-cluster Kubernetes support
+
+**Existing Infrastructure Ready for Extension**:
+
+- ✅ Kubernetes client with cluster management (303 lines)
+- ✅ Pull request pod job system for builds (686 lines)
+- ✅ Webhook handler with PR lifecycle hooks (388 lines)
+- ✅ Database schema for pull requests
+- ✅ Models and actions layers for pull requests
+- ✅ Test factory for pull requests
+
+**Critical Gaps Identified**:
+
+- ❌ `pullRequestPods` table (deployment state tracking)
+- ❌ Preview environment models/actions (orchestration logic)
+- ❌ Helm deployment integration (application deployment)
+- ❌ PR `synchronize` webhook handler (auto-redeploy)
+- ❌ GitHub comment upsert pattern (status updates)
+- ❌ UI pages for preview environment management
+- ❌ MCP tools for AI agent access
+
+**Phase 1 Deliverables**:
+
+- ✅ Architecture documentation reviewed (T001)
+- ✅ Kubernetes client implementation reviewed (T002)
+- ✅ Pull request pod utilities reviewed (T003)
+- ✅ GitHub webhook handler reviewed (T004)
+- ✅ Detailed findings documented in research.md
+
+**Next Phase**: Phase 2 (Foundational) - Database schema implementation with `pullRequestPods` table, types, and migrations.
