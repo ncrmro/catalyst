@@ -20,10 +20,10 @@
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Review existing codebase architecture in web/src/models/README.md, web/src/actions/README.md, web/src/db/README.md
-- [ ] T002 [P] Review existing Kubernetes client implementation in web/src/lib/k8s-client.ts
-- [ ] T003 [P] Review existing pull request pod utilities in web/src/lib/k8s-pull-request-pod.ts
-- [ ] T004 [P] Review existing GitHub webhook handler in web/src/app/api/github/webhook/route.ts
+- [x] T001 Review existing codebase architecture in web/src/models/README.md, web/src/actions/README.md, web/src/db/README.md
+- [x] T002 [P] Review existing Kubernetes client implementation in web/src/lib/k8s-client.ts
+- [x] T003 [P] Review existing pull request pod utilities in web/src/lib/k8s-pull-request-pod.ts
+- [x] T004 [P] Review existing GitHub webhook handler in web/src/app/api/github/webhook/route.ts
 
 ---
 
