@@ -4,6 +4,7 @@ import { createKubernetesNamespace, deleteKubernetesNamespace } from '@/actions/
 import { getInstallationOctokit, GITHUB_CONFIG } from '@/lib/github';
 import { createPullRequestPodJob, cleanupPullRequestPodJob, PullRequestPodResult } from '@/lib/k8s-pull-request-pod';
 import { upsertPullRequest, findRepoByGitHubData } from '@/actions/pull-requests-db';
+import { createPreviewDeployment } from '@/models/preview-environments';
 
 /**
  * GitHub App Webhook Endpoint
@@ -146,7 +147,8 @@ function handlePushEvent(payload: {
 }
 
 /**
- * Handle pull request events
+ * T018: Handle pull request events
+ * Routes PR events to appropriate handlers based on action
  */
 async function handlePullRequestEvent(payload: {
   action: string;
@@ -165,6 +167,7 @@ async function handlePullRequestEvent(payload: {
     };
     head: {
       ref: string;
+      sha: string;
     };
     base: {
       ref: string;
@@ -188,201 +191,306 @@ async function handlePullRequestEvent(payload: {
     name: string;
   };
 }) {
-  const { action, installation, pull_request, repository } = payload;
-  
-  console.log(`Pull request ${action} in ${repository.full_name}`, {
-    pr_number: pull_request.number,
-    title: pull_request.title,
-    author: pull_request.user.login
-  });
+  // T023: Error handling - wrap entire handler to always return 200 OK
+  try {
+    const { action, installation, pull_request, repository } = payload;
+    
+    console.log(`Pull request ${action} in ${repository.full_name}`, {
+      pr_number: pull_request.number,
+      title: pull_request.title,
+      author: pull_request.user.login,
+      commit_sha: pull_request.head.sha
+    });
 
-  // Find the repository in our database
-  const repoResult = await findRepoByGitHubData(repository.id);
-  
-  // Create/update pull request record in database
-  if (repoResult.success && repoResult.repo) {
-    try {
-      // Determine status based on draft and state
-      let status: 'draft' | 'ready' | 'changes_requested' = 'ready';
-      if (pull_request.draft) {
-        status = 'draft';
+    // Find the repository in our database
+    const repoResult = await findRepoByGitHubData(repository.id);
+    
+    // Create/update pull request record in database first
+    let pullRequestId: string | undefined;
+    
+    if (repoResult.success && repoResult.repo) {
+      try {
+        // Determine status based on draft and state
+        let status: 'draft' | 'ready' | 'changes_requested' = 'ready';
+        if (pull_request.draft) {
+          status = 'draft';
+        }
+
+        // Determine state - GitHub uses 'open'/'closed', we need to check if it was merged
+        let state: 'open' | 'closed' | 'merged' = pull_request.state;
+        if (pull_request.state === 'closed' && pull_request.merged_at) {
+          state = 'merged';
+        }
+
+        const prData = {
+          repoId: repoResult.repo.id,
+          provider: 'github',
+          providerPrId: pull_request.id.toString(),
+          number: pull_request.number,
+          title: pull_request.title,
+          description: pull_request.body || undefined,
+          state,
+          status,
+          url: pull_request.html_url,
+          authorLogin: pull_request.user.login,
+          authorAvatarUrl: pull_request.user.avatar_url,
+          headBranch: pull_request.head.ref,
+          baseBranch: pull_request.base.ref,
+          commentsCount: pull_request.comments || 0,
+          reviewsCount: 0,
+          changedFilesCount: pull_request.changed_files || 0,
+          additionsCount: pull_request.additions || 0,
+          deletionsCount: pull_request.deletions || 0,
+          priority: 'medium' as const,
+          labels: pull_request.labels?.map(l => l.name) || [],
+          assignees: pull_request.assignees?.map(a => a.login) || [],
+          reviewers: pull_request.requested_reviewers?.map(r => r.login) || [],
+          mergedAt: pull_request.merged_at ? new Date(pull_request.merged_at) : undefined,
+          closedAt: pull_request.closed_at ? new Date(pull_request.closed_at) : undefined,
+        };
+
+        const dbResult = await upsertPullRequest(prData);
+        if (dbResult.success && dbResult.pullRequest) {
+          pullRequestId = dbResult.pullRequest.id;
+          console.log(`Pull request ${dbResult.operation}d in database:`, {
+            pr_id: pullRequestId,
+            provider_pr_id: pull_request.id,
+            number: pull_request.number
+          });
+        } else {
+          console.error(`Failed to ${dbResult.operation} pull request in database:`, dbResult.error);
+        }
+      } catch (error) {
+        console.error('Error processing pull request for database:', error);
       }
-      // Note: We would need to check reviews to determine if changes are requested
-      // For now, we'll use a simple heuristic based on the action
-
-      // Determine state - GitHub uses 'open'/'closed', we need to check if it was merged
-      let state: 'open' | 'closed' | 'merged' = pull_request.state;
-      if (pull_request.state === 'closed' && pull_request.merged_at) {
-        state = 'merged';
-      }
-
-      const prData = {
-        repoId: repoResult.repo.id,
-        provider: 'github',
-        providerPrId: pull_request.id.toString(),
-        number: pull_request.number,
-        title: pull_request.title,
-        description: pull_request.body || undefined,
-        state,
-        status,
-        url: pull_request.html_url,
-        authorLogin: pull_request.user.login,
-        authorAvatarUrl: pull_request.user.avatar_url,
-        headBranch: pull_request.head.ref,
-        baseBranch: pull_request.base.ref,
-        commentsCount: pull_request.comments || 0,
-        reviewsCount: 0, // GitHub webhook doesn't provide review count directly
-        changedFilesCount: pull_request.changed_files || 0,
-        additionsCount: pull_request.additions || 0,
-        deletionsCount: pull_request.deletions || 0,
-        priority: 'medium' as const, // Default priority for webhook PRs
-        labels: pull_request.labels?.map(l => l.name) || [],
-        assignees: pull_request.assignees?.map(a => a.login) || [],
-        reviewers: pull_request.requested_reviewers?.map(r => r.login) || [],
-        mergedAt: pull_request.merged_at ? new Date(pull_request.merged_at) : undefined,
-        closedAt: pull_request.closed_at ? new Date(pull_request.closed_at) : undefined,
-      };
-
-      const dbResult = await upsertPullRequest(prData);
-      if (dbResult.success) {
-        console.log(`Pull request ${dbResult.operation}d in database:`, {
-          pr_id: dbResult.pullRequest?.id,
-          provider_pr_id: pull_request.id,
-          number: pull_request.number
-        });
-      } else {
-        console.error(`Failed to ${dbResult.operation} pull request in database:`, dbResult.error);
-      }
-    } catch (error) {
-      console.error('Error processing pull request for database:', error);
+    } else {
+      console.warn(`Repository with GitHub ID ${repository.id} not found in database. Skipping PR database operation.`);
     }
-  } else {
-    console.warn(`Repository with GitHub ID ${repository.id} not found in database. Skipping PR database operation.`);
-  }
 
-  // Create namespace when PR is opened
-  if (action === 'opened') {
-    try {
-      // Extract team and project from repository full_name (owner/repo)
-      const [owner, repo] = repository.full_name.split('/');
-      const environment = `gh-pr-${pull_request.number}`;
-      
-      // Comment on the PR with "hello from catalyst"
-      try {
-        const octokit = await getInstallationOctokit(installation.id);
-        await octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
-          owner: repository.owner.login,
-          repo: repository.name,
-          issue_number: pull_request.number,
-          body: 'hello from catalyst',
-        });
-      } catch (commentError) {
-        console.error(`Failed to comment on PR ${pull_request.number}:`, commentError);
-      }
-      
-      const namespaceResult = await createKubernetesNamespace(owner, repo, environment);
-      
-      // Create pull request pod job for buildx support
-      let podJobResult: PullRequestPodResult | null = null;
-      try {
-        const prJobName = `pr-${pull_request.number}-${repository.name}`;
-        podJobResult = await createPullRequestPodJob({
-          name: prJobName,
-          namespace: namespaceResult.success ? namespaceResult.namespace?.name || 'default' : 'default',
-          env: {
-            REPO_URL: `https://github.com/${repository.full_name}.git`,
-            PR_BRANCH: pull_request.head.ref,
-            PR_NUMBER: pull_request.number.toString(),
-            GITHUB_USER: repository.owner.login,
-            IMAGE_NAME: `${repository.name}/web`,
-            NEEDS_BUILD: 'true',
-            SHALLOW_CLONE: 'true',
-            MANIFEST_DOCKERFILE: '/web/Dockerfile',
-            TARGET_NAMESPACE: namespaceResult.success ? namespaceResult.namespace?.name || '' : ''
-          }
-        });
-        console.log(`Pull request pod job created for PR ${pull_request.number}:`, podJobResult);
-      } catch (podJobError) {
-        console.error(`Failed to create pull request pod job for PR ${pull_request.number}:`, podJobError);
-      }
-      
-      if (namespaceResult.success) {
-        return NextResponse.json({
-          success: true,
-          message: `Pull request ${action} processed and namespace created`,
-          pr_number: pull_request.number,
-          namespace: namespaceResult.namespace,
-          podJob: podJobResult
-        });
-      } else {
-        console.error(`Failed to create namespace for PR ${pull_request.number}:`, namespaceResult.error);
-        return NextResponse.json({
-          success: true,
-          message: `Pull request ${action} processed but namespace creation failed`,
-          pr_number: pull_request.number,
-          namespace_error: namespaceResult.error,
-          podJob: podJobResult
-        });
-      }
-    } catch (error) {
-      console.error(`Error creating namespace for PR ${pull_request.number}:`, error);
-      return NextResponse.json({
-        success: true,
-        message: `Pull request ${action} processed but namespace creation failed`,
-        pr_number: pull_request.number,
-        namespace_error: error instanceof Error ? error.message : 'Unknown error'
+    // T019: Handle 'opened' action - create preview deployment
+    if (action === 'opened' && pullRequestId) {
+      return await handlePullRequestOpened({
+        pullRequestId,
+        commitSha: pull_request.head.sha,
+        branch: pull_request.head.ref,
+        repoFullName: repository.full_name,
+        prNumber: pull_request.number,
+        installationId: installation.id,
+        repoUrl: `https://github.com/${repository.full_name}.git`,
       });
     }
-  }
 
-  // Delete namespace when PR is closed
-  if (action === 'closed') {
-    try {
-      // Extract team and project from repository full_name (owner/repo)
-      const [owner, repo] = repository.full_name.split('/');
-      const environment = `gh-pr-${pull_request.number}`;
-      
-      // Clean up pull request pod job resources
+    // T020: Handle 'synchronize' action - redeploy on new commits
+    if (action === 'synchronize' && pullRequestId) {
+      return await handlePullRequestSynchronize({
+        pullRequestId,
+        commitSha: pull_request.head.sha,
+        branch: pull_request.head.ref,
+        repoFullName: repository.full_name,
+        prNumber: pull_request.number,
+        installationId: installation.id,
+        repoUrl: `https://github.com/${repository.full_name}.git`,
+      });
+    }
+
+    // T021: Handle 'reopened' action - recreate preview environment
+    if (action === 'reopened' && pullRequestId) {
+      return await handlePullRequestReopened({
+        pullRequestId,
+        commitSha: pull_request.head.sha,
+        branch: pull_request.head.ref,
+        repoFullName: repository.full_name,
+        prNumber: pull_request.number,
+        installationId: installation.id,
+        repoUrl: `https://github.com/${repository.full_name}.git`,
+      });
+    }
+
+    // Delete namespace when PR is closed
+    if (action === 'closed') {
       try {
-        const prJobName = `pr-${pull_request.number}-${repository.name}`;
-        await cleanupPullRequestPodJob(prJobName, 'default');
-        console.log(`Pull request pod job cleaned up for PR ${pull_request.number}`);
-      } catch (podJobError) {
-        console.error(`Failed to cleanup pull request pod job for PR ${pull_request.number}:`, podJobError);
-      }
-      
-      const deleteResult = await deleteKubernetesNamespace(owner, repo, environment);
-      
-      if (deleteResult.success) {
-        return NextResponse.json({
-          success: true,
-          message: `Pull request ${action} processed and namespace deleted`,
-          pr_number: pull_request.number,
-          namespace_deleted: deleteResult.namespaceName
-        });
-      } else {
-        console.error(`Failed to delete namespace for PR ${pull_request.number}:`, deleteResult.error);
+        const [owner, repo] = repository.full_name.split('/');
+        const environment = `gh-pr-${pull_request.number}`;
+        
+        // Clean up pull request pod job resources
+        try {
+          const prJobName = `pr-${pull_request.number}-${repository.name}`;
+          await cleanupPullRequestPodJob(prJobName, 'default');
+          console.log(`Pull request pod job cleaned up for PR ${pull_request.number}`);
+        } catch (podJobError) {
+          console.error(`Failed to cleanup pull request pod job for PR ${pull_request.number}:`, podJobError);
+        }
+        
+        const deleteResult = await deleteKubernetesNamespace(owner, repo, environment);
+        
+        if (deleteResult.success) {
+          return NextResponse.json({
+            success: true,
+            message: `Pull request ${action} processed and namespace deleted`,
+            pr_number: pull_request.number,
+            namespace_deleted: deleteResult.namespaceName
+          });
+        } else {
+          console.error(`Failed to delete namespace for PR ${pull_request.number}:`, deleteResult.error);
+          return NextResponse.json({
+            success: true,
+            message: `Pull request ${action} processed but namespace deletion failed`,
+            pr_number: pull_request.number,
+            namespace_error: deleteResult.error
+          });
+        }
+      } catch (error) {
+        console.error(`Error deleting namespace for PR ${pull_request.number}:`, error);
         return NextResponse.json({
           success: true,
           message: `Pull request ${action} processed but namespace deletion failed`,
           pr_number: pull_request.number,
-          namespace_error: deleteResult.error
+          namespace_error: error instanceof Error ? error.message : 'Unknown error'
         });
       }
-    } catch (error) {
-      console.error(`Error deleting namespace for PR ${pull_request.number}:`, error);
+    }
+    
+    return NextResponse.json({
+      success: true,
+      message: `Pull request ${action} processed`,
+      pr_number: pull_request.number
+    });
+  } catch (error) {
+    // T023: Always return 200 OK to prevent GitHub retries
+    console.error('Webhook processing error for pull request event:', error);
+    return NextResponse.json({
+      success: true, // Return success to prevent retries
+      message: 'Pull request event received but processing failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * T019: Handle PR opened event - create preview deployment
+ */
+async function handlePullRequestOpened(params: {
+  pullRequestId: string;
+  commitSha: string;
+  branch: string;
+  repoFullName: string;
+  prNumber: number;
+  installationId: number;
+  repoUrl: string;
+}) {
+  try {
+    // T022: Idempotency is handled in createPreviewDeployment via unique constraint
+    const result = await createPreviewDeployment(params);
+    
+    if (result.success) {
       return NextResponse.json({
         success: true,
-        message: `Pull request ${action} processed but namespace deletion failed`,
-        pr_number: pull_request.number,
-        namespace_error: error instanceof Error ? error.message : 'Unknown error'
+        message: `Pull request opened - preview deployment created`,
+        pr_number: params.prNumber,
+        pod: result.pod
+      });
+    } else {
+      console.error(`Failed to create preview deployment for PR ${params.prNumber}:`, result.error);
+      return NextResponse.json({
+        success: true, // Still return success to prevent retries
+        message: `Pull request opened but preview deployment failed`,
+        pr_number: params.prNumber,
+        error: result.error
       });
     }
+  } catch (error) {
+    console.error(`Error in handlePullRequestOpened for PR ${params.prNumber}:`, error);
+    return NextResponse.json({
+      success: true,
+      message: `Pull request opened but preview deployment failed`,
+      pr_number: params.prNumber,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
-  
-  return NextResponse.json({
-    success: true,
-    message: `Pull request ${action} processed`,
-    pr_number: pull_request.number
-  });
+}
+
+/**
+ * T020: Handle PR synchronize event - redeploy on new commits
+ */
+async function handlePullRequestSynchronize(params: {
+  pullRequestId: string;
+  commitSha: string;
+  branch: string;
+  repoFullName: string;
+  prNumber: number;
+  installationId: number;
+  repoUrl: string;
+}) {
+  try {
+    // T022: Idempotency check - createPreviewDeployment handles duplicate commits
+    const result = await createPreviewDeployment(params);
+    
+    if (result.success) {
+      return NextResponse.json({
+        success: true,
+        message: `Pull request synchronized - preview redeployed`,
+        pr_number: params.prNumber,
+        pod: result.pod
+      });
+    } else {
+      console.error(`Failed to redeploy preview for PR ${params.prNumber}:`, result.error);
+      return NextResponse.json({
+        success: true,
+        message: `Pull request synchronized but preview redeployment failed`,
+        pr_number: params.prNumber,
+        error: result.error
+      });
+    }
+  } catch (error) {
+    console.error(`Error in handlePullRequestSynchronize for PR ${params.prNumber}:`, error);
+    return NextResponse.json({
+      success: true,
+      message: `Pull request synchronized but preview redeployment failed`,
+      pr_number: params.prNumber,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * T021: Handle PR reopened event - recreate preview environment
+ */
+async function handlePullRequestReopened(params: {
+  pullRequestId: string;
+  commitSha: string;
+  branch: string;
+  repoFullName: string;
+  prNumber: number;
+  installationId: number;
+  repoUrl: string;
+}) {
+  try {
+    // T022: Idempotency is handled in createPreviewDeployment
+    const result = await createPreviewDeployment(params);
+    
+    if (result.success) {
+      return NextResponse.json({
+        success: true,
+        message: `Pull request reopened - preview deployment recreated`,
+        pr_number: params.prNumber,
+        pod: result.pod
+      });
+    } else {
+      console.error(`Failed to recreate preview deployment for PR ${params.prNumber}:`, result.error);
+      return NextResponse.json({
+        success: true,
+        message: `Pull request reopened but preview deployment failed`,
+        pr_number: params.prNumber,
+        error: result.error
+      });
+    }
+  } catch (error) {
+    console.error(`Error in handlePullRequestReopened for PR ${params.prNumber}:`, error);
+    return NextResponse.json({
+      success: true,
+      message: `Pull request reopened but preview deployment failed`,
+      pr_number: params.prNumber,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 }
