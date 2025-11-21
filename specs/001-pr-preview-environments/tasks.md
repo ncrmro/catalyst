@@ -33,12 +33,12 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T005 Add pullRequestPods table definition to web/src/db/schema.ts with all fields, constraints, and indexes per data-model.md
-- [ ] T006 Add pullRequestPodsRelations to web/src/db/schema.ts for relationship with pullRequests table
-- [ ] T007 Extend pullRequestsRelations in web/src/db/schema.ts to include pods relationship
-- [ ] T008 Generate database migration with npm run db:generate
-- [ ] T009 Apply database migration with npm run db:migrate
-- [ ] T010 Create TypeScript types file web/src/types/preview-environments.ts with PodStatus, ResourceAllocation, DeploymentComment, PreviewEnvironmentConfig types
+- [x] T005 Add pullRequestPods table definition to web/src/db/schema.ts with all fields, constraints, and indexes per data-model.md
+- [x] T006 Add pullRequestPodsRelations to web/src/db/schema.ts for relationship with pullRequests table
+- [x] T007 Extend pullRequestsRelations in web/src/db/schema.ts to include pods relationship
+- [x] T008 Generate database migration with npm run db:generate
+- [x] T009 Apply database migration with npm run db:migrate
+- [x] T010 Create TypeScript types file web/src/types/preview-environments.ts with PodStatus, ResourceAllocation, DeploymentComment, PreviewEnvironmentConfig types
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
