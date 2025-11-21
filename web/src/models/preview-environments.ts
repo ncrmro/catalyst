@@ -8,13 +8,12 @@
 import { db } from "@/db";
 import { pullRequestPods, pullRequests, repos } from "@/db/schema";
 import { eq, inArray, and, desc } from "drizzle-orm";
-import type { InferInsertModel } from "drizzle-orm";
 import { getClusterConfig, getCoreV1Api, getAppsV1Api } from "@/lib/k8s-client";
 import { createPullRequestPodJob } from "@/lib/k8s-pull-request-pod";
 import { getInstallationOctokit } from "@/lib/github";
+import type { PodStatus, InsertPullRequestPod } from "@/types/preview-environments";
 
-export type InsertPullRequestPod = InferInsertModel<typeof pullRequestPods>;
-export type PodStatus = 'pending' | 'deploying' | 'running' | 'failed' | 'deleting';
+export type { InsertPullRequestPod, PodStatus };
 
 /**
  * Query parameters for flexible pull request pod filtering
@@ -71,8 +70,13 @@ export function generatePublicUrl(namespace: string, baseDomain?: string): strin
 /**
  * T013 & T013b: Deploy Helm chart for preview environment
  * 
- * Waits for the image build Job to complete (from k8s-pull-request-pod.ts)
- * Then deploys the application using Helm with the built image tag
+ * NOTE: This is currently a placeholder implementation that only creates the namespace.
+ * The actual Helm deployment is handled by the PR pod job itself (in k8s-pull-request-pod.ts).
+ * 
+ * Future implementation should:
+ * 1. Wait for the image build Job to complete
+ * 2. Deploy the application using Helm with the built image tag
+ * 3. Monitor deployment status and update database accordingly
  * 
  * @param namespace Kubernetes namespace for deployment
  * @param deploymentName Name for the Helm deployment
@@ -119,9 +123,8 @@ export async function deployHelmChart(
       }
     }
 
-    // For now, we use kubectl/helm via shell commands
-    // In the future, this could use the Helm SDK or Kubernetes API directly
-    // The deployment is handled by the PR pod job itself
+    // TODO: Actual Helm deployment will be implemented in future phases
+    // For now, the PR pod job handles both image build and deployment
     
     return { success: true };
   } catch (error) {
@@ -237,8 +240,15 @@ export async function upsertGitHubComment(
  * Main orchestration function that:
  * 1. Creates database record
  * 2. Triggers Kubernetes Job for image build
- * 3. Deploys Helm chart
+ * 3. Deploys Helm chart (placeholder - actual deployment in PR pod job)
  * 4. Posts GitHub comment
+ * 
+ * NOTE: Current implementation does not wait for the Kubernetes job to complete.
+ * The status is optimistically set to 'running' after job creation. In production,
+ * this should be enhanced to:
+ * 1. Poll the job status until completion
+ * 2. Only update to 'running' when the job succeeds
+ * 3. Update to 'failed' if the job fails or times out
  * 
  * @param pullRequestId Database ID of the pull request
  * @param commitSha Git commit SHA
@@ -336,8 +346,7 @@ export async function createPreviewDeployment(params: {
       .set({ imageTag, updatedAt: new Date() })
       .where(eq(pullRequestPods.id, pod.id));
 
-    // Deploy Helm chart (this is simplified for now)
-    // In a real implementation, we'd wait for the job to complete first
+    // Deploy Helm chart (placeholder - actual deployment in PR pod job)
     const deployResult = await deployHelmChart(
       namespace,
       deploymentName,
@@ -350,6 +359,8 @@ export async function createPreviewDeployment(params: {
       throw new Error(deployResult.error || 'Helm deployment failed');
     }
 
+    // TODO: In production, wait for job completion before marking as running
+    // For now, optimistically mark as running after successful job creation
     // Update status to running
     await db
       .update(pullRequestPods)

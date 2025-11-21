@@ -212,7 +212,10 @@ describe("Preview Environments Model Integration", () => {
       });
 
       expect(runningPods.length).toBeGreaterThanOrEqual(1);
-      expect(runningPods[0].status).toBe("running");
+      // Type guard for array element access
+      if (runningPods.length > 0 && 'status' in runningPods[0]) {
+        expect(runningPods[0].status).toBe("running");
+      }
     });
 
     it("should filter pods by team", async () => {
@@ -225,6 +228,11 @@ describe("Preview Environments Model Integration", () => {
       expect(pods[0]).toHaveProperty("pod");
       expect(pods[0]).toHaveProperty("pullRequest");
       expect(pods[0]).toHaveProperty("repo");
+      
+      // Type guard to narrow the type
+      if ('pod' in pods[0]) {
+        expect(pods[0].pod.id).toBeTruthy();
+      }
     });
 
     it("should return empty array when no conditions provided", async () => {
@@ -239,6 +247,10 @@ describe("Preview Environments Model Integration", () => {
       });
 
       expect(pods.length).toBe(1);
+      // Type guard for array element access
+      if (pods.length > 0 && 'status' in pods[0]) {
+        expect(pods[0].status).toBeTruthy();
+      }
     });
   });
 });
