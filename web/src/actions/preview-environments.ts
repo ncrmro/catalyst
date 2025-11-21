@@ -13,9 +13,6 @@ import {
   getPullRequestPods,
   type GetPullRequestPodsParams 
 } from '@/models/preview-environments';
-import { repos } from '@/db/schema';
-import { db } from '@/db';
-import { eq } from 'drizzle-orm';
 
 /**
  * T024: Get preview environments with session auth and team filtering

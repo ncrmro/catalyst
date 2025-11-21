@@ -12,7 +12,6 @@ import type { InferInsertModel } from "drizzle-orm";
 import type { PodStatus } from "@/types/preview-environments";
 import { getInstallationOctokit } from "@/lib/github";
 import { createPullRequestPodJob, type PullRequestPodResult } from "@/lib/k8s-pull-request-pod";
-import { getCoreV1Api, getAppsV1Api, getClusterConfig } from "@/lib/k8s-client";
 
 export type InsertPullRequestPod = InferInsertModel<typeof pullRequestPods>;
 
@@ -69,9 +68,7 @@ export async function deployHelmChart(
   namespace: string,
   deploymentName: string,
   imageTag: string,
-  publicUrl: string,
-  prNumber: number,
-  branch: string
+  publicUrl: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // NOTE: For MVP, we're using the existing pull request pod job
@@ -146,6 +143,7 @@ export async function upsertGitHubComment(
       issue_number: prNumber,
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const existingComment = comments.find((c: any) => c.body?.includes(commentMarker));
 
     if (existingComment) {
@@ -318,9 +316,7 @@ export async function createPreviewDeployment(params: {
       namespace,
       deploymentName,
       imageTag,
-      publicUrl,
-      prNumber,
-      branch
+      publicUrl
     );
 
     if (!helmResult.success) {
@@ -385,8 +381,7 @@ export async function createPreviewDeployment(params: {
  */
 export async function watchDeploymentStatus(
   namespace: string,
-  deploymentName: string,
-  timeoutMs: number = 180000 // 3 minutes
+  deploymentName: string
 ): Promise<"success" | "failed"> {
   try {
     // For now, return success immediately as watch API requires more complex setup
@@ -425,7 +420,7 @@ export async function listActivePreviewPods(params: GetPullRequestPodsParams) {
   // Only show non-deleted pods
   conditions.push(isNull(pullRequestPods.deletedAt));
 
-  let query = db
+  const query = db
     .select({
       pod: pullRequestPods,
       pullRequest: pullRequests,

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { createKubernetesNamespace, deleteKubernetesNamespace } from '@/actions/kubernetes';
-import { getInstallationOctokit, GITHUB_CONFIG } from '@/lib/github';
-import { createPullRequestPodJob, cleanupPullRequestPodJob, PullRequestPodResult } from '@/lib/k8s-pull-request-pod';
+import { deleteKubernetesNamespace } from '@/actions/kubernetes';
+import { GITHUB_CONFIG } from '@/lib/github';
+import { cleanupPullRequestPodJob } from '@/lib/k8s-pull-request-pod';
 import { upsertPullRequest, findRepoByGitHubData } from '@/actions/pull-requests-db';
 import { createPreviewDeployment } from '@/models/preview-environments';
 
