@@ -61,6 +61,13 @@ export function generatePublicUrl(namespace: string): string {
 }
 
 /**
+ * Generate job name for pull request pod
+ */
+export function generateJobName(prNumber: number, repoName: string): string {
+  return `pr-${prNumber}-${repoName}`;
+}
+
+/**
  * T013 & T013b: Deploy Helm chart for preview environment
  * Waits for Job completion from k8s-pull-request-pod.ts before deploying Helm chart
  */
@@ -143,8 +150,12 @@ export async function upsertGitHubComment(
       issue_number: prNumber,
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const existingComment = comments.find((c: any) => c.body?.includes(commentMarker));
+    // Find our deployment comment by marker
+    interface GitHubComment {
+      id: number;
+      body?: string;
+    }
+    const existingComment = (comments as GitHubComment[]).find((c) => c.body?.includes(commentMarker));
 
     if (existingComment) {
       // Update existing comment
@@ -261,7 +272,7 @@ export async function createPreviewDeployment(params: {
     );
 
     // Create Kubernetes job for building image (using existing infrastructure)
-    const prJobName = `pr-${prNumber}-${repoName}`;
+    const prJobName = generateJobName(prNumber, repoName);
     let podJobResult: PullRequestPodResult | null = null;
     
     try {

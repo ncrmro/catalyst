@@ -13,6 +13,9 @@ import {
   getPullRequestPods,
   type GetPullRequestPodsParams 
 } from '@/models/preview-environments';
+import { db } from '@/db';
+import { pullRequests, repos } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
 /**
  * T024: Get preview environments with session auth and team filtering
@@ -32,9 +35,10 @@ export async function getPreviewEnvironments(params?: {
   }
 
   try {
-    // For now, list all preview pods the user has access to
-    // In a full implementation, we'd filter by team membership
-    // Since we don't have team info in the session yet, we'll return all for now
+    // TODO: Implement proper team-based access control
+    // For MVP, we list all preview pods without filtering
+    // SECURITY NOTE: This should be enhanced with team membership checks
+    // before production deployment to prevent unauthorized access
     const queryParams: GetPullRequestPodsParams = {
       statuses: params?.statuses,
       limit: params?.limit || 50,
@@ -90,12 +94,37 @@ export async function getPreviewEnvironment(params: {
       };
     }
 
-    // TODO: Add team membership check for authorization
-    // For now, return the environment if found
+    const pod = results[0];
+
+    // TODO: Implement proper team-based authorization check
+    // For MVP, we verify the environment exists but don't check team membership
+    // SECURITY NOTE: This should verify user has access to the repo's team
+    // before production deployment to prevent unauthorized access
+    
+    // Temporary basic check: Verify the PR exists and get its repo
+    const pullRequest = await db
+      .select({
+        pr: pullRequests,
+        repo: repos,
+      })
+      .from(pullRequests)
+      .innerJoin(repos, eq(pullRequests.repoId, repos.id))
+      .where(eq(pullRequests.id, pod.pullRequestId))
+      .limit(1);
+
+    if (pullRequest.length === 0) {
+      return {
+        success: false,
+        error: 'Associated pull request not found',
+        environment: null,
+      };
+    }
+
+    // TODO: Check if user is member of pullRequest[0].repo.teamId
 
     return {
       success: true,
-      environment: results[0],
+      environment: pod,
     };
   } catch (error) {
     console.error('Failed to get preview environment:', error);

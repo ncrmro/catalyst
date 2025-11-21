@@ -4,7 +4,7 @@ import { deleteKubernetesNamespace } from '@/actions/kubernetes';
 import { GITHUB_CONFIG } from '@/lib/github';
 import { cleanupPullRequestPodJob } from '@/lib/k8s-pull-request-pod';
 import { upsertPullRequest, findRepoByGitHubData } from '@/actions/pull-requests-db';
-import { createPreviewDeployment } from '@/models/preview-environments';
+import { createPreviewDeployment, generateJobName } from '@/models/preview-environments';
 
 /**
  * GitHub App Webhook Endpoint
@@ -308,19 +308,20 @@ async function handlePullRequestEvent(payload: {
 
     // Delete namespace when PR is closed
     if (action === 'closed') {
+      const [owner, repo] = repository.full_name.split('/');
+      const environment = `gh-pr-${pull_request.number}`;
+      
+      // Clean up pull request pod job resources
+      const prJobName = generateJobName(pull_request.number, repository.name);
       try {
-        const [owner, repo] = repository.full_name.split('/');
-        const environment = `gh-pr-${pull_request.number}`;
-        
-        // Clean up pull request pod job resources
-        try {
-          const prJobName = `pr-${pull_request.number}-${repository.name}`;
-          await cleanupPullRequestPodJob(prJobName, 'default');
-          console.log(`Pull request pod job cleaned up for PR ${pull_request.number}`);
-        } catch (podJobError) {
-          console.error(`Failed to cleanup pull request pod job for PR ${pull_request.number}:`, podJobError);
-        }
-        
+        await cleanupPullRequestPodJob(prJobName, 'default');
+        console.log(`Pull request pod job cleaned up for PR ${pull_request.number}`);
+      } catch (podJobError) {
+        console.error(`Failed to cleanup pull request pod job for PR ${pull_request.number}:`, podJobError);
+      }
+      
+      // Delete namespace
+      try {
         const deleteResult = await deleteKubernetesNamespace(owner, repo, environment);
         
         if (deleteResult.success) {
