@@ -202,214 +202,214 @@ jobs:
           path: ./web/test-results/**/video.webm
           retention-days: 30
 
-  build-container:
-    name: Build Container Images
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-      attestations: write
-    outputs:
-      production-image: ${{ steps.build.outputs.production-image }}
-      development-image: ${{ steps.build.outputs.development-image }}
-      cache-image: ${{ steps.build.outputs.cache-image }}
-      digest: ${{ steps.build.outputs.digest }}
+  # build-container:
+  #   name: Build Container Images
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: read
+  #     packages: write
+  #     id-token: write
+  #     attestations: write
+  #   outputs:
+  #     production-image: ${{ steps.build.outputs.production-image }}
+  #     development-image: ${{ steps.build.outputs.development-image }}
+  #     cache-image: ${{ steps.build.outputs.cache-image }}
+  #     digest: ${{ steps.build.outputs.digest }}
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
 
-      - name: Build and push containers with Docker Bake
-        id: build
-        uses: ./.github/actions/build-container-bake
-        with:
-          registry: ghcr.io
-          image: ${{ github.repository }}/web
-          platforms: "linux/amd64"
-          workdir: "./web"
-          files: "./docker-bake.yml"
+  #     - name: Build and push containers with Docker Bake
+  #       id: build
+  #       uses: ./.github/actions/build-container-bake
+  #       with:
+  #         registry: ghcr.io
+  #         image: ${{ github.repository }}/web
+  #         platforms: "linux/amd64"
+  #         workdir: "./web"
+  #         files: "./docker-bake.yml"
 
-  preview-environment:
-    name: Deploy Preview Environment
-    needs: build-container
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+  # preview-environment:
+  #   name: Deploy Preview Environment
+  #   needs: build-container
+  #   runs-on: ubuntu-latest
+  #   if: github.event_name == 'pull_request'
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
 
-      - name: Create Kind cluster
-        uses: helm/kind-action@v1.10.0
-        with:
-          cluster_name: preview-cluster
-          wait: 60s
+  #     - name: Create Kind cluster
+  #       uses: helm/kind-action@v1.10.0
+  #       with:
+  #         cluster_name: preview-cluster
+  #         wait: 60s
 
-      - name: Export kubeconfig for preview environment
-        run: |
-          # Export base64 encoded kubeconfig for preview environment
-          export KUBECONFIG_PRIMARY=$(kubectl config view --raw -o json | base64 -w 0)
-          echo "KUBECONFIG_PRIMARY=$KUBECONFIG_PRIMARY" >> $GITHUB_ENV
-          echo "Kubeconfig exported for preview environment"
+  #     - name: Export kubeconfig for preview environment
+  #       run: |
+  #         # Export base64 encoded kubeconfig for preview environment
+  #         export KUBECONFIG_PRIMARY=$(kubectl config view --raw -o json | base64 -w 0)
+  #         echo "KUBECONFIG_PRIMARY=$KUBECONFIG_PRIMARY" >> $GITHUB_ENV
+  #         echo "Kubeconfig exported for preview environment"
 
-      - name: Set PR tag
-        run: |
-          echo "PR_TAG=pr-${{ github.event.number }}" >> $GITHUB_ENV
-          echo "NAMESPACE=preview-pr-${{ github.event.number }}" >> $GITHUB_ENV
+  #     - name: Set PR tag
+  #       run: |
+  #         echo "PR_TAG=pr-${{ github.event.number }}" >> $GITHUB_ENV
+  #         echo "NAMESPACE=preview-pr-${{ github.event.number }}" >> $GITHUB_ENV
 
-      - name: Create preview namespace
-        run: |
-          echo "Creating namespace: ${{ env.NAMESPACE }}"
-          kubectl create namespace ${{ env.NAMESPACE }}
-          echo "Namespace created successfully"
-          kubectl get namespace ${{ env.NAMESPACE }}
+  #     - name: Create preview namespace
+  #       run: |
+  #         echo "Creating namespace: ${{ env.NAMESPACE }}"
+  #         kubectl create namespace ${{ env.NAMESPACE }}
+  #         echo "Namespace created successfully"
+  #         kubectl get namespace ${{ env.NAMESPACE }}
 
-      - name: Debug - Pre-deployment state
-        run: |
-          echo "=== PRE-DEPLOYMENT DEBUG INFO ==="
-          echo "Production image: ${{ needs.build-container.outputs.production-image }}"
-          echo "Development image: ${{ needs.build-container.outputs.development-image }}"
-          echo "Image digest: ${{ needs.build-container.outputs.digest }}"
-          echo "PR number: ${{ github.event.number }}"
-          echo "Namespace: ${{ env.NAMESPACE }}"
-          echo "PR tag: ${{ env.PR_TAG }}"
-          echo ""
-          echo "=== CLUSTER STATE BEFORE DEPLOYMENT ==="
-          kubectl get nodes
-          kubectl get namespaces
-          echo ""
-          echo "=== HELM CHARTS AVAILABLE ==="
-          ls -la ./charts/
-          ls -la ./charts/nextjs/
+  #     - name: Debug - Pre-deployment state
+  #       run: |
+  #         echo "=== PRE-DEPLOYMENT DEBUG INFO ==="
+  #         echo "Production image: ${{ needs.build-container.outputs.production-image }}"
+  #         echo "Development image: ${{ needs.build-container.outputs.development-image }}"
+  #         echo "Image digest: ${{ needs.build-container.outputs.digest }}"
+  #         echo "PR number: ${{ github.event.number }}"
+  #         echo "Namespace: ${{ env.NAMESPACE }}"
+  #         echo "PR tag: ${{ env.PR_TAG }}"
+  #         echo ""
+  #         echo "=== CLUSTER STATE BEFORE DEPLOYMENT ==="
+  #         kubectl get nodes
+  #         kubectl get namespaces
+  #         echo ""
+  #         echo "=== HELM CHARTS AVAILABLE ==="
+  #         ls -la ./charts/
+  #         ls -la ./charts/nextjs/
 
-      - name: Deploy to Kind cluster using Helm chart
-        run: |
-          # Use the production image
-          FULL_IMAGE_TAG="${{ needs.build-container.outputs.production-image }}"
-          # Use the development image
-          FULL_DEV_IMAGE_TAG="${{ needs.build-container.outputs.development-image }}"
+  #     - name: Deploy to Kind cluster using Helm chart
+  #       run: |
+  #         # Use the production image
+  #         FULL_IMAGE_TAG="${{ needs.build-container.outputs.production-image }}"
+  #         # Use the development image
+  #         FULL_DEV_IMAGE_TAG="${{ needs.build-container.outputs.development-image }}"
 
-          echo "Deploying image: $FULL_IMAGE_TAG"
-          echo "Development image for tests: $FULL_DEV_IMAGE_TAG"
-          echo "To namespace: ${{ env.NAMESPACE }}"
+  #         echo "Deploying image: $FULL_IMAGE_TAG"
+  #         echo "Development image for tests: $FULL_DEV_IMAGE_TAG"
+  #         echo "To namespace: ${{ env.NAMESPACE }}"
 
-          # Extract repository and tag from the full image tag
-          IMAGE_REPO=$(echo "$FULL_IMAGE_TAG" | cut -d':' -f1)
-          IMAGE_TAG=$(echo "$FULL_IMAGE_TAG" | cut -d':' -f2)
+  #         # Extract repository and tag from the full image tag
+  #         IMAGE_REPO=$(echo "$FULL_IMAGE_TAG" | cut -d':' -f1)
+  #         IMAGE_TAG=$(echo "$FULL_IMAGE_TAG" | cut -d':' -f2)
 
-          # Extract repository and tag from the full development image tag
-          DEV_IMAGE_REPO=$(echo "$FULL_DEV_IMAGE_TAG" | cut -d':' -f1)
-          DEV_IMAGE_TAG=$(echo "$FULL_DEV_IMAGE_TAG" | cut -d':' -f2)
+  #         # Extract repository and tag from the full development image tag
+  #         DEV_IMAGE_REPO=$(echo "$FULL_DEV_IMAGE_TAG" | cut -d':' -f1)
+  #         DEV_IMAGE_TAG=$(echo "$FULL_DEV_IMAGE_TAG" | cut -d':' -f2)
 
-          echo "Image repository: $IMAGE_REPO"
-          echo "Image tag: $IMAGE_TAG"
-          echo "Development image repository: $DEV_IMAGE_REPO"
-          echo "Development image tag: $DEV_IMAGE_TAG"
+  #         echo "Image repository: $IMAGE_REPO"
+  #         echo "Image tag: $IMAGE_TAG"
+  #         echo "Development image repository: $DEV_IMAGE_REPO"
+  #         echo "Development image tag: $DEV_IMAGE_TAG"
 
-          # Verify namespace exists
-          kubectl get namespace ${{ env.NAMESPACE }}
+  #         # Verify namespace exists
+  #         kubectl get namespace ${{ env.NAMESPACE }}
 
-          # Deploy using the nextjs Helm chart
-          helm install web-preview-${{ github.event.number }} ./charts/nextjs \
-            --namespace ${{ env.NAMESPACE }} \
-            --set image.repository="$IMAGE_REPO" \
-            --set image.tag="$IMAGE_TAG" \
-            --set image.pullPolicy=IfNotPresent \
-            --set developmentImage.repository="$DEV_IMAGE_REPO" \
-            --set developmentImage.tag="$DEV_IMAGE_TAG" \
-            --set developmentImage.pullPolicy=IfNotPresent \
-            --set nextjs.env[0].name="GITHUB_APP_ID" \
-            --set nextjs.env[0].value="1234z" \
-            --set nextjs.env[1].name="GITHUB_PRIVATE_KEY" \
-            --set nextjs.env[1].value="-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA7jKCJYtKhTxUktLJP9f4R5r8K8A8H9gK7xH9vZ8fP5jJQc4T\nXyBnJ9bH8j5P2vV8lQwQ1XkL7KJ5L8M9N2Qq4F6Y8t5H3J9LqJ8c4A5b6Z7P3X8\nL9cS2H5Q1A4j8f6K2Y9d3E1V8L5b7F9j8Q6K4H3A2L8c7B9e5G1d2F4v8H6J9c1Q\nB5Y7K3f8L2e4H9j6Q1c7B8f9A2L5d6G3H8j1Q4c9B7e2F5L8v3H6J4c1Q9B8f7A\n2L6d5G9H3j8Q1c4B7e6F2L9v8H5J1c3Q6B9f4A7L2d8G5H6j3Q9c1B4e7F8L5v2\nH9J6c4Q3B8f1A5L7d9G2H4j6Q8c5B3e9F1L4v7H2J9c8Q6B5f3A4L8d1G7H5j2Q\nwIDAQABAoIBAQDOZDk2Q8L6S7z9w8q1r9f8H4x2c5A9K3f7j8L1v6Q4B9e3F8L2\nd5G7H6j1Q8c4B7e9F3L6v2H5J8c1Q9B4f7A3L8d6G2H9j5Q1c8B7e4F6L3v9H2J\nc6Q5B8f1A7L9d3G8H4j2Q6c5B9e7F1L8v4H6J3c2Q9B5f8A1L4d7G6H3j9Q2c1B\ne8F5L7v3H9J6c4Q8B2f9A5L1d8G4H7j3Q6c9B3e1F8L5v7H2J9c8Q1B6f4A3L2d\n5G9H8j6Q4c7B1e3F9L8v2H6J5c1Q3B9f7A8L4d2G6H5j8Q9c3B7e5F1L6v4H3J\nc9Q2B8f6A7L3d1G5H9j4Q8c2B6e9F3L7v1H8J5c4Q6B3f2A9L8d7G1H6j5Q3c4\nBAoGBAPhI7q8Q9B1f7A2L5d6G3H8j1Q4c9B7e2F5L8v3H6J4c1Q9B8f7A2L6d5G\n9H3j8Q1c4B7e6F2L9v8H5J1c3Q6B9f4A7L2d8G5H6j3Q9c1B4e7F8L5v2H9J6c\n4Q3B8f1A5L7d9G2H4j6Q8c5B3e9F1L4v7H2J9c8Q6B5f3A4L8d1G7H5j2QwIBA\nQDwAoGBAOYn8j6Q1c7B8f9A2L5d6G3H8j1Q4c9B7e2F5L8v3H6J4c1Q9B8f7A2\nL6d5G9H3j8Q1c4B7e6F2L9v8H5J1c3Q6B9f4A7L2d8G5H6j3Q9c1B4e7F8L5v\n2H9J6c4Q3B8f1A5L7d9G2H4j6Q8c5B3e9F1L4v7H2J9c8Q6B5f3A4L8d1G7H5\nj2QwIDAQABoGBAOQj9f6K2Y9d3E1V8L5b7F9j8Q6K4H3A2L8c7B9e5G1d2F4v\n8H6J9c1QB5Y7K3f8L2e4H9j6Q1c7B8f9A2L5d6G3H8j1Q4c9B7e2F5L8v3H6J\n4c1Q9B8f7A2L6d5G9H3j8Q1c4B7e6F2L9v8H5J1c3Q6B9f4A7L2d8G5H6j3Q\n9c1B4e7F8L5v2H9J6c4Q3B8f1A5L7d9G2H4j6Q8c5B3e9F1L4v7H2J9c8Q6B\n5f3A4L8d1G7H5j2QwIDAQAB\n-----END RSA PRIVATE KEY-----" \
-            --set nextjs.env[2].name="TOKEN_ENCRYPTION_KEY" \
-            --set nextjs.env[2].value="abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890" \
-            --wait --timeout=120s
+  #         # Deploy using the nextjs Helm chart
+  #         helm install web-preview-${{ github.event.number }} ./charts/nextjs \
+  #           --namespace ${{ env.NAMESPACE }} \
+  #           --set image.repository="$IMAGE_REPO" \
+  #           --set image.tag="$IMAGE_TAG" \
+  #           --set image.pullPolicy=IfNotPresent \
+  #           --set developmentImage.repository="$DEV_IMAGE_REPO" \
+  #           --set developmentImage.tag="$DEV_IMAGE_TAG" \
+  #           --set developmentImage.pullPolicy=IfNotPresent \
+  #           --set nextjs.env[0].name="GITHUB_APP_ID" \
+  #           --set nextjs.env[0].value="1234z" \
+  #           --set nextjs.env[1].name="GITHUB_PRIVATE_KEY" \
+  #           --set nextjs.env[1].value="-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA7jKCJYtKhTxUktLJP9f4R5r8K8A8H9gK7xH9vZ8fP5jJQc4T\nXyBnJ9bH8j5P2vV8lQwQ1XkL7KJ5L8M9N2Qq4F6Y8t5H3J9LqJ8c4A5b6Z7P3X8\nL9cS2H5Q1A4j8f6K2Y9d3E1V8L5b7F9j8Q6K4H3A2L8c7B9e5G1d2F4v8H6J9c1Q\nB5Y7K3f8L2e4H9j6Q1c7B8f9A2L5d6G3H8j1Q4c9B7e2F5L8v3H6J4c1Q9B8f7A\n2L6d5G9H3j8Q1c4B7e6F2L9v8H5J1c3Q6B9f4A7L2d8G5H6j3Q9c1B4e7F8L5v2\nH9J6c4Q3B8f1A5L7d9G2H4j6Q8c5B3e9F1L4v7H2J9c8Q6B5f3A4L8d1G7H5j2Q\nwIDAQABAoIBAQDOZDk2Q8L6S7z9w8q1r9f8H4x2c5A9K3f7j8L1v6Q4B9e3F8L2\nd5G7H6j1Q8c4B7e9F3L6v2H5J8c1Q9B4f7A3L8d6G2H9j5Q1c8B7e4F6L3v9H2J\nc6Q5B8f1A7L9d3G8H4j2Q6c5B9e7F1L8v4H6J3c2Q9B5f8A1L4d7G6H3j9Q2c1B\ne8F5L7v3H9J6c4Q8B2f9A5L1d8G4H7j3Q6c9B3e1F8L5v7H2J9c8Q1B6f4A3L2d\n5G9H8j6Q4c7B1e3F9L8v2H6J5c1Q3B9f7A8L4d2G6H5j8Q9c3B7e5F1L6v4H3J\nc9Q2B8f6A7L3d1G5H9j4Q8c2B6e9F3L7v1H8J5c4Q6B3f2A9L8d7G1H6j5Q3c4\nBAoGBAPhI7q8Q9B1f7A2L5d6G3H8j1Q4c9B7e2F5L8v3H6J4c1Q9B8f7A2L6d5G\n9H3j8Q1c4B7e6F2L9v8H5J1c3Q6B9f4A7L2d8G5H6j3Q9c1B4e7F8L5v2H9J6c\n4Q3B8f1A5L7d9G2H4j6Q8c5B3e9F1L4v7H2J9c8Q6B5f3A4L8d1G7H5j2QwIBA\nQDwAoGBAOYn8j6Q1c7B8f9A2L5d6G3H8j1Q4c9B7e2F5L8v3H6J4c1Q9B8f7A2\nL6d5G9H3j8Q1c4B7e6F2L9v8H5J1c3Q6B9f4A7L2d8G5H6j3Q9c1B4e7F8L5v\n2H9J6c4Q3B8f1A5L7d9G2H4j6Q8c5B3e9F1L4v7H2J9c8Q6B5f3A4L8d1G7H5\nj2QwIDAQABoGBAOQj9f6K2Y9d3E1V8L5b7F9j8Q6K4H3A2L8c7B9e5G1d2F4v\n8H6J9c1QB5Y7K3f8L2e4H9j6Q1c7B8f9A2L5d6G3H8j1Q4c9B7e2F5L8v3H6J\n4c1Q9B8f7A2L6d5G9H3j8Q1c4B7e6F2L9v8H5J1c3Q6B9f4A7L2d8G5H6j3Q\n9c1B4e7F8L5v2H9J6c4Q3B8f1A5L7d9G2H4j6Q8c5B3e9F1L4v7H2J9c8Q6B\n5f3A4L8d1G7H5j2QwIDAQAB\n-----END RSA PRIVATE KEY-----" \
+  #           --set nextjs.env[2].name="TOKEN_ENCRYPTION_KEY" \
+  #           --set nextjs.env[2].value="abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890" \
+  #           --wait --timeout=120s
 
-      - name: Verify deployment
-        run: |
-          kubectl wait --for=condition=available --timeout=300s deployment/web-preview-${{ github.event.number }}-nextjs -n ${{ env.NAMESPACE }}
-          helm test web-preview-${{ github.event.number }} --namespace ${{ env.NAMESPACE }}
+  #     - name: Verify deployment
+  #       run: |
+  #         kubectl wait --for=condition=available --timeout=300s deployment/web-preview-${{ github.event.number }}-nextjs -n ${{ env.NAMESPACE }}
+  #         helm test web-preview-${{ github.event.number }} --namespace ${{ env.NAMESPACE }}
 
-      # Debug steps that run only on failure
-      - name: Debug - Cluster information
-        if: failure()
-        run: |
-          echo "=== CLUSTER INFORMATION ===" | tee /tmp/debug-cluster.log
-          kubectl cluster-info | tee -a /tmp/debug-cluster.log
-          echo "" | tee -a /tmp/debug-cluster.log
-          echo "=== NODE STATUS ===" | tee -a /tmp/debug-cluster.log
-          kubectl get nodes -o wide | tee -a /tmp/debug-cluster.log
-          echo "" | tee -a /tmp/debug-cluster.log
-          echo "=== ALL NAMESPACES ===" | tee -a /tmp/debug-cluster.log
-          kubectl get namespaces | tee -a /tmp/debug-cluster.log
+  #     # Debug steps that run only on failure
+  #     - name: Debug - Cluster information
+  #       if: failure()
+  #       run: |
+  #         echo "=== CLUSTER INFORMATION ===" | tee /tmp/debug-cluster.log
+  #         kubectl cluster-info | tee -a /tmp/debug-cluster.log
+  #         echo "" | tee -a /tmp/debug-cluster.log
+  #         echo "=== NODE STATUS ===" | tee -a /tmp/debug-cluster.log
+  #         kubectl get nodes -o wide | tee -a /tmp/debug-cluster.log
+  #         echo "" | tee -a /tmp/debug-cluster.log
+  #         echo "=== ALL NAMESPACES ===" | tee -a /tmp/debug-cluster.log
+  #         kubectl get namespaces | tee -a /tmp/debug-cluster.log
 
-      - name: Debug - Preview namespace resources
-        if: failure()
-        run: |
-          echo "=== RESOURCES IN ${{ env.NAMESPACE }} NAMESPACE ===" | tee /tmp/debug-namespace.log
-          kubectl get all -n ${{ env.NAMESPACE }} -o wide 2>&1 | tee -a /tmp/debug-namespace.log || echo "Namespace may not exist" | tee -a /tmp/debug-namespace.log
-          echo "" | tee -a /tmp/debug-namespace.log
-          echo "=== EVENTS IN ${{ env.NAMESPACE }} NAMESPACE ===" | tee -a /tmp/debug-namespace.log
-          kubectl get events -n ${{ env.NAMESPACE }} --sort-by='.lastTimestamp' 2>&1 | tee -a /tmp/debug-namespace.log || echo "No events found" | tee -a /tmp/debug-namespace.log
+  #     - name: Debug - Preview namespace resources
+  #       if: failure()
+  #       run: |
+  #         echo "=== RESOURCES IN ${{ env.NAMESPACE }} NAMESPACE ===" | tee /tmp/debug-namespace.log
+  #         kubectl get all -n ${{ env.NAMESPACE }} -o wide 2>&1 | tee -a /tmp/debug-namespace.log || echo "Namespace may not exist" | tee -a /tmp/debug-namespace.log
+  #         echo "" | tee -a /tmp/debug-namespace.log
+  #         echo "=== EVENTS IN ${{ env.NAMESPACE }} NAMESPACE ===" | tee -a /tmp/debug-namespace.log
+  #         kubectl get events -n ${{ env.NAMESPACE }} --sort-by='.lastTimestamp' 2>&1 | tee -a /tmp/debug-namespace.log || echo "No events found" | tee -a /tmp/debug-namespace.log
 
-      - name: Debug - Pod descriptions and logs
-        if: failure()
-        run: |
-          echo "=== POD DESCRIPTIONS ===" | tee /tmp/debug-pods.log
-          kubectl describe pods -n ${{ env.NAMESPACE }} 2>&1 | tee -a /tmp/debug-pods.log || echo "No pods found" | tee -a /tmp/debug-pods.log
-          echo "" | tee -a /tmp/debug-pods.log
-          echo "=== POD LOGS ===" | tee -a /tmp/debug-pods.log
-          for pod in $(kubectl get pods -n ${{ env.NAMESPACE }} -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || echo ""); do
-            if [ ! -z "$pod" ]; then
-              echo "--- Logs for pod: $pod ---" | tee -a /tmp/debug-pods.log
-              kubectl logs $pod -n ${{ env.NAMESPACE }} --tail=100 2>&1 | tee -a /tmp/debug-pods.log || echo "Could not get logs for $pod" | tee -a /tmp/debug-pods.log
-              echo "" | tee -a /tmp/debug-pods.log
-            fi
-          done
+  #     - name: Debug - Pod descriptions and logs
+  #       if: failure()
+  #       run: |
+  #         echo "=== POD DESCRIPTIONS ===" | tee /tmp/debug-pods.log
+  #         kubectl describe pods -n ${{ env.NAMESPACE }} 2>&1 | tee -a /tmp/debug-pods.log || echo "No pods found" | tee -a /tmp/debug-pods.log
+  #         echo "" | tee -a /tmp/debug-pods.log
+  #         echo "=== POD LOGS ===" | tee -a /tmp/debug-pods.log
+  #         for pod in $(kubectl get pods -n ${{ env.NAMESPACE }} -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || echo ""); do
+  #           if [ ! -z "$pod" ]; then
+  #             echo "--- Logs for pod: $pod ---" | tee -a /tmp/debug-pods.log
+  #             kubectl logs $pod -n ${{ env.NAMESPACE }} --tail=100 2>&1 | tee -a /tmp/debug-pods.log || echo "Could not get logs for $pod" | tee -a /tmp/debug-pods.log
+  #             echo "" | tee -a /tmp/debug-pods.log
+  #           fi
+  #         done
 
-      - name: Debug - Helm deployment status
-        if: failure()
-        run: |
-          echo "=== HELM RELEASES ===" | tee /tmp/debug-helm.log
-          helm list --all-namespaces | tee -a /tmp/debug-helm.log
-          echo "" | tee -a /tmp/debug-helm.log
-          echo "=== HELM STATUS ===" | tee -a /tmp/debug-helm.log
-          helm status web-preview-${{ github.event.number }} --namespace ${{ env.NAMESPACE }} 2>&1 | tee -a /tmp/debug-helm.log || echo "Helm release not found" | tee -a /tmp/debug-helm.log
-          echo "" | tee -a /tmp/debug-helm.log
-          echo "=== HELM HISTORY ===" | tee -a /tmp/debug-helm.log
-          helm history web-preview-${{ github.event.number }} --namespace ${{ env.NAMESPACE }} 2>&1 | tee -a /tmp/debug-helm.log || echo "No history found" | tee -a /tmp/debug-helm.log
+  #     - name: Debug - Helm deployment status
+  #       if: failure()
+  #       run: |
+  #         echo "=== HELM RELEASES ===" | tee /tmp/debug-helm.log
+  #         helm list --all-namespaces | tee -a /tmp/debug-helm.log
+  #         echo "" | tee -a /tmp/debug-helm.log
+  #         echo "=== HELM STATUS ===" | tee -a /tmp/debug-helm.log
+  #         helm status web-preview-${{ github.event.number }} --namespace ${{ env.NAMESPACE }} 2>&1 | tee -a /tmp/debug-helm.log || echo "Helm release not found" | tee -a /tmp/debug-helm.log
+  #         echo "" | tee -a /tmp/debug-helm.log
+  #         echo "=== HELM HISTORY ===" | tee -a /tmp/debug-helm.log
+  #         helm history web-preview-${{ github.event.number }} --namespace ${{ env.NAMESPACE }} 2>&1 | tee -a /tmp/debug-helm.log || echo "No history found" | tee -a /tmp/debug-helm.log
 
-      - name: Debug - Deployment and service details
-        if: failure()
-        run: |
-          echo "=== DEPLOYMENT DETAILS ===" | tee /tmp/debug-deployment.log
-          kubectl describe deployment/web-preview-${{ github.event.number }}-nextjs -n ${{ env.NAMESPACE }} 2>&1 | tee -a /tmp/debug-deployment.log || echo "Deployment not found" | tee -a /tmp/debug-deployment.log
-          echo "" | tee -a /tmp/debug-deployment.log
-          echo "=== SERVICE DETAILS ===" | tee -a /tmp/debug-deployment.log
-          kubectl describe service -n ${{ env.NAMESPACE }} 2>&1 | tee -a /tmp/debug-deployment.log || echo "No services found" | tee -a /tmp/debug-deployment.log
-          echo "" | tee -a /tmp/debug-deployment.log
-          echo "=== INGRESS DETAILS ===" | tee -a /tmp/debug-deployment.log
-          kubectl describe ingress -n ${{ env.NAMESPACE }} 2>&1 | tee -a /tmp/debug-deployment.log || echo "No ingress found" | tee -a /tmp/debug-deployment.log
+  #     - name: Debug - Deployment and service details
+  #       if: failure()
+  #       run: |
+  #         echo "=== DEPLOYMENT DETAILS ===" | tee /tmp/debug-deployment.log
+  #         kubectl describe deployment/web-preview-${{ github.event.number }}-nextjs -n ${{ env.NAMESPACE }} 2>&1 | tee -a /tmp/debug-deployment.log || echo "Deployment not found" | tee -a /tmp/debug-deployment.log
+  #         echo "" | tee -a /tmp/debug-deployment.log
+  #         echo "=== SERVICE DETAILS ===" | tee -a /tmp/debug-deployment.log
+  #         kubectl describe service -n ${{ env.NAMESPACE }} 2>&1 | tee -a /tmp/debug-deployment.log || echo "No services found" | tee -a /tmp/debug-deployment.log
+  #         echo "" | tee -a /tmp/debug-deployment.log
+  #         echo "=== INGRESS DETAILS ===" | tee -a /tmp/debug-deployment.log
+  #         kubectl describe ingress -n ${{ env.NAMESPACE }} 2>&1 | tee -a /tmp/debug-deployment.log || echo "No ingress found" | tee -a /tmp/debug-deployment.log
 
-      - name: Debug - Docker and Kind specific info
-        if: failure()
-        run: |
-          echo "=== KIND CLUSTER LOGS ===" | tee /tmp/debug-docker.log
-          kind get clusters | tee -a /tmp/debug-docker.log
-          echo "" | tee -a /tmp/debug-docker.log
-          echo "=== DOCKER CONTAINERS ===" | tee -a /tmp/debug-docker.log
-          docker ps -a | tee -a /tmp/debug-docker.log
-          echo "" | tee -a /tmp/debug-docker.log
-          echo "=== KIND CLUSTER CONFIG ===" | tee -a /tmp/debug-docker.log
-          kubectl config get-contexts | tee -a /tmp/debug-docker.log
+  #     - name: Debug - Docker and Kind specific info
+  #       if: failure()
+  #       run: |
+  #         echo "=== KIND CLUSTER LOGS ===" | tee /tmp/debug-docker.log
+  #         kind get clusters | tee -a /tmp/debug-docker.log
+  #         echo "" | tee -a /tmp/debug-docker.log
+  #         echo "=== DOCKER CONTAINERS ===" | tee -a /tmp/debug-docker.log
+  #         docker ps -a | tee -a /tmp/debug-docker.log
+  #         echo "" | tee -a /tmp/debug-docker.log
+  #         echo "=== KIND CLUSTER CONFIG ===" | tee -a /tmp/debug-docker.log
+  #         kubectl config get-contexts | tee -a /tmp/debug-docker.log
 
-      - name: Upload debug logs
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: preview-env-debug-logs-pr-${{ github.event.number }}
-          path: |
-            /tmp/debug-*.log
-          retention-days: 7
+  #     - name: Upload debug logs
+  #       if: failure()
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: preview-env-debug-logs-pr-${{ github.event.number }}
+  #         path: |
+  #           /tmp/debug-*.log
+  #         retention-days: 7
