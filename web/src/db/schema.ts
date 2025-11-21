@@ -8,6 +8,7 @@ import {
   unique,
   uniqueIndex,
   jsonb,
+  index,
 } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 import type { AdapterAccountType } from "@auth/core/adapters"
@@ -456,11 +457,59 @@ export const pullRequests = pgTable(
   ]
 )
 
-export const pullRequestsRelations = relations(pullRequests, ({ one }) => ({
+/**
+ * Pull Request Pods Table
+ * 
+ * Represents a deployed preview environment for a specific pull request.
+ * Tracks deployment state, Kubernetes resources, and public access for preview environments.
+ */
+export const pullRequestPods = pgTable(
+  "pull_request_pods",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    pullRequestId: text("pull_request_id")
+      .notNull()
+      .references(() => pullRequests.id, { onDelete: "cascade" }),
+    commitSha: text("commit_sha").notNull(),
+    namespace: text("namespace").notNull(),
+    deploymentName: text("deployment_name").notNull(),
+    status: text("status").notNull().$type<'pending' | 'deploying' | 'running' | 'failed' | 'deleting'>(),
+    publicUrl: text("public_url"),
+    branch: text("branch").notNull(),
+    imageTag: text("image_tag"),
+    errorMessage: text("error_message"),
+    resourcesAllocated: jsonb("resources_allocated").$type<{
+      cpu: string;
+      memory: string;
+      pods: number;
+    }>(),
+    lastDeployedAt: timestamp("last_deployed_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+    deletedAt: timestamp("deleted_at", { mode: "date" }),
+  },
+  (table) => [
+    unique("unique_pr_commit").on(table.pullRequestId, table.commitSha),
+    index("idx_pod_status").on(table.status),
+    index("idx_pod_namespace").on(table.namespace),
+  ]
+)
+
+export const pullRequestsRelations = relations(pullRequests, ({ one, many }) => ({
   repo: one(repos, {
     fields: [pullRequests.repoId],
     references: [repos.id]
-  })
+  }),
+  pods: many(pullRequestPods)
+}))
+
+export const pullRequestPodsRelations = relations(pullRequestPods, ({ one }) => ({
+  pullRequest: one(pullRequests, {
+    fields: [pullRequestPods.pullRequestId],
+    references: [pullRequests.id],
+  }),
 }))
 
 /**
