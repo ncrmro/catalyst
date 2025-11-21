@@ -20,10 +20,10 @@
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Review existing codebase architecture in web/src/models/README.md, web/src/actions/README.md, web/src/db/README.md
-- [ ] T002 [P] Review existing Kubernetes client implementation in web/src/lib/k8s-client.ts
-- [ ] T003 [P] Review existing pull request pod utilities in web/src/lib/k8s-pull-request-pod.ts
-- [ ] T004 [P] Review existing GitHub webhook handler in web/src/app/api/github/webhook/route.ts
+- [x] T001 Review existing codebase architecture in web/src/models/README.md, web/src/actions/README.md, web/src/db/README.md
+- [x] T002 [P] Review existing Kubernetes client implementation in web/src/lib/k8s-client.ts
+- [x] T003 [P] Review existing pull request pod utilities in web/src/lib/k8s-pull-request-pod.ts
+- [x] T004 [P] Review existing GitHub webhook handler in web/src/app/api/github/webhook/route.ts
 
 ---
 
@@ -33,12 +33,12 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T005 Add pullRequestPods table definition to web/src/db/schema.ts with all fields, constraints, and indexes per data-model.md
-- [ ] T006 Add pullRequestPodsRelations to web/src/db/schema.ts for relationship with pullRequests table
-- [ ] T007 Extend pullRequestsRelations in web/src/db/schema.ts to include pods relationship
-- [ ] T008 Generate database migration with npm run db:generate
-- [ ] T009 Apply database migration with npm run db:migrate
-- [ ] T010 Create TypeScript types file web/src/types/preview-environments.ts with PodStatus, ResourceAllocation, DeploymentComment, PreviewEnvironmentConfig types
+- [x] T005 Add pullRequestPods table definition to web/src/db/schema.ts with all fields, constraints, and indexes per data-model.md
+- [x] T006 Add pullRequestPodsRelations to web/src/db/schema.ts for relationship with pullRequests table
+- [x] T007 Extend pullRequestsRelations in web/src/db/schema.ts to include pods relationship
+- [x] T008 Generate database migration with npm run db:generate
+- [x] T009 Apply database migration with npm run db:migrate
+- [x] T010 Create TypeScript types file web/src/types/preview-environments.ts with PodStatus, ResourceAllocation, DeploymentComment, PreviewEnvironmentConfig types
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
