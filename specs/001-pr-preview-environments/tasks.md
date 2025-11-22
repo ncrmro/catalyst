@@ -4,7 +4,7 @@
 **Generated**: 2025-01-08
 **Input**: Design documents from `/specs/001-pr-preview-environments/`
 
-**Tests**: Tests are NOT explicitly requested in this specification. Focus on core functionality implementation.
+**Tests**: Per constitution Principle 5, unit/integration tests with >80% coverage are REQUIRED. Test tasks are included in Phase 9 (T083-T087 for validation testing). TDD workflow (test-first) is recommended but not mandated - tests can be written after implementation during Phase 9.
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -40,7 +40,7 @@
 - [x] T009 Apply database migration with npm run db:migrate
 - [x] T010 Create TypeScript types file web/src/types/preview-environments.ts with PodStatus, ResourceAllocation, DeploymentComment, PreviewEnvironmentConfig types
 
-**Checkpoint**: Foundation ready - user story implementation can now begin in parallel
+**Checkpoint**: Foundation validated (T010b passed) - user story implementation can now begin in parallel. STOP HERE if schema validation fails.
 
 ---
 
@@ -56,7 +56,8 @@
 
 - [ ] T011 [P] [US1] Create helper function generateNamespace() in web/src/models/preview-environments.ts to generate DNS-safe namespace names
 - [ ] T012 [P] [US1] Create helper function generatePublicUrl() in web/src/models/preview-environments.ts to construct public URLs for preview environments
-- [ ] T013 [US1] Create helper function deployHelmChart() in web/src/models/preview-environments.ts to deploy Helm charts to Kubernetes with dynamic values
+- [ ] T013 [US1] Create helper function deployHelmChart() in web/src/models/preview-environments.ts to deploy Helm charts AFTER image build completes (uses existing k8s-pull-request-pod.ts for image building, adds Helm deployment for application)
+- [ ] T013b [US1] Update deployHelmChart() to wait for Job completion from k8s-pull-request-pod.ts before deploying Helm chart with built image tag
 - [ ] T014 [US1] Create helper function upsertGitHubComment() in web/src/models/preview-environments.ts to post or update deployment comments on GitHub PRs
 - [ ] T015 [US1] Implement createPreviewDeployment() in web/src/models/preview-environments.ts with full orchestration logic (database, K8s, GitHub)
 - [ ] T016 [US1] Implement watchDeploymentStatus() in web/src/models/preview-environments.ts to monitor Kubernetes deployments using Watch API
@@ -241,6 +242,7 @@
 - [ ] T080 Add error message sanitization in GitHub comments to prevent information leaks
 - [ ] T081 Add transaction rollback handling for failed Kubernetes operations
 - [ ] T082 Add database index verification for performance (status, namespace indexes)
+- [ ] T092 [P] Create Kubernetes NetworkPolicy manifests in deployHelmChart() function following research.md section 5 specifications (allow ingress from ingress-nginx namespace, allow egress to kube-system DNS and docker-registry, deny all other traffic)
 - [ ] T083 Test webhook signature validation with invalid signatures
 - [ ] T084 Test idempotency with duplicate webhook events
 - [ ] T085 Test concurrent deployments (50+ simultaneous PRs)
@@ -287,26 +289,33 @@
 ### Parallel Opportunities
 
 **Setup (Phase 1)**:
+
 - All T002, T003, T004 can run in parallel (reading different files)
 
 **Foundational (Phase 2)**:
+
 - T010 can run in parallel with T005-T009 (types independent of schema)
 
 **User Story 1 (Phase 3)**:
+
 - T011, T012 can run in parallel (different helper functions)
 - T024, T025 can run in parallel (different action functions)
 
 **User Story 2 (Phase 4)**:
+
 - T027, T028 can run in parallel (logs logic separate from authorization)
 - T029 can run in parallel with T027-T028 (actions separate from models)
 
 **User Story 5 (Phase 7)**:
+
 - T050, T051 can run in parallel (different metric queries)
 
 **MCP Tools (Phase 8)**:
+
 - T061-T065 can run in parallel (registering different tools)
 
 **Polish (Phase 9)**:
+
 - T073-T076 can run in parallel (different validation/logging tasks)
 - T088-T090 can run in parallel (independent verification commands)
 
@@ -389,6 +398,7 @@ With multiple developers:
 **Parallel Opportunities**: 23 tasks marked [P] can run in parallel within their phases
 
 **MVP Scope** (recommended first delivery):
+
 - Setup (4 tasks)
 - Foundational (6 tasks)
 - User Story 1 (16 tasks)
