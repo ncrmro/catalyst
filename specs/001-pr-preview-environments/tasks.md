@@ -37,7 +37,7 @@
 - [x] T006 Add pullRequestPodsRelations to web/src/db/schema.ts for relationship with pullRequests table
 - [x] T007 Extend pullRequestsRelations in web/src/db/schema.ts to include pods relationship
 - [x] T008 Generate database migration with npm run db:generate
-- [x] T009 Apply database migration with npm run db:migrate
+- [ ] T009 Apply database migration with npm run db:migrate (requires database running - use `make up` first)
 - [x] T010 Create TypeScript types file web/src/types/preview-environments.ts with PodStatus, ResourceAllocation, DeploymentComment, PreviewEnvironmentConfig types
 
 **Checkpoint**: Foundation validated (T010b passed) - user story implementation can now begin in parallel. STOP HERE if schema validation fails.
@@ -54,8 +54,8 @@
 
 #### Models Layer - Core Deployment Logic
 
-- [ ] T011 [P] [US1] Create helper function generateNamespace() in web/src/models/preview-environments.ts to generate DNS-safe namespace names
-- [ ] T012 [P] [US1] Create helper function generatePublicUrl() in web/src/models/preview-environments.ts to construct public URLs for preview environments
+- [x] T011 [P] [US1] Create helper function generateNamespace() in web/src/models/preview-environments.ts to generate DNS-safe namespace names
+- [x] T012 [P] [US1] Create helper function generatePublicUrl() in web/src/models/preview-environments.ts to construct public URLs for preview environments
 - [ ] T013 [US1] Create helper function deployHelmChart() in web/src/models/preview-environments.ts to deploy Helm charts AFTER image build completes (uses existing k8s-pull-request-pod.ts for image building, adds Helm deployment for application)
 - [ ] T013b [US1] Update deployHelmChart() to wait for Job completion from k8s-pull-request-pod.ts before deploying Helm chart with built image tag
 - [ ] T014 [US1] Create helper function upsertGitHubComment() in web/src/models/preview-environments.ts to post or update deployment comments on GitHub PRs

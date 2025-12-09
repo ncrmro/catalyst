@@ -5,9 +5,14 @@ Uses git to detect changed files.
 """
 import sys
 import subprocess
+import os
 
 def main():
     try:
+        # Change to workspace directory if specified
+        workspace_dir = os.environ.get('CLAUDE_WORKSPACE_DIR')
+        if workspace_dir:
+            os.chdir(workspace_dir)
         # Get list of modified files using git
         result = subprocess.run(
             ['git', 'diff', '--name-only', 'HEAD'],
@@ -51,14 +56,14 @@ def main():
             print(result.stdout, file=sys.stderr)
             if result.stderr:
                 print(result.stderr, file=sys.stderr)
-            sys.exit(1)
+            sys.exit(2)
 
     except subprocess.TimeoutExpired:
         print("⚠ Type check timed out", file=sys.stderr)
-        sys.exit(1)
+        sys.exit(2)
     except Exception as e:
         print(f"Error in typecheck-on-stop hook: {e}", file=sys.stderr)
-        sys.exit(1)
+        sys.exit(2)
 
 if __name__ == '__main__':
     main()
