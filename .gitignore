@@ -8,3 +8,4 @@ worktree
 web/.kube/
 .k3s-vm/
 .k3s-vm-images/
+__pycache__
