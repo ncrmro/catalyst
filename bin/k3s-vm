@@ -1,732 +1,595 @@
-#!/usr/bin/env bash
-# K3s VM Management - Main Script
-# Manage local K3s development VM lifecycle
+#!/usr/bin/env python3
+"""
+K3s VM Management Script (NixOS-native)
 
-set -euo pipefail
+Creates a local K3s development VM using NixOS configuration and QEMU.
+Zero external dependencies beyond Nix.
+"""
 
-# Get script directory and source library
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=bin/k3s-vm-lib.sh
-source "$SCRIPT_DIR/k3s-vm-lib.sh"
-
-# ============================================================================
-# Help and Usage
-# ============================================================================
-
-show_help() {
-    cat <<EOF
-K3s VM Management
-
-Usage: bin/k3s-vm <subcommand> [options]
-
-Subcommands:
-  setup      Create and initialize a new K3s VM
-  start      Start a stopped K3s VM
-  stop       Gracefully stop a running K3s VM
-  status     Display VM and K3s cluster status
-  reset      Destroy VM and remove all associated resources
-
-Global Options:
-  -h, --help     Show this help message
-  -v, --verbose  Enable verbose output
-  --debug        Enable debug logging
-  --version      Show script version
-
-Environment Variables:
-  VM_NAME        Override default VM name
-  DEBUG          Enable debug output (same as --debug)
-  LOG_FILE       Path to log file (default: /tmp/k3s-vm.log)
-
-Examples:
-  bin/k3s-vm setup                    Create K3s VM with defaults
-  bin/k3s-vm setup --cpus 4 --memory 8192
-  bin/k3s-vm start                    Start the VM
-  bin/k3s-vm stop                     Stop the VM gracefully
-  bin/k3s-vm stop --force             Force stop the VM
-  bin/k3s-vm status                   Check VM status
-  bin/k3s-vm status --verbose         Detailed status
-  bin/k3s-vm reset                    Remove VM (with confirmation)
-  bin/k3s-vm reset --yes              Remove VM (no confirmation)
-
-For more information, see: specs/002-local-k3s-vm/quickstart.md
-EOF
-}
-
-show_version() {
-    echo "k3s-vm version 1.0.0"
-    echo "Local K3s Development VM Management"
-}
+import argparse
+import os
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
 
 # ============================================================================
-# Placeholder Subcommand Functions (Will be implemented in later phases)
+# Configuration
 # ============================================================================
 
-cmd_setup() {
-    # Parse options
-    local cpus="${VM_CPUS:-$DEFAULT_VM_CPUS}"
-    local memory="${VM_MEMORY:-$DEFAULT_VM_MEMORY}"
-    local disk="${VM_DISK:-$DEFAULT_VM_DISK}"
-
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --cpus)
-                cpus="$2"
-                shift 2
-                ;;
-            --memory)
-                memory="$2"
-                shift 2
-                ;;
-            --disk)
-                disk="$2"
-                shift 2
-                ;;
-            -h|--help)
-                cat <<EOF
-Usage: bin/k3s-vm setup [options]
-
-Create and initialize a new K3s VM
-
-Options:
-  --cpus N       Number of CPU cores (default: 2)
-  --memory MB    Memory in MB (default: 4096)
-  --disk GB      Disk size in GB (default: 20)
-  -h, --help     Show this help message
-
-Examples:
-  bin/k3s-vm setup                      # Use defaults
-  bin/k3s-vm setup --cpus 4 --memory 8192 --disk 40
-
-This command will:
-1. Validate dependencies
-2. Download Ubuntu cloud image if needed
-3. Create VM with specified resources
-4. Install K3s inside the VM
-5. Extract kubeconfig to web/.kube/config
-
-Estimated time: <5 minutes
-EOF
-                return 0
-                ;;
-            *)
-                error "Unknown option: $1"
-                return 1
-                ;;
-        esac
-    done
-
-    # Load configuration
-    load_config
-
-    # Override with command-line arguments
-    VM_CPUS="$cpus"
-    VM_MEMORY="$memory"
-    VM_DISK="$disk"
-
-    info "Starting K3s VM setup..."
-    info "VM Name: $VM_NAME"
-    info "Resources: $VM_CPUS CPUs, $VM_MEMORY MB RAM, $VM_DISK GB disk"
-
-    # Step 1: Validate dependencies (T017)
-    echo "✓ Validating dependencies..."
-    if ! validate_dependencies; then
-        return 1
-    fi
-    echo "✓ Dependencies validated"
-
-    # Step 2: Check if VM already exists (T017)
-    if vm_exists "$VM_NAME"; then
-        error "VM '$VM_NAME' already exists"
-        echo "Run 'bin/k3s-vm reset' to remove it first"
-        return 1
-    fi
-
-    # Step 3: Ensure SSH key exists (T015)
-    echo "✓ Checking SSH key..."
-    if ! ensure_ssh_key; then
-        return 1
-    fi
-
-    # Step 4: Create VM image (T014, T018)
-    echo "✓ Creating VM disk image..."
-    local vm_image
-    if ! vm_image="$(create_vm_image "$VM_NAME" "$VM_DISK")"; then
-        return 1
-    fi
-
-    # Step 5: Generate cloud-init ISO (T016, T018)
-    echo "✓ Generating cloud-init configuration..."
-    local cloud_init_iso
-    if ! cloud_init_iso="$(generate_cloud_init_iso "$VM_NAME")"; then
-        return 1
-    fi
-
-    # Step 6: Create VM using virt-install (T018)
-    echo "✓ Creating VM (this may take a few minutes)..."
-    virt-install \
-        --connect qemu:///system \
-        --name "$VM_NAME" \
-        --ram "$VM_MEMORY" \
-        --vcpus "$VM_CPUS" \
-        --disk path="$vm_image",format=qcow2 \
-        --disk path="$cloud_init_iso",device=cdrom \
-        --os-variant ubuntu22.04 \
-        --network network=default \
-        --graphics none \
-        --import \
-        --noautoconsole || {
-        error "Failed to create VM"
-        return 1
-    }
-
-    # Step 7: Wait for VM to boot and be SSH accessible (T019)
-    echo "✓ Waiting for VM to boot..."
-    sleep 15  # Give VM time to start
-
-    # Get VM IP
-    local vm_ip
-    local retries=30
-    while [[ $retries -gt 0 ]]; do
-        vm_ip="$(get_vm_ip "$VM_NAME")"
-        if [[ -n "$vm_ip" ]]; then
-            break
-        fi
-        sleep 5
-        ((retries--))
-    done
-
-    if [[ -z "$vm_ip" ]]; then
-        error "Failed to get VM IP address"
-        return 1
-    fi
-
-    info "VM IP: $vm_ip"
-
-    # Wait for SSH to be ready
-    if ! wait_for_vm_ssh "$vm_ip" 300; then
-        error "VM boot timeout"
-        return 1
-    fi
-
-    # Step 8: Wait for K3s to be ready (T020)
-    echo "✓ Waiting for K3s installation to complete..."
-    sleep 30  # Give K3s time to install
-
-    # Step 9: Extract kubeconfig (T021)
-    echo "✓ Extracting kubeconfig..."
-    mkdir -p "$KUBECONFIG_DIR"
-
-    if ! ssh -o StrictHostKeyChecking=no "ubuntu@$vm_ip" "sudo cat /etc/rancher/k3s/k3s.yaml" > "$KUBECONFIG_FILE" 2>/dev/null; then
-        error "Failed to extract kubeconfig from VM"
-        return 1
-    fi
-
-    # Step 10: Update kubeconfig server URL (T022)
-    echo "✓ Updating kubeconfig server URL..."
-    sed -i "s/127.0.0.1/$vm_ip/g" "$KUBECONFIG_FILE"
-
-    # Step 11: Verify K3s API is responding (T020)
-    if ! check_k3s_api 60; then
-        error "K3s API did not become ready"
-        return 1
-    fi
-
-    # Step 12: Save configuration
-    save_config
-
-    # Success!
-    echo ""
-    echo "✓ K3s VM setup complete!"
-    echo ""
-    echo "VM IP: $vm_ip"
-    echo "Kubeconfig: $KUBECONFIG_FILE"
-    echo ""
-    echo "Try: bin/kubectl get nodes"
-}
-
-cmd_start() {
-    # Parse options
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            -h|--help)
-                cat <<EOF
-Usage: bin/k3s-vm start
-
-Start a stopped K3s VM
-
-This command will:
-1. Check if VM exists
-2. Start the VM if stopped
-3. Wait for VM to be accessible
-4. Verify K3s API is responding
-
-Estimated time: <30 seconds
-EOF
-                return 0
-                ;;
-            *)
-                error "Unknown option: $1"
-                return 1
-                ;;
-        esac
-    done
-
-    # Load configuration
-    load_config
-
-    info "Starting K3s VM..."
-
-    # Check if VM exists
-    if ! vm_exists "$VM_NAME"; then
-        error "VM '$VM_NAME' not found"
-        echo "Run 'bin/k3s-vm setup' first"
-        return 1
-    fi
-
-    # Check if already running
-    if is_vm_running "$VM_NAME"; then
-        error "VM '$VM_NAME' is already running"
-        return 1
-    fi
-
-    # Start the VM
-    echo "✓ Starting VM '$VM_NAME'..."
-    virsh -c qemu:///system start "$VM_NAME" || {
-        error "Failed to start VM"
-        return 1
-    }
-
-    # Wait for VM to get IP
-    echo "✓ Waiting for VM to boot..."
-    sleep 10
-
-    local vm_ip
-    local retries=30
-    while [[ $retries -gt 0 ]]; do
-        vm_ip="$(get_vm_ip "$VM_NAME")"
-        if [[ -n "$vm_ip" ]]; then
-            break
-        fi
-        sleep 2
-        ((retries--))
-    done
-
-    if [[ -z "$vm_ip" ]]; then
-        error "Failed to get VM IP address"
-        return 1
-    fi
-
-    # Wait for SSH to be accessible
-    if ! wait_for_vm_ssh "$vm_ip" 30; then
-        error "VM did not become accessible"
-        return 1
-    fi
-
-    # Wait for K3s API to respond
-    if ! check_k3s_api 30; then
-        error "K3s API did not become ready"
-        return 1
-    fi
-
-    echo ""
-    echo "✓ VM started successfully"
-    echo "✓ K3s API is responding"
-    echo ""
-    echo "VM IP: $vm_ip"
-    echo ""
-    echo "Try: bin/kubectl get nodes"
-}
-
-cmd_stop() {
-    # Parse options
-    local force=0
-
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --force)
-                force=1
-                shift
-                ;;
-            -h|--help)
-                cat <<EOF
-Usage: bin/k3s-vm stop [--force]
-
-Gracefully stop a running K3s VM
-
-Options:
-  --force    Force shutdown (destroy) instead of graceful shutdown
-
-This command will:
-1. Check if VM exists and is running
-2. Stop the VM gracefully (or force if --force)
-3. Wait for VM to stop
-
-Estimated time: <30 seconds
-EOF
-                return 0
-                ;;
-            *)
-                error "Unknown option: $1"
-                return 1
-                ;;
-        esac
-    done
-
-    # Load configuration
-    load_config
-
-    info "Stopping K3s VM..."
-
-    # Check if VM exists
-    if ! vm_exists "$VM_NAME"; then
-        error "VM '$VM_NAME' not found"
-        echo "Run 'bin/k3s-vm setup' first"
-        return 1
-    fi
-
-    # Check if already stopped
-    if ! is_vm_running "$VM_NAME"; then
-        error "VM '$VM_NAME' is already stopped"
-        return 1
-    fi
-
-    # Stop the VM
-    if [[ $force -eq 1 ]]; then
-        echo "✓ Force stopping VM '$VM_NAME'..."
-        virsh -c qemu:///system destroy "$VM_NAME" || {
-            error "Failed to force stop VM"
-            return 1
-        }
-    else
-        echo "✓ Gracefully stopping VM '$VM_NAME'..."
-        virsh -c qemu:///system shutdown "$VM_NAME" || {
-            error "Failed to stop VM"
-            return 1
-        }
-
-        # Wait for VM to stop (timeout: 60 seconds)
-        local timeout=60
-        local elapsed=0
-        while [[ $elapsed -lt $timeout ]]; do
-            if ! is_vm_running "$VM_NAME"; then
-                break
-            fi
-            sleep 2
-            ((elapsed += 2))
-        done
-
-        # Check if still running after timeout
-        if is_vm_running "$VM_NAME"; then
-            echo ""
-            echo "WARNING: VM stop timed out after ${timeout} seconds"
-            echo "Use 'bin/k3s-vm stop --force' to force shutdown"
-            return 1
-        fi
-    fi
-
-    echo ""
-    echo "✓ VM stopped successfully"
-    echo ""
-    echo "Run 'bin/k3s-vm start' to restart"
-}
-
-cmd_status() {
-    # Parse options
-    local verbose=0
-
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --verbose|-v)
-                verbose=1
-                shift
-                ;;
-            -h|--help)
-                cat <<EOF
-Usage: bin/k3s-vm status [--verbose]
-
-Display VM and K3s cluster status
-
-Options:
-  --verbose, -v  Show detailed VM information
-
-This command shows:
-- VM state (running, stopped, not found)
-- VM resources (CPUs, memory, disk)
-- K3s cluster health (if running)
-- K3s version and node count (if running)
-- Kubeconfig path
-EOF
-                return 0
-                ;;
-            *)
-                error "Unknown option: $1"
-                return 1
-                ;;
-        esac
-    done
-
-    # Load configuration
-    load_config
-
-    # Get VM state
-    local state
-    state="$(get_vm_state "$VM_NAME")"
-
-    echo "K3s VM Status:"
-    echo "  Name: $VM_NAME"
-    echo "  State: $state"
-    echo ""
-
-    # VM not found
-    if [[ "$state" == "undefined" ]]; then
-        echo "Run 'bin/k3s-vm setup' to create the VM"
-        return 0
-    fi
-
-    # Show resource information
-    echo "  CPUs: $VM_CPUS"
-    echo "  Memory: $VM_MEMORY MB"
-    echo "  Disk: $VM_DISK GB"
-    echo ""
-
-    # If running, show cluster information
-    if [[ "$state" == "running" ]]; then
-        local vm_ip
-        vm_ip="$(get_vm_ip "$VM_NAME")"
-
-        if [[ -n "$vm_ip" ]]; then
-            echo "  IP: $vm_ip"
-            echo ""
-        fi
-
-        # Check K3s cluster health
-        echo "K3s Cluster:"
-
-        if [[ -f "$KUBECONFIG_FILE" ]]; then
-            # Try to get cluster info
-            export KUBECONFIG="$KUBECONFIG_FILE"
-
-            if kubectl cluster-info &>/dev/null; then
-                echo "  API: ✓ responding"
-
-                # Get K3s version
-                local k3s_version
-                k3s_version="$(get_k3s_version)"
-                echo "  Version: $k3s_version"
-
-                # Get node count
-                local node_count
-                node_count="$(get_k3s_node_count)"
-                echo "  Nodes: $node_count ready"
-            else
-                echo "  API: ✗ not responding"
-            fi
-        else
-            echo "  Kubeconfig: not found"
-        fi
-
-        echo ""
-        echo "Kubeconfig: $KUBECONFIG_FILE"
-
-        # Verbose output
-        if [[ $verbose -eq 1 ]]; then
-            echo ""
-            echo "VM Details:"
-
-            # Get UUID
-            local uuid
-            uuid="$(virsh -c qemu:///system domuuid "$VM_NAME" 2>/dev/null || echo "unknown")"
-            echo "  UUID: $uuid"
-
-            # Get disk image path and usage
-            local disk_image="$SCRIPT_DIR/../.k3s-vm-images/$VM_NAME.qcow2"
-
-            if [[ -f "$disk_image" ]]; then
-                echo "  Disk image: $disk_image"
-
-                # Get disk usage
-                local disk_usage
-                disk_usage="$(qemu-img info "$disk_image" 2>/dev/null | grep 'virtual size' | awk '{print $3, $4}' || echo 'unknown')"
-                echo "  Disk usage: $disk_usage"
-            fi
-
-            # Network information
-            echo ""
-            echo "Network:"
-            echo "  Interface: default (NAT)"
-
-            if [[ -n "$vm_ip" ]]; then
-                echo "  IP: $vm_ip"
-
-                # Get MAC address
-                local mac
-                mac="$(virsh -c qemu:///system domiflist "$VM_NAME" 2>/dev/null | grep -v '^Interface' | grep -v '^-' | awk '{print $5}' || echo 'unknown')"
-                if [[ -n "$mac" && "$mac" != "unknown" ]]; then
-                    echo "  MAC: $mac"
-                fi
-            fi
-        fi
-    else
-        # VM is stopped
-        echo "Run 'bin/k3s-vm start' to start the VM"
-    fi
-}
-
-cmd_reset() {
-    # Parse options
-    local skip_confirm=0
-
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --yes|-y)
-                skip_confirm=1
-                shift
-                ;;
-            -h|--help)
-                cat <<EOF
-Usage: bin/k3s-vm reset [--yes]
-
-Destroy VM and remove all associated resources
-
-Options:
-  --yes, -y  Skip confirmation prompt
-
-This command will:
-1. Stop VM if running
-2. Remove VM definition from libvirt
-3. Delete VM disk image
-4. Remove kubeconfig file
-5. Preserve .k3s-vm/config for potential recreation
-
-WARNING: This is a destructive operation that cannot be undone.
-All cluster data and deployments will be lost.
-EOF
-                return 0
-                ;;
-            *)
-                error "Unknown option: $1"
-                return 1
-                ;;
-        esac
-    done
-
-    # Load configuration
-    load_config
-
-    # Check if VM exists
-    if ! vm_exists "$VM_NAME"; then
-        error "VM '$VM_NAME' not found"
-        echo "Nothing to reset"
-        return 0
-    fi
-
-    # Confirmation prompt
-    if [[ $skip_confirm -eq 0 ]]; then
-        echo "WARNING: This will permanently delete the VM and all K3s cluster data"
-        echo ""
-        read -r -p "Are you sure you want to reset the K3s VM? (yes/no): " confirm
-
-        if [[ "$confirm" != "yes" ]]; then
-            echo "Reset cancelled"
-            return 0
-        fi
-    fi
-
-    info "Resetting K3s VM..."
-
-    # Stop VM if running
-    if is_vm_running "$VM_NAME"; then
-        echo "✓ Stopping VM..."
-        virsh -c qemu:///system destroy "$VM_NAME" 2>/dev/null || true
-        sleep 2
-    fi
-
-    # Remove VM definition (without --remove-all-storage since we manage disks locally)
-    echo "✓ Removing VM definition..."
-    virsh -c qemu:///system undefine "$VM_NAME" || {
-        error "Failed to remove VM definition"
-        echo "You may need to manually remove the VM with:"
-        echo "  virsh -c qemu:///system undefine $VM_NAME"
-        return 1
-    }
-
-    # Remove local disk image
-    local disk_image="$SCRIPT_DIR/../.k3s-vm-images/$VM_NAME.qcow2"
-    if [[ -f "$disk_image" ]]; then
-        echo "✓ Removing VM disk image..."
-        rm -f "$disk_image"
-    fi
-
-    # Remove cloud-init ISO
-    local cloud_init_iso="$SCRIPT_DIR/../.k3s-vm-images/$VM_NAME-cloud-init.iso"
-    if [[ -f "$cloud_init_iso" ]]; then
-        echo "✓ Removing cloud-init ISO..."
-        rm -f "$cloud_init_iso"
-    fi
+SCRIPT_DIR = Path(__file__).parent.resolve()
+PROJECT_ROOT = SCRIPT_DIR.parent
+
+# Paths
+CONFIG_DIR = PROJECT_ROOT / ".k3s-vm"
+VM_DIR = CONFIG_DIR / "vm"
+KUBECONFIG_DIR = PROJECT_ROOT / "web" / ".kube"
+KUBECONFIG_FILE = KUBECONFIG_DIR / "config"
+PID_FILE = CONFIG_DIR / "vm.pid"
+
+# VM settings
+DEFAULT_VM_MEMORY = 4096
+DEFAULT_VM_CORES = 2
+
+# NixOS configuration template for K3s VM
+NIXOS_CONFIG_TEMPLATE = '''
+{{ config, pkgs, lib, ... }}:
+{{
+  # Boot configuration for VM
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.efi.canTouchEfiVariables = true;
+
+  # Networking
+  networking.hostName = "k3s-vm";
+  networking.firewall.enable = false;
+
+  # Enable SSH
+  services.openssh = {{
+    enable = true;
+    settings.PermitRootLogin = "yes";
+  }};
+
+  # K3s service
+  services.k3s = {{
+    enable = true;
+    role = "server";
+    extraFlags = toString [
+      "--disable=traefik"
+      "--write-kubeconfig-mode=644"
+    ];
+  }};
+
+  # Root user with SSH key
+  users.users.root = {{
+    openssh.authorizedKeys.keys = [
+      "{ssh_public_key}"
+    ];
+  }};
+
+  # Useful packages
+  environment.systemPackages = with pkgs; [
+    kubectl
+    k9s
+    vim
+    curl
+    htop
+  ];
+
+  # Auto-login for console access (optional, for debugging)
+  services.getty.autologinUser = "root";
+
+  # VM-specific settings
+  virtualisation.vmVariant = {{
+    virtualisation.memorySize = {memory};
+    virtualisation.cores = {cores};
+    virtualisation.graphics = false;
+
+    # Forward ports for K3s API and SSH
+    virtualisation.forwardPorts = [
+      {{ from = "host"; host.port = 6443; guest.port = 6443; }}
+      {{ from = "host"; host.port = 2222; guest.port = 22; }}
+    ];
+  }};
+
+  system.stateVersion = "24.05";
+}}
+'''
+
+
+def run(cmd: list[str], check: bool = True, capture: bool = False, **kwargs) -> subprocess.CompletedProcess:
+    """Run a command and return result."""
+    if capture:
+        kwargs.setdefault("stdout", subprocess.PIPE)
+        kwargs.setdefault("stderr", subprocess.PIPE)
+        kwargs.setdefault("text", True)
+    return subprocess.run(cmd, check=check, **kwargs)
+
+
+def error(msg: str) -> None:
+    """Print error and exit."""
+    print(f"ERROR: {msg}", file=sys.stderr)
+    sys.exit(1)
+
+
+def info(msg: str) -> None:
+    """Print info message."""
+    print(f"  {msg}")
+
+
+def debug(msg: str) -> None:
+    """Print debug message (only if verbose)."""
+    # Silent by default, can be enabled with environment variable
+    if os.environ.get("K3S_VM_DEBUG"):
+        print(f"  [debug] {msg}")
+
+
+def get_ssh_public_key() -> str:
+    """Get or generate SSH public key."""
+    ssh_key = Path.home() / ".ssh" / "id_rsa"
+    ssh_pub = ssh_key.with_suffix(".pub")
+
+    if not ssh_pub.exists():
+        if not ssh_key.parent.exists():
+            ssh_key.parent.mkdir(mode=0o700)
+        print("Generating SSH key...")
+        run(["ssh-keygen", "-t", "rsa", "-b", "4096", "-N", "", "-f", str(ssh_key)])
+
+    return ssh_pub.read_text().strip()
+
+
+def is_vm_running() -> bool:
+    """Check if VM process is running."""
+    if not PID_FILE.exists():
+        return False
+
+    try:
+        pid = int(PID_FILE.read_text().strip())
+        os.kill(pid, 0)  # Check if process exists
+        return True
+    except (ProcessLookupError, ValueError):
+        PID_FILE.unlink(missing_ok=True)
+        return False
+
+
+def get_vm_pid() -> int | None:
+    """Get VM process PID."""
+    if not PID_FILE.exists():
+        return None
+    try:
+        return int(PID_FILE.read_text().strip())
+    except ValueError:
+        return None
+
+
+def wait_for_ssh(timeout: int = 120) -> bool:
+    """Wait for SSH to become available."""
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            result = run(
+                ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5",
+                 "-o", "BatchMode=yes", "-p", "2222", "root@localhost", "true"],
+                capture=True, check=False
+            )
+            if result.returncode == 0:
+                return True
+        except Exception:
+            pass
+        time.sleep(2)
+    return False
+
+
+def wait_for_k3s(timeout: int = 120) -> bool:
+    """Wait for K3s API to become available."""
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            result = run(
+                ["ssh", "-o", "StrictHostKeyChecking=no", "-p", "2222",
+                 "root@localhost", "kubectl get nodes"],
+                capture=True, check=False
+            )
+            if result.returncode == 0 and "Ready" in result.stdout:
+                return True
+        except Exception:
+            pass
+        time.sleep(3)
+    return False
+
+
+def extract_kubeconfig() -> bool:
+    """Extract kubeconfig from VM and update .env for integration tests."""
+    try:
+        result = run(
+            ["ssh", "-o", "StrictHostKeyChecking=no", "-p", "2222",
+             "root@localhost", "cat /etc/rancher/k3s/k3s.yaml"],
+            capture=True
+        )
+
+        # Replace localhost with 127.0.0.1:6443 (forwarded port)
+        kubeconfig = result.stdout.replace("127.0.0.1:6443", "127.0.0.1:6443")
+        kubeconfig = kubeconfig.replace("https://127.0.0.1", "https://127.0.0.1")
+
+        KUBECONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        KUBECONFIG_FILE.write_text(kubeconfig)
+
+        # Also update .env with base64-encoded JSON kubeconfig for integration tests
+        update_env_kubeconfig(kubeconfig)
+
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+
+def update_env_kubeconfig(kubeconfig_yaml: str) -> None:
+    """Update KUBECONFIG_PRIMARY in web/.env with base64-encoded JSON."""
+    import base64
+    import json
+    import re
+
+    env_file = PROJECT_ROOT / "web" / ".env"
+    if not env_file.exists():
+        return
+
+    # Convert YAML to JSON using node (available in web directory)
+    try:
+        result = run(
+            ["node", "-e", f"""
+const yaml = require('yaml');
+const kubeconfig = yaml.parse({json.dumps(kubeconfig_yaml)});
+console.log(JSON.stringify(kubeconfig));
+"""],
+            capture=True,
+            cwd=PROJECT_ROOT / "web"
+        )
+        kubeconfig_json = result.stdout.strip()
+        kubeconfig_b64 = base64.b64encode(kubeconfig_json.encode()).decode()
+
+        # Update .env file
+        env_content = env_file.read_text()
+        if "KUBECONFIG_PRIMARY=" in env_content:
+            env_content = re.sub(
+                r'^KUBECONFIG_PRIMARY=.*$',
+                f'KUBECONFIG_PRIMARY={kubeconfig_b64}',
+                env_content,
+                flags=re.MULTILINE
+            )
+            env_file.write_text(env_content)
+            info("Updated KUBECONFIG_PRIMARY in web/.env")
+    except Exception as e:
+        # Non-fatal: .env update is optional
+        debug(f"Could not update .env: {e}")
+
+
+# ============================================================================
+# Commands
+# ============================================================================
+
+def cmd_setup(args: argparse.Namespace) -> None:
+    """Build and start the K3s VM."""
+    memory = args.memory or DEFAULT_VM_MEMORY
+    cores = args.cpus or DEFAULT_VM_CORES
+
+    if is_vm_running():
+        error("VM is already running. Use 'bin/k3s-vm stop' first.")
+
+    print(f"Setting up K3s VM (NixOS)")
+    print(f"  Memory: {memory}MB, Cores: {cores}")
+    print()
+
+    # Create config directory
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    VM_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Get SSH key
+    ssh_key = get_ssh_public_key()
+    info("SSH key ready")
+
+    # Write NixOS configuration
+    config_file = VM_DIR / "configuration.nix"
+    config_content = NIXOS_CONFIG_TEMPLATE.format(
+        ssh_public_key=ssh_key,
+        memory=memory,
+        cores=cores
+    )
+    config_file.write_text(config_content)
+    info("NixOS configuration written")
+
+    # Build the VM
+    print("  Building NixOS VM (this may take a few minutes on first run)...")
+    try:
+        run(
+            ["nix-build", "<nixpkgs/nixos>", "-A", "vm",
+             "-I", "nixpkgs=channel:nixos-24.05",
+             "-I", f"nixos-config={config_file}",
+             "-o", str(VM_DIR / "result")],
+            cwd=VM_DIR
+        )
+    except subprocess.CalledProcessError:
+        error("Failed to build NixOS VM")
+
+    info("VM built successfully")
+
+    # Remove old disk image to ensure fresh state
+    disk_image = VM_DIR / "nixos.qcow2"
+    disk_image.unlink(missing_ok=True)
+
+    # Start the VM in background
+    print("  Starting VM...")
+    # Find the run script (name is based on hostname: run-{hostname}-vm)
+    bin_dir = VM_DIR / "result" / "bin"
+    vm_scripts = list(bin_dir.glob("run-*-vm"))
+    if not vm_scripts:
+        error("VM run script not found in result/bin/")
+    vm_script = vm_scripts[0]
+
+    env = os.environ.copy()
+    env["QEMU_KERNEL_PARAMS"] = "console=ttyS0"
+
+    # Start VM process
+    proc = subprocess.Popen(
+        [str(vm_script), "-nographic"],
+        cwd=VM_DIR,
+        env=env,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True
+    )
+
+    PID_FILE.write_text(str(proc.pid))
+    info(f"VM started (PID: {proc.pid})")
+
+    # Wait for SSH
+    print("  Waiting for VM to boot...")
+    if not wait_for_ssh(180):
+        error("Timeout waiting for SSH. Check VM logs.")
+    info("SSH available")
+
+    # Wait for K3s
+    print("  Waiting for K3s to be ready...")
+    if not wait_for_k3s(180):
+        error("Timeout waiting for K3s. Check VM logs.")
+    info("K3s ready")
+
+    # Extract kubeconfig
+    print("  Extracting kubeconfig...")
+    if not extract_kubeconfig():
+        error("Failed to extract kubeconfig")
+    info(f"Kubeconfig saved to {KUBECONFIG_FILE}")
+
+    print()
+    print("=" * 50)
+    print("K3s VM setup complete!")
+    print()
+    print(f"  SSH:        ssh -p 2222 root@localhost")
+    print(f"  K3s API:    https://127.0.0.1:6443")
+    print(f"  Kubeconfig: {KUBECONFIG_FILE}")
+    print()
+    print("Try: bin/kubectl get nodes")
+
+
+def cmd_start(args: argparse.Namespace) -> None:
+    """Start the VM."""
+    if is_vm_running():
+        error("VM is already running.")
+
+    bin_dir = VM_DIR / "result" / "bin"
+    if not bin_dir.exists():
+        error("VM not built. Run 'bin/k3s-vm setup' first.")
+
+    vm_scripts = list(bin_dir.glob("run-*-vm"))
+    if not vm_scripts:
+        error("VM run script not found. Run 'bin/k3s-vm setup' first.")
+    vm_script = vm_scripts[0]
+
+    print("Starting VM...")
+
+    env = os.environ.copy()
+    env["QEMU_KERNEL_PARAMS"] = "console=ttyS0"
+
+    proc = subprocess.Popen(
+        [str(vm_script), "-nographic"],
+        cwd=VM_DIR,
+        env=env,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True
+    )
+
+    PID_FILE.write_text(str(proc.pid))
+    info(f"VM started (PID: {proc.pid})")
+
+    print("  Waiting for SSH...")
+    if not wait_for_ssh(120):
+        error("Timeout waiting for SSH")
+    info("SSH available")
+
+    print("  Waiting for K3s...")
+    if not wait_for_k3s(60):
+        print("  Warning: K3s not ready yet, may need more time")
+    else:
+        info("K3s ready")
+
+    # Extract kubeconfig (updates web/.kube/config and KUBECONFIG_PRIMARY in .env)
+    if extract_kubeconfig():
+        info(f"Kubeconfig saved to {KUBECONFIG_FILE}")
+
+    print()
+    print("VM started. Try: bin/kubectl get nodes")
+
+
+def cmd_stop(args: argparse.Namespace) -> None:
+    """Stop the VM."""
+    if not is_vm_running():
+        error("VM is not running.")
+
+    pid = get_vm_pid()
+    if pid:
+        print(f"Stopping VM (PID: {pid})...")
+        try:
+            os.kill(pid, signal.SIGTERM)
+            # Wait for process to terminate
+            for _ in range(30):
+                try:
+                    os.kill(pid, 0)
+                    time.sleep(1)
+                except ProcessLookupError:
+                    break
+            else:
+                # Force kill if still running
+                os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+
+        PID_FILE.unlink(missing_ok=True)
+        print("VM stopped.")
+    else:
+        error("Could not find VM process.")
+
+
+def cmd_status(args: argparse.Namespace) -> None:
+    """Show VM status."""
+    print("K3s VM Status (NixOS)")
+    print()
+
+    if is_vm_running():
+        pid = get_vm_pid()
+        print(f"  State: running (PID: {pid})")
+        print(f"  SSH:   ssh -p 2222 root@localhost")
+        print(f"  API:   https://127.0.0.1:6443")
+
+        # Check K3s status
+        try:
+            result = run(
+                ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5",
+                 "-p", "2222", "root@localhost", "kubectl get nodes --no-headers"],
+                capture=True, check=False
+            )
+            if result.returncode == 0:
+                nodes = len([l for l in result.stdout.strip().split("\n") if l])
+                print(f"  Nodes: {nodes} ready")
+        except Exception:
+            print("  K3s:   checking...")
+
+        if KUBECONFIG_FILE.exists():
+            print(f"\n  Kubeconfig: {KUBECONFIG_FILE}")
+    else:
+        bin_dir = VM_DIR / "result" / "bin"
+        if bin_dir.exists() and list(bin_dir.glob("run-*-vm")):
+            print("  State: stopped (VM built)")
+            print("\n  Run 'bin/k3s-vm start' to start")
+        else:
+            print("  State: not configured")
+            print("\n  Run 'bin/k3s-vm setup' to create VM")
+
+
+def cmd_reset(args: argparse.Namespace) -> None:
+    """Reset/destroy the VM."""
+    if not args.yes:
+        print("WARNING: This will delete the VM and all data.")
+        response = input("Are you sure? (yes/no): ")
+        if response.lower() != "yes":
+            print("Cancelled.")
+            return
+
+    print("Resetting VM...")
+
+    # Stop if running
+    if is_vm_running():
+        info("Stopping VM...")
+        pid = get_vm_pid()
+        if pid:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        PID_FILE.unlink(missing_ok=True)
+
+    # Remove VM directory contents
+    if VM_DIR.exists():
+        info("Removing VM files...")
+        import shutil
+        shutil.rmtree(VM_DIR, ignore_errors=True)
 
     # Remove kubeconfig
-    if [[ -f "$KUBECONFIG_FILE" ]]; then
-        echo "✓ Removing kubeconfig..."
-        rm -f "$KUBECONFIG_FILE"
-    fi
+    if KUBECONFIG_FILE.exists():
+        info("Removing kubeconfig...")
+        KUBECONFIG_FILE.unlink()
 
-    # Note: We preserve .k3s-vm/config for potential recreation
-    # Note: We preserve .k3s-vm-images/ubuntu-*-cloudimg-*.img (base image for reuse)
+    print()
+    print("Reset complete.")
+    print("Run 'bin/k3s-vm setup' to create a new VM.")
 
-    echo ""
-    echo "✓ Reset complete"
-    echo ""
-    echo "Configuration preserved in: $CONFIG_DIR/"
-    echo "Base cloud image preserved for reuse"
-    echo "Run 'bin/k3s-vm setup' to create a new VM"
-}
+
+def cmd_ssh(args: argparse.Namespace) -> None:
+    """SSH into the VM."""
+    if not is_vm_running():
+        error("VM is not running. Start it with 'bin/k3s-vm start'")
+
+    os.execlp("ssh", "ssh", "-o", "StrictHostKeyChecking=no", "-p", "2222", "root@localhost")
+
 
 # ============================================================================
-# Main Dispatcher
+# Main
 # ============================================================================
 
-main() {
-    # Parse global options
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            -h|--help)
-                show_help
-                exit 0
-                ;;
-            --version)
-                show_version
-                exit 0
-                ;;
-            -v|--verbose)
-                export VERBOSE=1
-                shift
-                ;;
-            --debug)
-                export DEBUG=1
-                shift
-                ;;
-            setup|start|stop|status|reset)
-                # Found a subcommand, execute it
-                local subcommand="$1"
-                shift
-                "cmd_$subcommand" "$@"
-                exit $?
-                ;;
-            *)
-                error "Unknown option or subcommand: $1"
-                echo ""
-                show_help
-                exit 1
-                ;;
-        esac
-    done
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="K3s VM Management (NixOS-native)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  bin/k3s-vm setup              Build and start K3s VM
+  bin/k3s-vm start              Start existing VM
+  bin/k3s-vm stop               Stop VM
+  bin/k3s-vm status             Check VM status
+  bin/k3s-vm ssh                SSH into VM
+  bin/k3s-vm reset              Destroy VM
+""",
+    )
+    parser.add_argument("--version", action="version", version="k3s-vm 2.0.0 (NixOS)")
 
-    # No subcommand provided
-    error "No subcommand specified"
-    echo ""
-    show_help
-    exit 1
-}
+    subparsers = parser.add_subparsers(dest="command", help="Commands")
 
-# Execute main function
-main "$@"
+    # setup
+    p_setup = subparsers.add_parser("setup", help="Build and start K3s VM")
+    p_setup.add_argument("--cpus", type=int, help=f"CPU cores (default: {DEFAULT_VM_CORES})")
+    p_setup.add_argument("--memory", type=int, help=f"Memory in MB (default: {DEFAULT_VM_MEMORY})")
+
+    # start
+    subparsers.add_parser("start", help="Start existing VM")
+
+    # stop
+    subparsers.add_parser("stop", help="Stop VM")
+
+    # status
+    subparsers.add_parser("status", help="Show VM status")
+
+    # reset
+    p_reset = subparsers.add_parser("reset", help="Destroy VM")
+    p_reset.add_argument("--yes", "-y", action="store_true", help="Skip confirmation")
+
+    # ssh
+    subparsers.add_parser("ssh", help="SSH into VM")
+
+    args = parser.parse_args()
+
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+
+    commands = {
+        "setup": cmd_setup,
+        "start": cmd_start,
+        "stop": cmd_stop,
+        "status": cmd_status,
+        "reset": cmd_reset,
+        "ssh": cmd_ssh,
+    }
+
+    commands[args.command](args)
+
+
+if __name__ == "__main__":
+    main()

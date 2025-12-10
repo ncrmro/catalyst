@@ -12,11 +12,11 @@
 
 ### Session 2025-11-14
 
-- Q: What virtualization technology should be used for the K3s VM? → A: libvirt + virt-manager (NixOS-specific solution; kind in Docker doesn't work well on NixOS)
-- Q: What command-line interface pattern should be used for VM management operations? → A: Centralized bin/k3s-vm script with subcommands
-- Q: How should the system handle insufficient system resources when attempting to create or start the VM? → A: Attempt start and fail with error (let libvirt handle resource validation naturally)
-- Q: How should kubectl access to the K3s cluster be configured automatically? → A: Provide bin/kubectl and bin/k9s wrapper scripts that use local kubeconfig (no modification of global ~/.kube/config)
-- Q: What default resource allocations (CPU, memory, disk) should the K3s VM use? → A: 2 CPU cores, 4GB RAM, 20GB disk
+- Q: What virtualization technology should be used for the K3s VM? → A: NixOS-native VM creation with QEMU (nix-build + nixos-rebuild build-vm pattern)
+- Q: What command-line interface pattern should be used for VM management operations? → A: Centralized bin/k3s-vm Python script with subcommands
+- Q: How should the system handle insufficient system resources when attempting to create or start the VM? → A: Attempt start and fail with error (let QEMU handle resource validation naturally)
+- Q: How should kubectl access to the K3s cluster be configured automatically? → A: Provide bin/kubectl wrapper script that uses local kubeconfig (no modification of global ~/.kube/config)
+- Q: What default resource allocations (CPU, memory, disk) should the K3s VM use? → A: 2 CPU cores, 4GB RAM
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -104,7 +104,7 @@ A developer needs to clean up or completely reset their local K3s VM when troubl
 - **FR-005**: Users MUST be able to start, stop, and restart the K3s VM with simple commands (e.g., `bin/k3s-vm start`)
 - **FR-006**: System MUST provide clear status information about VM state (running, stopped, error) via `bin/k3s-vm status`
 - **FR-007**: System MUST allow complete VM cleanup and removal for troubleshooting or reset scenarios via `bin/k3s-vm reset`
-- **FR-008**: System MUST validate that required dependencies (libvirt, virt-manager, virsh) are installed before VM creation
+- **FR-008**: System MUST validate that required dependencies (Nix package manager) are installed before VM creation
 - **FR-009**: System MUST provide clear error messages with actionable guidance when setup or operations fail
 - **FR-010**: System MUST use default resource allocations of 2 CPU cores, 4GB RAM, and 20GB disk that work out-of-box, while allowing developers to optionally customize these settings for their specific needs or project requirements
 - **FR-011**: System MUST handle VM naming to prevent conflicts if multiple projects use local VMs
@@ -125,48 +125,47 @@ A developer needs to clean up or completely reset their local K3s VM when troubl
 
 ### Technology Stack
 
-- **Virtualization**: libvirt + virt-manager for VM management
-- **Kubernetes Distribution**: K3s (lightweight Kubernetes)
-- **VM Control Interface**: virsh CLI for VM lifecycle operations
+- **Virtualization**: NixOS-native VM creation using `nix-build '<nixpkgs/nixos>' -A vm` with QEMU
+- **Kubernetes Distribution**: K3s (lightweight Kubernetes) configured via NixOS services.k3s module
+- **VM Control Interface**: Python script managing QEMU process directly
+- **Port Forwarding**: QEMU user-mode networking with SSH (2222) and K3s API (6443) forwarded to host
 
 ### Default VM Configuration
 
 - **CPU**: 2 cores
 - **Memory**: 4GB RAM
-- **Disk**: 20GB
+- **Disk**: Ephemeral qcow2 overlay (state persists in k3s-vm.qcow2)
 - **Rationale**: These defaults provide comfortable headroom for K3s cluster operation plus test workloads while remaining accessible on typical development machines. K3s is designed for minimal hardware, but these allocations ensure good performance without monopolizing workstation resources.
 
 ### CLI Interface Design
 
-- **Primary Interface**: Centralized `bin/k3s-vm` shell script in project root
+- **Primary Interface**: Centralized `bin/k3s-vm` Python script in project root (zero external dependencies beyond Nix)
 - **Command Pattern**: Subcommand-based (e.g., `bin/k3s-vm start`, `bin/k3s-vm stop`, `bin/k3s-vm status`)
 - **Supported Subcommands**:
-  - `setup`: Initial VM creation and K3s installation
-  - `start`: Start an existing stopped VM
+  - `setup`: Build NixOS VM with K3s configuration
+  - `start`: Start VM and extract kubeconfig automatically
   - `stop`: Gracefully stop a running VM
   - `status`: Display VM and K3s cluster health status
-  - `reset`: Destroy VM and all associated resources
+  - `reset`: Destroy VM disk and rebuild
+  - `ssh`: SSH into the running VM
 - **Cluster Access Wrappers**:
   - `bin/kubectl`: Wrapper script that automatically sets KUBECONFIG to local K3s cluster config
-  - `bin/k9s`: Wrapper script that automatically sets KUBECONFIG to local K3s cluster config
-  - Local kubeconfig stored in project directory (e.g., `.kube/config` or `web/.kube/config`)
+  - Local kubeconfig stored in `web/.kube/config`
   - Global ~/.kube/config remains untouched and unaffected
 
 ## Integration & External Dependencies
 
 ### Required System Dependencies
 
-- libvirt daemon (must be running)
-- virt-manager (VM management library)
-- virsh CLI tool (for VM control operations)
+- Nix package manager (for NixOS VM builds)
+- KVM support (for hardware-accelerated virtualization)
 - kubectl (wrapped via bin/kubectl for local K3s cluster interaction)
-- k9s (optional; wrapped via bin/k9s for terminal-based cluster management UI)
 
 ### Failure Modes
 
-- libvirt daemon not running: Setup must detect and provide actionable error with start instructions
-- Insufficient system resources: libvirt will fail naturally during VM creation/start; native error messages passed through to developer
-- Network conflicts: Must detect port conflicts and suggest resolution
+- Nix not installed: Setup must detect and provide installation instructions
+- KVM not available: QEMU will fall back to software emulation (slower but functional)
+- Port conflicts: Must detect if ports 2222 or 6443 are in use
 
 ## Success Criteria _(mandatory)_
 
