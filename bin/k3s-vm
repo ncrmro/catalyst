@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-K3s VM Management Script
-Manage local K3s development VM lifecycle using libvirt/KVM.
+K3s VM Management Script (NixOS-native)
 
-Zero external dependencies - uses only Python standard library.
+Creates a local K3s development VM using NixOS configuration and QEMU.
+Zero external dependencies beyond Nix.
 """
 
 import argparse
 import os
+import signal
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path
 
@@ -21,30 +21,81 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).parent.resolve()
 PROJECT_ROOT = SCRIPT_DIR.parent
 
-# Default VM resources
-DEFAULT_VM_CPUS = 2
-DEFAULT_VM_MEMORY = 4096
-DEFAULT_VM_DISK = 20
-
 # Paths
 CONFIG_DIR = PROJECT_ROOT / ".k3s-vm"
-CONFIG_FILE = CONFIG_DIR / "config"
-IMAGES_DIR = PROJECT_ROOT / ".k3s-vm-images"
+VM_DIR = CONFIG_DIR / "vm"
 KUBECONFIG_DIR = PROJECT_ROOT / "web" / ".kube"
 KUBECONFIG_FILE = KUBECONFIG_DIR / "config"
+PID_FILE = CONFIG_DIR / "vm.pid"
 
-# Ubuntu cloud image
-UBUNTU_VERSION = "22.04"
-UBUNTU_IMAGE_URL = f"https://cloud-images.ubuntu.com/releases/{UBUNTU_VERSION}/release/ubuntu-{UBUNTU_VERSION}-server-cloudimg-amd64.img"
-UBUNTU_IMAGE_NAME = f"ubuntu-{UBUNTU_VERSION}-cloudimg-amd64.img"
+# VM settings
+DEFAULT_VM_MEMORY = 4096
+DEFAULT_VM_CORES = 2
 
-# Libvirt
-LIBVIRT_URI = "qemu:///system"
+# NixOS configuration template for K3s VM
+NIXOS_CONFIG_TEMPLATE = '''
+{{ config, pkgs, lib, ... }}:
+{{
+  # Boot configuration for VM
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.efi.canTouchEfiVariables = true;
 
+  # Networking
+  networking.hostName = "k3s-vm";
+  networking.firewall.enable = false;
 
-# ============================================================================
-# Utility Functions
-# ============================================================================
+  # Enable SSH
+  services.openssh = {{
+    enable = true;
+    settings.PermitRootLogin = "yes";
+  }};
+
+  # K3s service
+  services.k3s = {{
+    enable = true;
+    role = "server";
+    extraFlags = toString [
+      "--disable=traefik"
+      "--write-kubeconfig-mode=644"
+    ];
+  }};
+
+  # Root user with SSH key
+  users.users.root = {{
+    openssh.authorizedKeys.keys = [
+      "{ssh_public_key}"
+    ];
+  }};
+
+  # Useful packages
+  environment.systemPackages = with pkgs; [
+    kubectl
+    k9s
+    vim
+    curl
+    htop
+  ];
+
+  # Auto-login for console access (optional, for debugging)
+  services.getty.autologinUser = "root";
+
+  # VM-specific settings
+  virtualisation.vmVariant = {{
+    virtualisation.memorySize = {memory};
+    virtualisation.cores = {cores};
+    virtualisation.graphics = false;
+
+    # Forward ports for K3s API and SSH
+    virtualisation.forwardPorts = [
+      {{ from = "host"; host.port = 6443; guest.port = 6443; }}
+      {{ from = "host"; host.port = 2222; guest.port = 22; }}
+    ];
+  }};
+
+  system.stateVersion = "24.05";
+}}
+'''
+
 
 def run(cmd: list[str], check: bool = True, capture: bool = False, **kwargs) -> subprocess.CompletedProcess:
     """Run a command and return result."""
@@ -53,11 +104,6 @@ def run(cmd: list[str], check: bool = True, capture: bool = False, **kwargs) -> 
         kwargs.setdefault("stderr", subprocess.PIPE)
         kwargs.setdefault("text", True)
     return subprocess.run(cmd, check=check, **kwargs)
-
-
-def virsh(*args, capture: bool = True, check: bool = True) -> subprocess.CompletedProcess:
-    """Run virsh command."""
-    return run(["virsh", "-c", LIBVIRT_URI, *args], capture=capture, check=check)
 
 
 def error(msg: str) -> None:
@@ -71,245 +117,98 @@ def info(msg: str) -> None:
     print(f"  {msg}")
 
 
-def generate_vm_name() -> str:
-    """Generate VM name from project directory."""
-    project_name = PROJECT_ROOT.name.lower()
-    # Sanitize: keep only alphanumeric and dash
-    sanitized = "".join(c if c.isalnum() or c == "-" else "-" for c in project_name)
-    return f"catalyst-k3s-{sanitized}"
-
-
-# ============================================================================
-# VM State Functions
-# ============================================================================
-
-def get_vm_state(vm_name: str) -> str:
-    """Get VM state (running, shut off, undefined)."""
-    try:
-        result = virsh("domstate", vm_name)
-        return result.stdout.strip()
-    except subprocess.CalledProcessError:
-        return "undefined"
-
-
-def vm_exists(vm_name: str) -> bool:
-    """Check if VM exists."""
-    return get_vm_state(vm_name) != "undefined"
-
-
-def is_vm_running(vm_name: str) -> bool:
-    """Check if VM is running."""
-    return get_vm_state(vm_name) == "running"
-
-
-def get_vm_ip(vm_name: str) -> str | None:
-    """Get VM IP address from DHCP leases."""
-    try:
-        # Get MAC address
-        result = virsh("domiflist", vm_name)
-        lines = result.stdout.strip().split("\n")
-        mac = None
-        for line in lines:
-            parts = line.split()
-            if len(parts) >= 5 and ":" in parts[4]:
-                mac = parts[4]
-                break
-
-        if not mac:
-            return None
-
-        # Get IP from DHCP leases
-        result = virsh("net-dhcp-leases", "default")
-        for line in result.stdout.split("\n"):
-            if mac in line:
-                parts = line.split()
-                for part in parts:
-                    if "/" in part and "." in part:
-                        return part.split("/")[0]
-        return None
-    except subprocess.CalledProcessError:
-        return None
-
-
-# ============================================================================
-# Configuration Management
-# ============================================================================
-
-def load_config() -> dict:
-    """Load configuration from file."""
-    config = {
-        "VM_NAME": generate_vm_name(),
-        "VM_CPUS": DEFAULT_VM_CPUS,
-        "VM_MEMORY": DEFAULT_VM_MEMORY,
-        "VM_DISK": DEFAULT_VM_DISK,
-    }
-
-    if CONFIG_FILE.exists():
-        for line in CONFIG_FILE.read_text().splitlines():
-            line = line.strip()
-            if line and not line.startswith("#") and "=" in line:
-                key, value = line.split("=", 1)
-                key = key.strip()
-                value = value.strip().strip('"')
-                if key in config:
-                    config[key] = int(value) if value.isdigit() else value
-
-    return config
-
-
-def save_config(config: dict) -> None:
-    """Save configuration to file."""
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    content = f"""# K3s VM Configuration
-VM_NAME="{config['VM_NAME']}"
-VM_CPUS={config['VM_CPUS']}
-VM_MEMORY={config['VM_MEMORY']}
-VM_DISK={config['VM_DISK']}
-"""
-    CONFIG_FILE.write_text(content)
-
-
-# ============================================================================
-# Dependency Validation
-# ============================================================================
-
-def validate_dependencies() -> bool:
-    """Check all required dependencies."""
-    deps = ["virsh", "virt-install", "kubectl", "qemu-img"]
-    missing = []
-
-    for dep in deps:
-        try:
-            run(["which", dep], capture=True)
-        except subprocess.CalledProcessError:
-            missing.append(dep)
-
-    # Check ISO tool
-    has_iso_tool = False
-    for tool in ["genisoimage", "mkisofs"]:
-        try:
-            run(["which", tool], capture=True)
-            has_iso_tool = True
-            break
-        except subprocess.CalledProcessError:
-            pass
-
-    if not has_iso_tool:
-        missing.append("genisoimage")
-
-    if missing:
-        print(f"ERROR: Missing dependencies: {', '.join(missing)}", file=sys.stderr)
-        print("\nInstall on NixOS: nix-shell -p libvirt virt-manager qemu kubectl cdrkit", file=sys.stderr)
-        print("Install on Ubuntu: sudo apt install libvirt-daemon-system virtinst qemu-kvm kubectl genisoimage", file=sys.stderr)
-        return False
-
-    # Check libvirt access
-    try:
-        virsh("list")
-    except subprocess.CalledProcessError:
-        print("ERROR: Cannot connect to libvirt. Check libvirtd is running.", file=sys.stderr)
-        return False
-
-    return True
-
-
-# ============================================================================
-# SSH Key
-# ============================================================================
-
-def ensure_ssh_key() -> Path:
-    """Ensure SSH key exists, return public key path."""
+def get_ssh_public_key() -> str:
+    """Get or generate SSH public key."""
     ssh_key = Path.home() / ".ssh" / "id_rsa"
     ssh_pub = ssh_key.with_suffix(".pub")
 
     if not ssh_pub.exists():
-        info("Generating SSH key...")
+        if not ssh_key.parent.exists():
+            ssh_key.parent.mkdir(mode=0o700)
+        print("Generating SSH key...")
         run(["ssh-keygen", "-t", "rsa", "-b", "4096", "-N", "", "-f", str(ssh_key)])
 
-    return ssh_pub
+    return ssh_pub.read_text().strip()
 
 
-# ============================================================================
-# VM Image Creation
-# ============================================================================
+def is_vm_running() -> bool:
+    """Check if VM process is running."""
+    if not PID_FILE.exists():
+        return False
 
-def download_cloud_image() -> Path:
-    """Download Ubuntu cloud image if not cached."""
-    IMAGES_DIR.mkdir(parents=True, exist_ok=True)
-    image_path = IMAGES_DIR / UBUNTU_IMAGE_NAME
-
-    if image_path.exists():
-        return image_path
-
-    info(f"Downloading Ubuntu {UBUNTU_VERSION} cloud image (~700MB)...")
-    run(["wget", "-q", "--show-progress", "-O", str(image_path), UBUNTU_IMAGE_URL])
-    return image_path
+    try:
+        pid = int(PID_FILE.read_text().strip())
+        os.kill(pid, 0)  # Check if process exists
+        return True
+    except (ProcessLookupError, ValueError):
+        PID_FILE.unlink(missing_ok=True)
+        return False
 
 
-def create_vm_image(vm_name: str, disk_size: int) -> Path:
-    """Create VM disk image."""
-    IMAGES_DIR.mkdir(parents=True, exist_ok=True)
-    base_image = download_cloud_image()
-    vm_image = IMAGES_DIR / f"{vm_name}.qcow2"
-
-    if vm_image.exists():
-        return vm_image
-
-    info(f"Creating VM disk ({disk_size}GB)...")
-    run(["qemu-img", "create", "-f", "qcow2", "-F", "qcow2", "-b", str(base_image), str(vm_image), f"{disk_size}G"])
-    return vm_image
+def get_vm_pid() -> int | None:
+    """Get VM process PID."""
+    if not PID_FILE.exists():
+        return None
+    try:
+        return int(PID_FILE.read_text().strip())
+    except ValueError:
+        return None
 
 
-# ============================================================================
-# Cloud-init
-# ============================================================================
-
-def generate_cloud_init_iso(vm_name: str, ssh_pub_key: Path) -> Path:
-    """Generate cloud-init ISO."""
-    IMAGES_DIR.mkdir(parents=True, exist_ok=True)
-    iso_path = IMAGES_DIR / f"{vm_name}-cloud-init.iso"
-
-    ssh_key_content = ssh_pub_key.read_text().strip()
-
-    user_data = f"""#cloud-config
-users:
-  - name: ubuntu
-    ssh_authorized_keys:
-      - {ssh_key_content}
-    sudo: ALL=(ALL) NOPASSWD:ALL
-    shell: /bin/bash
-
-packages:
-  - curl
-
-runcmd:
-  - curl -sfL https://get.k3s.io | sh -
-  - systemctl enable k3s
-  - sleep 30
-  - chmod 644 /etc/rancher/k3s/k3s.yaml
-"""
-
-    meta_data = f"""instance-id: {vm_name}
-local-hostname: {vm_name}
-"""
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmppath = Path(tmpdir)
-        (tmppath / "user-data").write_text(user_data)
-        (tmppath / "meta-data").write_text(meta_data)
-
-        # Find ISO tool
-        iso_cmd = "genisoimage"
+def wait_for_ssh(timeout: int = 120) -> bool:
+    """Wait for SSH to become available."""
+    start = time.time()
+    while time.time() - start < timeout:
         try:
-            run(["which", "genisoimage"], capture=True)
-        except subprocess.CalledProcessError:
-            iso_cmd = "mkisofs"
+            result = run(
+                ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5",
+                 "-o", "BatchMode=yes", "-p", "2222", "root@localhost", "true"],
+                capture=True, check=False
+            )
+            if result.returncode == 0:
+                return True
+        except Exception:
+            pass
+        time.sleep(2)
+    return False
 
-        run([iso_cmd, "-output", str(iso_path), "-volid", "cidata", "-joliet", "-rock",
-             str(tmppath / "user-data"), str(tmppath / "meta-data")],
-            capture=True)
 
-    return iso_path
+def wait_for_k3s(timeout: int = 120) -> bool:
+    """Wait for K3s API to become available."""
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            result = run(
+                ["ssh", "-o", "StrictHostKeyChecking=no", "-p", "2222",
+                 "root@localhost", "kubectl get nodes"],
+                capture=True, check=False
+            )
+            if result.returncode == 0 and "Ready" in result.stdout:
+                return True
+        except Exception:
+            pass
+        time.sleep(3)
+    return False
+
+
+def extract_kubeconfig() -> bool:
+    """Extract kubeconfig from VM."""
+    try:
+        result = run(
+            ["ssh", "-o", "StrictHostKeyChecking=no", "-p", "2222",
+             "root@localhost", "cat /etc/rancher/k3s/k3s.yaml"],
+            capture=True
+        )
+
+        # Replace localhost with 127.0.0.1:6443 (forwarded port)
+        kubeconfig = result.stdout.replace("127.0.0.1:6443", "127.0.0.1:6443")
+        kubeconfig = kubeconfig.replace("https://127.0.0.1", "https://127.0.0.1")
+
+        KUBECONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        KUBECONFIG_FILE.write_text(kubeconfig)
+        return True
+    except subprocess.CalledProcessError:
+        return False
 
 
 # ============================================================================
@@ -317,270 +216,246 @@ local-hostname: {vm_name}
 # ============================================================================
 
 def cmd_setup(args: argparse.Namespace) -> None:
-    """Create and initialize K3s VM."""
-    config = load_config()
-    vm_name = config["VM_NAME"]
-    cpus = args.cpus or config["VM_CPUS"]
-    memory = args.memory or config["VM_MEMORY"]
-    disk = args.disk or config["VM_DISK"]
+    """Build and start the K3s VM."""
+    memory = args.memory or DEFAULT_VM_MEMORY
+    cores = args.cpus or DEFAULT_VM_CORES
 
-    print(f"Setting up K3s VM: {vm_name}")
-    print(f"Resources: {cpus} CPUs, {memory}MB RAM, {disk}GB disk")
+    if is_vm_running():
+        error("VM is already running. Use 'bin/k3s-vm stop' first.")
+
+    print(f"Setting up K3s VM (NixOS)")
+    print(f"  Memory: {memory}MB, Cores: {cores}")
     print()
 
-    # Validate
-    print("Checking dependencies...")
-    if not validate_dependencies():
-        sys.exit(1)
-    print("  Dependencies OK")
+    # Create config directory
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    VM_DIR.mkdir(parents=True, exist_ok=True)
 
-    if vm_exists(vm_name):
-        error(f"VM '{vm_name}' already exists. Run 'bin/k3s-vm reset' first.")
+    # Get SSH key
+    ssh_key = get_ssh_public_key()
+    info("SSH key ready")
 
-    # SSH key
-    ssh_pub = ensure_ssh_key()
-    print("  SSH key OK")
+    # Write NixOS configuration
+    config_file = VM_DIR / "configuration.nix"
+    config_content = NIXOS_CONFIG_TEMPLATE.format(
+        ssh_public_key=ssh_key,
+        memory=memory,
+        cores=cores
+    )
+    config_file.write_text(config_content)
+    info("NixOS configuration written")
 
-    # Create VM image
-    vm_image = create_vm_image(vm_name, disk)
-    print("  VM disk OK")
+    # Build the VM
+    print("  Building NixOS VM (this may take a few minutes on first run)...")
+    try:
+        run(
+            ["nix-build", "<nixpkgs/nixos>", "-A", "vm",
+             "-I", "nixpkgs=channel:nixos-24.05",
+             "-I", f"nixos-config={config_file}",
+             "-o", str(VM_DIR / "result")],
+            cwd=VM_DIR
+        )
+    except subprocess.CalledProcessError:
+        error("Failed to build NixOS VM")
 
-    # Cloud-init
-    info("Generating cloud-init...")
-    cloud_init_iso = generate_cloud_init_iso(vm_name, ssh_pub)
-    print("  Cloud-init OK")
+    info("VM built successfully")
 
-    # Create VM
-    info("Creating VM (this may take a minute)...")
-    run([
-        "virt-install",
-        "--connect", LIBVIRT_URI,
-        "--name", vm_name,
-        "--ram", str(memory),
-        "--vcpus", str(cpus),
-        "--disk", f"path={vm_image},format=qcow2",
-        "--disk", f"path={cloud_init_iso},device=cdrom",
-        "--os-variant", "ubuntu22.04",
-        "--network", "network=default",
-        "--graphics", "none",
-        "--import",
-        "--noautoconsole",
-    ])
-    print("  VM created")
+    # Remove old disk image to ensure fresh state
+    disk_image = VM_DIR / "nixos.qcow2"
+    disk_image.unlink(missing_ok=True)
 
-    # Wait for boot
-    info("Waiting for VM to boot...")
-    time.sleep(15)
+    # Start the VM in background
+    print("  Starting VM...")
+    # Find the run script (name is based on hostname: run-{hostname}-vm)
+    bin_dir = VM_DIR / "result" / "bin"
+    vm_scripts = list(bin_dir.glob("run-*-vm"))
+    if not vm_scripts:
+        error("VM run script not found in result/bin/")
+    vm_script = vm_scripts[0]
 
-    # Get IP
-    vm_ip = None
-    for _ in range(30):
-        vm_ip = get_vm_ip(vm_name)
-        if vm_ip:
-            break
-        time.sleep(5)
+    env = os.environ.copy()
+    env["QEMU_KERNEL_PARAMS"] = "console=ttyS0"
 
-    if not vm_ip:
-        error("Failed to get VM IP address")
+    # Start VM process
+    proc = subprocess.Popen(
+        [str(vm_script), "-nographic"],
+        cwd=VM_DIR,
+        env=env,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True
+    )
 
-    print(f"  VM IP: {vm_ip}")
+    PID_FILE.write_text(str(proc.pid))
+    info(f"VM started (PID: {proc.pid})")
 
     # Wait for SSH
-    info("Waiting for SSH...")
-    for _ in range(60):
-        try:
-            run(["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5",
-                 "-o", "BatchMode=yes", f"ubuntu@{vm_ip}", "true"], capture=True)
-            break
-        except subprocess.CalledProcessError:
-            time.sleep(5)
-    else:
-        error("SSH timeout")
-    print("  SSH OK")
+    print("  Waiting for VM to boot...")
+    if not wait_for_ssh(180):
+        error("Timeout waiting for SSH. Check VM logs.")
+    info("SSH available")
 
     # Wait for K3s
-    info("Waiting for K3s installation (this takes ~30s)...")
-    time.sleep(30)
+    print("  Waiting for K3s to be ready...")
+    if not wait_for_k3s(180):
+        error("Timeout waiting for K3s. Check VM logs.")
+    info("K3s ready")
 
     # Extract kubeconfig
-    info("Extracting kubeconfig...")
-    KUBECONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    result = run(["ssh", "-o", "StrictHostKeyChecking=no", f"ubuntu@{vm_ip}",
-                  "sudo cat /etc/rancher/k3s/k3s.yaml"], capture=True)
-
-    kubeconfig = result.stdout.replace("127.0.0.1", vm_ip)
-    KUBECONFIG_FILE.write_text(kubeconfig)
-    print("  Kubeconfig OK")
-
-    # Verify K3s API
-    info("Verifying K3s API...")
-    env = os.environ.copy()
-    env["KUBECONFIG"] = str(KUBECONFIG_FILE)
-    for _ in range(12):
-        try:
-            run(["kubectl", "cluster-info"], capture=True, env=env)
-            break
-        except subprocess.CalledProcessError:
-            time.sleep(5)
-    else:
-        error("K3s API not responding")
-    print("  K3s API OK")
-
-    # Save config
-    config["VM_CPUS"] = cpus
-    config["VM_MEMORY"] = memory
-    config["VM_DISK"] = disk
-    save_config(config)
+    print("  Extracting kubeconfig...")
+    if not extract_kubeconfig():
+        error("Failed to extract kubeconfig")
+    info(f"Kubeconfig saved to {KUBECONFIG_FILE}")
 
     print()
     print("=" * 50)
     print("K3s VM setup complete!")
-    print(f"  VM IP: {vm_ip}")
+    print()
+    print(f"  SSH:        ssh -p 2222 root@localhost")
+    print(f"  K3s API:    https://127.0.0.1:6443")
     print(f"  Kubeconfig: {KUBECONFIG_FILE}")
     print()
     print("Try: bin/kubectl get nodes")
 
 
 def cmd_start(args: argparse.Namespace) -> None:
-    """Start a stopped K3s VM."""
-    config = load_config()
-    vm_name = config["VM_NAME"]
+    """Start the VM."""
+    if is_vm_running():
+        error("VM is already running.")
 
-    if not vm_exists(vm_name):
-        error(f"VM '{vm_name}' not found. Run 'bin/k3s-vm setup' first.")
+    bin_dir = VM_DIR / "result" / "bin"
+    if not bin_dir.exists():
+        error("VM not built. Run 'bin/k3s-vm setup' first.")
 
-    if is_vm_running(vm_name):
-        error(f"VM '{vm_name}' is already running.")
+    vm_scripts = list(bin_dir.glob("run-*-vm"))
+    if not vm_scripts:
+        error("VM run script not found. Run 'bin/k3s-vm setup' first.")
+    vm_script = vm_scripts[0]
 
-    print(f"Starting VM '{vm_name}'...")
-    virsh("start", vm_name, capture=False)
+    print("Starting VM...")
 
-    time.sleep(10)
+    env = os.environ.copy()
+    env["QEMU_KERNEL_PARAMS"] = "console=ttyS0"
 
-    vm_ip = None
-    for _ in range(30):
-        vm_ip = get_vm_ip(vm_name)
-        if vm_ip:
-            break
-        time.sleep(2)
+    proc = subprocess.Popen(
+        [str(vm_script), "-nographic"],
+        cwd=VM_DIR,
+        env=env,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True
+    )
 
-    if vm_ip:
-        print(f"VM started. IP: {vm_ip}")
+    PID_FILE.write_text(str(proc.pid))
+    info(f"VM started (PID: {proc.pid})")
+
+    print("  Waiting for SSH...")
+    if not wait_for_ssh(120):
+        error("Timeout waiting for SSH")
+    info("SSH available")
+
+    print("  Waiting for K3s...")
+    if not wait_for_k3s(60):
+        print("  Warning: K3s not ready yet, may need more time")
     else:
-        print("VM started (IP not yet available)")
+        info("K3s ready")
 
-    print("\nTry: bin/kubectl get nodes")
+    print()
+    print("VM started. Try: bin/kubectl get nodes")
 
 
 def cmd_stop(args: argparse.Namespace) -> None:
-    """Stop a running K3s VM."""
-    config = load_config()
-    vm_name = config["VM_NAME"]
+    """Stop the VM."""
+    if not is_vm_running():
+        error("VM is not running.")
 
-    if not vm_exists(vm_name):
-        error(f"VM '{vm_name}' not found.")
+    pid = get_vm_pid()
+    if pid:
+        print(f"Stopping VM (PID: {pid})...")
+        try:
+            os.kill(pid, signal.SIGTERM)
+            # Wait for process to terminate
+            for _ in range(30):
+                try:
+                    os.kill(pid, 0)
+                    time.sleep(1)
+                except ProcessLookupError:
+                    break
+            else:
+                # Force kill if still running
+                os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
 
-    if not is_vm_running(vm_name):
-        error(f"VM '{vm_name}' is already stopped.")
-
-    if args.force:
-        print(f"Force stopping VM '{vm_name}'...")
-        virsh("destroy", vm_name, capture=False)
+        PID_FILE.unlink(missing_ok=True)
+        print("VM stopped.")
     else:
-        print(f"Stopping VM '{vm_name}'...")
-        virsh("shutdown", vm_name, capture=False)
-
-        # Wait for shutdown
-        for _ in range(30):
-            if not is_vm_running(vm_name):
-                break
-            time.sleep(2)
-        else:
-            print("Timeout. Use --force to force stop.")
-            sys.exit(1)
-
-    print("VM stopped.")
+        error("Could not find VM process.")
 
 
 def cmd_status(args: argparse.Namespace) -> None:
-    """Show VM and K3s status."""
-    config = load_config()
-    vm_name = config["VM_NAME"]
-    state = get_vm_state(vm_name)
+    """Show VM status."""
+    print("K3s VM Status (NixOS)")
+    print()
 
-    print(f"K3s VM Status")
-    print(f"  Name: {vm_name}")
-    print(f"  State: {state}")
+    if is_vm_running():
+        pid = get_vm_pid()
+        print(f"  State: running (PID: {pid})")
+        print(f"  SSH:   ssh -p 2222 root@localhost")
+        print(f"  API:   https://127.0.0.1:6443")
 
-    if state == "undefined":
-        print("\nRun 'bin/k3s-vm setup' to create the VM.")
-        return
-
-    print(f"  CPUs: {config['VM_CPUS']}")
-    print(f"  Memory: {config['VM_MEMORY']} MB")
-    print(f"  Disk: {config['VM_DISK']} GB")
-
-    if state == "running":
-        vm_ip = get_vm_ip(vm_name)
-        if vm_ip:
-            print(f"  IP: {vm_ip}")
+        # Check K3s status
+        try:
+            result = run(
+                ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5",
+                 "-p", "2222", "root@localhost", "kubectl get nodes --no-headers"],
+                capture=True, check=False
+            )
+            if result.returncode == 0:
+                nodes = len([l for l in result.stdout.strip().split("\n") if l])
+                print(f"  Nodes: {nodes} ready")
+        except Exception:
+            print("  K3s:   checking...")
 
         if KUBECONFIG_FILE.exists():
-            print()
-            print("K3s Cluster:")
-            env = os.environ.copy()
-            env["KUBECONFIG"] = str(KUBECONFIG_FILE)
-            try:
-                run(["kubectl", "cluster-info"], capture=True, env=env)
-                print("  API: responding")
-
-                result = run(["kubectl", "get", "nodes", "--no-headers"], capture=True, env=env)
-                node_count = len([l for l in result.stdout.strip().split("\n") if l])
-                print(f"  Nodes: {node_count}")
-            except subprocess.CalledProcessError:
-                print("  API: not responding")
+            print(f"\n  Kubeconfig: {KUBECONFIG_FILE}")
     else:
-        print("\nRun 'bin/k3s-vm start' to start the VM.")
+        bin_dir = VM_DIR / "result" / "bin"
+        if bin_dir.exists() and list(bin_dir.glob("run-*-vm")):
+            print("  State: stopped (VM built)")
+            print("\n  Run 'bin/k3s-vm start' to start")
+        else:
+            print("  State: not configured")
+            print("\n  Run 'bin/k3s-vm setup' to create VM")
 
 
 def cmd_reset(args: argparse.Namespace) -> None:
-    """Destroy VM and cleanup."""
-    config = load_config()
-    vm_name = config["VM_NAME"]
-
-    if not vm_exists(vm_name):
-        print(f"VM '{vm_name}' not found. Nothing to reset.")
-        return
-
+    """Reset/destroy the VM."""
     if not args.yes:
-        print("WARNING: This will permanently delete the VM and all data.")
+        print("WARNING: This will delete the VM and all data.")
         response = input("Are you sure? (yes/no): ")
         if response.lower() != "yes":
             print("Cancelled.")
             return
 
-    print(f"Resetting VM '{vm_name}'...")
+    print("Resetting VM...")
 
     # Stop if running
-    if is_vm_running(vm_name):
+    if is_vm_running():
         info("Stopping VM...")
-        virsh("destroy", vm_name, check=False)
-        time.sleep(2)
+        pid = get_vm_pid()
+        if pid:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        PID_FILE.unlink(missing_ok=True)
 
-    # Undefine
-    info("Removing VM definition...")
-    virsh("undefine", vm_name, check=False)
-
-    # Remove disk image
-    disk_image = IMAGES_DIR / f"{vm_name}.qcow2"
-    if disk_image.exists():
-        info("Removing disk image...")
-        disk_image.unlink()
-
-    # Remove cloud-init ISO
-    iso_file = IMAGES_DIR / f"{vm_name}-cloud-init.iso"
-    if iso_file.exists():
-        iso_file.unlink()
+    # Remove VM directory contents
+    if VM_DIR.exists():
+        info("Removing VM files...")
+        import shutil
+        shutil.rmtree(VM_DIR, ignore_errors=True)
 
     # Remove kubeconfig
     if KUBECONFIG_FILE.exists():
@@ -592,47 +467,56 @@ def cmd_reset(args: argparse.Namespace) -> None:
     print("Run 'bin/k3s-vm setup' to create a new VM.")
 
 
+def cmd_ssh(args: argparse.Namespace) -> None:
+    """SSH into the VM."""
+    if not is_vm_running():
+        error("VM is not running. Start it with 'bin/k3s-vm start'")
+
+    os.execlp("ssh", "ssh", "-o", "StrictHostKeyChecking=no", "-p", "2222", "root@localhost")
+
+
 # ============================================================================
 # Main
 # ============================================================================
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="K3s VM Management - Manage local K3s development VM",
+        description="K3s VM Management (NixOS-native)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  bin/k3s-vm setup                  Create K3s VM with defaults
-  bin/k3s-vm setup --cpus 4         Create with 4 CPUs
-  bin/k3s-vm start                  Start stopped VM
-  bin/k3s-vm stop                   Stop running VM
-  bin/k3s-vm status                 Check VM status
-  bin/k3s-vm reset                  Destroy VM
+  bin/k3s-vm setup              Build and start K3s VM
+  bin/k3s-vm start              Start existing VM
+  bin/k3s-vm stop               Stop VM
+  bin/k3s-vm status             Check VM status
+  bin/k3s-vm ssh                SSH into VM
+  bin/k3s-vm reset              Destroy VM
 """,
     )
-    parser.add_argument("--version", action="version", version="k3s-vm 1.0.0")
+    parser.add_argument("--version", action="version", version="k3s-vm 2.0.0 (NixOS)")
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
     # setup
-    p_setup = subparsers.add_parser("setup", help="Create and initialize K3s VM")
-    p_setup.add_argument("--cpus", type=int, help=f"CPU cores (default: {DEFAULT_VM_CPUS})")
+    p_setup = subparsers.add_parser("setup", help="Build and start K3s VM")
+    p_setup.add_argument("--cpus", type=int, help=f"CPU cores (default: {DEFAULT_VM_CORES})")
     p_setup.add_argument("--memory", type=int, help=f"Memory in MB (default: {DEFAULT_VM_MEMORY})")
-    p_setup.add_argument("--disk", type=int, help=f"Disk in GB (default: {DEFAULT_VM_DISK})")
 
     # start
-    subparsers.add_parser("start", help="Start stopped VM")
+    subparsers.add_parser("start", help="Start existing VM")
 
     # stop
-    p_stop = subparsers.add_parser("stop", help="Stop running VM")
-    p_stop.add_argument("--force", action="store_true", help="Force stop")
+    subparsers.add_parser("stop", help="Stop VM")
 
     # status
     subparsers.add_parser("status", help="Show VM status")
 
     # reset
-    p_reset = subparsers.add_parser("reset", help="Destroy VM and cleanup")
+    p_reset = subparsers.add_parser("reset", help="Destroy VM")
     p_reset.add_argument("--yes", "-y", action="store_true", help="Skip confirmation")
+
+    # ssh
+    subparsers.add_parser("ssh", help="SSH into VM")
 
     args = parser.parse_args()
 
@@ -646,6 +530,7 @@ Examples:
         "stop": cmd_stop,
         "status": cmd_status,
         "reset": cmd_reset,
+        "ssh": cmd_ssh,
     }
 
     commands[args.command](args)
