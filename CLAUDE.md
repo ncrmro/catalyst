@@ -118,6 +118,41 @@ The application supports both GitHub App and Personal Access Token (PAT) authent
   - `nextjs`: Deploy Next.js applications with optional PostgreSQL
   - `singleton`: Cluster-wide services (cert-manager, ingress-nginx, docker-registry)
 
+### Local K3s Development VM
+
+**This is the primary method for testing Kubernetes functionality locally.** The project includes a NixOS-based K3s VM for local development and integration testing.
+
+**VM Management (from project root):**
+
+```bash
+bin/k3s-vm setup     # Build NixOS VM with K3s (first time only)
+bin/k3s-vm start     # Start VM and extract kubeconfig
+bin/k3s-vm stop      # Stop the running VM
+bin/k3s-vm status    # Check VM status
+bin/k3s-vm reset     # Destroy and rebuild VM
+bin/k3s-vm ssh       # SSH into the VM
+```
+
+**Using kubectl:**
+
+```bash
+bin/kubectl get nodes      # Uses kubeconfig from web/.kube/config
+bin/kubectl get pods -A    # List all pods across namespaces
+```
+
+**How it works:**
+
+- Creates a NixOS VM using `nix-build` with QEMU
+- K3s runs as a systemd service inside the VM
+- Port forwarding: SSH (localhost:2222), K3s API (localhost:6443)
+- Kubeconfig auto-extracted to `web/.kube/config` on start
+- Integration tests use `KUBECONFIG_PRIMARY` env var (base64-encoded JSON kubeconfig)
+
+**Requirements:**
+
+- Nix package manager installed
+- KVM support (for hardware acceleration)
+
 ### Agent System (`/web/src/agents`)
 
 Periodic background tasks that run on intervals:
