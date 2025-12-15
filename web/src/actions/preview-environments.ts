@@ -8,6 +8,7 @@
  */
 
 import { auth } from "@/auth";
+import { createStreamableValue } from "ai/rsc";
 import {
   listActivePreviewPods,
   listActivePreviewPodsWithMetrics,
@@ -306,36 +307,42 @@ export async function createManualPreview(params: {
   repoId: string;
   imageUri: string;
   branchName?: string;
-}): Promise<
-  ActionResult<{
-    podId: string;
-    namespace: string;
-    publicUrl: string;
-  }>
-> {
+}) {
   const session = await auth();
 
   if (!session?.user?.id) {
     return { success: false, error: "Not authenticated" };
   }
 
-  const result = await createManualPreviewEnvironment({
-    repoId: params.repoId,
-    imageUri: params.imageUri,
-    userId: session.user.id,
-    branchName: params.branchName,
-  });
+  // Create a stream for progress updates
+  const stream = createStreamableValue<string>("");
 
-  if (!result.success) {
-    return { success: false, error: result.error };
-  }
+  // Start the process in the background (or rather, inside the stream logic)
+  // We wrap it in an async IIFE to return the stream immediately while processing continues
+  (async () => {
+    try {
+      const result = await createManualPreviewEnvironment({
+        repoId: params.repoId,
+        imageUri: params.imageUri,
+        userId: session.user.id,
+        branchName: params.branchName,
+        onProgress: (message) => {
+          stream.update(message);
+        },
+      });
+
+      if (!result.success) {
+        stream.error(result.error || "Failed to create preview environment");
+      } else {
+        stream.done(JSON.stringify(result));
+      }
+    } catch (error) {
+      stream.error(error instanceof Error ? error.message : "Unknown error");
+    }
+  })();
 
   return {
     success: true,
-    data: {
-      podId: result.podId!,
-      namespace: result.namespace!,
-      publicUrl: result.publicUrl!,
-    },
+    stream: stream.value,
   };
 }
