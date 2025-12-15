@@ -32,8 +32,10 @@ export function CreatePreviewCard({ onClose }: CreatePreviewCardProps) {
 
     if (result.success && result.data) {
       setImageUri(result.data);
+    } else {
+      // If no image found, default to node:latest
+      setImageUri("node:latest");
     }
-    // If no image found, leave empty for user to fill
 
     setIsLoadingImage(false);
   }, []);
