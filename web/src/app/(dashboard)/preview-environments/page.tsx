@@ -1,7 +1,5 @@
-import { Suspense } from "react";
 import { PreviewEnvironmentsList } from "./components/PreviewEnvironmentsList";
-import { PreviewEnvironmentsLoading } from "./components/PreviewEnvironmentsLoading";
-import { PreviewEnvironmentsHeader } from "./components/PreviewEnvironmentsHeader";
+import { PreviewEnvironmentsSection } from "./components/PreviewEnvironmentsSection";
 
 /**
  * Preview Environments page - shows user's active preview environments
@@ -10,11 +8,9 @@ import { PreviewEnvironmentsHeader } from "./components/PreviewEnvironmentsHeade
 export default function PreviewEnvironmentsPage() {
   return (
     <div className="space-y-6">
-      <PreviewEnvironmentsHeader />
-
-      <Suspense fallback={<PreviewEnvironmentsLoading />}>
+      <PreviewEnvironmentsSection>
         <PreviewEnvironmentsList />
-      </Suspense>
+      </PreviewEnvironmentsSection>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { _auth } from "@/auth";
-import PeriodicReportGenerator from "@/components/periodic-report-generator";
+import { PreviewEnvironmentsList } from "@/app/(dashboard)/preview-environments/components/PreviewEnvironmentsList";
+import { PreviewEnvironmentsSection } from "@/app/(dashboard)/preview-environments/components/PreviewEnvironmentsSection";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
@@ -27,8 +28,10 @@ export default async function Home() {
         </p>
       </div>
 
-      {/* Latest Report Section */}
-      <PeriodicReportGenerator />
+      {/* Preview Environments Section */}
+      <PreviewEnvironmentsSection>
+        <PreviewEnvironmentsList />
+      </PreviewEnvironmentsSection>
     </div>
   );
 }
