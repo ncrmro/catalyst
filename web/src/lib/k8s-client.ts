@@ -137,9 +137,9 @@ export class KubeConfig {
   }
 
   /**
-   * Configure TLS settings based on cluster type and environment
+   * Configure cluster settings (TLS, endpoint) based on cluster type and environment
    */
-  private configureTLS() {
+  private configureCluster() {
     if (!this._kc) {
       return;
     }
@@ -159,6 +159,15 @@ export class KubeConfig {
         serverUrl?.includes('kind-') ||
         serverUrl?.startsWith('http://') ||
         process.env.NODE_ENV === 'development';
+
+      // Rewrite localhost to host.docker.internal if running in Docker
+      // We detect this if we are in development mode
+      if (process.env.NODE_ENV === 'development' && (serverUrl.includes('localhost') || serverUrl.includes('127.0.0.1'))) {
+         cluster.server = serverUrl
+           .replace('localhost', 'host.docker.internal')
+           .replace('127.0.0.1', 'host.docker.internal');
+         console.log(`Rewrote cluster endpoint to ${cluster.server} for Docker connectivity`);
+      }
 
       // Check for explicit environment variable override
       const skipTLSVerifyEnv = process.env.KUBE_SKIP_TLS_VERIFY;
@@ -180,7 +189,7 @@ export class KubeConfig {
         console.log('TLS verification enabled for Kubernetes cluster');
       }
     } catch (error) {
-      console.warn('Failed to configure TLS settings:', error instanceof Error ? error.message : 'Unknown error');
+      console.warn('Failed to configure cluster settings:', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 
@@ -188,7 +197,7 @@ export class KubeConfig {
     const k8sModule = await loadKubernetesClient();
     this._kc = new k8sModule.KubeConfig();
     this._kc.loadFromDefault();
-    this.configureTLS();
+    this.configureCluster();
     return this._kc;
   }
 
@@ -196,7 +205,7 @@ export class KubeConfig {
     const k8sModule = await loadKubernetesClient();
     this._kc = new k8sModule.KubeConfig();
     this._kc.loadFromString(kubeConfigString);
-    this.configureTLS();
+    this.configureCluster();
     return this._kc;
   }
 
