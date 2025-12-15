@@ -43,6 +43,51 @@ export interface DeploymentStatus {
 }
 
 /**
+ * Ensure a namespace exists, creating it if necessary.
+ */
+async function ensureNamespace(namespace: string): Promise<void> {
+  try {
+    const kc = await getClusterConfig();
+    if (!kc) return;
+
+    const CoreV1Api = await getCoreV1Api();
+    const coreApi = kc.makeApiClient(CoreV1Api);
+
+    try {
+      await coreApi.readNamespace({ name: namespace });
+    } catch (error: unknown) {
+      // Check for 404 Not Found
+      const isNotFound = 
+        (error as any)?.response?.statusCode === 404 || 
+        (error instanceof Error && error.message.includes('not found'));
+        
+      if (isNotFound) {
+        console.log(`Namespace ${namespace} not found, creating...`);
+        await coreApi.createNamespace({
+          body: {
+            apiVersion: "v1",
+            kind: "Namespace",
+            metadata: {
+              name: namespace,
+              labels: {
+                "created-by": "catalyst",
+                "purpose": "preview-environment",
+              },
+            },
+          },
+        });
+        console.log(`Created namespace: ${namespace}`);
+      } else {
+        throw error;
+      }
+    }
+  } catch (error) {
+    console.warn(`Error ensuring namespace ${namespace} exists:`, error);
+    // Continue and let the deployment fail if namespace is truly missing/broken
+  }
+}
+
+/**
  * Deploy a preview application to Kubernetes.
  *
  * Creates:
@@ -71,6 +116,9 @@ export async function deployPreviewApplication(
     if (!kc) {
       return { success: false, error: "Kubernetes cluster not configured" };
     }
+
+    // Ensure namespace exists before creating resources
+    await ensureNamespace(namespace);
 
     const AppsV1Api = await getAppsV1Api();
     const appsApi = kc.makeApiClient(AppsV1Api);
