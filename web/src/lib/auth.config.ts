@@ -1,5 +1,5 @@
 /**
- * This is separate from authjs because nextjs middleware **always** runs in edge runtime 
+ * This is separate from authjs because nextjs middleware **always** runs in edge runtime
  * This means we can use the database even though we only use it during dev.
  */
 import { Provider } from "next-auth/providers";
@@ -7,21 +7,39 @@ import GitHub from "next-auth/providers/github";
 import { NextAuthConfig } from "next-auth";
 import { GITHUB_CONFIG } from "@/lib/github";
 
-
 const providers: Provider[] = [
-    GitHub({
-      clientId: GITHUB_CONFIG.APP_CLIENT_ID,
-      clientSecret: GITHUB_CONFIG.APP_CLIENT_SECRET,
-      authorization: {
-        params: {
-          scope: "read:user user:email read:org repo"
-        }
-      }
-    })
-  ];
+  GitHub({
+    clientId: GITHUB_CONFIG.APP_CLIENT_ID,
+    clientSecret: GITHUB_CONFIG.APP_CLIENT_SECRET,
+    authorization: {
+      params: {
+        scope: "read:user user:email read:org repo",
+      },
+    },
+  }),
+];
 
-  
-  // Notice this is only an object, not a full Auth.js instance
+// Notice this is only an object, not a full Auth.js instance
 export default {
-    providers,
-  } satisfies NextAuthConfig
+  providers,
+  cookies: {
+    sessionToken: {
+      name: "catalyst.session-token",
+    },
+    callbackUrl: {
+      name: "catalyst.callback-url",
+    },
+    csrfToken: {
+      name: "catalyst.csrf-token",
+    },
+    pkceCodeVerifier: {
+      name: "catalyst.pkce.code_verifier",
+    },
+    state: {
+      name: "catalyst.state",
+    },
+    nonce: {
+      name: "catalyst.nonce",
+    },
+  },
+} satisfies NextAuthConfig;

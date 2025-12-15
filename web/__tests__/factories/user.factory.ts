@@ -25,9 +25,9 @@
  * ```
  */
 
-import { Factory, faker, db } from '@/lib/factories';
-import { users } from '@/db/schema';
-import type { InferInsertModel } from 'drizzle-orm';
+import { Factory, faker, db } from "@/lib/factories";
+import { users } from "@/db/schema";
+import type { InferInsertModel } from "drizzle-orm";
 
 type InsertUser = InferInsertModel<typeof users>;
 
@@ -47,13 +47,6 @@ class UserFactory extends Factory<InsertUser> {
    */
   regularUser() {
     return this.params({ admin: false });
-  }
-
-  /**
-   * Create a user with onboarding completed
-   */
-  onboarded() {
-    return this.params({ onboardingCompleted: true });
   }
 
   /**
@@ -80,6 +73,4 @@ export const userFactory = UserFactory.define(() => ({
   emailVerified: null,
   image: null,
   admin: false,
-  onboardingCompleted: false,
-  onboardingData: null,
 }));

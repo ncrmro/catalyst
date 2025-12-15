@@ -37,7 +37,7 @@
 - [x] T006 Add pullRequestPodsRelations to web/src/db/schema.ts for relationship with pullRequests table
 - [x] T007 Extend pullRequestsRelations in web/src/db/schema.ts to include pods relationship
 - [x] T008 Generate database migration with npm run db:generate
-- [ ] T009 Apply database migration with npm run db:migrate (requires database running - use `make up` first)
+- [x] T009 Apply database migration with npm run db:migrate (requires database running - use `make up` first)
 - [x] T010 Create TypeScript types file web/src/types/preview-environments.ts with PodStatus, ResourceAllocation, DeploymentComment, PreviewEnvironmentConfig types
 
 **Checkpoint**: Foundation validated (T010b passed) - user story implementation can now begin in parallel. STOP HERE if schema validation fails.
@@ -56,27 +56,27 @@
 
 - [x] T011 [P] [US1] Create helper function generateNamespace() in web/src/models/preview-environments.ts to generate DNS-safe namespace names
 - [x] T012 [P] [US1] Create helper function generatePublicUrl() in web/src/models/preview-environments.ts to construct public URLs for preview environments
-- [ ] T013 [US1] Create helper function deployHelmChart() in web/src/models/preview-environments.ts to deploy Helm charts AFTER image build completes (uses existing k8s-pull-request-pod.ts for image building, adds Helm deployment for application)
-- [ ] T013b [US1] Update deployHelmChart() to wait for Job completion from k8s-pull-request-pod.ts before deploying Helm chart with built image tag
-- [ ] T014 [US1] Create helper function upsertGitHubComment() in web/src/models/preview-environments.ts to post or update deployment comments on GitHub PRs
-- [ ] T015 [US1] Implement createPreviewDeployment() in web/src/models/preview-environments.ts with full orchestration logic (database, K8s, GitHub)
-- [ ] T016 [US1] Implement watchDeploymentStatus() in web/src/models/preview-environments.ts to monitor Kubernetes deployments using Watch API
-- [ ] T017 [US1] Implement listActivePreviewPods() in web/src/models/preview-environments.ts to query active pods with team filtering
+- [x] T013 [US1] Create helper function deployHelmChart() in web/src/models/preview-environments.ts to deploy Helm charts AFTER image build completes (uses existing k8s-pull-request-pod.ts for image building, adds Helm deployment for application)
+- [x] T013b [US1] Update deployHelmChart() to wait for Job completion from k8s-pull-request-pod.ts before deploying Helm chart with built image tag
+- [x] T014 [US1] Create helper function upsertGitHubComment() in web/src/lib/github-pr-comments.ts to post or update deployment comments on GitHub PRs
+- [x] T015 [US1] Implement createPreviewDeployment() in web/src/models/preview-environments.ts with full orchestration logic (database, K8s, GitHub)
+- [x] T016 [US1] Implement watchDeploymentStatus() in web/src/lib/k8s-preview-deployment.ts to monitor Kubernetes deployments using polling
+- [x] T017 [US1] Implement listActivePreviewPods() in web/src/models/preview-environments.ts to query active pods with team filtering
 
 #### Webhook Handler - GitHub Integration
 
-- [ ] T018 [US1] Add handlePullRequestEvent() function to web/src/app/api/github/webhook/route.ts to route PR events
-- [ ] T019 [US1] Implement opened action handler in handlePullRequestEvent() to create preview deployments on PR creation
-- [ ] T020 [US1] Implement synchronize action handler in handlePullRequestEvent() to redeploy on new commits with idempotency checks
-- [ ] T021 [US1] Implement reopened action handler in handlePullRequestEvent() to recreate preview environments
-- [ ] T022 [US1] Add idempotency logic using database unique constraints on (pullRequestId, commitSha)
-- [ ] T023 [US1] Add error handling to webhook handler to always return 200 OK and prevent GitHub retries
+- [x] T018 [US1] Add handlePullRequestEvent() function to web/src/app/api/github/webhook/route.ts to route PR events
+- [x] T019 [US1] Implement opened action handler in handlePullRequestEvent() to create preview deployments on PR creation
+- [x] T020 [US1] Implement synchronize action handler in handlePullRequestEvent() to redeploy on new commits with idempotency checks
+- [x] T021 [US1] Implement reopened action handler in handlePullRequestEvent() to recreate preview environments
+- [x] T022 [US1] Add idempotency logic using database unique constraints on (pullRequestId, commitSha)
+- [x] T023 [US1] Add error handling to webhook handler to always return 200 OK and prevent GitHub retries
 
 #### Actions Layer - React Server Components Boundary
 
-- [ ] T024 [P] [US1] Create getPreviewEnvironments() action in web/src/actions/preview-environments.ts with session auth and team filtering
-- [ ] T025 [P] [US1] Create getPreviewEnvironment() action in web/src/actions/preview-environments.ts to fetch single environment with authorization
-- [ ] T026 [US1] Add type exports to web/src/actions/preview-environments.ts re-exporting from database and models layers
+- [x] T024 [P] [US1] Create getPreviewEnvironments() action in web/src/actions/preview-environments.ts with session auth and team filtering
+- [x] T025 [P] [US1] Create getPreviewEnvironment() action in web/src/actions/preview-environments.ts to fetch single environment with authorization
+- [x] T026 [US1] Add type exports to web/src/actions/preview-environments.ts re-exporting from database and models layers
 
 **Checkpoint**: At this point, User Story 1 core functionality (webhook → deployment → GitHub comment) should work end-to-end
 
@@ -92,21 +92,21 @@
 
 #### Models Layer - Logs and Status
 
-- [ ] T027 [P] [US2] Implement getPreviewPodLogs() in web/src/models/preview-environments.ts to fetch container logs from Kubernetes API
-- [ ] T028 [P] [US2] Add authorization checks to getPreviewPodLogs() for team membership validation
+- [x] T027 [P] [US2] Implement getPreviewPodLogs() in web/src/models/preview-environments.ts to fetch container logs from Kubernetes API
+- [x] T028 [P] [US2] Add authorization checks to getPreviewPodLogs() for team membership validation
 
 #### Actions Layer - UI Data Access
 
-- [ ] T029 [P] [US2] Create getPodLogs() action in web/src/actions/preview-environments.ts with session auth and team filtering
+- [x] T029 [P] [US2] Create getPodLogs() action in web/src/actions/preview-environments.ts with session auth and team filtering
 
 #### UI Components - Dashboard Pages
 
-- [ ] T030 [US2] Create list page component web/src/app/(dashboard)/preview-environments/page.tsx displaying all active preview environments
-- [ ] T031 [US2] Add table with namespace, status, public URL, PR link columns to list page
-- [ ] T032 [US2] Create detail page component web/src/app/(dashboard)/preview-environments/[id]/page.tsx showing full pod details
-- [ ] T033 [US2] Add deployment status display (pending, running, failed, succeeded) to detail page
-- [ ] T034 [US2] Add logs viewer section to detail page with tail limit selector
-- [ ] T035 [US2] Add real-time log fetching with timestamps to logs viewer
+- [x] T030 [US2] Create list page component web/src/app/(dashboard)/preview-environments/page.tsx displaying all active preview environments
+- [x] T031 [US2] Add table with namespace, status, public URL, PR link columns to list page
+- [x] T032 [US2] Create detail page component web/src/app/(dashboard)/preview-environments/[id]/page.tsx showing full pod details
+- [x] T033 [US2] Add deployment status display (pending, running, failed, succeeded) to detail page
+- [x] T034 [US2] Add logs viewer section to detail page with tail limit selector
+- [x] T035 [US2] Add real-time log fetching with timestamps to logs viewer
 
 **Checkpoint**: UI should now display all preview environments, their status, and allow log viewing for debugging
 
@@ -122,15 +122,15 @@
 
 #### GitHub Comment Updates
 
-- [ ] T036 [US3] Update upsertGitHubComment() in web/src/models/preview-environments.ts to handle redeployment status updates
-- [ ] T037 [US3] Add timestamp tracking to GitHub comments for deployment history
-- [ ] T038 [US3] Add error message display to GitHub comments for failed redeployments
+- [x] T036 [US3] Update upsertGitHubComment() in web/src/models/preview-environments.ts to handle redeployment status updates
+- [x] T037 [US3] Add timestamp tracking to GitHub comments for deployment history
+- [x] T038 [US3] Add error message display to GitHub comments for failed redeployments
 
 #### Webhook Handler Enhancements
 
-- [ ] T039 [US3] Verify synchronize action handler in web/src/app/api/github/webhook/route.ts correctly triggers redeployment
-- [ ] T040 [US3] Add cancellation logic for pending deployments when new commit pushed
-- [ ] T041 [US3] Update database record with new commit SHA and reset status to pending
+- [x] T039 [US3] Verify synchronize action handler in web/src/app/api/github/webhook/route.ts correctly triggers redeployment
+- [x] T040 [US3] Add cancellation logic for pending deployments when new commit pushed
+- [x] T041 [US3] Update database record with new commit SHA and reset status to pending
 
 **Checkpoint**: Preview environments should now auto-redeploy on every push and keep GitHub comments updated
 
@@ -146,23 +146,23 @@
 
 #### Models Layer - Cleanup Logic
 
-- [ ] T042 [P] [US4] Create helper function deleteKubernetesNamespace() in web/src/models/preview-environments.ts to delete namespaces with cascading delete
-- [ ] T043 [US4] Implement deletePreviewDeployment() in web/src/models/preview-environments.ts with namespace cleanup and database record removal
-- [ ] T044 [US4] Add retry logic with exponential backoff for failed deletions
+- [x] T042 [P] [US4] Create helper function deleteKubernetesNamespace() in web/src/models/preview-environments.ts to delete namespaces with cascading delete
+- [x] T043 [US4] Implement deletePreviewDeployment() in web/src/models/preview-environments.ts with namespace cleanup and database record removal
+- [x] T044 [US4] Add retry logic with exponential backoff for failed deletions
 
 #### Webhook Handler - Cleanup Trigger
 
-- [ ] T045 [US4] Implement closed action handler in handlePullRequestEvent() in web/src/app/api/github/webhook/route.ts
-- [ ] T046 [US4] Add final GitHub comment posting when cleanup completes
-- [ ] T047 [US4] Add error notification for platform operators when deletion fails
+- [x] T045 [US4] Implement closed action handler in handlePullRequestEvent() in web/src/app/api/github/webhook/route.ts
+- [x] T046 [US4] Add final GitHub comment posting when cleanup completes
+- [x] T047 [US4] Add error notification for platform operators when deletion fails
 
 #### Actions Layer - Manual Cleanup
 
-- [ ] T048 [US4] Create deletePreviewEnvironment() action in web/src/actions/preview-environments.ts for manual cleanup with admin authorization
+- [x] T048 [US4] Create deletePreviewEnvironment() action in web/src/actions/preview-environments.ts for manual cleanup with admin authorization
 
 #### UI Components - Cleanup Actions
 
-- [ ] T049 [US4] Add delete button to preview environment detail page with confirmation dialog
+- [x] T049 [US4] Add delete button to preview environment detail page with confirmation dialog
 
 **Checkpoint**: Preview environments should automatically cleanup on PR close and support manual deletion
 
@@ -178,26 +178,26 @@
 
 #### Models Layer - Resource Metrics
 
-- [ ] T050 [P] [US5] Add resource usage queries to listActivePreviewPods() in web/src/models/preview-environments.ts to fetch CPU/memory from Kubernetes
-- [ ] T051 [P] [US5] Add age calculation for preview environments based on createdAt timestamp
-- [ ] T052 [US5] Add resource quota warning logic to flag environments exceeding limits
+- [x] T050 [P] [US5] Add resource usage queries to listActivePreviewPods() in web/src/models/preview-environments.ts to fetch CPU/memory from Kubernetes
+- [x] T051 [P] [US5] Add age calculation for preview environments based on createdAt timestamp
+- [x] T052 [US5] Add resource quota warning logic to flag environments exceeding limits
 
 #### UI Components - Operator Dashboard
 
-- [ ] T053 [US5] Enhance list page web/src/app/(dashboard)/preview-environments/page.tsx with resource usage columns
-- [ ] T054 [US5] Add CPU/memory usage display to environment list table
-- [ ] T055 [US5] Add age column showing days since creation
-- [ ] T056 [US5] Add warning indicators for environments exceeding resource quotas
-- [ ] T057 [US5] Add filter by status to list page (pending, deploying, running, failed)
+- [x] T053 [US5] Enhance list page web/src/app/(dashboard)/preview-environments/page.tsx with resource usage columns
+- [x] T054 [US5] Add CPU/memory usage display to environment list table
+- [x] T055 [US5] Add age column showing days since creation
+- [x] T056 [US5] Add warning indicators for environments exceeding resource quotas
+- [x] T057 [US5] Add filter by status to list page (pending, deploying, running, failed)
 
 #### Actions Layer - Retry Logic
 
-- [ ] T058 [US5] Create retryDeployment() action in web/src/actions/preview-environments.ts for manual retry of failed deployments
-- [ ] T059 [US5] Implement retryFailedDeployment() in web/src/models/preview-environments.ts with status reset and deployment trigger
+- [x] T058 [US5] Create retryDeployment() action in web/src/actions/preview-environments.ts for manual retry of failed deployments
+- [x] T059 [US5] Implement retryFailedDeployment() in web/src/models/preview-environments.ts with status reset and deployment trigger
 
 #### UI Components - Retry Actions
 
-- [ ] T060 [US5] Add retry button to detail page for failed deployments
+- [x] T060 [US5] Add retry button to detail page for failed deployments
 
 **Checkpoint**: Platform operators can now view all environments, resource usage, and manually manage stale or failed deployments
 
@@ -211,18 +211,18 @@
 
 ### MCP Server Extension
 
-- [ ] T061 [P] Register list_preview_environments tool in web/src/app/api/mcp/route.ts with input schema
-- [ ] T062 [P] Register get_preview_environment tool in web/src/app/api/mcp/route.ts with input schema
-- [ ] T063 [P] Register get_preview_logs tool in web/src/app/api/mcp/route.ts with input schema
-- [ ] T064 [P] Register delete_preview_environment tool in web/src/app/api/mcp/route.ts with input schema
-- [ ] T065 [P] Register retry_preview_deployment tool in web/src/app/api/mcp/route.ts with input schema
-- [ ] T066 Implement handleListPreviewEnvironments() in web/src/app/api/mcp/route.ts with filtering by status and repo
-- [ ] T067 Implement handleGetPreviewEnvironment() in web/src/app/api/mcp/route.ts with lookup by ID or namespace
-- [ ] T068 Implement handleGetPreviewLogs() in web/src/app/api/mcp/route.ts with tail limit and timestamp options
-- [ ] T069 Implement handleDeletePreviewEnvironment() in web/src/app/api/mcp/route.ts with authorization
-- [ ] T070 Implement handleRetryPreviewDeployment() in web/src/app/api/mcp/route.ts with status validation
-- [ ] T071 Add user context extraction from MCP session metadata
-- [ ] T072 Add structured error responses with error codes (UNAUTHORIZED, NOT_FOUND, INVALID_INPUT, SERVER_ERROR)
+- [x] T061 [P] Register list_preview_environments tool in web/src/app/api/mcp/route.ts with input schema
+- [x] T062 [P] Register get_preview_environment tool in web/src/app/api/mcp/route.ts with input schema
+- [x] T063 [P] Register get_preview_logs tool in web/src/app/api/mcp/route.ts with input schema
+- [x] T064 [P] Register delete_preview_environment tool in web/src/app/api/mcp/route.ts with input schema
+- [x] T065 [P] Register retry_preview_deployment tool in web/src/app/api/mcp/route.ts with input schema
+- [x] T066 Implement handleListPreviewEnvironments() in web/src/app/api/mcp/route.ts with filtering by status and repo
+- [x] T067 Implement handleGetPreviewEnvironment() in web/src/app/api/mcp/route.ts with lookup by ID or namespace
+- [x] T068 Implement handleGetPreviewLogs() in web/src/app/api/mcp/route.ts with tail limit and timestamp options
+- [x] T069 Implement handleDeletePreviewEnvironment() in web/src/app/api/mcp/route.ts with authorization
+- [x] T070 Implement handleRetryPreviewDeployment() in web/src/app/api/mcp/route.ts with status validation
+- [x] T071 Add user context extraction from MCP session metadata
+- [x] T072 Add structured error responses with error codes (UNAUTHORIZED, NOT_FOUND, INVALID_INPUT, SERVER_ERROR)
 
 **Checkpoint**: All preview environment features should now be accessible via MCP tools with 100% functional parity to UI
 
@@ -232,26 +232,26 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T073 [P] Add logging for all deployment lifecycle events (created, deploying, running, failed, deleted)
-- [ ] T074 [P] Add validation for namespace DNS-1123 compliance using Zod schema
-- [ ] T075 [P] Add validation for commit SHA format (40-character hex string)
-- [ ] T076 [P] Add validation for public URL format (HTTPS only)
+- [x] T073 [P] Add logging for all deployment lifecycle events (created, deploying, running, failed, deleted)
+- [x] T074 [P] Add validation for namespace DNS-1123 compliance using Zod schema
+- [x] T075 [P] Add validation for commit SHA format (40-character hex string)
+- [x] T076 [P] Add validation for public URL format (HTTPS only)
 - [ ] T077 Add resource quota enforcement per preview environment (CPU: 500m, Memory: 512Mi)
 - [ ] T078 Add deployment timeout handling (3 minutes max)
 - [ ] T079 Add retry limit enforcement (max 3 attempts with exponential backoff)
 - [ ] T080 Add error message sanitization in GitHub comments to prevent information leaks
 - [ ] T081 Add transaction rollback handling for failed Kubernetes operations
 - [ ] T082 Add database index verification for performance (status, namespace indexes)
-- [ ] T092 [P] Create Kubernetes NetworkPolicy manifests in deployHelmChart() function following research.md section 5 specifications (allow ingress from ingress-nginx namespace, allow egress to kube-system DNS and docker-registry, deny all other traffic)
+- [x] T092 [P] Create Kubernetes NetworkPolicy manifests in deployHelmChart() function following research.md section 5 specifications (allow ingress from ingress-nginx namespace, allow egress to kube-system DNS and docker-registry, deny all other traffic)
 - [ ] T083 Test webhook signature validation with invalid signatures
 - [ ] T084 Test idempotency with duplicate webhook events
 - [ ] T085 Test concurrent deployments (50+ simultaneous PRs)
 - [ ] T086 Verify deployment time meets <3 minute requirement
 - [ ] T087 Verify cleanup time meets <5 minute requirement
-- [ ] T088 Run linting with npm run lint
-- [ ] T089 Run type checking with npm run typecheck
-- [ ] T090 Run build verification with npm run build
-- [ ] T091 Update CLAUDE.md with preview environments section documenting new architecture
+- [x] T088 Run linting with npm run lint
+- [x] T089 Run type checking with npm run typecheck
+- [x] T090 Run build verification with npm run build
+- [x] T091 Update CLAUDE.md with preview environments section documenting new architecture
 
 ---
 
@@ -415,5 +415,5 @@ This delivers the core value proposition: automatic preview deployments with pub
 - Each user story is independently completable and testable
 - Commit after each task or logical group
 - Stop at any checkpoint to validate story independently
-- Tests are NOT included per feature specification (no TDD requirement)
+- Per Constitution Principle 5, unit tests with >80% coverage are required (T083-T087 cover validation testing)
 - Focus on production functionality and operational reliability

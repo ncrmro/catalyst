@@ -359,9 +359,9 @@ describe("Pull Requests Model Integration", () => {
         repoId: testRepoId,
         provider: "github",
         providerPrId: "json-pr-1",
-        labels: ["bug", "high-priority"],
-        assignees: ["user1", "user2"],
-        reviewers: ["reviewer1"],
+        labels: JSON.stringify(["bug", "high-priority"]),
+        assignees: JSON.stringify(["user1", "user2"]),
+        reviewers: JSON.stringify(["reviewer1"]),
       });
 
       const [result] = await upsertPullRequests(prData);

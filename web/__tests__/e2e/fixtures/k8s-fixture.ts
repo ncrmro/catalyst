@@ -1,13 +1,18 @@
-import { test as base } from '@playwright/test';
-import { loginAndSeedForE2E } from '../helpers';
-import { getClusterConfig, getCoreV1Api } from '../../../src/lib/k8s-client';
-import { CoreV1Api } from '@kubernetes/client-node';
+/* eslint-disable react-hooks/rules-of-hooks */
+import { test as base } from "@playwright/test";
+import { loginAndSeedForE2E } from "../helpers";
+import {
+  getClusterConfig,
+  getCoreV1Api,
+  KubeConfig,
+} from "../../../src/lib/k8s-client";
+import { CoreV1Api } from "@kubernetes/client-node";
 
 /**
  * Interface for the Kubernetes client fixture
  */
 interface K8sFixture {
-  kc: CustomKubeConfig;
+  kc: KubeConfig;
   coreApi: CoreV1Api;
 }
 
@@ -24,45 +29,50 @@ export const test = base.extend<{
     await loginAndSeedForE2E(page, testInfo);
     await use(page);
   },
-  
+
   // Initialize Kubernetes client using PRIMARY cluster
   k8s: async ({}, use) => {
     // Get KubeConfig for PRIMARY cluster
-    const kc = await getClusterConfig('PRIMARY');
-    
+    const kc = await getClusterConfig("PRIMARY");
+
     if (!kc) {
-      throw new Error('Failed to get Kubernetes configuration for PRIMARY cluster');
+      throw new Error(
+        "Failed to get Kubernetes configuration for PRIMARY cluster",
+      );
     }
-    
+
     // Get CoreV1Api class
     const CoreV1Api = await getCoreV1Api();
-    
+
     // Create CoreV1Api client with the KubeConfig
     const coreApi = kc.makeApiClient(CoreV1Api);
-    
+
     // Create the fixture object
     const k8sFixture: K8sFixture = {
       kc,
-      coreApi
+      coreApi,
     };
-    
+
     // Provide the k8s fixture to the test
     await use(k8sFixture);
-  }
+  },
 });
 
 // Re-export expect so tests have it available
-export { expect } from '@playwright/test';
+export { expect } from "@playwright/test";
 
 /**
  * Utility function to check if a namespace exists
  */
-export async function namespaceExists(coreApi: CoreV1Api, namespaceName: string): Promise<boolean> {
+export async function namespaceExists(
+  coreApi: CoreV1Api,
+  namespaceName: string,
+): Promise<boolean> {
   try {
     await coreApi.readNamespace({ name: namespaceName });
     return true;
   } catch (error) {
-    if (error instanceof Error && error.message.includes('not found')) {
+    if (error instanceof Error && error.message.includes("not found")) {
       return false;
     }
     throw error;
@@ -72,13 +82,19 @@ export async function namespaceExists(coreApi: CoreV1Api, namespaceName: string)
 /**
  * Utility function to clean up a namespace
  */
-export async function cleanupNamespace(coreApi: CoreV1Api, namespaceName: string): Promise<void> {
+export async function cleanupNamespace(
+  coreApi: CoreV1Api,
+  namespaceName: string,
+): Promise<void> {
   try {
     await coreApi.deleteNamespace({ name: namespaceName });
     console.log(`✓ Cleaned up namespace: ${namespaceName}`);
   } catch (error) {
-    if (error instanceof Error && !error.message.includes('not found')) {
-      console.log(`⚠ Failed to clean up namespace ${namespaceName}:`, error.message);
+    if (error instanceof Error && !error.message.includes("not found")) {
+      console.log(
+        `⚠ Failed to clean up namespace ${namespaceName}:`,
+        error.message,
+      );
     }
   }
 }
