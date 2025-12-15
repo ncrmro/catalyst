@@ -45,13 +45,11 @@ Developers creating pull requests currently lack visibility into how their chang
 Automatically deploy isolated preview environments for every pull request, providing developers with instant feedback on how their changes behave in a production-like setting.
 
 **Secondary Goals:**
-
 - Enable developers to inspect deployment status and logs without leaving the GitHub interface
 - Reduce time from code push to working preview environment from manual hours to automated minutes
 - Provide platform operators visibility into resource usage across preview environments
 
 **Non-Goals:**
-
 - Production deployment automation (this feature focuses on preview/staging only)
 - Custom domain management per preview environment
 - Multi-region preview deployments
@@ -83,7 +81,7 @@ This feature aligns with the following constitutional principles:
 - Q: How should the system handle GitHub API rate limit exhaustion? → A: Exponential backoff with circuit breaker; retry after rate limit reset window
 - Q: What happens if the Helm deployment succeeds but application health checks fail? → A: Mark deployment as failed, post error to PR comment with health check logs, allow retry
 
-## User Scenarios & Testing _(mandatory)_
+## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Developer Creates PR and Gets Working Preview (Priority: P1)
 
@@ -165,31 +163,6 @@ A platform operator opens the Catalyst UI and views a dashboard showing all acti
 
 ---
 
-### User Story 6 - Developer Manually Triggers Ad-Hoc Preview Environment (Priority: P3)
-
-A developer wants to test a branch or arbitrary code without creating a formal pull request. They navigate to the Catalyst UI and click "Create Preview Environment", optionally specifying a branch name. If no branch is specified or the deployment is for experimental code, the system auto-generates a memorable random name (e.g., "purple-elephant-42") for the namespace. The preview environment is created and the developer receives a public URL.
-
-**Why this priority**: Enables rapid experimentation and testing outside the PR workflow. Particularly useful for testing hotfixes, debugging production issues, or sharing prototypes with stakeholders without polluting the PR history.
-
-**Independent Test**: Can be tested by using the UI to manually trigger a preview environment with and without a branch name, verifying namespace creation and URL generation. Delivers value by enabling flexible, on-demand preview deployments.
-
-**Acceptance Scenarios**:
-
-1. **Given** a developer is on the preview environments page, **When** they click "Create Preview Environment" and specify a branch name, **Then** a preview environment is created for that branch within 3 minutes
-2. **Given** a developer triggers a manual preview without specifying a branch, **When** the deployment starts, **Then** the system auto-generates a memorable random name (format: `{adjective}-{noun}-{number}`) and uses it for the namespace
-3. **Given** a manual preview environment is created, **When** the deployment completes, **Then** the developer receives the public URL and can access the running application
-4. **Given** a manual preview environment exists, **When** the developer no longer needs it, **Then** they can manually delete it from the UI to free resources
-5. **Given** a memorable name is generated, **When** the developer views the environment list, **Then** the name is displayed prominently to aid identification
-
-**Technical Notes**:
-
-- Memorable names should use a wordlist of ~200 adjectives and ~200 nouns plus a random 2-digit number for uniqueness (e.g., "clever-panda-73", "swift-river-24")
-- Manual preview environments should be tagged differently than PR-based ones in the database (`source: "manual"` vs `source: "pull_request"`)
-- Manual environments should have a default TTL (e.g., 24 hours) after which they auto-delete unless explicitly extended
-- The UI should clearly indicate which environments are PR-based vs manually created
-
----
-
 ### Edge Cases
 
 - What happens when a PR is created but the repository has no deployment configuration? → System posts a comment explaining configuration is missing and provides a link to setup docs
@@ -200,92 +173,27 @@ A developer wants to test a branch or arbitrary code without creating a formal p
 - How are secrets and environment variables handled for preview environments? → Secrets are copied from the project's configured secret store (namespace-specific) with read-only access
 - What happens when GitHub API rate limits are exhausted? → System uses exponential backoff with circuit breaker pattern, retrying operations after the rate limit reset window; deployments show "pending" status during rate limit delays
 - What happens if Helm deployment succeeds but application health checks fail? → Deployment is marked as failed, error details with health check logs are posted to the PR comment, and the deployment can be retried
-- What happens when a manually created preview environment uses the same branch as a PR-based environment? → Both environments can coexist with different namespaces (manual uses memorable name, PR uses `pr-{repo}-{number}` format); UI shows both with clear source indicators
-- What happens when a memorable name collision occurs during auto-generation? → System retries with a new random number suffix up to 5 times; if all fail, fallback to UUID-based name with warning to user
-- How are manual preview environments cleaned up if the user forgets to delete them? → Automatic deletion after 24-hour TTL; system sends notification to user 4 hours before expiration with option to extend for another 24 hours
 
-## Requirements _(mandatory)_
+## Requirements *(mandatory)*
 
 ### Functional Requirements
 
 - **FR-001**: System MUST create a dedicated Kubernetes namespace for each pull request preview environment with format `pr-{repo-name}-{pr-number}`
-
-  > ✅ **IMPLEMENTED**: `web/src/actions/kubernetes.ts:createKubernetesNamespace()`, called from webhook handler at `web/src/app/api/github/webhook/route.ts:283`
-
 - **FR-002**: System MUST deploy the PR branch code to the preview environment using the project's configured Helm chart
-
-  > ⚠️ **PARTIALLY IMPLEMENTED**: Current uses Kubernetes Jobs (`web/src/lib/k8s-pull-request-pod.ts:createPullRequestPodJob()`) for Docker image builds with buildx, NOT Helm chart deployments. Webhook creates job at route.ts:286-307.
-
 - **FR-003**: System MUST post a comment on the pull request with the public URL when deployment succeeds
-
-  > ⚠️ **PARTIALLY IMPLEMENTED**: Posts "hello from catalyst" comment (webhook/route.ts:272-278) using GitHub API, but no public URL or deployment status included.
-
 - **FR-004**: System MUST update the PR comment with deployment status (pending, running, failed, succeeded) and timestamps
-
-  > ❌ **NOT IMPLEMENTED**: Creates new comment instead of updating existing one; no status/timestamp tracking in comments.
-
 - **FR-005**: System MUST provide a UI page showing preview environment deployment status and resource usage
-
-  > ❌ **NOT IMPLEMENTED**: No UI pages exist for preview environments. Expected path: `web/src/app/(dashboard)/preview-environments/`
-
 - **FR-006**: System MUST display container logs (stdout/stderr) in the UI for debugging failed deployments
-
-  > ⚠️ **PARTIALLY IMPLEMENTED**: Log retrieval functions exist (`web/src/lib/k8s-pods.ts:getPodLogs()`), but no UI integration or Actions layer to expose them.
-
 - **FR-007**: System MUST automatically redeploy the preview environment when new commits are pushed to the PR branch; if a deployment is in-progress, it MUST be cancelled before starting the new deployment
-
-  > ❌ **NOT IMPLEMENTED**: Webhook handler (`web/src/app/api/github/webhook/route.ts`) doesn't handle `pull_request.synchronize` event; only handles `opened` and `closed`.
-
 - **FR-008**: System MUST delete the preview environment and Kubernetes namespace when the PR is closed or merged
-
-  > ✅ **IMPLEMENTED**: webhook/route.ts:339-381 handles `pull_request.closed` event, calls `deleteKubernetesNamespace()` and `cleanupPullRequestPodJob()`.
-
 - **FR-009**: System MUST handle deployment failures gracefully by posting error details to the PR comment
-
-  > ⚠️ **PARTIALLY IMPLEMENTED**: Logs errors to console (webhook/route.ts:318-334) but doesn't track failures in database or post structured error messages to PR.
-
 - **FR-010**: System MUST enforce resource quotas per preview environment to prevent cluster exhaustion
-
-  > ❌ **NOT IMPLEMENTED**: No Kubernetes ResourceQuota manifest creation. Pull request pod jobs have resource limits (k8s-pull-request-pod.ts:546-555) but no namespace-level quotas.
-
 - **FR-011**: System MUST retry failed deployments up to 3 times with exponential backoff before marking as permanently failed
-
-  > ⚠️ **PARTIALLY IMPLEMENTED**: Kubernetes Jobs have `backoffLimit: 3` (k8s-pull-request-pod.ts:560), but no application-level retry orchestration or failure tracking.
-
 - **FR-012**: System MUST expose preview environment management via MCP tools for AI agent access
-
-  > ⚠️ **PARTIALLY IMPLEMENTED**: MCP server framework exists (`web/src/app/api/mcp/route.ts`) with authentication and tool registration, but 5 preview-specific tools missing: `list_preview_environments`, `get_preview_environment`, `get_preview_logs`, `delete_preview_environment`, `retry_preview_deployment`.
-
 - **FR-013**: System MUST apply Kubernetes network policies to preview environment namespaces restricting network access to the namespace itself and auxiliary namespaces (e.g., image registry), preventing access to production namespaces
-
-  > ⚠️ **PARTIALLY IMPLEMENTED**: NetworkPolicy creation planned in tasks.md T092 (Phase 9 Polish), implements research.md section 5 specifications.
-
 - **FR-014**: System MUST track and expose metrics for deployment success/failure rate, deployment duration (p50/p95), active preview count, and resource utilization per namespace for operational monitoring
-
-  > ❌ **NOT IMPLEMENTED**: No metrics collection or exposure. `projects.previewEnvironmentsCount` field exists but not actively used for monitoring.
-
 - **FR-015**: System MUST implement exponential backoff with circuit breaker pattern for GitHub API operations to handle rate limit exhaustion gracefully, retrying after the rate limit reset window
-
-  > ⚠️ **PARTIALLY IMPLEMENTED**: GitHub App token refresh exists (`web/src/lib/github-app/token-refresh.ts`) with rate limit awareness, but no circuit breaker pattern or exponential backoff for webhook operations.
-
 - **FR-016**: System MUST monitor application health checks after Helm deployment; if health checks fail, mark the deployment as failed, post health check logs to the PR comment, and allow retry
-
-  > ❌ **NOT IMPLEMENTED**: No health check monitoring after deployment (current implementation doesn't deploy applications, only builds images).
-
-- **FR-017**: System MUST allow developers to manually trigger ad-hoc preview environments via the UI for any branch in a configured repository
-
-  > ✅ **IMPLEMENTED**: Manual preview environment creation available via "Create" button on preview environments page (`web/src/app/(dashboard)/preview-environments/components/CreatePreviewDialog.tsx`). Server action at `web/src/actions/preview-environments.ts::createManualPreview()` handles creation with repository selection, image URI input, and optional branch name. Model layer function at `web/src/models/preview-environments.ts::createManualPreviewEnvironment()` orchestrates Kubernetes deployment.
-
-- **FR-018**: System MUST auto-generate memorable random names (format: `{adjective}-{noun}-{number}`) for preview environments created without a specified branch name
-
-  > ✅ **IMPLEMENTED**: Name generator factory at `web/src/lib/name-generator.ts` with 100 adjectives × 100 nouns × 90 numbers = 900K combinations. Includes collision detection, retry logic (max 5 retries), and UUID fallback. Fully tested with 16 unit tests.
-
-- **FR-019**: System MUST differentiate between PR-based and manually created preview environments in the database and UI using a `source` field (`pull_request` vs `manual`)
-
-  > ✅ **IMPLEMENTED**: `pullRequestPods` table now includes `source` field (`'pull_request' | 'manual'`), `createdBy` field (user reference), and `expiresAt` field (timestamp). Schema changes in `web/src/db/schema.ts` with migration `drizzle/0013_flimsy_blockbuster.sql`. Includes indexes on `source` and `expiresAt` for efficient queries.
-
-- **FR-020**: System MUST automatically delete manual preview environments after a default TTL (24 hours) unless explicitly extended by the user
-  > ❌ **NOT IMPLEMENTED**: No TTL tracking or automatic cleanup for manual environments. Background job needed.
 
 ### Key Entities
 
@@ -293,32 +201,16 @@ A developer wants to test a branch or arbitrary code without creating a formal p
 - **Pull Request Event**: Webhook event from GitHub indicating PR opened, updated, closed, or synchronized with new commits
 - **Deployment Log**: Container output from the preview environment, including stdout, stderr, timestamps, and container name for debugging
 
-## Success Criteria _(mandatory)_
+## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
 - **SC-001**: Developers can access a working preview environment within 3 minutes of opening a pull request
-
-  > ⚠️ **PARTIALLY TESTABLE**: Infrastructure exists (namespace creation, pod jobs) but end-to-end workflow incomplete. Current implementation builds images but doesn't deploy applications with public URLs.
-
 - **SC-002**: 95% of preview deployments succeed on the first attempt without manual intervention
-
-  > ❌ **NOT MEASURABLE**: No tracking mechanism exists for deployment success/failure rates. `pull_request_pods` table needed for lifecycle tracking.
-
 - **SC-003**: Developers can view container logs in the UI without SSH access or kubectl commands
-
-  > ⚠️ **PARTIALLY ACHIEVABLE**: Log retrieval functions exist (`web/src/lib/k8s-pods.ts:getPodLogs()`), but no UI pages or Actions layer to surface them. Backend capability present, frontend missing.
-
 - **SC-004**: Preview environments are automatically cleaned up within 5 minutes of PR closure, preventing resource waste
-
-  > ✅ **ACHIEVABLE**: Cleanup implemented in webhook handler (route.ts:339-381). Namespace deletion and pod job cleanup triggered on `pull_request.closed` event.
-
 - **SC-005**: AI agents can create, inspect, and delete preview environments via MCP tools with 100% functional parity to human UI
-
-  > ⚠️ **FRAMEWORK READY, TOOLS MISSING**: MCP server framework operational (`web/src/app/api/mcp/route.ts`) with auth/tool registration, but 5 preview-specific tools not implemented. UI also missing, so parity cannot be measured.
-
 - **SC-006**: System handles 50 concurrent preview environment deployments without performance degradation
-  > ❓ **UNTESTED**: No concurrency controls, queueing, or load testing. Kubernetes Job limits exist (backoffLimit: 3, ttlSecondsAfterFinished: 3600) but system-level concurrency handling absent.
 
 ### Assumptions
 
@@ -328,7 +220,6 @@ A developer wants to test a branch or arbitrary code without creating a formal p
 - Pull request pods have appropriate RBAC permissions to create namespaces and deploy resources
 - Public URLs are accessible via configured ingress controller (e.g., nginx-ingress, Traefik)
 - Developers have GitHub OAuth authentication configured to view preview environment pages in Catalyst UI
-- For local development and testing, developers use the `bin/k3s-vm` infrastructure (see Local Testing Infrastructure section)
 
 ### Dependencies
 
@@ -338,167 +229,6 @@ A developer wants to test a branch or arbitrary code without creating a formal p
 - Ingress controller for exposing public URLs
 - Drizzle ORM for persisting preview environment state
 
-## Local Testing Infrastructure
-
-### K3s Development VM
-
-For local development and integration testing of preview environment features, developers should use the NixOS-based K3s VM provided by the project. This eliminates the need for external Kubernetes clusters during development.
-
-**VM Management (from project root):**
-
-```bash
-bin/k3s-vm setup     # Build NixOS VM with K3s (first time only, ~5 min)
-bin/k3s-vm start     # Start VM and auto-extract kubeconfig
-bin/k3s-vm stop      # Stop the running VM
-bin/k3s-vm status    # Check VM status and K3s health
-bin/k3s-vm ssh       # SSH into VM for debugging
-bin/k3s-vm reset     # Destroy and rebuild VM (if corrupted)
-```
-
-**Using kubectl with local cluster:**
-
-```bash
-bin/kubectl get nodes           # Verify cluster is ready
-bin/kubectl get namespaces      # List namespaces (preview envs appear here)
-bin/kubectl get pods -A         # List all pods across namespaces
-bin/kubectl logs -n <namespace> <pod>  # View pod logs
-```
-
-**How it works:**
-
-- Creates a NixOS VM using `nix-build` with QEMU (hardware-accelerated via KVM)
-- K3s runs as a systemd service inside the VM with persistent state
-- Port forwarding: SSH (localhost:2222), K3s API (localhost:6443)
-- Kubeconfig auto-extracted to `web/.kube/config` on VM start
-- Integration tests use `KUBECONFIG_PRIMARY` env var (base64-encoded JSON kubeconfig)
-
-**Default resources:** 2 CPU cores, 4GB RAM (configurable via `--cpus` and `--memory` flags)
-
-**Requirements:**
-
-- Nix package manager installed
-- KVM support (for hardware acceleration)
-
-### Testing Preview Environments Locally
-
-When developing or testing preview environment features:
-
-1. **Start the K3s VM:**
-
-   ```bash
-   bin/k3s-vm start
-   ```
-
-2. **Verify cluster access:**
-
-   ```bash
-   bin/kubectl get nodes
-   # Should show: k3s-vm   Ready    control-plane,master   ...
-   ```
-
-3. **Run the web application:**
-
-   ```bash
-   cd web && npm run dev
-   ```
-
-4. **Trigger preview environment creation:**
-   - Create a test PR in a configured repository, OR
-   - Use integration tests that simulate webhook events
-
-5. **Verify namespace creation:**
-
-   ```bash
-   bin/kubectl get namespaces | grep pr-
-   # Should show: pr-{repo-name}-{pr-number}
-   ```
-
-6. **View deployment logs:**
-
-   ```bash
-   bin/kubectl get pods -n pr-{repo-name}-{pr-number}
-   bin/kubectl logs -n pr-{repo-name}-{pr-number} <pod-name>
-   ```
-
-7. **Clean up after testing:**
-   ```bash
-   bin/k3s-vm stop  # Or keep running for next session
-   ```
-
-**Integration Test Configuration:**
-
-The `bin/k3s-vm start` command automatically updates `KUBECONFIG_PRIMARY` in `web/.env` with a base64-encoded JSON kubeconfig. Integration tests should use this environment variable to connect to the local K3s cluster.
-
-See `specs/002-local-k3s-vm/spec.md` for detailed documentation on the K3s VM infrastructure.
-
-## Implementation Status
-
-### ✅ Implemented Infrastructure
-
-The following building blocks already exist in the codebase:
-
-- **Kubernetes Client**: `web/src/lib/k8s-client.ts` - Full K8s API client with cluster config management
-- **Pull Request Pod Jobs**: `web/src/lib/k8s-pull-request-pod.ts` (687 lines) - Complete Job-based deployment system with:
-  - Service account + RBAC creation (`createBuildxServiceAccount()`)
-  - GitHub PAT secret management (`createGitHubPATSecret()`)
-  - Docker buildx integration for image building
-  - Job status checking (`getPullRequestPodJobStatus()`)
-  - Cleanup operations (`cleanupPullRequestPodJob()`)
-- **Namespace Management**: `web/src/lib/k8s-namespaces.ts`, `web/src/actions/kubernetes.ts` - Create/delete operations
-- **Pod Operations**: `web/src/lib/k8s-pods.ts` - Log retrieval and pod management functions
-- **Webhook Handler**: `web/src/app/api/github/webhook/route.ts` - Handles PR `opened` and `closed` events (lines 264-381)
-- **Pull Request Tracking**:
-  - Database schema: `web/src/db/schema.ts` (`pullRequests` table with provider-agnostic design)
-  - Models layer: `web/src/models/pull-requests.ts` (upsert, query operations)
-  - Actions layer: `web/src/actions/pull-requests.ts`, `web/src/actions/pull-requests-db.ts`
-- **MCP Server Framework**: `web/src/app/api/mcp/route.ts` - Authentication, tool registration, and JSON-RPC handling ready
-- **Test Factories**: `web/__tests__/factories/pull-request.factory.ts` - Factory for `pullRequests` table
-
-### ⚠️ Partially Implemented
-
-- **Database Schema**: `pullRequests` table exists, but **`pull_request_pods` table missing** (no deployment lifecycle tracking with status, namespace, publicUrl, etc.)
-- **Webhook Events**: Handles `opened` and `closed`, but **missing `synchronize` event** for redeployments on new commits
-- **GitHub Comments**: Posts basic "hello from catalyst" comment (webhook/route.ts:272-278), but **missing structured status updates** with URL/logs/deployment status
-- **Preview Counting**: `projects.previewEnvironmentsCount` field exists with `incrementPreviewCount()` function in models layer
-- **Environment Management**: `web/src/actions/environments.ts` handles environment types including "preview", but no preview-specific deployment logic
-
-### ❌ Not Implemented (Requires New Code)
-
-- **Helm Deployment**: Current implementation uses Kubernetes **Jobs** for Docker image builds (`web/src/lib/k8s-pull-request-pod.ts`), NOT Helm for application deployment (FR-002)
-- **Models Layer**: `web/src/models/preview-environments.ts` - Business logic orchestration doesn't exist
-  - Missing: `createPreviewDeployment()`, `watchDeploymentStatus()`, `getPreviewPodLogs()`, `deletePreviewDeployment()`, `retryFailedDeployment()`
-- **Actions Layer**: `web/src/actions/preview-environments.ts` - UI delegation layer doesn't exist
-  - Missing: `getPreviewEnvironments()`, `getPreviewEnvironment()`, `getPodLogs()`, `retryDeployment()`, `deletePreviewEnvironment()`
-- **NetworkPolicy**: Namespace isolation (FR-013) - No NetworkPolicy manifest creation
-- **Resource Quotas**: Per-namespace limits (FR-010) - No ResourceQuota manifest creation
-- **UI Pages**: Preview environment list/detail views - No pages in `web/src/app/(dashboard)/`
-- **MCP Tools**: 5 preview environment tools missing from MCP server (FR-012):
-  - `list_preview_environments`, `get_preview_environment`, `get_preview_logs`, `delete_preview_environment`, `retry_preview_deployment`
-- **Deployment Status Tracking**: No Kubernetes Watch API integration for real-time status updates
-- **Comment Upsert Pattern**: GitHub comment updates in-place (research.md section 4) not implemented
-- **Cleanup Agent**: TTL-based stale environment removal (research.md section 2) - No periodic agent
-- **Tests**:
-  - Missing factory for `pull_request_pods` table (table doesn't exist yet)
-  - No E2E tests for full PR preview workflow (`web/__tests__/e2e/preview-environments.spec.ts`)
-  - No integration tests for deployment orchestration
-
-### Architecture Decision: Hybrid Build + Deploy Approach
-
-**Chosen Strategy**: Option C - Hybrid approach
-
-- **Build Phase**: Use existing Kubernetes Jobs (`k8s-pull-request-pod.ts`) for Docker image building with buildx
-- **Deploy Phase**: Add Helm chart deployment using built image from previous step
-
-**Implementation**:
-
-1. Job completes and pushes image to registry (existing functionality)
-2. Helper function `deployHelmChart()` deploys application using Helm with image tag from Job
-3. Namespace already created by existing webhook handler
-
-**Benefits**: Preserves 687 lines of working build infrastructure while adding Helm for application deployment (FR-002 compliance)
-
-**Impact**: ~65-70% of the specification requires new implementation. The existing infrastructure (K8s client, webhooks, PR tracking) provides a solid foundation but the core deployment orchestration and lifecycle tracking are missing.
-
 ## Design Considerations for Future Extensions
 
 ### Devcontainer Support (Out of Scope - Future Work)
@@ -506,14 +236,12 @@ The following building blocks already exist in the codebase:
 While not part of this initial specification, the preview environment architecture should be designed with future devcontainer support in mind. This would enable preview environments to serve as full interactive development environments for both humans and AI agents.
 
 **Future Capabilities:**
-
 - SSH access to preview environment containers for interactive development
 - Port forwarding to enable local IDE connections (VS Code Remote, JetBrains Gateway)
 - Devcontainer configuration support for standardized development environments
 - AI agent access to development containers via SSH for autonomous coding workflows
 
 **Architectural Implications for Current Design:**
-
 - Preview environment containers should expose SSH ports (even if not immediately used)
 - Namespace security policies should anticipate future SSH access requirements
 - Container images should be structured to support both runtime and development modes
@@ -523,7 +251,5 @@ While not part of this initial specification, the preview environment architectu
 The initial preview environment deployment must focus on core deployment functionality (P1 user story). Adding interactive development support adds significant complexity around authentication, session management, and security that would delay delivery of core value. However, designing the architecture to accommodate this future use case ensures we don't create technical debt.
 
 ### Open Questions
-
-
 
 None - all critical decisions have reasonable defaults based on existing Catalyst architecture and industry standards.
