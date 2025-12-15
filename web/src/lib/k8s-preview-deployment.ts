@@ -311,6 +311,7 @@ export async function watchDeploymentUntilReady(
   namespace: string,
   deploymentName: string,
   timeoutMs: number = 180000,
+  onProgress?: (message: string) => void
 ): Promise<DeploymentStatus> {
   const startTime = Date.now();
   const pollInterval = 5000; // 5 seconds
@@ -350,6 +351,13 @@ export async function watchDeploymentUntilReady(
             replicas: spec.replicas,
             readyReplicas: status.readyReplicas,
           };
+        }
+
+        // Report progress
+        if (onProgress) {
+            const ready = status?.readyReplicas || 0;
+            const desired = spec?.replicas || 0;
+            onProgress(`Waiting for pods: ${ready}/${desired} ready...`);
         }
 
         // Check for failure conditions

@@ -1315,6 +1315,7 @@ export interface CreateManualPreviewParams {
   imageUri: string;
   userId: string;
   branchName?: string;
+  onProgress?: (message: string) => void;
 }
 
 export interface CreateManualPreviewResult {
@@ -1340,11 +1341,16 @@ export interface CreateManualPreviewResult {
 export async function createManualPreviewEnvironment(
   params: CreateManualPreviewParams,
 ): Promise<CreateManualPreviewResult> {
-  const { repoId, imageUri, userId, branchName } = params;
+  const { repoId, imageUri, userId, branchName, onProgress } = params;
+  
+  const reportProgress = (msg: string) => {
+    if (onProgress) onProgress(msg);
+  };
 
   const deploymentTimer = startTimer("manual-preview-deployment-creation");
 
   // Step 1: Get repo information
+  reportProgress("Validating repository...");
   const repo = await db.query.repos.findFirst({
     where: eq(repos.id, repoId),
   });
@@ -1361,6 +1367,7 @@ export async function createManualPreviewEnvironment(
   }
 
   // Step 2: Generate namespace name
+  reportProgress("Generating namespace...");
   let namespace: string;
 
   if (branchName) {
@@ -1412,6 +1419,7 @@ export async function createManualPreviewEnvironment(
   });
 
   // Step 3: Create database record
+  reportProgress("Creating database record...");
   try {
     const [pod] = await db
       .insert(pullRequestPods)
@@ -1448,6 +1456,7 @@ export async function createManualPreviewEnvironment(
     });
 
     // Step 5: Deploy to Kubernetes
+    reportProgress("Deploying to Kubernetes...");
     const { deployPreviewApplication } =
       await import("@/lib/k8s-preview-deployment");
     const deployResult = await deployPreviewApplication({
@@ -1489,11 +1498,14 @@ export async function createManualPreviewEnvironment(
     });
 
     // Step 6: Wait for deployment to be ready
+    reportProgress("Waiting for deployment to be ready...");
     const { watchDeploymentUntilReady } =
       await import("@/lib/k8s-preview-deployment");
     const watchResult = await watchDeploymentUntilReady(
       namespace,
       deploymentName,
+      180000, // Timeout
+      reportProgress // Pass progress callback
     );
 
     if (!watchResult.ready) {
@@ -1522,6 +1534,7 @@ export async function createManualPreviewEnvironment(
     }
 
     // Step 7: Update to running
+    reportProgress("Finalizing setup...");
     await updatePodStatus(pod.id, "running", {
       lastDeployedAt: new Date(),
     });
@@ -1541,6 +1554,7 @@ export async function createManualPreviewEnvironment(
       expiresAt: expiresAt.toISOString(),
     });
 
+    reportProgress("Done!");
     return {
       success: true,
       podId: pod.id,

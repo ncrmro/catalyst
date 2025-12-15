@@ -1,7 +1,6 @@
-"use client";
-
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { readStreamableValue } from "ai/rsc";
 import {
   createManualPreview,
   getUserRepositories,
@@ -22,6 +21,7 @@ export function CreatePreviewCard({ onClose }: CreatePreviewCardProps) {
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [branchName, setBranchName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [progress, setProgress] = useState("");
   const [error, setError] = useState("");
 
   const loadLatestImage = useCallback(async (selectedRepoId: string) => {
@@ -77,6 +77,7 @@ export function CreatePreviewCard({ onClose }: CreatePreviewCardProps) {
     e.preventDefault();
     setIsSubmitting(true);
     setError("");
+    setProgress("Initializing...");
 
     if (!repoId) {
       setError("Please select a repository");
@@ -90,24 +91,56 @@ export function CreatePreviewCard({ onClose }: CreatePreviewCardProps) {
       return;
     }
 
-    const result = await createManualPreview({
-      repoId,
-      imageUri,
-      branchName: branchName || undefined,
-    });
+    try {
+      const { success, stream, error: actionError } = await createManualPreview({
+        repoId,
+        imageUri,
+        branchName: branchName || undefined,
+      });
 
-    if (result.success && result.data) {
-      router.refresh();
-      onClose();
-      // Reset form
-      setRepoId(repos[0]?.id || "");
-      setImageUri("");
-      setBranchName("");
-    } else {
-      setError(result.error || "Failed to create preview environment");
+      if (!success || actionError) {
+        setError(actionError || "Failed to create preview environment");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (stream) {
+        for await (const message of readStreamableValue(stream)) {
+          if (!message) continue;
+          
+          // Check if it's the final JSON result
+          if (message.startsWith("{") && message.includes('"success":')) {
+            try {
+              const result = JSON.parse(message);
+              if (result.success) {
+                router.refresh();
+                onClose();
+                // Reset form
+                setRepoId(repos[0]?.id || "");
+                setImageUri("");
+                setBranchName("");
+                setProgress("");
+                return;
+              } else {
+                setError(result.error || "Failed during creation");
+                setIsSubmitting(false);
+                setProgress("");
+                return;
+              }
+            } catch {
+              // Not valid JSON, treat as progress message
+              setProgress(message);
+            }
+          } else {
+            setProgress(message);
+          }
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+      setIsSubmitting(false);
+      setProgress("");
     }
-
-    setIsSubmitting(false);
   };
 
   return (
@@ -226,6 +259,13 @@ export function CreatePreviewCard({ onClose }: CreatePreviewCardProps) {
           </div>
         </div>
 
+        {progress && (
+          <div className="mt-4 p-3 bg-primary/10 border border-primary/20 rounded-md flex items-center gap-2 text-primary animate-pulse">
+            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm font-medium">{progress}</span>
+          </div>
+        )}
+
         <div className="flex justify-end gap-3 mt-6">
           <button
             type="button"
@@ -240,7 +280,7 @@ export function CreatePreviewCard({ onClose }: CreatePreviewCardProps) {
             className="px-4 py-2 bg-primary text-on-primary rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isSubmitting || isLoadingRepos || repos.length === 0}
           >
-            {isSubmitting ? "Creating..." : "Create Preview"}
+            {isSubmitting ? "Processing..." : "Create Preview"}
           </button>
         </div>
       </form>
