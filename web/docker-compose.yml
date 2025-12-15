@@ -23,11 +23,15 @@ services:
     volumes:
       - .:/app
       - node_modules:/app/node_modules
+      - .kube:/app/.kube
     environment:
       - DATABASE_URL=postgres://postgres:postgres@db:5432/catalyst
       - PORT=${APP_PORT:-3000}
       - GITHUB_REPOS_MODE=${GITHUB_REPOS_MODE:-mocked}
       - MOCKED=${MOCKED:-1}
+      - KUBECONFIG=/app/.kube/config
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "${APP_PORT:-3000}:${APP_PORT:-3000}"
     depends_on:
