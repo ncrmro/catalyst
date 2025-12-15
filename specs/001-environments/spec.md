@@ -165,6 +165,31 @@ A platform operator opens the Catalyst UI and views a dashboard showing all acti
 
 ---
 
+### User Story 6 - Developer Manually Triggers Ad-Hoc Preview Environment (Priority: P3)
+
+A developer wants to test a branch or arbitrary code without creating a formal pull request. They navigate to the Catalyst UI and click "Create Preview Environment", optionally specifying a branch name. If no branch is specified or the deployment is for experimental code, the system auto-generates a memorable random name (e.g., "purple-elephant-42") for the namespace. The preview environment is created and the developer receives a public URL.
+
+**Why this priority**: Enables rapid experimentation and testing outside the PR workflow. Particularly useful for testing hotfixes, debugging production issues, or sharing prototypes with stakeholders without polluting the PR history.
+
+**Independent Test**: Can be tested by using the UI to manually trigger a preview environment with and without a branch name, verifying namespace creation and URL generation. Delivers value by enabling flexible, on-demand preview deployments.
+
+**Acceptance Scenarios**:
+
+1. **Given** a developer is on the preview environments page, **When** they click "Create Preview Environment" and specify a branch name, **Then** a preview environment is created for that branch within 3 minutes
+2. **Given** a developer triggers a manual preview without specifying a branch, **When** the deployment starts, **Then** the system auto-generates a memorable random name (format: `{adjective}-{noun}-{number}`) and uses it for the namespace
+3. **Given** a manual preview environment is created, **When** the deployment completes, **Then** the developer receives the public URL and can access the running application
+4. **Given** a manual preview environment exists, **When** the developer no longer needs it, **Then** they can manually delete it from the UI to free resources
+5. **Given** a memorable name is generated, **When** the developer views the environment list, **Then** the name is displayed prominently to aid identification
+
+**Technical Notes**:
+
+- Memorable names should use a wordlist of ~200 adjectives and ~200 nouns plus a random 2-digit number for uniqueness (e.g., "clever-panda-73", "swift-river-24")
+- Manual preview environments should be tagged differently than PR-based ones in the database (`source: "manual"` vs `source: "pull_request"`)
+- Manual environments should have a default TTL (e.g., 24 hours) after which they auto-delete unless explicitly extended
+- The UI should clearly indicate which environments are PR-based vs manually created
+
+---
+
 ### Edge Cases
 
 - What happens when a PR is created but the repository has no deployment configuration? → System posts a comment explaining configuration is missing and provides a link to setup docs
@@ -175,6 +200,9 @@ A platform operator opens the Catalyst UI and views a dashboard showing all acti
 - How are secrets and environment variables handled for preview environments? → Secrets are copied from the project's configured secret store (namespace-specific) with read-only access
 - What happens when GitHub API rate limits are exhausted? → System uses exponential backoff with circuit breaker pattern, retrying operations after the rate limit reset window; deployments show "pending" status during rate limit delays
 - What happens if Helm deployment succeeds but application health checks fail? → Deployment is marked as failed, error details with health check logs are posted to the PR comment, and the deployment can be retried
+- What happens when a manually created preview environment uses the same branch as a PR-based environment? → Both environments can coexist with different namespaces (manual uses memorable name, PR uses `pr-{repo}-{number}` format); UI shows both with clear source indicators
+- What happens when a memorable name collision occurs during auto-generation? → System retries with a new random number suffix up to 5 times; if all fail, fallback to UUID-based name with warning to user
+- How are manual preview environments cleaned up if the user forgets to delete them? → Automatic deletion after 24-hour TTL; system sends notification to user 4 hours before expiration with option to extend for another 24 hours
 
 ## Requirements _(mandatory)_
 
@@ -241,7 +269,23 @@ A platform operator opens the Catalyst UI and views a dashboard showing all acti
   > ⚠️ **PARTIALLY IMPLEMENTED**: GitHub App token refresh exists (`web/src/lib/github-app/token-refresh.ts`) with rate limit awareness, but no circuit breaker pattern or exponential backoff for webhook operations.
 
 - **FR-016**: System MUST monitor application health checks after Helm deployment; if health checks fail, mark the deployment as failed, post health check logs to the PR comment, and allow retry
+
   > ❌ **NOT IMPLEMENTED**: No health check monitoring after deployment (current implementation doesn't deploy applications, only builds images).
+
+- **FR-017**: System MUST allow developers to manually trigger ad-hoc preview environments via the UI for any branch in a configured repository
+
+  > ✅ **IMPLEMENTED**: Manual preview environment creation available via "Create" button on preview environments page (`web/src/app/(dashboard)/preview-environments/components/CreatePreviewDialog.tsx`). Server action at `web/src/actions/preview-environments.ts::createManualPreview()` handles creation with repository selection, image URI input, and optional branch name. Model layer function at `web/src/models/preview-environments.ts::createManualPreviewEnvironment()` orchestrates Kubernetes deployment.
+
+- **FR-018**: System MUST auto-generate memorable random names (format: `{adjective}-{noun}-{number}`) for preview environments created without a specified branch name
+
+  > ✅ **IMPLEMENTED**: Name generator factory at `web/src/lib/name-generator.ts` with 100 adjectives × 100 nouns × 90 numbers = 900K combinations. Includes collision detection, retry logic (max 5 retries), and UUID fallback. Fully tested with 16 unit tests.
+
+- **FR-019**: System MUST differentiate between PR-based and manually created preview environments in the database and UI using a `source` field (`pull_request` vs `manual`)
+
+  > ✅ **IMPLEMENTED**: `pullRequestPods` table now includes `source` field (`'pull_request' | 'manual'`), `createdBy` field (user reference), and `expiresAt` field (timestamp). Schema changes in `web/src/db/schema.ts` with migration `drizzle/0013_flimsy_blockbuster.sql`. Includes indexes on `source` and `expiresAt` for efficient queries.
+
+- **FR-020**: System MUST automatically delete manual preview environments after a default TTL (24 hours) unless explicitly extended by the user
+  > ❌ **NOT IMPLEMENTED**: No TTL tracking or automatic cleanup for manual environments. Background job needed.
 
 ### Key Entities
 
@@ -284,6 +328,7 @@ A platform operator opens the Catalyst UI and views a dashboard showing all acti
 - Pull request pods have appropriate RBAC permissions to create namespaces and deploy resources
 - Public URLs are accessible via configured ingress controller (e.g., nginx-ingress, Traefik)
 - Developers have GitHub OAuth authentication configured to view preview environment pages in Catalyst UI
+- For local development and testing, developers use the `bin/k3s-vm` infrastructure (see Local Testing Infrastructure section)
 
 ### Dependencies
 
@@ -292,6 +337,99 @@ A platform operator opens the Catalyst UI and views a dashboard showing all acti
 - Existing pull request pod infrastructure with deployment permissions
 - Ingress controller for exposing public URLs
 - Drizzle ORM for persisting preview environment state
+
+## Local Testing Infrastructure
+
+### K3s Development VM
+
+For local development and integration testing of preview environment features, developers should use the NixOS-based K3s VM provided by the project. This eliminates the need for external Kubernetes clusters during development.
+
+**VM Management (from project root):**
+
+```bash
+bin/k3s-vm setup     # Build NixOS VM with K3s (first time only, ~5 min)
+bin/k3s-vm start     # Start VM and auto-extract kubeconfig
+bin/k3s-vm stop      # Stop the running VM
+bin/k3s-vm status    # Check VM status and K3s health
+bin/k3s-vm ssh       # SSH into VM for debugging
+bin/k3s-vm reset     # Destroy and rebuild VM (if corrupted)
+```
+
+**Using kubectl with local cluster:**
+
+```bash
+bin/kubectl get nodes           # Verify cluster is ready
+bin/kubectl get namespaces      # List namespaces (preview envs appear here)
+bin/kubectl get pods -A         # List all pods across namespaces
+bin/kubectl logs -n <namespace> <pod>  # View pod logs
+```
+
+**How it works:**
+
+- Creates a NixOS VM using `nix-build` with QEMU (hardware-accelerated via KVM)
+- K3s runs as a systemd service inside the VM with persistent state
+- Port forwarding: SSH (localhost:2222), K3s API (localhost:6443)
+- Kubeconfig auto-extracted to `web/.kube/config` on VM start
+- Integration tests use `KUBECONFIG_PRIMARY` env var (base64-encoded JSON kubeconfig)
+
+**Default resources:** 2 CPU cores, 4GB RAM (configurable via `--cpus` and `--memory` flags)
+
+**Requirements:**
+
+- Nix package manager installed
+- KVM support (for hardware acceleration)
+
+### Testing Preview Environments Locally
+
+When developing or testing preview environment features:
+
+1. **Start the K3s VM:**
+
+   ```bash
+   bin/k3s-vm start
+   ```
+
+2. **Verify cluster access:**
+
+   ```bash
+   bin/kubectl get nodes
+   # Should show: k3s-vm   Ready    control-plane,master   ...
+   ```
+
+3. **Run the web application:**
+
+   ```bash
+   cd web && npm run dev
+   ```
+
+4. **Trigger preview environment creation:**
+   - Create a test PR in a configured repository, OR
+   - Use integration tests that simulate webhook events
+
+5. **Verify namespace creation:**
+
+   ```bash
+   bin/kubectl get namespaces | grep pr-
+   # Should show: pr-{repo-name}-{pr-number}
+   ```
+
+6. **View deployment logs:**
+
+   ```bash
+   bin/kubectl get pods -n pr-{repo-name}-{pr-number}
+   bin/kubectl logs -n pr-{repo-name}-{pr-number} <pod-name>
+   ```
+
+7. **Clean up after testing:**
+   ```bash
+   bin/k3s-vm stop  # Or keep running for next session
+   ```
+
+**Integration Test Configuration:**
+
+The `bin/k3s-vm start` command automatically updates `KUBECONFIG_PRIMARY` in `web/.env` with a base64-encoded JSON kubeconfig. Integration tests should use this environment variable to connect to the local K3s cluster.
+
+See `specs/002-local-k3s-vm/spec.md` for detailed documentation on the K3s VM infrastructure.
 
 ## Implementation Status
 

@@ -1,6 +1,7 @@
 import { Metadata } from "next";
-import { auth } from "@/auth";
+import { _auth } from "@/auth";
 import PeriodicReportGenerator from "@/components/periodic-report-generator";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Dashboard - Catalyst",
@@ -8,7 +9,11 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
-  const session = await auth();
+  const session = await _auth();
+
+  if (!session?.user) {
+    redirect("/login");
+  }
 
   return (
     <div className="space-y-6">

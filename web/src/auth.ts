@@ -185,23 +185,28 @@ export const {
       if (existingUser) {
         token.id = existingUser.id;
         token.admin = existingUser.admin;
-        
+
         // Store GitHub App tokens in database if we have them
-        if (account?.provider === "github" && token.accessToken && token.refreshToken) {
-          const { storeGitHubTokens } = await import('@/lib/github-app/token-service');
-          
+        if (
+          account?.provider === "github" &&
+          token.accessToken &&
+          token.refreshToken
+        ) {
+          const { storeGitHubTokens } =
+            await import("@/lib/github-app/token-service");
+
           // Calculate expiration time (8 hours for GitHub App tokens)
           const expiresAt = new Date();
           expiresAt.setHours(expiresAt.getHours() + 8);
-          
+
           await storeGitHubTokens(existingUser.id, {
             accessToken: token.accessToken as string,
             refreshToken: token.refreshToken as string,
             expiresAt,
-            scope: token.tokenScope as string || '',
+            scope: (token.tokenScope as string) || "",
           });
         }
-        
+
         return token;
       } else {
         const createdUser = await createUserWithPersonalTeam({
@@ -212,23 +217,28 @@ export const {
 
         token.id = createdUser.id;
         token.admin = createdUser.admin;
-        
+
         // Store GitHub App tokens in database if we have them
-        if (account?.provider === "github" && token.accessToken && token.refreshToken) {
-          const { storeGitHubTokens } = await import('@/lib/github-app/token-service');
-          
+        if (
+          account?.provider === "github" &&
+          token.accessToken &&
+          token.refreshToken
+        ) {
+          const { storeGitHubTokens } =
+            await import("@/lib/github-app/token-service");
+
           // Calculate expiration time (8 hours for GitHub App tokens)
           const expiresAt = new Date();
           expiresAt.setHours(expiresAt.getHours() + 8);
-          
+
           await storeGitHubTokens(createdUser.id, {
             accessToken: token.accessToken as string,
             refreshToken: token.refreshToken as string,
             expiresAt,
-            scope: token.tokenScope as string || '',
+            scope: (token.tokenScope as string) || "",
           });
         }
-        
+
         return token;
       }
       return token;
