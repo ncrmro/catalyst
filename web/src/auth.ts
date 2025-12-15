@@ -228,6 +228,7 @@ export const {
             await import("@/lib/github-app/token-service");
 
           // Calculate expiration time (8 hours for GitHub App tokens)
+          const expiresAt = new Date();
           expiresAt.setHours(expiresAt.getHours() + 8);
 
           await storeGitHubTokens(createdUser.id, {
