@@ -30,6 +30,7 @@ services:
       - GITHUB_REPOS_MODE=${GITHUB_REPOS_MODE:-mocked}
       - MOCKED=${MOCKED:-1}
       - KUBECONFIG=/app/.kube/config
+      - KUBERNETES_API_SERVER_HOST=192.168.1.69
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:

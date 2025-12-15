@@ -152,22 +152,27 @@ export class KubeConfig {
 
       const serverUrl = cluster.server;
       
-      // Detect local development environments
-      const isLocalCluster = 
-        serverUrl?.includes('localhost') ||
-        serverUrl?.includes('127.0.0.1') ||
-        serverUrl?.includes('kind-') ||
-        serverUrl?.startsWith('http://') ||
-        process.env.NODE_ENV === 'development';
-
-      // Rewrite localhost to host.docker.internal if running in Docker
-      // We detect this if we are in development mode
-      if (process.env.NODE_ENV === 'development' && (serverUrl.includes('localhost') || serverUrl.includes('127.0.0.1'))) {
+      // If KUBERNETES_API_SERVER_HOST is provided, use it to override the server URL
+      if (process.env.KUBERNETES_API_SERVER_HOST) {
+        cluster.server = `https://${process.env.KUBERNETES_API_SERVER_HOST}:6443`;
+        console.log(`Overrode cluster endpoint to ${cluster.server} from KUBERNETES_API_SERVER_HOST`);
+      } else if (process.env.NODE_ENV === 'development' && (serverUrl.includes('localhost') || serverUrl.includes('127.0.0.1'))) {
+         // Detect local development environments
+         // Rewrite localhost to host.docker.internal if running in Docker, only if KUBERNETES_API_SERVER_HOST is not set
          cluster.server = serverUrl
            .replace('localhost', 'host.docker.internal')
            .replace('127.0.0.1', 'host.docker.internal');
          console.log(`Rewrote cluster endpoint to ${cluster.server} for Docker connectivity`);
       }
+
+      // Detect local development environments
+      const isLocalCluster = 
+        cluster.server?.includes('localhost') ||
+        cluster.server?.includes('127.0.0.1') ||
+        cluster.server?.includes('host.docker.internal') ||
+        cluster.server?.includes('kind-') ||
+        cluster.server?.startsWith('http://') ||
+        process.env.NODE_ENV === 'development';
 
       // Check for explicit environment variable override
       const skipTLSVerifyEnv = process.env.KUBE_SKIP_TLS_VERIFY;
