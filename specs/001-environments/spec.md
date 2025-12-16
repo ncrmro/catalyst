@@ -252,6 +252,4 @@ The initial preview environment deployment must focus on core deployment functio
 
 ### Open Questions
 
-
-
 None - all critical decisions have reasonable defaults based on existing Catalyst architecture and industry standards.

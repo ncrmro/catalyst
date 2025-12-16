@@ -118,6 +118,70 @@ The application supports both GitHub App and Personal Access Token (PAT) authent
   - `nextjs`: Deploy Next.js applications with optional PostgreSQL
   - `singleton`: Cluster-wide services (cert-manager, ingress-nginx, docker-registry)
 
+### Preview Environments
+
+The application automatically creates isolated preview environments for pull requests in configured repositories.
+
+**How it Works:**
+
+1. **GitHub Webhook** (`/api/github/webhook`): Receives PR events (opened, synchronize, reopened, closed)
+2. **Deployment Orchestration** (`src/models/preview-environments.ts`):
+   - Creates database record in `pullRequestPods` table (idempotent)
+   - Generates DNS-safe namespace (`pr-{repo}-{number}`)
+   - Deploys to Kubernetes using Helm or direct K8s API
+   - Waits for deployment to become ready (with timeout)
+   - Posts public URL to PR as GitHub comment
+3. **Status Tracking**: Database tracks deployment lifecycle (pending → deploying → running/failed)
+4. **Cleanup**: PR close events trigger namespace deletion and database cleanup
+
+**Key Files:**
+
+- **Database Schema**: `src/db/schema.ts` - `pullRequestPods` table
+- **Models Layer**: `src/models/preview-environments.ts` - Core business logic
+  - `createPreviewDeployment()`: Main orchestration function
+  - `deletePreviewDeploymentOrchestrated()`: Cleanup
+  - `retryFailedDeployment()`: Manual retry
+  - `listActivePreviewPodsWithMetrics()`: Query with resource usage
+- **Actions Layer**: `src/actions/preview-environments.ts` - React Server Actions
+  - `getPreviewEnvironments()`: List for UI
+  - `getPreviewEnvironment()`: Details for UI
+  - `getPodLogs()`: Container logs
+  - `deletePreviewEnvironment()`: Manual cleanup
+  - `retryDeployment()`: Manual retry
+- **Webhook Handler**: `src/app/api/github/webhook/route.ts` - PR event handling
+- **UI Pages**:
+  - `/preview-environments`: List all active environments
+  - `/preview-environments/[id]`: Environment details and logs
+- **MCP Tools** (`/api/mcp`): AI agent integration
+  - `list_preview_environments`
+  - `get_preview_environment`
+  - `get_preview_logs`
+  - `delete_preview_environment`
+  - `retry_preview_deployment`
+
+**Architecture Pattern:**
+
+The preview environments feature follows the layered architecture:
+
+- **Webhook → Models → K8s/GitHub**: Deployment orchestration
+- **Actions ← Models ← UI**: Data access for frontend
+- **MCP ← Actions ← Models**: AI agent access
+
+**Security Features:**
+
+- NetworkPolicy isolation (ingress from nginx, egress to DNS/registry only)
+- Resource quotas (500m CPU, 512Mi memory per environment)
+- Namespace-level isolation
+- Team-based access control
+
+**Logging:**
+
+Structured logging throughout deployment lifecycle using `src/lib/logging.ts`:
+
+- deployment-initiated, pod-record-created, deployment-started
+- build-job-completed/failed, k8s-deployment-created/failed
+- deployment-completed, deletion-completed, retry-completed
+
 ### Local K3s Development VM
 
 **This is the primary method for testing Kubernetes functionality locally.** The project includes a NixOS-based K3s VM for local development and integration testing.
