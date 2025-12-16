@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
 import {
   createKubernetesNamespace,
   deleteKubernetesNamespace,
@@ -23,6 +22,55 @@ import { db } from "@/db";
 import { pullRequestPods, pullRequests } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
+export const runtime = "nodejs";
+
+const encoder = new TextEncoder();
+
+function bufferToHex(buffer: ArrayBuffer): string {
+  return Array.prototype.map
+    .call(new Uint8Array(buffer), (x: number) => x.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function createHmacSha256(secret: string, payload: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
+  return `sha256=${bufferToHex(signature)}`;
+}
+
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
+
+async function isValidSignature({
+  body,
+  signature,
+  secret,
+}: {
+  body: string;
+  signature: string | null;
+  secret: string;
+}): Promise<boolean> {
+  if (!signature) {
+    return false;
+  }
+
+  const expectedSignature = await createHmacSha256(secret, body);
+  return timingSafeEqual(signature, expectedSignature);
+}
+
 /**
  * GitHub App Webhook Endpoint
  *
@@ -36,21 +84,17 @@ export async function POST(request: NextRequest) {
     const event = request.headers.get("x-github-event");
     const delivery = request.headers.get("x-github-delivery");
 
-    // Verify webhook signature (required for security)
-    if (!signature) {
+    const validSignature = await isValidSignature({
+      body,
+      signature,
+      secret: GITHUB_CONFIG.WEBHOOK_SECRET,
+    });
+
+    if (!validSignature) {
       return NextResponse.json(
-        { error: "Missing signature header" },
+        { error: "Invalid or missing signature" },
         { status: 401 },
       );
-    }
-
-    const expectedSignature = `sha256=${crypto
-      .createHmac("sha256", GITHUB_CONFIG.WEBHOOK_SECRET)
-      .update(body)
-      .digest("hex")}`;
-
-    if (signature !== expectedSignature) {
-      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
     const payload = JSON.parse(body);

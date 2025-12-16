@@ -1,6 +1,7 @@
+"use client";
+
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { readStreamableValue } from "ai/rsc";
 import {
   createManualPreview,
   getUserRepositories,
@@ -71,13 +72,13 @@ export function CreatePreviewCard({ onClose }: CreatePreviewCardProps) {
     if (repoId) {
       loadLatestImage(repoId);
     }
-  }, [repoId]);
+  }, [repoId, loadLatestImage]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError("");
-    setProgress("Initializing...");
+    setProgress("Creating preview environment...");
 
     if (!repoId) {
       setError("Please select a repository");
@@ -92,50 +93,28 @@ export function CreatePreviewCard({ onClose }: CreatePreviewCardProps) {
     }
 
     try {
-      const { success, stream, error: actionError } = await createManualPreview({
+      const { success, data, error: actionError } = await createManualPreview({
         repoId,
         imageUri,
         branchName: branchName || undefined,
       });
 
-      if (!success || actionError) {
-        setError(actionError || "Failed to create preview environment");
+      if (!success || actionError || !data) {
+        setError(
+          actionError || "Failed to create preview environment. Please try again.",
+        );
         setIsSubmitting(false);
+        setProgress("");
         return;
       }
 
-      if (stream) {
-        for await (const message of readStreamableValue(stream)) {
-          if (!message) continue;
-          
-          // Check if it's the final JSON result
-          if (message.startsWith("{") && message.includes('"success":')) {
-            try {
-              const result = JSON.parse(message);
-              if (result.success) {
-                router.refresh();
-                onClose();
-                // Reset form
-                setRepoId(repos[0]?.id || "");
-                setImageUri("");
-                setBranchName("");
-                setProgress("");
-                return;
-              } else {
-                setError(result.error || "Failed during creation");
-                setIsSubmitting(false);
-                setProgress("");
-                return;
-              }
-            } catch {
-              // Not valid JSON, treat as progress message
-              setProgress(message);
-            }
-          } else {
-            setProgress(message);
-          }
-        }
-      }
+      router.refresh();
+      onClose();
+      setRepoId(repos[0]?.id || "");
+      setImageUri("");
+      setBranchName("");
+      setProgress("");
+      setIsSubmitting(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unexpected error occurred");
       setIsSubmitting(false);

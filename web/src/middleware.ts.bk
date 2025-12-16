@@ -1,7 +1,13 @@
+import { NextResponse } from "next/server";
 import { _auth as auth } from "@/auth";
 
 // Use the same Auth.js instance as the app to keep middleware/session logic in sync
 export default auth((req) => {
+  // Allow GitHub webhooks to bypass auth/middleware logic
+  if (req.nextUrl.pathname === "/api/github/webhook") {
+    return NextResponse.next();
+  }
+
   console.debug("Middleware invoked", req.nextUrl.pathname);
   if (!req.auth && req.nextUrl.pathname !== "/login") {
     const newUrl = new URL("/login", req.nextUrl.origin);

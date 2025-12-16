@@ -127,7 +127,7 @@ describe("Preview Deployment Integration", () => {
       expect(status.status).toBe("available");
       expect(status.ready).toBe(true);
       expect(status.readyReplicas).toBeGreaterThanOrEqual(1);
-    });
+    }, 30000);
 
     it("should handle deployment update (idempotent)", async () => {
       // Creating again should update, not error

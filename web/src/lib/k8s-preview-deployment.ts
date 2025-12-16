@@ -58,7 +58,7 @@ async function ensureNamespace(namespace: string): Promise<void> {
     } catch (error: unknown) {
       // Check for 404 Not Found
       const isNotFound = 
-        (error as any)?.response?.statusCode === 404 || 
+        (error as { response?: { statusCode?: number } })?.response?.statusCode === 404 || 
         (error instanceof Error && error.message.includes('not found'));
         
       if (isNotFound) {
