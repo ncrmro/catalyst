@@ -1,0 +1,3 @@
+node_modules
+# Storybook build output
+storybook-static
