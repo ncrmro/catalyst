@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { ApplicationLayout } from "../../packages/tetrastack-react-glass-components";
+import { ApplicationLayout } from "@tetrastack/react-glass-components";
 import { AppNav } from "@/components/app-shell-nav";
 
 export const metadata: Metadata = {

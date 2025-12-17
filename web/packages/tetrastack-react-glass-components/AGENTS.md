@@ -163,6 +163,43 @@ The glass-components library is now fully framework-agnostic and portable:
    - Prevents performance issues when nesting components
    - Maintains visual hierarchy while improving frame rates
 
+## Local Package Adoption (Monorepo Setup)
+
+To adopt `@tetrastack/react-glass-components` without publishing to npm (e.g., in a monorepo like this project):
+
+### Setup Instructions
+
+1.  **Package Location**: Place the package source code in a `packages/` directory within your monorepo root (e.g., `packages/tetrastack-react-glass-components`).
+2.  **Workspace Configuration**: In your monorepo's root `package.json`, configure workspaces to include the `packages/` directory:
+    ```json
+    {
+      "workspaces": ["packages/*"]
+    }
+    ```
+3.  **Package Definition**: Ensure the package's `package.json` (e.g., `packages/tetrastack-react-glass-components/package.json`) has the correct name (scoped if applicable) and export map:
+    ```json
+    {
+      "name": "@tetrastack/react-glass-components",
+      "exports": {
+        ".": "./index.ts",
+        "./GlassSurface": "./src/lib/glass-components/GlassSurface.tsx"
+        // ... other exports
+      }
+    }
+    ```
+4.  **Install/Link**: Run `npm install` (or `yarn install`, `pnpm install`) in the root of your monorepo. The package manager will detect the workspace and create a symbolic link in `node_modules/@tetrastack/react-glass-components` pointing to your local source folder.
+5.  **Usage**: You can then import components directly from the package name in your application code, as if it were an installed npm package:
+    ```tsx
+    import { GlassButton } from '@tetrastack/react-glass-components';
+    // or subpath imports if defined in exports map
+    import { GlassSurface } from '@tetrastack/react-glass-components/GlassSurface';
+    ```
+
+### Workflow
+
+- **Edits**: Changes made to the package's source code (e.g., in `packages/tetrastack-react-glass-components/src/...`) will be reflected immediately in your consuming application (often via hot-reloading in development environments like Next.js).
+- **Dependencies**: If the package needs new dependencies, add them to its `package.json` and run `npm install` in the monorepo root.
+
 ## Contribution Guidelines
 
 When adding or modifying components:

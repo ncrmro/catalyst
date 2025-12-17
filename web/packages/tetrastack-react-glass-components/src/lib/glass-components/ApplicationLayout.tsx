@@ -65,7 +65,10 @@ export function ApplicationLayout({
     <div
       className={cn('min-h-screen flex flex-col gap-6 p-4 sm:p-6', className)}
     >
-      <GlassCard className="flex flex-wrap items-center justify-between gap-4 sticky top-4 z-50">
+      <GlassCard
+        glass={false}
+        className="flex flex-wrap items-center justify-between gap-4 sticky top-4 z-50"
+      >
         <div className="text-lg font-semibold text-on-surface">{header}</div>
         {nav && <div className="flex-shrink-0">{nav}</div>}
       </GlassCard>

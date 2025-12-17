@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ApplicationLayoutNav } from "../../packages/tetrastack-react-glass-components";
+import { ApplicationLayoutNav } from "@tetrastack/react-glass-components";
 
 const NAV_OPTIONS = [
   { value: "projects", label: "Projects", href: "/projects" },

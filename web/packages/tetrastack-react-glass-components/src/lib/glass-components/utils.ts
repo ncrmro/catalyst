@@ -1,40 +1,18 @@
-type ClassValue =
-  | string
-  | number
-  | null
-  | undefined
-  | boolean
-  | ClassDictionary
-  | ClassArray;
-
-interface ClassDictionary {
-  [id: string]: any;
-}
-
-interface ClassArray extends Array<ClassValue> {}
-
-function toVal(mix: ClassValue): string {
-  if (typeof mix === 'string' || typeof mix === 'number') return String(mix);
-
-  if (typeof mix === 'object') {
-    if (Array.isArray(mix)) {
-      return mix.map(toVal).filter(Boolean).join(' ');
-    }
-    if (mix) {
-      return Object.entries(mix)
-        .filter(([, value]) => Boolean(value))
-        .map(([key]) => key)
-        .join(' ');
-    }
-  }
-
-  return '';
-}
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 /**
- * Lightweight class name combiner (clsx-style) with no external deps.
- * Supports strings, numbers, arrays, and object maps of truthy keys.
+ * Utility function to merge Tailwind CSS classes
+ *
+ * Combines clsx for conditional class names with tailwind-merge
+ * to properly handle Tailwind class conflicts.
+ *
+ * @example
+ * ```tsx
+ * cn('px-2 py-1', 'px-4') // => 'py-1 px-4'
+ * cn('text-red-500', condition && 'text-blue-500') // => 'text-blue-500' if condition is true
+ * ```
  */
 export function cn(...inputs: ClassValue[]) {
-  return inputs.map(toVal).filter(Boolean).join(' ');
+  return twMerge(clsx(inputs));
 }

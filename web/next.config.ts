@@ -17,6 +17,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  transpilePackages: ["@tetrastack/react-glass-components"],
   output: 'standalone',
 };
 

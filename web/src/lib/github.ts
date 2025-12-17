@@ -47,11 +47,17 @@ const buildGitHubConfig = () => {
     // Allow PAT fallback in production (optional)
     // From GITHUB_ALLOW_PAT_FALLBACK
     ALLOW_PAT_FALLBACK: process.env.GITHUB_ALLOW_PAT_FALLBACK === 'true',
+
+    // Disable GitHub App startup checks (optional)
+    // From GITHUB_DISABLE_APP_CHECKS
+    DISABLE_APP_CHECKS: process.env.GITHUB_DISABLE_APP_CHECKS === 'true',
   } as const;
   
   // Validate required fields only at runtime, not during build
-  if (!isNextJsBuild) {
+  // If GITHUB_DISABLE_APP_CHECKS is true, skip validation.
+  if (!isNextJsBuild && !config.DISABLE_APP_CHECKS) {
     const missingVars: string[] = [];
+    
     
     if (!config.APP_ID) missingVars.push('GITHUB_APP_ID');
     if (!config.APP_PRIVATE_KEY) missingVars.push('GITHUB_APP_PRIVATE_KEY');
