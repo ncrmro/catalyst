@@ -3,7 +3,9 @@ import type React from 'react';
 import { useState } from 'react';
 import { GlassIncrementor } from './GlassIncrementor';
 
-function IncrementorExample(props: React.ComponentProps<typeof GlassIncrementor>) {
+function IncrementorExample(
+  props: React.ComponentProps<typeof GlassIncrementor>,
+) {
   const [value, setValue] = useState(props.value);
 
   return (

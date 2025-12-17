@@ -6,8 +6,11 @@
     "packages/*"
   ],
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
     "start:production": "node server-with-logging.js",
@@ -48,6 +51,7 @@
     "pino": "^9.9.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "tailwind-merge": "^2.4.0",
     "yaml": "^2.8.1",
     "zod": "^3.25.76"
   },

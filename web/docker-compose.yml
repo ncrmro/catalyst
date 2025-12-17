@@ -22,8 +22,6 @@ services:
       target: development
     volumes:
       - .:/app
-      - node_modules:/app/node_modules
-      - .kube:/app/.kube
     environment:
       - DATABASE_URL=postgres://postgres:postgres@db:5432/catalyst
       - PORT=${WEB_PORT:-3000}
