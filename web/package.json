@@ -3,8 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
     "start:production": "node server-with-logging.js",
@@ -36,6 +39,7 @@
     "@octokit/auth-app": "^8.0.2",
     "@octokit/rest": "^22.0.0",
     "ai": "^5.0.22",
+    "clsx": "^2.1.1",
     "drizzle-orm": "^0.44.4",
     "next": "15.4.6",
     "next-auth": "^5.0.0-beta.29",
@@ -44,6 +48,7 @@
     "pino": "^9.9.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "tailwind-merge": "^2.4.0",
     "yaml": "^2.8.1",
     "zod": "^3.25.76"
   },

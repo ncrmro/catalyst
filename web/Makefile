@@ -9,6 +9,14 @@ help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 
+lint: ## Run code quality checks (Prettier, ESLint, Typecheck)
+	@echo "Running Prettier..."
+	-npx prettier --check .
+	@echo "Running ESLint..."
+	npm run lint
+	@echo "Running Typecheck..."
+	npm run typecheck
+
 build: ## Build all services
 	$(DC) run --env NODE_ENV=production --rm --no-deps app npm run build
 
