@@ -13,6 +13,14 @@ import type { InferInsertModel } from "drizzle-orm";
 export type InsertProject = InferInsertModel<typeof projects>;
 export type UpdateProject = Partial<Omit<InsertProject, "id" | "createdAt">>;
 
+export interface ProjectRepo {
+  id: string;
+  name: string;
+  full_name: string;
+  url: string;
+  primary: boolean;
+}
+
 /**
  * Query parameters for flexible project filtering
  */

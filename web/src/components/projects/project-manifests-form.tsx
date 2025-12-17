@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ProjectManifest, CreateProjectManifestRequest, createProjectManifest, deleteProjectManifest } from '@/actions/project-manifests';
-import { ProjectRepo } from '@/actions/projects';
+import { ProjectRepo } from '@/models/projects';
 
 interface ProjectManifestsFormProps {
   projectId: string;

@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { EnvironmentBadge } from './environment-badge';
-import type { ProjectWithRelations } from '@/actions/projects';
+import type { ProjectWithRelations } from '@/models/projects';
 
 export function ProjectCard({ project }: { project: ProjectWithRelations }) {
   // Find primary repo or use first one
