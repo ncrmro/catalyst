@@ -5,9 +5,9 @@ import { usePathname } from "next/navigation";
 import { ApplicationLayoutNav } from "@tetrastack/react-glass-components";
 
 const NAV_OPTIONS = [
-  { value: "projects", label: "Projects", href: "/projects" },
-  { value: "compute", label: "Compute", href: "/compute" },
-  { value: "account", label: "Account", href: "/account" },
+  { value: "projects", label: "Projects", href: "/projects", className: "uppercase" },
+  { value: "compute", label: "Compute", href: "/compute", className: "uppercase" },
+  { value: "account", label: "Account", href: "/account", className: "uppercase" },
 ];
 
 function getActiveNav(pathname: string) {
