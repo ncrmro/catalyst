@@ -137,9 +137,9 @@ export class KubeConfig {
   }
 
   /**
-   * Configure TLS settings based on cluster type and environment
+   * Configure cluster settings (TLS, endpoint) based on cluster type and environment
    */
-  private configureTLS() {
+  private configureCluster() {
     if (!this._kc) {
       return;
     }
@@ -152,12 +152,26 @@ export class KubeConfig {
 
       const serverUrl = cluster.server;
       
+      // If KUBERNETES_API_SERVER_HOST is provided, use it to override the server URL
+      if (process.env.KUBERNETES_API_SERVER_HOST) {
+        cluster.server = `https://${process.env.KUBERNETES_API_SERVER_HOST}:6443`;
+        console.log(`Overrode cluster endpoint to ${cluster.server} from KUBERNETES_API_SERVER_HOST`);
+      } else if (process.env.NODE_ENV === 'development' && (serverUrl.includes('localhost') || serverUrl.includes('127.0.0.1'))) {
+         // Detect local development environments
+         // Rewrite localhost to host.docker.internal if running in Docker, only if KUBERNETES_API_SERVER_HOST is not set
+         cluster.server = serverUrl
+           .replace('localhost', 'host.docker.internal')
+           .replace('127.0.0.1', 'host.docker.internal');
+         console.log(`Rewrote cluster endpoint to ${cluster.server} for Docker connectivity`);
+      }
+
       // Detect local development environments
       const isLocalCluster = 
-        serverUrl?.includes('localhost') ||
-        serverUrl?.includes('127.0.0.1') ||
-        serverUrl?.includes('kind-') ||
-        serverUrl?.startsWith('http://') ||
+        cluster.server?.includes('localhost') ||
+        cluster.server?.includes('127.0.0.1') ||
+        cluster.server?.includes('host.docker.internal') ||
+        cluster.server?.includes('kind-') ||
+        cluster.server?.startsWith('http://') ||
         process.env.NODE_ENV === 'development';
 
       // Check for explicit environment variable override
@@ -180,7 +194,7 @@ export class KubeConfig {
         console.log('TLS verification enabled for Kubernetes cluster');
       }
     } catch (error) {
-      console.warn('Failed to configure TLS settings:', error instanceof Error ? error.message : 'Unknown error');
+      console.warn('Failed to configure cluster settings:', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 
@@ -188,7 +202,7 @@ export class KubeConfig {
     const k8sModule = await loadKubernetesClient();
     this._kc = new k8sModule.KubeConfig();
     this._kc.loadFromDefault();
-    this.configureTLS();
+    this.configureCluster();
     return this._kc;
   }
 
@@ -196,7 +210,7 @@ export class KubeConfig {
     const k8sModule = await loadKubernetesClient();
     this._kc = new k8sModule.KubeConfig();
     this._kc.loadFromString(kubeConfigString);
-    this.configureTLS();
+    this.configureCluster();
     return this._kc;
   }
 

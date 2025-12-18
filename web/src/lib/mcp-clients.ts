@@ -1,3 +1,4 @@
+// @ts-expect-error - experimental_createMCPClient is available at runtime but missing from types
 import { experimental_createMCPClient as createMCPClient } from 'ai';
 import { GITHUB_CONFIG } from '@/lib/github';
 

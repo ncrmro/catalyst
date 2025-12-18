@@ -15,7 +15,7 @@ services:
       timeout: 10s
       retries: 3
       
-  app:
+  web:
     build:
       context: .
       dockerfile: Dockerfile
@@ -24,11 +24,15 @@ services:
       - .:/app
     environment:
       - DATABASE_URL=postgres://postgres:postgres@db:5432/catalyst
-      - PORT=${APP_PORT:-3000}
+      - PORT=${WEB_PORT:-3000}
       - GITHUB_REPOS_MODE=${GITHUB_REPOS_MODE:-mocked}
       - MOCKED=${MOCKED:-1}
+      - KUBECONFIG=/app/.kube/config
+      - KUBERNETES_API_SERVER_HOST=192.168.1.69
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
-      - "${APP_PORT:-3000}:${APP_PORT:-3000}"
+      - "${WEB_PORT:-3000}:${WEB_PORT:-3000}"
     depends_on:
       db:
         condition: service_healthy

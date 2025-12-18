@@ -28,9 +28,9 @@ seed-projects: ## Seed the database with catalyst and meze projects
 
 up: ## Start all services with mocked GitHub data
 	$(DC) up --detach --wait
-	$(DC) run --rm --env GITHUB_REPOS_MODE=mocked --env MOCKED=1 app npm run db:migrate
-	$(DC) run --rm --env GITHUB_REPOS_MODE=mocked --env MOCKED=1 app npm run seed
-	$(DC) run --rm -it --env GITHUB_REPOS_MODE=mocked --env MOCKED=1 app npm run dev
+	$(DC) run --rm --env GITHUB_REPOS_MODE=mocked --env MOCKED=1 web npm run db:migrate
+	$(DC) run --rm --env GITHUB_REPOS_MODE=mocked --env MOCKED=1 web npm run seed
+	$(DC) run --rm -it --env GITHUB_REPOS_MODE=mocked --env MOCKED=1 web npm run dev
 
 up-real: ## Start all services with real GitHub integration
 	$(DC) up --detach --wait

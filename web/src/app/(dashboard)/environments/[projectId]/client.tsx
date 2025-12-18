@@ -1,9 +1,9 @@
 'use client';
 
-import { configureProjectEnvironments } from '@/actions/environments';
-import type { ProjectWithRelations } from '@/actions/projects';
-import Link from 'next/link';
 import { useState } from 'react';
+import { ProjectWithRelations } from '@/models/projects';
+import Link from 'next/link';
+import { configureProjectEnvironments } from '@/actions/environments';
 
 interface EnvironmentsPageClientProps {
   project: ProjectWithRelations;

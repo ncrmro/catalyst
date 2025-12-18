@@ -4,23 +4,11 @@
  * Server action to fetch projects data for the current user and organizations
  */
 
-import { getProjects, type ProjectWithRelations } from "@/models/projects";
+import { getProjects } from "@/models/projects";
 import { auth } from "@/auth";
 import { Octokit } from "@octokit/rest";
 import { getUserTeamIds } from "@/lib/team-auth";
 import type { PullRequest, Issue } from "@/types/reports";
-
-// Re-export types for frontend components
-export type { ProjectWithRelations } from "@/models/projects";
-
-// Define type for simplified project repository format
-export interface ProjectRepo {
-  id: string;
-  name: string;
-  full_name: string;
-  url: string;
-  primary: boolean;
-}
 
 /**
  * Fetch projects data from database using Drizzle's relational queries

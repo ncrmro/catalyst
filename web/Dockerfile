@@ -25,8 +25,8 @@ ENV NODE_ENV=development
 # https://playwright.dev/docs/browsers#hermetic-install
 # Normailly the browser binaries end up in /root/.cache/ms-playwright/ 
 # When the container is ran as nextjs user it can't find the binaries though.
-ENV PLAYWRIGHT_BROWSERS_PATH=0
-RUN npx playwright install --with-deps --no-shell
+# ENV PLAYWRIGHT_BROWSERS_PATH=0
+# RUN npx playwright install --with-deps --no-shell
 
 COPY . .
 

@@ -1,6 +1,8 @@
 import { Metadata } from "next";
-import { auth } from "@/auth";
-import PeriodicReportGenerator from "@/components/periodic-report-generator";
+import { _auth } from "@/auth";
+import { PreviewEnvironmentsList } from "@/app/(dashboard)/preview-environments/components/PreviewEnvironmentsList";
+import { PreviewEnvironmentsSection } from "@/app/(dashboard)/preview-environments/components/PreviewEnvironmentsSection";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Dashboard - Catalyst",
@@ -8,7 +10,11 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
-  const session = await auth();
+  const session = await _auth();
+
+  if (!session?.user) {
+    redirect("/login");
+  }
 
   return (
     <div className="space-y-6">
@@ -22,8 +28,10 @@ export default async function Home() {
         </p>
       </div>
 
-      {/* Latest Report Section */}
-      <PeriodicReportGenerator />
+      {/* Preview Environments Section */}
+      <PreviewEnvironmentsSection>
+        <PreviewEnvironmentsList />
+      </PreviewEnvironmentsSection>
     </div>
   );
 }
