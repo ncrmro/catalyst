@@ -16,28 +16,35 @@ The platform defines four primary interfaces for interaction:
 ## How
 
 ### 1. Web Interface
+
 The Web UI serves as the primary visual portal. It provides rich visualizations for:
-*   Environment status and resource usage.
-*   Project reports and analytics (as demonstrated in `spikes/1757518328_local_project_report_generation/catalyst-report.md`).
-*   Agent activity logs and intervention approvals.
+
+- Environment status and resource usage.
+- Project reports and analytics (as demonstrated in `spikes/1757518328_local_project_report_generation/catalyst-report.md`).
+- Agent activity logs and intervention approvals.
 
 ### 2. TUI (Text User Interface)
+
 The TUI provides a keyboard-driven experience for the CLI. It uses the same API as the Web UI to ensure consistency.
-*   **Authentication:** OIDC-based login.
-*   **Navigation:** Hierarchical view of Projects -> Environments -> Resources.
-*   **Action:** Direct execution of commands (e.g., triggering deployments, viewing logs) without leaving the terminal.
+
+- **Authentication:** OIDC-based login.
+- **Navigation:** Hierarchical view of Projects -> Environments -> Resources.
+- **Action:** Direct execution of commands (e.g., triggering deployments, viewing logs) without leaving the terminal.
 
 ### 3. MCP (Model Context Protocol)
+
 The platform exposes an MCP server to allow external AI agents to:
-*   **Read Context:** Fetch project specifications, environment states, and recent reports.
-*   **Execute Tools:** Trigger builds, run tests, or create environments on behalf of the user.
-*   **Resource Discovery:** Dynamically explore the API surface area.
+
+- **Read Context:** Fetch project specifications, environment states, and recent reports.
+- **Execute Tools:** Trigger builds, run tests, or create environments on behalf of the user.
+- **Resource Discovery:** Dynamically explore the API surface area.
 
 ### 4. VCS Provider Interactions (ChatOps)
+
 This interface integrates directly into the developer's code review workflow on platforms like GitHub, GitLab, or Gitea.
 
-*   **Mentions & Commands:** Users can invoke the platform or specific agents by mentioning them in comments (e.g., `@catalyst-bot generate report` or `@catalyst-bot deploy to preview`).
-*   **Assignments:** Assigning the "Catalyst" user or a specific Agent to an Issue or PR triggers specific workflows:
-    *   **Issues:** The agent analyzes the issue and attempts to generate a fix or clarification.
-    *   **Pull Requests:** The agent performs code review, runs compliance checks, or attempts to resolve merge conflicts.
-*   **Status Updates:** The system posts comments back to the VCS provider to report progress, share links to Preview Environments, or provide generated reports (similar to the project status report example).
+- **Mentions & Commands:** Users can invoke the platform or specific agents by mentioning them in comments (e.g., `@catalyst-bot generate report` or `@catalyst-bot deploy to preview`).
+- **Assignments:** Assigning the "Catalyst" user or a specific Agent to an Issue or PR triggers specific workflows:
+  - **Issues:** The agent analyzes the issue and attempts to generate a fix or clarification.
+  - **Pull Requests:** The agent performs code review, runs compliance checks, or attempts to resolve merge conflicts.
+- **Status Updates:** The system posts comments back to the VCS provider to report progress, share links to Preview Environments, or provide generated reports (similar to the project status report example).

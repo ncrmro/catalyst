@@ -6,6 +6,29 @@ Built on open standards, allowing you to deploy anywhere. Designed for agentic w
 
 Available as a managed platform or self-hosted solution.
 
+## Goals
+
+Track platform effectiveness through measurable outcomes:
+
+- **Merged PRs**: Total pull requests merged across all projects managed by Catalyst
+- **Preview Environments**: Number of preview environments deployed and actively used
+
+## Foundation Specifications
+
+Three specifications form the foundation of Catalyst:
+
+### [001-environments](./specs/001-environments/spec.md)
+
+Manages production, staging, preview, and devcontainer environments in Kubernetes with security by default. Enables restricted kube access from within namespaces—developers and agents can declare resources in their namespace for development, experimentation, and reproduction, while user permissions control broader cluster access.
+
+### [003-vcs-providers](./specs/003-vcs-providers/spec.md)
+
+Integrations with GitHub, GitLab, Gitea, Forgejo, and raw SSH repositories. Enables commenting on PRs with agent run results, posting preview environment URLs, synchronizing team memberships, and providing unified project management across providers.
+
+### [006-cli-coding-agents-harness](./specs/006-cli-codeing-agents-harness/spec.md)
+
+Enables running various CLI coding agents (Claude Code, Codex, Aider) in devcontainers or Kubernetes environments using users' own coding subscriptions. Piggybacks on each CLI agent's native capabilities—hooks, subagents, plans—rather than reinventing them, benefiting from ongoing ecosystem improvements.
+
 ## How Catalyst Helps
 
 - An agent or user works on a new feature and opens a pull request.
@@ -20,6 +43,7 @@ Ready to get started with local development? Follow our comprehensive setup guid
 **[📖 Local Development Guide → `/web/README.md`](/web/README.md)**
 
 The local development guide covers:
+
 - Prerequisites and dependencies
 - Environment configuration (GitHub PAT, Kubernetes)
 - Kubeconfig setup using the provided conversion script
@@ -30,6 +54,7 @@ The local development guide covers:
 ### Essential Environment Variables for Local Development
 
 For local development, you'll need:
+
 - **KUBECONFIG_PRIMARY**: Base64-encoded Kubernetes configuration (use `web/scripts/kubeconfig-to-base64.sh`)
 - **GITHUB_PAT**: Personal Access Token for GitHub API access (instead of GitHub App)
 
