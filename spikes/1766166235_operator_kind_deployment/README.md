@@ -213,8 +213,112 @@ make uninstall
 kind delete cluster --name catalyst
 ```
 
+## Helm Chart Installation
+
+The comprehensive Helm chart created from this experience is available at `/charts/catalyst`.
+
+### Quick Installation
+
+```bash
+# Use the provided installation script
+cd spikes/1766166235_operator_kind_deployment
+./install-to-kind.sh
+```
+
+This script will:
+1. Create a kind cluster named `catalyst-test`
+2. Add required Helm repositories
+3. Build chart dependencies
+4. Lint and validate the chart
+5. Install the chart with all components
+6. Verify the installation
+
+### Manual Installation
+
+```bash
+# Create kind cluster
+kind create cluster --name catalyst
+
+# Add Bitnami repo for PostgreSQL
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+
+# Build chart dependencies
+cd charts/catalyst
+helm dependency build
+
+# Install the chart
+helm install catalyst . \
+  --create-namespace \
+  --namespace catalyst \
+  --wait \
+  --timeout 10m
+
+# Verify installation
+kubectl get pods -n catalyst
+kubectl get pods -n catalyst-system
+kubectl get crds | grep catalyst
+```
+
+### Testing the Installation
+
+After installation, you can test the operator:
+
+```bash
+# Create a test Project
+kubectl apply -f - <<EOF
+apiVersion: catalyst.catalyst.dev/v1alpha1
+kind: Project
+metadata:
+  name: test-project
+  namespace: catalyst-system
+spec:
+  source:
+    repositoryUrl: "https://github.com/example/repo"
+    branch: "main"
+  deployment:
+    type: "helm"
+    path: "./charts/app"
+  resources:
+    defaultQuota:
+      cpu: "1"
+      memory: "2Gi"
+EOF
+
+# Check operator reconciliation
+kubectl logs -n catalyst-system -l app.kubernetes.io/component=operator -f
+
+# Create a test Environment
+kubectl apply -f - <<EOF
+apiVersion: catalyst.catalyst.dev/v1alpha1
+kind: Environment
+metadata:
+  name: test-env
+  namespace: catalyst-system
+spec:
+  projectRef:
+    name: test-project
+  type: "development"
+  source:
+    commitSha: "abc123"
+    branch: "main"
+EOF
+
+# Verify namespace creation
+kubectl get namespaces | grep env-
+```
+
+### Accessing the Web Application
+
+```bash
+# Port-forward to the web service
+kubectl port-forward -n catalyst svc/catalyst-web 3000:3000
+
+# Visit http://localhost:3000 in your browser
+```
+
 ## Next Steps
 
 This deployment experience informed the creation of the comprehensive Helm chart at `/charts/catalyst` which packages all three components (web, database, operator) for easy installation.
 
-See the [Catalyst Helm Chart README](/charts/catalyst/README.md) for installation instructions.
+See the [Catalyst Helm Chart README](/charts/catalyst/README.md) for detailed configuration options and production deployment instructions.

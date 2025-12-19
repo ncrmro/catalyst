@@ -1,0 +1,111 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your Catalyst platform has been deployed with the following components:
+
+{{- if .Values.web.enabled }}
+✓ Web Application ({{ .Values.web.replicaCount }} replica{{ if gt .Values.web.replicaCount 1.0 }}s{{ end }})
+{{- end }}
+
+{{- if .Values.postgresql.enabled }}
+✓ PostgreSQL Database
+{{- end }}
+
+{{- if .Values.operator.enabled }}
+✓ Kubernetes Operator
+{{- end }}
+
+────────────────────────────────────────────────────────────────
+
+{{- if .Values.web.enabled }}
+
+To access the web application:
+
+{{- if .Values.web.ingress.enabled }}
+  {{- range .Values.web.ingress.hosts }}
+  - {{ if .tls }}https{{ else }}http{{ end }}://{{ .host }}
+  {{- end }}
+{{- else }}
+  1. Get the application URL by running:
+
+     kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "catalyst.fullname" . }}-web {{ .Values.web.service.port }}:{{ .Values.web.service.port }}
+
+  2. Visit: http://localhost:{{ .Values.web.service.port }}
+{{- end }}
+
+{{- end }}
+
+────────────────────────────────────────────────────────────────
+
+{{- if .Values.operator.enabled }}
+
+To test the operator:
+
+  1. Create a sample Project:
+
+     kubectl apply -f - <<EOF
+     apiVersion: catalyst.catalyst.dev/v1alpha1
+     kind: Project
+     metadata:
+       name: sample-project
+       namespace: {{ .Values.operator.namespace }}
+     spec:
+       source:
+         repositoryUrl: "https://github.com/example/repo"
+         branch: "main"
+       deployment:
+         type: "helm"
+         path: "./charts/app"
+       resources:
+         defaultQuota:
+           cpu: "1"
+           memory: "2Gi"
+     EOF
+
+  2. Check operator logs:
+
+     kubectl logs -n {{ .Values.operator.namespace }} -l app.kubernetes.io/component=operator -f
+
+  3. Create a sample Environment:
+
+     kubectl apply -f - <<EOF
+     apiVersion: catalyst.catalyst.dev/v1alpha1
+     kind: Environment
+     metadata:
+       name: sample-env
+       namespace: {{ .Values.operator.namespace }}
+     spec:
+       projectRef:
+         name: sample-project
+       type: "development"
+       source:
+         commitSha: "abc123"
+         branch: "main"
+     EOF
+
+  4. Verify environment namespace creation:
+
+     kubectl get namespaces | grep env-
+
+{{- end }}
+
+────────────────────────────────────────────────────────────────
+
+Useful commands:
+
+  # View all resources
+  kubectl get all -n {{ .Release.Namespace }}
+  {{- if .Values.operator.enabled }}
+  kubectl get all -n {{ .Values.operator.namespace }}
+  {{- end }}
+
+  # Check CRDs
+  kubectl get crds | grep catalyst
+
+  # View logs
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/component=web
+  {{- if .Values.operator.enabled }}
+  kubectl logs -n {{ .Values.operator.namespace }} -l app.kubernetes.io/component=operator
+  {{- end }}
+
+For more information, visit:
+  https://github.com/ncrmro/catalyst

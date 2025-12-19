@@ -1,0 +1,100 @@
+# Example values for deploying Catalyst to a kind cluster
+# This configuration is optimized for local testing
+
+# Web application
+web:
+  enabled: true
+  replicaCount: 1
+  
+  # Use pre-built images or build locally
+  image:
+    repository: ghcr.io/ncrmro/catalyst/web
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  
+  # No ingress needed for local testing - use port-forward instead
+  ingress:
+    enabled: false
+  
+  # Development environment variables
+  env:
+    DATABASE_URL: "postgresql://catalyst:catalyst@catalyst-postgresql:5432/catalyst"
+    NEXTAUTH_URL: "http://localhost:3000"
+    NEXTAUTH_SECRET: "dev-secret-change-in-production"
+    # Add your GitHub credentials for testing
+    GITHUB_PAT: ""
+    GITHUB_CLIENT_ID: ""
+    GITHUB_CLIENT_SECRET: ""
+  
+  # Use secrets for local testing (not recommended for production)
+  secrets:
+    create: true
+  
+  # Minimal resources for local testing
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  
+  # No autoscaling for local testing
+  autoscaling:
+    enabled: false
+
+# PostgreSQL database
+postgresql:
+  enabled: true
+  
+  auth:
+    username: catalyst
+    password: catalyst
+    database: catalyst
+  
+  primary:
+    # Smaller persistence for local testing
+    persistence:
+      enabled: true
+      size: 2Gi
+    
+    # Minimal resources for local testing
+    resources:
+      limits:
+        cpu: 500m
+        memory: 256Mi
+      requests:
+        cpu: 250m
+        memory: 128Mi
+
+# Operator
+operator:
+  enabled: true
+  replicaCount: 1
+  
+  # Use pre-built images or build locally
+  image:
+    repository: ghcr.io/ncrmro/catalyst/operator
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  
+  # Install CRDs with the chart
+  crds:
+    install: true
+  
+  # Create RBAC resources
+  rbac:
+    create: true
+  
+  # Minimal resources for local testing
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 250m
+      memory: 128Mi
+  
+  # Enable metrics for monitoring
+  metrics:
+    enabled: true
