@@ -1,0 +1,156 @@
+# Default values for catalyst.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Global settings
+global:
+  # Image pull secrets for private registries
+  imagePullSecrets: []
+  # - name: myregistrykey
+
+# Web application configuration
+web:
+  enabled: true
+  
+  replicaCount: 1
+  
+  image:
+    repository: ghcr.io/ncrmro/catalyst/web
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: ""
+  
+  service:
+    type: ClusterIP
+    port: 3000
+  
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+      # kubernetes.io/ingress.class: nginx
+      # kubernetes.io/tls-acme: "true"
+    hosts:
+      - host: catalyst.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+    #  - secretName: catalyst-tls
+    #    hosts:
+    #      - catalyst.local
+  
+  # Environment variables for the web application
+  env:
+    # Database configuration (uses PostgreSQL subchart by default)
+    DATABASE_URL: "postgresql://catalyst:catalyst@catalyst-postgresql:5432/catalyst"
+    NEXTAUTH_URL: "http://localhost:3000"
+    # These should be provided via secrets in production
+    NEXTAUTH_SECRET: "change-me-in-production"
+    GITHUB_CLIENT_ID: ""
+    GITHUB_CLIENT_SECRET: ""
+    GITHUB_PAT: ""
+  
+  # Secrets (should be provided via external secret management in production)
+  secrets:
+    # Set to true to create secrets from values above
+    create: true
+  
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+    # targetMemoryUtilizationPercentage: 80
+  
+  nodeSelector: {}
+  
+  tolerations: []
+  
+  affinity: {}
+
+# PostgreSQL configuration (using Bitnami PostgreSQL chart)
+postgresql:
+  enabled: true
+  auth:
+    username: catalyst
+    password: catalyst
+    database: catalyst
+  primary:
+    persistence:
+      enabled: true
+      size: 8Gi
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+
+# Operator configuration
+operator:
+  enabled: true
+  
+  replicaCount: 1
+  
+  image:
+    repository: ghcr.io/ncrmro/catalyst/operator
+    pullPolicy: IfNotPresent
+    tag: ""
+  
+  # Namespace where operator will be deployed
+  namespace: catalyst-system
+  
+  # CRDs installation
+  crds:
+    # Install CRDs as part of the chart
+    install: true
+  
+  # RBAC configuration
+  rbac:
+    # Create RBAC resources
+    create: true
+  
+  serviceAccount:
+    # Specifies whether a service account should be created
+    create: true
+    # Annotations to add to the service account
+    annotations: {}
+    # The name of the service account to use.
+    # If not set and create is true, a name is generated using the fullname template
+    name: ""
+  
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  
+  # Metrics service configuration
+  metrics:
+    enabled: true
+    service:
+      port: 8443
+  
+  nodeSelector: {}
+  
+  tolerations: []
+  
+  affinity: {}
+
+# Service monitor for Prometheus (if you have Prometheus operator installed)
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  scrapeTimeout: 10s

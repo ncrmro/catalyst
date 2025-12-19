@@ -1,0 +1,87 @@
+{{- if .Values.operator.enabled }}
+{{- if .Values.operator.crds.install }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: projects.catalyst.catalyst.dev
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.19.0
+  labels:
+    {{- include "catalyst.operator.labels" . | nindent 4 }}
+spec:
+  group: catalyst.catalyst.dev
+  names:
+    kind: Project
+    listKind: ProjectList
+    plural: projects
+    singular: project
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Project is the Schema for the projects API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation of an object.'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this object represents.'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ProjectSpec defines the desired state of Project
+            properties:
+              source:
+                description: Source repository configuration
+                properties:
+                  repositoryUrl:
+                    type: string
+                  branch:
+                    type: string
+                required:
+                - repositoryUrl
+                - branch
+                type: object
+              deployment:
+                description: Deployment configuration
+                properties:
+                  type:
+                    description: 'Type of deployment: helm, manifest, kustomize'
+                    type: string
+                  path:
+                    type: string
+                  values:
+                    description: Deployment-specific values
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                required:
+                - type
+                type: object
+              resources:
+                description: Resource quotas and limits
+                properties:
+                  defaultQuota:
+                    properties:
+                      cpu:
+                        type: string
+                      memory:
+                        type: string
+                    type: object
+                type: object
+            required:
+            - source
+            - deployment
+            type: object
+          status:
+            description: ProjectStatus defines the observed state of Project
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+{{- end }}
+{{- end }}
