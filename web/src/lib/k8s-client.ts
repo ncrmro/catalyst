@@ -267,6 +267,11 @@ export async function getCoreV1Api() {
   return k8sModule.CoreV1Api;
 }
 
+export async function getCustomObjectsApi() {
+  const k8sModule = await loadKubernetesClient();
+  return k8sModule.CustomObjectsApi;
+}
+
 export async function getClusters(): Promise<ClusterInfo[]> {
   return kubeConfigRegistry.getClusters();
 }
