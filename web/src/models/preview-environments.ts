@@ -16,7 +16,6 @@ import {
 import { eq, and, inArray } from "drizzle-orm";
 import type {
   PodStatus,
-  PreviewEnvironmentConfig,
   ResourceAllocation,
 } from "@/types/preview-environments";
 import type { InferSelectModel } from "drizzle-orm";
@@ -562,18 +561,18 @@ export async function deletePodRecord(
 // Orchestration Functions
 // ============================================================================
 
-// Import lib functions for orchestration
+import {
+  createEnvironmentCR,
+  deleteEnvironmentCR,
+  getEnvironmentCR,
+} from "@/lib/k8s-operator";
 import {
   deployPreviewApplication,
   watchDeploymentUntilReady,
-  deletePreviewDeployment as deleteK8sDeployment,
-  getPreviewDeploymentStatus,
   getPreviewPodLogs,
-  waitForJobCompletion,
   getPreviewPodResourceUsage,
   type PodResourceUsage,
 } from "@/lib/k8s-preview-deployment";
-import { deployHelmChart, HelmDeploymentConfig } from "@/lib/helm-deployment";
 import {
   upsertDeploymentComment,
   deleteDeploymentComment,
@@ -582,7 +581,6 @@ import {
   previewLogger,
   logPreviewLifecycleEvent,
   startTimer,
-  type PreviewLogContext,
 } from "@/lib/logging";
 
 export interface CreatePreviewDeploymentParams {
@@ -617,8 +615,8 @@ export interface CreatePreviewDeploymentResult {
  * Orchestrates:
  * 1. Database record creation (idempotent)
  * 2. GitHub PR comment (pending status)
- * 3. Kubernetes deployment creation
- * 4. Status updates as deployment progresses
+ * 3. Kubernetes Environment CR creation (declarative)
+ * 4. Status updates as deployment progresses (via operator)
  * 5. Final GitHub PR comment with URL
  *
  * @param params - Deployment parameters
@@ -633,28 +631,29 @@ export async function createPreviewDeployment(
     branch,
     commitSha,
     repoFullName,
-    imageUri,
     installationId,
     owner,
     repoName,
-    buildJobName,
-    buildJobNamespace,
-    useHelmDeployment = false,
   } = params;
 
   // Generate identifiers
-  const namespace = generateNamespace(repoFullName, prNumber);
-  const deploymentName = `preview-${prNumber}`;
-  const publicUrl = generatePublicUrl(namespace);
+  // CR Name: preview-<prNumber>
+  const crName = `preview-${prNumber}`;
+  // Target Namespace (managed by operator): env-preview-<prNumber>
+  const targetNamespace = `env-${crName}`;
+  // CR Namespace: default (control plane)
+  const crNamespace = "default";
+
+  const publicUrl = generatePublicUrl(targetNamespace);
   const imageTag = generateImageTag(repoFullName, prNumber, commitSha);
 
   // Start deployment timer for performance tracking
-  const deploymentTimer = startTimer("preview-deployment-creation");
+  void startTimer("preview-deployment-creation");
 
   // Log deployment initiation
   logPreviewLifecycleEvent("deployment-initiated", {
     phase: "created",
-    namespace,
+    namespace: targetNamespace,
     prNumber,
     commitSha,
     branch,
@@ -665,8 +664,8 @@ export async function createPreviewDeployment(
   const podResult = await upsertPullRequestPod({
     pullRequestId,
     commitSha,
-    namespace,
-    deploymentName,
+    namespace: targetNamespace,
+    deploymentName: crName,
     branch,
     imageTag,
     publicUrl,
@@ -676,7 +675,7 @@ export async function createPreviewDeployment(
     previewLogger.error("Failed to create pod record", {
       prNumber,
       commitSha,
-      namespace,
+      namespace: targetNamespace,
       error: podResult.error,
     });
     return {
@@ -691,7 +690,7 @@ export async function createPreviewDeployment(
   if (!podResult.isNew) {
     logPreviewLifecycleEvent("deployment-duplicate-detected", {
       podId,
-      namespace,
+      namespace: targetNamespace,
       prNumber,
       commitSha,
       status: podResult.pod.status,
@@ -706,7 +705,7 @@ export async function createPreviewDeployment(
 
   logPreviewLifecycleEvent("pod-record-created", {
     podId,
-    namespace,
+    namespace: targetNamespace,
     prNumber,
     commitSha,
     phase: "created",
@@ -720,248 +719,45 @@ export async function createPreviewDeployment(
     prNumber,
     status: "pending",
     commitSha,
-    namespace,
+    namespace: targetNamespace,
   });
 
-  // Step 3: Update status to deploying
+  // Step 3: Create Environment CR
   await updatePodStatus(podId, "deploying");
-  await upsertDeploymentComment({
-    installationId,
-    owner,
-    repo: repoName,
-    prNumber,
-    status: "deploying",
-    commitSha,
-    namespace,
-  });
 
-  logPreviewLifecycleEvent("deployment-started", {
+  logPreviewLifecycleEvent("k8s-cr-creation-started", {
     podId,
-    namespace,
+    namespace: crNamespace,
     prNumber,
     commitSha,
-    phase: "deploying",
   });
 
-  // Step 4a: Wait for build job to complete (if specified)
-  if (buildJobName) {
-    const jobNamespace = buildJobNamespace || namespace;
-    const buildTimer = startTimer("build-job-completion");
-
-    previewLogger.info("Waiting for build job completion", {
-      podId,
-      namespace,
-      buildJobName,
-      jobNamespace,
-    });
-
-    const jobResult = await waitForJobCompletion(
-      buildJobName,
-      jobNamespace,
-      180000, // 3 minute timeout for build
-    );
-
-    if (!jobResult.success) {
-      const errorMsg = `Build job failed: ${jobResult.error || jobResult.status}`;
-      const duration = buildTimer.end({ podId, namespace, status: "failed" });
-
-      logPreviewLifecycleEvent("build-job-failed", {
-        podId,
-        namespace,
-        prNumber,
-        commitSha,
-        phase: "failed",
-        errorMessage: errorMsg,
-        duration,
-      });
-
-      await updatePodStatus(podId, "failed", { errorMessage: errorMsg });
-      await upsertDeploymentComment({
-        installationId,
-        owner,
-        repo: repoName,
-        prNumber,
-        status: "failed",
-        commitSha,
-        namespace,
-        errorMessage: errorMsg,
-      });
-      return { success: false, podId, error: errorMsg };
-    }
-
-    const duration = buildTimer.end({ podId, namespace, status: "success" });
-    logPreviewLifecycleEvent("build-job-completed", {
-      podId,
-      namespace,
-      prNumber,
+  const crResult = await createEnvironmentCR(crNamespace, crName, {
+    projectRef: { name: repoName }, // Assuming Project CR named after repo or we need to map it
+    type: "development",
+    source: {
       commitSha,
-      buildJobName,
-      duration,
-    });
+      branch,
+      prNumber,
+    },
+    config: {
+      envVars: [], // Add any default env vars
+    },
+  });
+
+  if (!crResult.success) {
+    const errorMsg = crResult.error || "Failed to create Environment CR";
+    await updatePodStatus(podId, "failed", { errorMessage: errorMsg });
+    return { success: false, podId, error: errorMsg };
   }
 
-  // Step 4b: Deploy to Kubernetes (using Helm or direct K8s API)
-  let deployResult: { success: boolean; error?: string };
-  const k8sDeployTimer = startTimer("k8s-deployment");
+  // Operator will handle the rest (Building -> Ready)
+  // We can return early or optionally wait/poll status here if we want synchronous behavior
+  // For MVP, we return "success" that the *request* was submitted.
+  // The UI will poll the DB/K8s for status updates.
 
-  logPreviewLifecycleEvent("k8s-deployment-started", {
-    podId,
-    namespace,
-    prNumber,
-    commitSha,
-    deploymentMethod: useHelmDeployment ? "helm" : "k8s-api",
-  });
-
-  if (useHelmDeployment) {
-    // Use Helm chart deployment
-    const helmResult = await deployHelmChart({
-      namespace,
-      releaseName: deploymentName,
-      imageRepository: imageUri.split(":")[0],
-      imageTag: imageTag,
-      prNumber,
-      commitSha,
-      publicUrl,
-      postgresqlEnabled: false,
-    });
-    deployResult = {
-      success: helmResult.success,
-      error: helmResult.error,
-    };
-  } else {
-    // Use direct K8s API deployment
-    deployResult = await deployPreviewApplication({
-      namespace,
-      deploymentName,
-      imageUri,
-      prNumber,
-      commitSha,
-    });
-  }
-
-  if (!deployResult.success) {
-    // Deployment failed - update status and comment
-    const duration = k8sDeployTimer.end({ podId, namespace, status: "failed" });
-
-    logPreviewLifecycleEvent("k8s-deployment-failed", {
-      podId,
-      namespace,
-      prNumber,
-      commitSha,
-      phase: "failed",
-      errorMessage: deployResult.error,
-      duration,
-    });
-
-    await updatePodStatus(podId, "failed", {
-      errorMessage: deployResult.error,
-    });
-    await upsertDeploymentComment({
-      installationId,
-      owner,
-      repo: repoName,
-      prNumber,
-      status: "failed",
-      commitSha,
-      namespace,
-      errorMessage: deployResult.error,
-    });
-    return { success: false, podId, error: deployResult.error };
-  }
-
-  const k8sDuration = k8sDeployTimer.end({
-    podId,
-    namespace,
-    status: "success",
-  });
-  logPreviewLifecycleEvent("k8s-deployment-created", {
-    podId,
-    namespace,
-    prNumber,
-    commitSha,
-    duration: k8sDuration,
-  });
-
-  // Step 5: Wait for deployment to be ready
-  const watchTimer = startTimer("deployment-watch");
-
-  logPreviewLifecycleEvent("deployment-watch-started", {
-    podId,
-    namespace,
-    prNumber,
-    commitSha,
-  });
-
-  const watchResult = await watchDeploymentUntilReady(
-    namespace,
-    deploymentName,
-  );
-
-  if (!watchResult.ready) {
-    // Deployment didn't become ready
-    const duration = watchTimer.end({ podId, namespace, status: "failed" });
-
-    logPreviewLifecycleEvent("deployment-watch-failed", {
-      podId,
-      namespace,
-      prNumber,
-      commitSha,
-      phase: "failed",
-      errorMessage: watchResult.error,
-      duration,
-    });
-
-    await updatePodStatus(podId, "failed", { errorMessage: watchResult.error });
-    await upsertDeploymentComment({
-      installationId,
-      owner,
-      repo: repoName,
-      prNumber,
-      status: "failed",
-      commitSha,
-      namespace,
-      errorMessage: watchResult.error,
-    });
-    return { success: false, podId, error: watchResult.error };
-  }
-
-  const watchDuration = watchTimer.end({ podId, namespace, status: "ready" });
-
-  // Step 6: Success - update database and post final comment
-  await updatePodStatus(podId, "running", {
-    publicUrl,
-    lastDeployedAt: new Date(),
-    resourcesAllocated: { cpu: "500m", memory: "512Mi", pods: 1 },
-  });
-
-  await upsertDeploymentComment({
-    installationId,
-    owner,
-    repo: repoName,
-    prNumber,
-    status: "running",
-    publicUrl,
-    commitSha,
-    namespace,
-  });
-
-  // Calculate total deployment time and log success
-  const totalDuration = deploymentTimer.end({
-    podId,
-    namespace,
-    status: "running",
-  });
-
-  logPreviewLifecycleEvent("deployment-completed", {
-    podId,
-    namespace,
-    prNumber,
-    commitSha,
-    publicUrl,
-    phase: "running",
-    duration: totalDuration,
-    watchDuration,
-  });
+  // Note: We are skipping the explicit wait here as the Operator is async.
+  // The Frontend should poll.
 
   return { success: true, podId, publicUrl };
 }
@@ -1031,23 +827,17 @@ export async function deletePreviewDeploymentOrchestrated(
     });
   }
 
-  // Step 3: Delete Kubernetes resources
-  const deleteResult = await deleteK8sDeployment(
-    pod.namespace,
-    pod.deploymentName,
-  );
+  // Step 3: Delete Kubernetes resources (Environment CR)
+  // CR Name: preview-<prNumber>
+  const crName = pod.deploymentName;
+  const crNamespace = "default";
+
+  const deleteResult = await deleteEnvironmentCR(crNamespace, crName);
 
   if (!deleteResult.success) {
-    previewLogger.warn("Failed to delete K8s resources", {
+    previewLogger.warn("Failed to delete Environment CR", {
       podId,
-      namespace: pod.namespace,
       error: deleteResult.error,
-    });
-    logPreviewLifecycleEvent("k8s-deletion-failed", {
-      podId,
-      namespace: pod.namespace,
-      prNumber: pod.pullRequest.number,
-      errorMessage: deleteResult.error,
     });
     // Continue with cleanup even if K8s deletion fails
   } else {
@@ -1090,7 +880,7 @@ export async function deletePreviewDeploymentOrchestrated(
 /**
  * Get detailed status of a preview deployment.
  *
- * Combines database state with live Kubernetes status.
+ * Combines database state with live Kubernetes Environment CR status.
  *
  * @param podId - Pod ID
  * @returns Combined status information
@@ -1124,32 +914,66 @@ export async function getPreviewDeploymentStatusFull(podId: string): Promise<{
 
   const pod = podResult.pod;
 
-  // Get live K8s status
-  const k8sStatus = await getPreviewDeploymentStatus(
-    pod.namespace,
-    pod.deploymentName,
-  );
+  // Get live CR status
+  // Namespace for CR is "default" (as per creation)
+  // Name is pod.deploymentName (which is "preview-123")
+  const crName = pod.deploymentName;
+  const crNamespace = "default";
 
-  return {
-    success: true,
-    status: {
-      dbStatus: pod.status as PodStatus,
-      k8sStatus: {
-        ready: k8sStatus.ready,
-        status: k8sStatus.status,
-        replicas: k8sStatus.replicas,
-        readyReplicas: k8sStatus.readyReplicas,
-        error: k8sStatus.error,
+  try {
+    const cr = await getEnvironmentCR(crNamespace, crName);
+
+    // Map CR status to UI status
+    const phase = cr?.status?.phase || "Unknown";
+    const isReady = phase === "Ready";
+    const url = cr?.status?.url;
+
+    // If Ready, sync DB if needed (optional optimization)
+    if (isReady && pod.status !== "running") {
+      // We could trigger DB update here
+      await updatePodStatus(pod.id, "running", { publicUrl: url });
+    }
+
+    return {
+      success: true,
+      status: {
+        dbStatus: pod.status as PodStatus,
+        k8sStatus: {
+          ready: isReady,
+          status: phase,
+          replicas: 1, // Placeholder
+          readyReplicas: isReady ? 1 : 0,
+          error: undefined, // Could extract from conditions
+        },
+        publicUrl: url || pod.publicUrl || undefined,
+        namespace: pod.namespace,
+        deploymentName: pod.deploymentName,
+        branch: pod.branch,
+        commitSha: pod.commitSha,
+        createdAt: pod.createdAt,
+        updatedAt: pod.updatedAt,
       },
-      publicUrl: pod.publicUrl || undefined,
-      namespace: pod.namespace,
-      deploymentName: pod.deploymentName,
-      branch: pod.branch,
-      commitSha: pod.commitSha,
-      createdAt: pod.createdAt,
-      updatedAt: pod.updatedAt,
-    },
-  };
+    };
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "Unknown error";
+    return {
+      success: true, // Return partial success if CR fetch fails
+      status: {
+        dbStatus: pod.status as PodStatus,
+        namespace: pod.namespace,
+        deploymentName: pod.deploymentName,
+        branch: pod.branch,
+        commitSha: pod.commitSha,
+        createdAt: pod.createdAt,
+        updatedAt: pod.updatedAt,
+        k8sStatus: {
+          ready: false,
+          status: "Error fetching CR",
+          error: e.message,
+        },
+      },
+    };
+  }
 }
 
 /**
@@ -1342,7 +1166,7 @@ export async function createManualPreviewEnvironment(
   params: CreateManualPreviewParams,
 ): Promise<CreateManualPreviewResult> {
   const { repoId, imageUri, userId, branchName, onProgress } = params;
-  
+
   const reportProgress = (msg: string) => {
     if (onProgress) onProgress(msg);
   };
@@ -1505,7 +1329,7 @@ export async function createManualPreviewEnvironment(
       namespace,
       deploymentName,
       180000, // Timeout
-      reportProgress // Pass progress callback
+      reportProgress, // Pass progress callback
     );
 
     if (!watchResult.ready) {

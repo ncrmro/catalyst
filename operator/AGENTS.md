@@ -19,3 +19,33 @@ When implementing features in the operator:
 1.  **Think Declaratively**: Logic should always drive the current state towards the desired state defined in the CR.
 2.  **CRD First**: Changes to functionality often start with defining the schema in `api/v1alpha1/`.
 3.  **Reconciliation**: Ensure controllers are idempotent and can recover from partial failures.
+
+## Development Environment
+This project uses **Nix** to manage the development environment dependencies (Go, Kubectl, Kustomize, etc.).
+
+### Setting up
+1.  Ensure you have Nix installed with flakes enabled.
+2.  Enter the development shell:
+    ```bash
+    nix develop
+    ```
+    Or if using `direnv`:
+    ```bash
+    direnv allow
+    ```
+
+### Tools Included
+- **Go**: Language runtime and compiler.
+- **gopls**: Go language server for IDE support.
+- **kubectl**: Kubernetes command-line tool.
+- **kustomize**: Configuration management.
+- **helm**: Package manager for Kubernetes.
+- **kind**: Local Kubernetes cluster manager.
+
+## Code Style & Conventions
+- **Terse & Clean**: Avoid superfluous boilerplate. Code should be focused and minimal.
+- **Spec-Driven**: Include relevant sections of the specification (`spec.md`) as comments in the code files. This ensures the code documents *why* it exists and *what* it is fulfilling.
+- **Testing**:
+  - Unit tests: Focus on logic packages (>80% coverage).
+  - Avoid testing generated code or standard library behavior.
+  - Integration tests: Use `envtest` for controller logic.

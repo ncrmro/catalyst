@@ -56,11 +56,11 @@
 
 - [x] T011 [P] [US1] Create helper function generateNamespace() in web/src/models/preview-environments.ts to generate DNS-safe namespace names
 - [x] T012 [P] [US1] Create helper function generatePublicUrl() in web/src/models/preview-environments.ts to construct public URLs for preview environments
-- [x] T013 [US1] Create helper function deployHelmChart() in web/src/models/preview-environments.ts to deploy Helm charts AFTER image build completes (uses existing k8s-pull-request-pod.ts for image building, adds Helm deployment for application)
-- [x] T013b [US1] Update deployHelmChart() to wait for Job completion from k8s-pull-request-pod.ts before deploying Helm chart with built image tag
+- [x] T013 [US1] ~~Create helper function deployHelmChart()~~ **Superseded by operator** - Helm deployment now handled by kube-operator via Environment CR reconciliation
+- [x] T013b [US1] ~~Update deployHelmChart() to wait for Job completion~~ **Superseded by operator** - Build job management now handled by kube-operator
 - [x] T014 [US1] Create helper function upsertGitHubComment() in web/src/lib/github-pr-comments.ts to post or update deployment comments on GitHub PRs
 - [x] T015 [US1] Implement createPreviewDeployment() in web/src/models/preview-environments.ts with full orchestration logic (database, K8s, GitHub)
-- [x] T016 [US1] Implement watchDeploymentStatus() in web/src/lib/k8s-preview-deployment.ts to monitor Kubernetes deployments using polling
+- [x] T016 [US1] ~~Implement watchDeploymentStatus()~~ **Superseded by operator** - Status now polled via `getEnvironmentCR()` in web/src/lib/k8s-operator.ts
 - [x] T017 [US1] Implement listActivePreviewPods() in web/src/models/preview-environments.ts to query active pods with team filtering
 
 #### Webhook Handler - GitHub Integration
@@ -236,8 +236,8 @@
 - [x] T074 [P] Add validation for namespace DNS-1123 compliance using Zod schema
 - [x] T075 [P] Add validation for commit SHA format (40-character hex string)
 - [x] T076 [P] Add validation for public URL format (HTTPS only)
-- [ ] T077 Add resource quota enforcement per preview environment (CPU: 500m, Memory: 512Mi)
-- [ ] T078 Add deployment timeout handling (3 minutes max)
+- [ ] T077 ~~Add resource quota enforcement~~ **Superseded by operator** - ResourceQuota applied by operator on namespace creation
+- [ ] T078 ~~Add deployment timeout handling~~ **Superseded by operator** - Timeout handling in operator reconciliation loop
 - [ ] T079 Add retry limit enforcement (max 3 attempts with exponential backoff)
 - [ ] T080 Add error message sanitization in GitHub comments to prevent information leaks
 - [ ] T081 Add transaction rollback handling for failed Kubernetes operations
@@ -417,3 +417,14 @@ This delivers the core value proposition: automatic preview deployments with pub
 - Stop at any checkpoint to validate story independently
 - Per Constitution Principle 5, unit tests with >80% coverage are required (T083-T087 cover validation testing)
 - Focus on production functionality and operational reliability
+
+---
+
+## Child Spec Reference
+
+Operator implementation tasks are tracked separately:
+
+- [Operator Specification](../../operator/spec.md) - kube-operator architecture and CRD definitions
+- [Operator Tasks](../../operator/tasks.md) - Operator implementation tasks
+
+The web application interacts with the operator via Environment CRs using `web/src/lib/k8s-operator.ts`.
