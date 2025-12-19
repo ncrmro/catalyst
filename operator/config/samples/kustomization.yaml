@@ -1,0 +1,5 @@
+## Append samples of your project ##
+resources:
+- catalyst_v1alpha1_project.yaml
+- catalyst_v1alpha1_environment.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples
