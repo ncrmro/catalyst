@@ -9,6 +9,10 @@
 - [research.docker-registry.md](./research.docker-registry.md) - Docker Distribution registry for storing PR branch images
 - [research.nginx-ingress.md](./research.nginx-ingress.md) - NGINX ingress controller for routing to preview environments
 
+## Child Specifications
+
+- [Operator Specification](../../operator/spec.md) - Kubernetes operator that manages Environment CRs
+
 ## Why
 
 Environments provide isolated and pre-configured contexts for code to run. The platform distinguishes between two fundamental use cases:

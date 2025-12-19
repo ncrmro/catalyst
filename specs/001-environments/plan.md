@@ -166,14 +166,24 @@ export type { ... } from './types'
 - [ ] CI passes with package-level testing
 - [ ] Deployment operations remain in `web/src/lib/` (until operator)
 
-## Future: kube-operator
+## kube-operator Integration
 
-The `kube-operator` package (`/packages/kube-operator`) will be implemented separately and will:
+The web application now uses a declarative operator-based workflow for environment management. Instead of directly orchestrating Kubernetes deployments, the web app creates Environment Custom Resources (CRs) which the operator reconciles.
+
+**Web App Responsibilities** (`web/src/lib/k8s-operator.ts`):
+
+- Create Environment CRs via `createEnvironmentCR()`
+- Read CR status via `getEnvironmentCR()`
+- Delete CRs via `deleteEnvironmentCR()`
+- Poll CR status to update database and UI
+
+**Operator Responsibilities** (`/operator/`):
 
 - Define Project and Environment CRDs
-- Handle namespace creation with policies
+- Handle namespace creation with ResourceQuota and NetworkPolicy
 - Orchestrate Helm and manifest deployments
 - Manage build jobs for PR images
-- Run as a Kubernetes Deployment in-cluster
+- Update CR status (phase: Pending → Building → Deploying → Ready)
+- Cleanup on CR deletion (finalizer pattern)
 
-See `spec.md` Architecture section for details.
+See [Operator Specification](../../operator/spec.md) for implementation details.
