@@ -1,5 +1,14 @@
 # Environments Specification
 
+## Research
+
+- [research.devpod.md](./research.devpod.md) - DevPod with Kubernetes provider, workspace creation, access methods, and Catalyst integration architecture
+- [research.kubectl-oidc-auth.md](./research.kubectl-oidc-auth.md) - Kubernetes API OIDC authentication, kubelogin setup, RBAC integration, and cloud provider options
+- [research.kube-namespace-resources.md](./research.kube-namespace-resources.md) - Resource quotas for CPU, memory, storage limits per namespace
+- [research.kube-network-policies.md](./research.kube-network-policies.md) - Network policies for namespace isolation and egress control
+- [research.docker-registry.md](./research.docker-registry.md) - Docker Distribution registry for storing PR branch images
+- [research.nginx-ingress.md](./research.nginx-ingress.md) - NGINX ingress controller for routing to preview environments
+
 ## Why
 
 Environments provide isolated and pre-configured contexts for code to run. The platform distinguishes between two fundamental use cases:
@@ -120,3 +129,130 @@ Development environments receive real public URLs through proxy infrastructure:
 - Network policies restrict egress to approved services only
 - Credentials injected ephemerally, never stored in containers
 - Audit logging for all environment operations
+
+### Kubernetes Access via OIDC
+
+Users can access environments directly via Kubernetes tools (kubectl, k9s, custom TUI) using OIDC authentication.
+
+**Authentication Options:**
+
+- **Catalyst OIDC Provider**: Authenticate through Catalyst's built-in OIDC flow
+- **Cloud Provider OIDC**: Use native cloud provider flows (AWS EKS, GCP GKE, Azure AKS)
+
+**Access Level Conventions:**
+
+| Environment Type                    | Role     | Capabilities                                                                            |
+| ----------------------------------- | -------- | --------------------------------------------------------------------------------------- |
+| **Deployment** (production/staging) | Observer | View logs, describe resources, list pods/deployments. No secrets, exec, or port-forward |
+| **Deployment** (production/staging) | Admin    | Full access including secrets, exec, port-forward, resource modifications               |
+| **Development**                     | Owner    | Full namespace access—exec, port-forward, create/delete resources, view secrets         |
+
+**Key Principles:**
+
+- **Deployment Environments**: Role assigned per user/team per environment. Most users get Observer; Admins are explicitly granted
+- **Development Environments**: Users have full control within their namespace boundaries via service account token. They can do anything they want, limited only to that namespace
+- **Namespace Scoping**: Users only see and can access namespaces they've been granted access to
+
+## Architecture
+
+### Package Structure
+
+Kubernetes functionality is split across two packages with distinct responsibilities:
+
+```
+/packages/
+└── kube-operator/        # Kubernetes operator (separate package)
+
+/web/
+└── packages/
+    └── kube-client/      # Lightweight K8s client for web app
+```
+
+### kube-operator
+
+A dedicated Kubernetes operator that manages environment lifecycle through Custom Resource Definitions (CRDs).
+
+**Location**: `/packages/kube-operator`
+
+**Responsibilities:**
+
+- **Project CRD**: Defines deployment configuration (Helm, manifests, images)
+- **Environment CRD**: Represents dev/staging/production environments
+- **Deployment Orchestration**: Helm chart deployment, manifest application
+- **Preview Environment Lifecycle**: Create/update/delete on PR events
+- **Policy Application**: ResourceQuota and NetworkPolicy per namespace
+- **Build Jobs**: Container image builds from PR branches
+
+**Why a Separate Operator:**
+
+- Moves complex orchestration out of the web application
+- Runs in-cluster with proper service account permissions
+- Reconciliation loop handles failures and drift
+- CRDs provide declarative API for environment state
+- Can be developed and deployed independently
+
+### kube-client
+
+A lightweight Kubernetes client library used by the web application.
+
+**Location**: `/web/packages/kube-client`
+
+**Responsibilities:**
+
+- Read-only operations (list pods, get logs, describe resources)
+- Status queries for UI display
+- MCP server integration for AI agent access
+- No deployment or mutation logic
+
+**Why Separate from Operator:**
+
+- Web app doesn't need cluster-admin permissions
+- Simpler security model (read-only)
+- Faster, lighter dependency for the web tier
+
+### Interaction Pattern
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Web Application                           │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
+│  │   Web UI    │    │  MCP Server │    │   Actions   │         │
+│  └─────────────┘    └─────────────┘    └─────────────┘         │
+│         │                  │                  │                  │
+│         └──────────────────┼──────────────────┘                  │
+│                            ▼                                     │
+│                    ┌─────────────┐                               │
+│                    │ kube-client │  (read-only queries)          │
+│                    └─────────────┘                               │
+└─────────────────────────────────────────────────────────────────┘
+                             │
+                             ▼ kubectl API
+┌─────────────────────────────────────────────────────────────────┐
+│                     Kubernetes Cluster                           │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │                    kube-operator                         │    │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │    │
+│  │  │ Project CRD │  │Environment  │  │ Reconciler  │     │    │
+│  │  │  Watcher    │  │ CRD Watcher │  │   Loop      │     │    │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘     │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                            │                                     │
+│         ┌──────────────────┼──────────────────┐                  │
+│         ▼                  ▼                  ▼                  │
+│  ┌─────────────┐   ┌─────────────┐   ┌─────────────┐            │
+│  │  Namespace  │   │ Deployment  │   │   Ingress   │            │
+│  │ + Policies  │   │  + Service  │   │             │            │
+│  └─────────────┘   └─────────────┘   └─────────────┘            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Workflow Example: PR Opened
+
+1. GitHub webhook received by web app
+2. Web app creates/updates Environment CR via Kubernetes API
+3. kube-operator reconciler detects new Environment CR
+4. Operator creates namespace with ResourceQuota and NetworkPolicy
+5. Operator builds image, pushes to registry
+6. Operator deploys application and creates Ingress
+7. Operator updates Environment CR status with URL
+8. Web app (via kube-client) reads status, posts comment to PR
