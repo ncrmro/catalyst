@@ -47,12 +47,16 @@ sequenceDiagram
 
 ## Custom Resource Definitions (CRDs)
 
-### 1. Project (`projects.catalyst.dev`)
+**API Group**: `catalyst.catalyst.dev/v1alpha1`
+
+> Note: The API group is `catalyst.catalyst.dev` (group: `catalyst`, domain: `catalyst.dev` per kubebuilder convention).
+
+### 1. Project (`projects.catalyst.catalyst.dev`)
 
 Defines the configuration for a deployable application.
 
 ```yaml
-apiVersion: catalyst.dev/v1alpha1
+apiVersion: catalyst.catalyst.dev/v1alpha1
 kind: Project
 metadata:
   name: my-project
@@ -72,12 +76,12 @@ spec:
       memory: "2Gi"
 ```
 
-### 2. Environment (`environments.catalyst.dev`)
+### 2. Environment (`environments.catalyst.catalyst.dev`)
 
 Represents a specific instance of a project (e.g., a PR preview, staging, or production).
 
 ```yaml
-apiVersion: catalyst.dev/v1alpha1
+apiVersion: catalyst.catalyst.dev/v1alpha1
 kind: Environment
 metadata:
   name: pr-123
@@ -113,27 +117,27 @@ status:
 The core logic resides here. When an `Environment` CR is created or updated:
 
 1.  **Namespace Management**:
-    *   Create target namespace (e.g., `dev-pr-123`).
-    *   Apply `ResourceQuota` (CPU/Mem limits).
-    *   Apply `NetworkPolicy` (Isolation rules).
+    - Create target namespace (e.g., `dev-pr-123`).
+    - Apply `ResourceQuota` (CPU/Mem limits).
+    - Apply `NetworkPolicy` (Isolation rules).
 
 2.  **Build Orchestration (for PRs)**:
-    *   Check if image exists for `commitSha`.
-    *   If not, create a Kubernetes Job (Kaniko/Buildkit) to build and push to internal registry.
-    *   Watch Job status.
+    - Check if image exists for `commitSha`.
+    - If not, create a Kubernetes Job (Kaniko/Buildkit) to build and push to internal registry.
+    - Watch Job status.
 
 3.  **Deployment**:
-    *   Render Helm chart or manifests.
-    *   Inject specific values (image tag, ingress host, environment variables).
-    *   Apply resources to target namespace.
+    - Render Helm chart or manifests.
+    - Inject specific values (image tag, ingress host, environment variables).
+    - Apply resources to target namespace.
 
 4.  **Ingress**:
-    *   Create Ingress resource pointing to the service.
-    *   Ensure TLS certificate issuance (via cert-manager integration).
+    - Create Ingress resource pointing to the service.
+    - Ensure TLS certificate issuance (via cert-manager integration).
 
 5.  **Status Updates**:
-    *   Update CR status with current phase and public URL.
-    *   Report errors via status conditions.
+    - Update CR status with current phase and public URL.
+    - Report errors via status conditions.
 
 ### Cleanup
 
@@ -145,9 +149,9 @@ When an `Environment` CR is deleted:
 
 ## Technical Stack
 
-*   **Language**: Go (standard for K8s operators) or TypeScript (via Operator Framework/Kopf if preferred for team alignment, but Go is recommended for ecosystem maturity).
-*   **Framework**: Kubebuilder or Operator SDK.
-*   **Base Image**: Distroless or minimal Alpine.
+- **Language**: Go (standard for K8s operators) or TypeScript (via Operator Framework/Kopf if preferred for team alignment, but Go is recommended for ecosystem maturity).
+- **Framework**: Kubebuilder or Operator SDK.
+- **Base Image**: Distroless or minimal Alpine.
 
 ## Migration from Web App
 
@@ -155,13 +159,13 @@ Currently, the web application (`web/src/lib/k8s-*.ts`) performs these tasks dir
 
 1.  **Implement Operator**: Build the operator to handle `Environment` CRs.
 2.  **Update Web App**:
-    *   Remove direct calls to `createNamespace`, `deployHelmChart`, etc.
-    *   Instead, have the web app create an `Environment` CR.
-    *   Web app polls `Environment` status to update UI/GitHub.
+    - Remove direct calls to `createNamespace`, `deployHelmChart`, etc.
+    - Instead, have the web app create an `Environment` CR.
+    - Web app polls `Environment` status to update UI/GitHub.
 3.  **Cleanup**: Remove legacy orchestration code from `web/`.
 
 ## Security Considerations
 
-*   **RBAC**: The operator needs `ClusterRole` permissions to manage Namespaces, Deployments, Services, Ingresses, and NetworkPolicies.
-*   **Isolation**: The operator ensures that generated namespaces are locked down by default (NetworkPolicies).
-*   **Secrets**: The operator handles secret injection into environments without exposing them to the web app's read-only client.
+- **RBAC**: The operator needs `ClusterRole` permissions to manage Namespaces, Deployments, Services, Ingresses, and NetworkPolicies.
+- **Isolation**: The operator ensures that generated namespaces are locked down by default (NetworkPolicies).
+- **Secrets**: The operator handles secret injection into environments without exposing them to the web app's read-only client.
