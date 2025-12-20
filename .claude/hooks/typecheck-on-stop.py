@@ -9,16 +9,22 @@ import os
 
 def main():
     try:
-        # Change to workspace directory if specified
-        workspace_dir = os.environ.get('CLAUDE_WORKSPACE_DIR')
-        if workspace_dir:
-            os.chdir(workspace_dir)
-        # Get list of modified files using git
+        # Get the project directory
+        project_dir = os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd())
+        web_dir = os.path.join(project_dir, 'web')
+
+        # Check if web directory exists (where TypeScript is configured)
+        if not os.path.isdir(web_dir):
+            # No web directory, skip type checking
+            sys.exit(0)
+
+        # Get list of modified files using git (both staged and unstaged)
         result = subprocess.run(
             ['git', 'diff', '--name-only', 'HEAD'],
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=10,
+            cwd=project_dir
         )
 
         if result.returncode != 0:
@@ -26,25 +32,26 @@ def main():
             print("⚠ Could not check git status, skipping type check", file=sys.stderr)
             sys.exit(0)
 
-        # Check if any TypeScript files were modified
+        # Check if any TypeScript files in the web directory were modified
         modified_files = result.stdout.strip().split('\n')
         has_ts_files = any(
-            f.endswith(('.ts', '.tsx'))
+            f.startswith('web/') and f.endswith(('.ts', '.tsx'))
             for f in modified_files
             if f  # Skip empty strings
         )
 
         if not has_ts_files:
-            # No TypeScript files modified, skip type checking
+            # No TypeScript files in web/ modified, skip type checking
             sys.exit(0)
 
-        # Run TypeScript type checking
+        # Run TypeScript type checking from the web directory
         print("TypeScript files modified, running type check...")
         result = subprocess.run(
             ['npx', 'tsc', '--noEmit'],
             capture_output=True,
             text=True,
-            timeout=60
+            timeout=60,
+            cwd=web_dir
         )
 
         if result.returncode == 0:
