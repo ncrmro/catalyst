@@ -18,7 +18,8 @@
       ];
 
       shellHook = ''
-        export DOCKER_HOST=unix:///var/run/docker.sock
+        # Inherit DOCKER_HOST from parent shell, or use default socket
+        export DOCKER_HOST="''${DOCKER_HOST:-unix:///var/run/docker.sock}"
       '';
     };
   };
