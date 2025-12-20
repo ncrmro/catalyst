@@ -420,6 +420,87 @@ This delivers the core value proposition: automatic preview deployments with pub
 
 ---
 
+## Phase 10: @catalyst/kubernetes-client Package
+
+**Purpose**: Create a standalone TypeScript package for Kubernetes CRD operations and shell/exec functionality
+
+**Goal**: Centralize all Kubernetes client logic into a reusable package with clean API
+
+### Package Foundation
+
+- [x] T093 Create package.json for @catalyst/kubernetes-client at web/packages/catalyst-kubernetes-client/
+- [x] T094 Create tsconfig.json with ESNext target and bundler module resolution
+- [x] T095 [P] Create src/loader.ts with dynamic ESM loading for @kubernetes/client-node
+- [x] T096 [P] Create src/errors.ts with KubernetesError, ConnectionError, ExecError, WatchError classes
+- [x] T097 [P] Create src/config.ts with KubeConfig class and registry for multi-cluster support
+
+### Type Definitions
+
+- [x] T098 [P] Create src/types/common.ts with ObjectMeta, Condition, WatchEvent, ListOptions types
+- [x] T099 [P] Create src/types/environment.ts with Environment CR types matching operator Go structs (catalyst.catalyst.dev/v1alpha1)
+- [x] T100 [P] Create src/types/project.ts with Project CR types matching operator Go structs
+- [x] T101 Create src/types/index.ts exporting all types
+
+### Environment CR Operations
+
+- [x] T102 Create src/environments/client.ts with EnvironmentClient class (get, list, create, update, delete, patch, apply)
+- [x] T103 Create src/environments/watcher.ts with EnvironmentWatcher for watch operations with auto-reconnection
+- [x] T104 Create src/environments/index.ts exporting all environment operations
+
+### Pod Operations
+
+- [x] T105 [P] Create src/pods/list.ts with listPods() and getPod() functions
+- [x] T106 [P] Create src/pods/logs.ts with getPodLogs() and streamPodLogs() functions
+- [x] T107 [P] Create src/pods/metrics.ts with getPodMetrics() and listPodMetrics() functions
+- [x] T108 Create src/pods/index.ts exporting all pod operations
+
+### Exec/Shell Operations
+
+- [x] T109 Create src/exec/exec.ts with exec() and execStream() functions for command execution
+- [x] T110 Create src/exec/shell.ts with createShellSession() for interactive terminal access
+- [x] T111 [P] Create src/exec/resize.ts with TerminalResizeQueue and resize utilities
+- [x] T112 Create src/exec/index.ts exporting all exec operations
+
+### Namespace Operations
+
+- [x] T113 Create src/namespaces/index.ts with namespace CRUD operations and sanitizeNamespaceName()
+
+### Package Integration
+
+- [x] T114 Create index.ts main entry point exporting all modules
+- [x] T115 Create README.md with usage documentation and API examples
+- [ ] T116 Install next-ws package in web/ for WebSocket route support
+- [ ] T117 Run npx next-ws-cli@latest patch to enable WebSocket routes
+- [ ] T118 Create web/src/app/api/ws/exec/[namespace]/[pod]/route.ts WebSocket handler
+
+### Web App Integration
+
+- [ ] T119 Update web/src/lib/kubernetes-client.ts to re-export from @catalyst/kubernetes-client
+- [ ] T120 Update web/next.config.ts to add @catalyst/kubernetes-client to transpilePackages
+- [ ] T121 Install @xterm/xterm and @xterm/addon-fit for terminal UI
+- [ ] T122 Create web/src/components/terminal.tsx terminal component
+- [ ] T123 Update web/src/app/(dashboard)/projects/[projectId]/env/[envSlug]/page.tsx to use real data and add shell button
+
+### Cleanup
+
+- [ ] T124 Remove web/src/lib/k8s-operator.ts (migrated to package)
+- [ ] T125 Remove web/src/lib/k8s-pods.ts (migrated to package)
+- [ ] T126 Remove web/src/lib/k8s-namespaces.ts (migrated to package)
+- [ ] T127 Remove web/src/lib/k8s-preview-deployment.ts (migrated to package)
+- [ ] T128 Remove web/src/lib/k8s-pull-request-pod.ts (migrated to package)
+- [ ] T129 Remove web/src/lib/k8s-github-oidc.ts (migrated to package)
+- [ ] T130 Update all imports in web/src/actions/ to use new package
+- [ ] T131 Update all imports in web/src/models/ to use new package
+
+### Documentation
+
+- [ ] T132 Update specs/001-environments/spec.md to document API group as catalyst.catalyst.dev/v1alpha1
+- [ ] T133 Update operator/spec.md to clarify API group and reference TypeScript client package
+
+**Checkpoint**: All Kubernetes operations consolidated in @catalyst/kubernetes-client package with exec/shell support
+
+---
+
 ## Child Spec Reference
 
 Operator implementation tasks are tracked separately:
@@ -427,4 +508,4 @@ Operator implementation tasks are tracked separately:
 - [Operator Specification](../../operator/spec.md) - kube-operator architecture and CRD definitions
 - [Operator Tasks](../../operator/tasks.md) - Operator implementation tasks
 
-The web application interacts with the operator via Environment CRs using `web/src/lib/k8s-operator.ts`.
+The web application interacts with the operator via Environment CRs using `@catalyst/kubernetes-client` package.

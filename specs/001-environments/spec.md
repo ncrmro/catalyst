@@ -8,6 +8,7 @@
 - [research.kube-network-policies.md](./research.kube-network-policies.md) - Network policies for namespace isolation and egress control
 - [research.docker-registry.md](./research.docker-registry.md) - Docker Distribution registry for storing PR branch images
 - [research.nginx-ingress.md](./research.nginx-ingress.md) - NGINX ingress controller for routing to preview environments
+- [research.web-terminal.md](./research.web-terminal.md) - Web terminal implementation approaches (WebSocket, SSE, polling, custom servers)
 
 ## Child Specifications
 
@@ -195,23 +196,64 @@ A dedicated Kubernetes operator that manages environment lifecycle through Custo
 - CRDs provide declarative API for environment state
 - Can be developed and deployed independently
 
-### kube-client
+### kube-client (@catalyst/kubernetes-client)
 
-A lightweight Kubernetes client library used by the web application.
+A TypeScript client library for Catalyst Kubernetes CRDs (Environment, Project) with exec/shell support.
 
-**Location**: `/web/packages/kube-client`
+**Location**: `/web/packages/catalyst-kubernetes-client`
 
-**Responsibilities:**
+**API Group**: `catalyst.catalyst.dev/v1alpha1`
 
-- Read-only operations (list pods, get logs, describe resources)
-- Status queries for UI display
-- MCP server integration for AI agent access
-- No deployment or mutation logic
+**CRD Types:**
+
+- `Environment` - Represents development/staging/production environments
+- `Project` - Defines project configuration (future)
+
+**Capabilities:**
+
+- **Environment Operations**: CRUD operations on Environment CRs (get, list, create, update, delete, apply)
+- **Watch Support**: Real-time updates with automatic reconnection and exponential backoff
+- **Pod Operations**: List pods, get container logs, stream logs
+- **Exec/Shell**: Execute commands in containers, interactive shell sessions
+- **Namespace Operations**: Create/delete namespaces with resource quotas and network policies
+- **Multi-Cluster**: Registry-based configuration for multiple clusters
+
+**Key Features:**
+
+- Dynamic ESM loading for @kubernetes/client-node (avoids SSR issues)
+- TypeScript types matching Go operator CRD definitions
+- Watch auto-reconnection with configurable backoff
+- Exec via WebSocket with channel multiplexing
+
+**Usage:**
+
+```typescript
+import {
+  createEnvironmentClient,
+  EnvironmentWatcher,
+  getClusterConfig,
+  exec,
+} from "@catalyst/kubernetes-client";
+
+// List environments
+const client = await createEnvironmentClient();
+const envs = await client.list({ namespace: "catalyst-system" });
+
+// Execute command in pod
+const kubeConfig = await getClusterConfig();
+const result = await exec(kubeConfig, {
+  namespace: "pr-123",
+  pod: "app-0",
+  command: ["ls", "-la"],
+});
+```
 
 **Why Separate from Operator:**
 
 - Web app doesn't need cluster-admin permissions
-- Simpler security model (read-only)
+- Simpler security model (read-only for most operations)
+- Can be tested independently
+- Provides typed interface for frontend components
 - Faster, lighter dependency for the web tier
 
 ### Interaction Pattern

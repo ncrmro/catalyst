@@ -4,24 +4,85 @@
 
 Kubernetes functionality is split across two packages:
 
-1. **kube-client** (`/web/packages/kube-client`) - Lightweight read-only client for the web application
-2. **kube-operator** (`/packages/kube-operator`) - Kubernetes operator handling all deployment orchestration
+1. **@catalyst/kubernetes-client** (`/web/packages/catalyst-kubernetes-client`) - TypeScript client for Catalyst CRDs and pod operations
+2. **kube-operator** (`/operator`) - Kubernetes operator handling environment lifecycle
 
-This plan covers the `kube-client` package. The `kube-operator` is a separate implementation effort.
+This plan covers the `@catalyst/kubernetes-client` package. The operator is a separate implementation effort with its own [spec](../../operator/spec.md).
+
+## Related Research
+
+- [research.web-terminal.md](./research.web-terminal.md) - Web terminal implementation approaches (WebSocket, SSE, polling, custom servers)
+
+## Current Status
+
+### Implemented
+
+- **@catalyst/kubernetes-client package** - Complete with:
+  - Environment CR operations (CRUD, watch with auto-reconnection)
+  - Pod operations (list, logs, metrics)
+  - Exec/shell functionality (command execution)
+  - Multi-cluster KubeConfig support
+  - Dynamic ESM loading for @kubernetes/client-node
+
+- **Terminal UI component** - `web/src/components/terminal.tsx` using xterm.js
+  - Command-by-command execution via server actions
+  - Works but not truly interactive (no WebSocket)
+
+- **Exec server action** - `web/src/actions/pod-exec.ts`
+  - Executes commands in pod containers
+  - Returns stdout/stderr
+
+### Deferred
+
+- **True interactive terminal** - Requires WebSocket support
+  - Next.js 15 doesn't support WebSocket route handlers natively
+  - `next-ws` package not compatible with Next.js 15
+  - See [research.web-terminal.md](./research.web-terminal.md) for alternatives
+
+## Package Structure
+
+```
+web/packages/catalyst-kubernetes-client/
+├── package.json
+├── tsconfig.json
+├── README.md
+├── index.ts                        # Main exports
+└── src/
+    ├── config.ts                   # KubeConfig, registry, TLS handling
+    ├── loader.ts                   # Dynamic ESM loading for @kubernetes/client-node
+    ├── errors.ts                   # KubernetesError, ExecError, ConnectionError
+    ├── types/
+    │   ├── index.ts
+    │   ├── environment.ts          # Environment CR types (catalyst.catalyst.dev/v1alpha1)
+    │   ├── project.ts              # Project CR types
+    │   └── common.ts               # K8s metadata, conditions, etc.
+    ├── environments/
+    │   ├── index.ts
+    │   ├── client.ts               # get, list, create, update, delete, apply
+    │   └── watcher.ts              # watch with auto-reconnection
+    ├── pods/
+    │   ├── index.ts
+    │   ├── list.ts                 # List pods in namespace
+    │   ├── logs.ts                 # Get/stream pod logs
+    │   └── metrics.ts              # Get pod resource usage
+    ├── exec/
+    │   ├── index.ts
+    │   ├── exec.ts                 # Run command and get result
+    │   ├── shell.ts                # Interactive shell session (WebSocket)
+    │   └── resize.ts               # Terminal resize handling
+    └── namespaces/
+        └── index.ts                # Namespace CRUD with policies
+```
+
+## API Group
+
+All Catalyst CRDs use: `catalyst.catalyst.dev/v1alpha1`
+
+This follows kubebuilder convention: `{group}.{domain}/{version}` where group=`catalyst`, domain=`catalyst.dev`.
 
 ## Rationale
 
-### Why Two Packages?
-
-1. **Separation of Concerns**: The web app needs read-only access (logs, status, pod lists). Deployment orchestration belongs in a Kubernetes operator running in-cluster.
-
-2. **Security Model**: Web app runs with minimal permissions. Operator runs with elevated cluster permissions for creating namespaces, deployments, etc.
-
-3. **Reliability**: Operator's reconciliation loop handles failures and drift. Web app just reads state.
-
-4. **Independence**: Operator can be developed, tested, and deployed separately from the web application.
-
-### Why kube-client as a Package?
+### Why a Separate Package?
 
 1. **Dependency Isolation**: `@kubernetes/client-node` has ESM/CommonJS compatibility issues. Containing it in one package simplifies workarounds.
 
@@ -29,155 +90,99 @@ This plan covers the `kube-client` package. The `kube-operator` is a separate im
 
 3. **Focused Testing**: The package can have its own test suite with proper mocking.
 
-4. **Private by Design**: Marked as `private: true` in package.json—internal use only.
+4. **Clean API**: Provides typed interfaces matching Go operator CRD definitions.
 
-## Files to Extract (kube-client)
+### Why Two Components (Client + Operator)?
 
-Current Kubernetes files in `web/src/lib/` and their disposition:
+1. **Separation of Concerns**: Web app needs read access + exec. Deployment orchestration belongs in the operator.
 
-| File                        | Disposition       | Notes                                     |
-| --------------------------- | ----------------- | ----------------------------------------- |
-| `k8s-client.ts`             | **kube-client**   | Core client wrapper, KubeConfig, registry |
-| `k8s-namespaces.ts`         | **kube-client**   | Read operations only (list, exists)       |
-| `k8s-pods.ts`               | **kube-client**   | Pod listing and status                    |
-| `k8s-preview-deployment.ts` | **kube-operator** | Deploy/delete moves to operator           |
-| `k8s-pull-request-pod.ts`   | **kube-operator** | Build jobs move to operator               |
-| `k8s-github-oidc.ts`        | **kube-operator** | OIDC config moves to operator             |
-| `helm-deployment.ts`        | **kube-operator** | Helm deployment moves to operator         |
-| `mcp-namespaces.ts`         | **kube-client**   | MCP integration (read-only)               |
+2. **Security Model**: Web app runs with limited permissions. Operator runs with elevated cluster permissions.
 
-**Note:** Files marked "kube-operator" will be removed from the web app once the operator is implemented. Until then, they remain functional but are not part of kube-client.
+3. **Reliability**: Operator's reconciliation loop handles failures and drift.
 
-## Target Package Structure
+4. **Independence**: Operator can be developed, tested, and deployed separately.
 
-```
-web/packages/kube-client/
-├── package.json
-├── tsconfig.json
-├── vitest.config.ts
-├── src/
-│   ├── index.ts              # Public exports
-│   ├── client.ts             # KubeConfig, registry, API factories
-│   ├── namespaces.ts         # Namespace read operations
-│   ├── pods.ts               # Pod listing and status
-│   ├── logs.ts               # Log streaming
-│   ├── resources.ts          # Resource usage queries
-│   └── types.ts              # Shared types
-└── __tests__/
-    ├── client.test.ts
-    ├── namespaces.test.ts
-    └── ...
-```
-
-## Package Configuration
-
-```json
-{
-  "name": "@catalyst/kube-client",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "exports": {
-    ".": "./src/index.ts"
-  },
-  "dependencies": {
-    "@kubernetes/client-node": "^1.0.0"
-  },
-  "devDependencies": {
-    "vitest": "^3.0.0",
-    "typescript": "^5.0.0"
-  }
-}
-```
-
-## Migration Strategy
-
-### Phase 1: Create Package Structure
-
-1. Create `web/packages/kube-client/` directory
-2. Initialize package.json with proper configuration
-3. Set up tsconfig.json extending root config
-4. Configure vitest for the package
-
-### Phase 2: Extract Read-Only Operations
-
-1. Copy read-only files from `web/src/lib/k8s-*.ts` to package
-2. Rename to cleaner names (drop `k8s-` prefix)
-3. Remove any write/mutation operations (will move to operator)
-4. Create unified `index.ts` with explicit exports
-
-### Phase 3: Update Consumers
-
-1. Find all imports of `@/lib/k8s-*` for read operations
-2. Update to import from `@catalyst/kube-client`
-3. Add package to Next.js `transpilePackages` if needed
-
-### Phase 4: Move Tests
-
-1. Move related tests from `web/__tests__/` to package
-2. Update test imports and mocks
-3. Ensure CI runs package tests
-
-### Phase 5: Cleanup
-
-1. Delete extracted files from `web/src/lib/`
-2. Keep deployment/orchestration files (temporary until operator exists)
-3. Update documentation
-
-## Export API Design
-
-The package exposes read-only operations:
+## Usage
 
 ```typescript
-// Client & Configuration
-export { KubeConfig, KubeConfigRegistry } from './client'
-export { getCoreV1Api, getAppsV1Api } from './client'
+import {
+  createEnvironmentClient,
+  EnvironmentWatcher,
+  getClusterConfig,
+  exec,
+} from "@catalyst/kubernetes-client";
 
-// Namespace Operations (read-only)
-export { listNamespaces, namespaceExists } from './namespaces'
-export { getNamespaceStatus } from './namespaces'
+// List environments
+const client = await createEnvironmentClient();
+const envs = await client.list({ namespace: "catalyst-system" });
 
-// Pod Operations (read-only)
-export { listPodsInNamespace, getPodStatus } from './pods'
-
-// Log Operations
-export { getPodLogs, streamPodLogs } from './logs'
-
-// Resource Usage
-export { getPodResourceUsage, getNamespaceResourceUsage } from './resources'
-
-// Types
-export type { ... } from './types'
+// Execute command in pod
+const kubeConfig = await getClusterConfig();
+const result = await exec(kubeConfig, {
+  namespace: "pr-123",
+  pod: "app-0",
+  command: ["ls", "-la"],
+});
 ```
 
-**Not included** (moves to kube-operator):
+## Web App Integration
 
-- `createProjectNamespace`, `deleteNamespace`
-- `deployPreviewApplication`, `deletePreviewDeployment`
-- `createPullRequestPodJob`, `cleanupPullRequestPodJob`
-- `deployHelmChart`, `deleteHelmRelease`
+The web app uses the package via a re-export:
+
+```typescript
+// web/src/lib/kubernetes-client.ts
+export * from "@catalyst/kubernetes-client";
+```
+
+And is configured in `next.config.ts`:
+
+```typescript
+transpilePackages: [
+  "@tetrastack/react-glass-components",
+  "@catalyst/kubernetes-client",
+],
+```
+
+## Old Code Migration
+
+The following files in `web/src/lib/` remain for app-specific logic (gradual migration):
+
+| File                        | Status        | Notes                            |
+| --------------------------- | ------------- | -------------------------------- |
+| `k8s-client.ts`             | Keep          | Re-exports new package           |
+| `k8s-namespaces.ts`         | Migrate later | Namespace create/delete logic    |
+| `k8s-pods.ts`               | Migrate later | Pod listing (uses new package)   |
+| `k8s-operator.ts`           | Keep          | Environment CR operations        |
+| `k8s-preview-deployment.ts` | Keep          | Preview deployment orchestration |
+| `k8s-pull-request-pod.ts`   | Keep          | PR pod operations                |
+| `k8s-github-oidc.ts`        | Keep          | GitHub OIDC configuration        |
 
 ## Success Criteria
 
-- [ ] Read-only K8s operations live in `@catalyst/kube-client`
-- [ ] Package has dedicated test suite
-- [ ] MCP server uses `@catalyst/kube-client` for queries
-- [ ] UI uses `@catalyst/kube-client` for status/logs
-- [ ] CI passes with package-level testing
-- [ ] Deployment operations remain in `web/src/lib/` (until operator)
+- [x] Environment CR operations in package
+- [x] Pod operations in package
+- [x] Exec functionality in package
+- [x] Terminal UI component with xterm.js
+- [x] Server action for command execution
+- [x] Package integrated into web app
+- [x] TypeCheck and lint passing
+- [ ] Interactive terminal (blocked by Next.js 15 WebSocket support)
+- [ ] Full migration of old k8s-\*.ts files
+- [ ] Integration tests with K3s VM
 
-## kube-operator Integration
+## Operator Integration
 
-The web application now uses a declarative operator-based workflow for environment management. Instead of directly orchestrating Kubernetes deployments, the web app creates Environment Custom Resources (CRs) which the operator reconciles.
+The web application uses a declarative operator-based workflow:
 
-**Web App Responsibilities** (`web/src/lib/k8s-operator.ts`):
+**Web App Responsibilities:**
 
-- Create Environment CRs via `createEnvironmentCR()`
-- Read CR status via `getEnvironmentCR()`
-- Delete CRs via `deleteEnvironmentCR()`
+- Create Environment CRs
+- Read CR status
+- Delete CRs
 - Poll CR status to update database and UI
+- Execute commands in environment pods
 
-**Operator Responsibilities** (`/operator/`):
+**Operator Responsibilities:**
 
 - Define Project and Environment CRDs
 - Handle namespace creation with ResourceQuota and NetworkPolicy
