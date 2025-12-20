@@ -9,3 +9,4 @@ web/.kube/
 .k3s-vm/
 .k3s-vm-images/
 __pycache__
+node_modules
