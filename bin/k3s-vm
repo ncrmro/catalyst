@@ -44,6 +44,11 @@ NIXOS_CONFIG_TEMPLATE = '''
   networking.hostName = "k3s-vm";
   networking.firewall.enable = false;
 
+  # Disable audio
+  sound.enable = false;
+  services.pipewire.enable = false;
+  hardware.pulseaudio.enable = false;
+
   # Enable SSH
   services.openssh = {{
     enable = true;
@@ -83,6 +88,7 @@ NIXOS_CONFIG_TEMPLATE = '''
   virtualisation.vmVariant = {{
     virtualisation.memorySize = {memory};
     virtualisation.cores = {cores};
+    virtualisation.diskSize = 8192;
     virtualisation.graphics = false;
 
     # Forward ports for K3s API and SSH
@@ -180,7 +186,7 @@ def wait_for_ssh(timeout: int = 120) -> bool:
     return False
 
 
-def wait_for_k3s(timeout: int = 120) -> bool:
+def wait_for_k3s(timeout: int = 300) -> bool:
     """Wait for K3s API to become available."""
     start = time.time()
     while time.time() - start < timeout:
@@ -214,6 +220,18 @@ def extract_kubeconfig() -> bool:
         KUBECONFIG_DIR.mkdir(parents=True, exist_ok=True)
         KUBECONFIG_FILE.write_text(kubeconfig)
 
+        # Create a symlink in the web root for easier access/CLI usage
+        # web/kubeconfig.yaml -> .kube/config
+        web_root = PROJECT_ROOT / "web"
+        symlink_path = web_root / "kubeconfig.yaml"
+        target_path = Path(".kube/config") # Relative to web/
+        
+        # Atomic replacement of symlink
+        if symlink_path.exists() or symlink_path.is_symlink():
+            symlink_path.unlink()
+        symlink_path.symlink_to(target_path)
+        info("Created symlink web/kubeconfig.yaml -> .kube/config")
+
         # Also update .env with base64-encoded JSON kubeconfig for integration tests
         update_env_kubeconfig(kubeconfig)
 
@@ -223,14 +241,15 @@ def extract_kubeconfig() -> bool:
 
 
 def update_env_kubeconfig(kubeconfig_yaml: str) -> None:
-    """Update KUBECONFIG_PRIMARY in web/.env with base64-encoded JSON."""
+    """Update KUBECONFIG_PRIMARY and KUBECONFIG in web/.env."""
     import base64
     import json
     import re
 
     env_file = PROJECT_ROOT / "web" / ".env"
+    # Ensure web/.env exists
     if not env_file.exists():
-        return
+        env_file.write_text("")
 
     # Convert YAML to JSON using node (available in web directory)
     try:
@@ -246,8 +265,9 @@ console.log(JSON.stringify(kubeconfig));
         kubeconfig_json = result.stdout.strip()
         kubeconfig_b64 = base64.b64encode(kubeconfig_json.encode()).decode()
 
-        # Update .env file
         env_content = env_file.read_text()
+        
+        # Update KUBECONFIG_PRIMARY
         if "KUBECONFIG_PRIMARY=" in env_content:
             env_content = re.sub(
                 r'^KUBECONFIG_PRIMARY=.*$',
@@ -255,8 +275,28 @@ console.log(JSON.stringify(kubeconfig));
                 env_content,
                 flags=re.MULTILINE
             )
-            env_file.write_text(env_content)
-            info("Updated KUBECONFIG_PRIMARY in web/.env")
+        else:
+            if env_content and not env_content.endswith("\n"):
+                env_content += "\n"
+            env_content += f"KUBECONFIG_PRIMARY={kubeconfig_b64}\n"
+            
+        # Update KUBECONFIG (path to file)
+        # We use a relative path from the web directory (since the app runs from there)
+        kubeconfig_path = "./kubeconfig.yaml"
+        if "KUBECONFIG=" in env_content:
+             env_content = re.sub(
+                r'^KUBECONFIG=.*$',
+                f'KUBECONFIG={kubeconfig_path}',
+                env_content,
+                flags=re.MULTILINE
+            )
+        else:
+            if env_content and not env_content.endswith("\n"):
+                env_content += "\n"
+            env_content += f"KUBECONFIG={kubeconfig_path}\n"
+
+        env_file.write_text(env_content)
+        info("Updated KUBECONFIG_PRIMARY and KUBECONFIG in web/.env")
     except Exception as e:
         # Non-fatal: .env update is optional
         debug(f"Could not update .env: {e}")
@@ -312,8 +352,9 @@ def cmd_setup(args: argparse.Namespace) -> None:
     info("VM built successfully")
 
     # Remove old disk image to ensure fresh state
-    disk_image = VM_DIR / "nixos.qcow2"
-    disk_image.unlink(missing_ok=True)
+    # The disk image is named after the hostname (k3s-vm.qcow2)
+    for disk in VM_DIR.glob("*.qcow2"):
+        disk.unlink()
 
     # Start the VM in background
     print("  Starting VM...")
@@ -326,14 +367,18 @@ def cmd_setup(args: argparse.Namespace) -> None:
 
     env = os.environ.copy()
     env["QEMU_KERNEL_PARAMS"] = "console=ttyS0"
+    env["QEMU_AUDIO_DRV"] = "none"
+    # Unset LD_LIBRARY_PATH to prevent interference with Nix binaries (e.g. QEMU)
+    env.pop("LD_LIBRARY_PATH", None)
 
     # Start VM process
+    log_file = open(CONFIG_DIR / "vm.log", "w")
     proc = subprocess.Popen(
         [str(vm_script), "-nographic"],
         cwd=VM_DIR,
         env=env,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stdout=log_file,
+        stderr=subprocess.STDOUT,
         start_new_session=True
     )
 
@@ -348,7 +393,7 @@ def cmd_setup(args: argparse.Namespace) -> None:
 
     # Wait for K3s
     print("  Waiting for K3s to be ready...")
-    if not wait_for_k3s(180):
+    if not wait_for_k3s(300):
         error("Timeout waiting for K3s. Check VM logs.")
     info("K3s ready")
 
@@ -383,17 +428,19 @@ def cmd_start(args: argparse.Namespace) -> None:
         error("VM run script not found. Run 'bin/k3s-vm setup' first.")
     vm_script = vm_scripts[0]
 
-    print("Starting VM...")
-
     env = os.environ.copy()
     env["QEMU_KERNEL_PARAMS"] = "console=ttyS0"
+    env["QEMU_AUDIO_DRV"] = "none"
+    # Unset LD_LIBRARY_PATH to prevent interference with Nix binaries (e.g. QEMU)
+    env.pop("LD_LIBRARY_PATH", None)
 
+    log_file = open(CONFIG_DIR / "vm.log", "a")
     proc = subprocess.Popen(
         [str(vm_script), "-nographic"],
         cwd=VM_DIR,
         env=env,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stdout=log_file,
+        stderr=subprocess.STDOUT,
         start_new_session=True
     )
 
