@@ -10,3 +10,6 @@ web/.kube/
 .k3s-vm-images/
 __pycache__
 node_modules
+
+# Nix build result
+result

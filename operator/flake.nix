@@ -34,6 +34,19 @@
             echo "Kubectl version: $(kubectl version --client --output=yaml | grep gitVersion | awk '{print $2}')"
           '';
         };
+
+        packages.default = pkgs.dockerTools.buildImage {
+          name = "my-operator-image";
+          tag = "latest";
+          copyToRoot = pkgs.buildEnv {
+            name = "image-root";
+            paths = [ pkgs.hello ];
+            pathsToLink = [ "/bin" ];
+          };
+          config = {
+            Cmd = [ "${pkgs.hello}/bin/hello" ];
+          };
+        };
       }
     );
 }
