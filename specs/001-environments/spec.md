@@ -1,5 +1,7 @@
 # Environments Specification
 
+Catalyst manages two types of environments: **Deployment Environments** (production/staging) for running workloads reliably, and **Development Environments** for interactive development. Development environments serve as **preview environments for pull requests**—automatically created when a PR is opened, providing a public URL for testing and full shell access for debugging.
+
 ## Research
 
 - [research.devpod.md](./research.devpod.md) - DevPod with Kubernetes provider, workspace creation, access methods, and Catalyst integration architecture
@@ -59,7 +61,8 @@ Development environments are interactive workspaces for humans and agents. They 
 
 - **Shell Access**: SSH or exec into containers for interactive development
 - **Real Public URLs**: Traffic proxied through Cloudflare (or similar) to the environment
-- **Agent Workspace**: Agents can work autonomously—coding, running tests, inspecting results
+- **Namespace Resource Control**: Agents have full access to create, modify, and delete Kubernetes resources within their namespace—databases, caches, sidecars, or any infrastructure needed for development
+- **Agent Workspace**: Agents can work autonomously—coding, running tests, inspecting results. Enables [spec-driven development](https://github.com/github/spec-kit/blob/main/spec-driven.md) workflows with real-world validation
 - **Browser Testing**: From inside the environment, agents can use Playwright to test the real proxied URL, seeing exactly what users would see
 - **Devcontainer Support**: Standard devcontainer configurations for consistent tooling
 
@@ -70,24 +73,24 @@ Development environments are interactive workspaces for humans and agents. They 
 - **Agent Request**: Agents can request environments for autonomous coding workflows
 - **Branch Push**: Optionally trigger on any branch push (configurable)
 
-**Key Insight:**
+**Key Insight: Development Environments ARE Preview Environments**
 
-Development environments are "preview environments but more." Traditional previews let you view a deployment. Development environments let you:
+Development environments are "preview environments but more." When a pull request is opened, Catalyst creates a development environment that serves as the preview—but unlike traditional preview-only deployments, these environments let you:
 
 - Shell into the running containers
 - Have agents work inside them autonomously
 - Inspect the real public URL with actual browser automation
 - Iterate without leaving the environment
 
-**Pull Request Integration:**
+**Pull Request Integration (Preview Environments):**
 
-When a PR is opened:
+When a PR is opened, a development environment serves as the preview environment:
 
-1. A development environment is automatically created
-2. The branch is deployed with a real public URL
-3. A comment is posted to the PR with the URL and environment status
+1. A development environment (the "preview environment") is automatically created
+2. The branch is deployed with a real public URL for review and testing
+3. A comment is posted to the PR with the preview URL and environment status
 4. Developers and agents can shell in to debug, test, or iterate
-5. On PR close/merge, the environment is cleaned up
+5. On PR close/merge, the preview environment is cleaned up
 
 ## How
 

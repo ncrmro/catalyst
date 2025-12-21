@@ -19,7 +19,12 @@ Three specifications form the foundation of Catalyst:
 
 ### [001-environments](./specs/001-environments/spec.md)
 
-Manages production, staging, preview, and devcontainer environments in Kubernetes with security by default. Enables restricted kube access from within namespaces—developers and agents can declare resources in their namespace for development, experimentation, and reproduction, while user permissions control broader cluster access.
+Manages two types of environments in Kubernetes with security by default:
+
+- **Deployment Environments** - Production and staging workloads with managed infrastructure, updated through CI/CD pipelines
+- **Development Environments** - Interactive workspaces for humans and agents with shell access, full namespace resource control, and real public/private URLs. These serve as **preview environments for pull requests** and enable [spec-driven development](https://github.com/github/spec-kit/blob/main/spec-driven.md) workflows
+
+Enables restricted kube access from within namespaces—developers and agents can declare resources in their namespace for development, experimentation, and reproduction, while user permissions control broader cluster access.
 
 ### [003-vcs-providers](./specs/003-vcs-providers/spec.md)
 
