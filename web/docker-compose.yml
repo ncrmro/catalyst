@@ -22,6 +22,8 @@ services:
       target: development
     volumes:
       - .:/app
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=postgres://postgres:postgres@db:5432/catalyst
       - PORT=${WEB_PORT:-3000}
@@ -29,6 +31,8 @@ services:
       - MOCKED=${MOCKED:-1}
       - KUBECONFIG=/app/.kube/config
       - KUBERNETES_API_SERVER_HOST=192.168.1.69
+      - GITHUB_PAT=${GITHUB_PAT:-}
+      - GITHUB_DISABLE_APP_CHECKS=true
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:

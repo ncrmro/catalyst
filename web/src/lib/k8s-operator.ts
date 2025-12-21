@@ -36,7 +36,7 @@ export interface EnvironmentCR {
 export async function createEnvironmentCR(
   namespace: string,
   name: string,
-  spec: EnvironmentCRSpec
+  spec: EnvironmentCRSpec,
 ) {
   const CustomObjectsApi = await getCustomObjectsApi();
   const config = await getClusterConfig();
@@ -65,28 +65,31 @@ export async function createEnvironmentCR(
     // The previous implementation used "env-<project>-<id>" as the *target* namespace.
     // The CR needs to exist in a namespace the user has access to or a central one.
     // Let's use the `namespace` param as the namespace for the CR.
-    
-    await client.createNamespacedCustomObject(
-      GROUP,
-      VERSION,
+
+    await client.createNamespacedCustomObject({
+      group: GROUP,
+      version: VERSION,
       namespace,
-      PLURAL,
-      body
-    );
+      plural: PLURAL,
+      body,
+    });
     return { success: true };
   } catch (error: any) {
     if (error.response?.statusCode === 409) {
       // Already exists, try update (PATCH)
-       // For idempotency, we might want to patch spec
-       // TODO: Implement patch if needed, or return success if it exists
-       return { success: true, isExisting: true };
+      // For idempotency, we might want to patch spec
+      // TODO: Implement patch if needed, or return success if it exists
+      return { success: true, isExisting: true };
     }
     console.error("Failed to create Environment CR:", error);
     return { success: false, error: error.message };
   }
 }
 
-export async function getEnvironmentCR(namespace: string, name: string): Promise<EnvironmentCR | null> {
+export async function getEnvironmentCR(
+  namespace: string,
+  name: string,
+): Promise<EnvironmentCR | null> {
   const CustomObjectsApi = await getCustomObjectsApi();
   const config = await getClusterConfig();
   if (!config) throw new Error("No cluster config");
@@ -94,13 +97,13 @@ export async function getEnvironmentCR(namespace: string, name: string): Promise
   const client = config.makeApiClient(CustomObjectsApi);
 
   try {
-    const res = await client.getNamespacedCustomObject(
-      GROUP,
-      VERSION,
+    const res = await client.getNamespacedCustomObject({
+      group: GROUP,
+      version: VERSION,
       namespace,
-      PLURAL,
-      name
-    );
+      plural: PLURAL,
+      name,
+    });
     return res.body as EnvironmentCR;
   } catch (error: any) {
     if (error.response?.statusCode === 404) return null;
@@ -116,13 +119,13 @@ export async function deleteEnvironmentCR(namespace: string, name: string) {
   const client = config.makeApiClient(CustomObjectsApi);
 
   try {
-    await client.deleteNamespacedCustomObject(
-      GROUP,
-      VERSION,
+    await client.deleteNamespacedCustomObject({
+      group: GROUP,
+      version: VERSION,
       namespace,
-      PLURAL,
-      name
-    );
+      plural: PLURAL,
+      name,
+    });
     return { success: true };
   } catch (error: any) {
     if (error.response?.statusCode === 404) return { success: true }; // Already gone

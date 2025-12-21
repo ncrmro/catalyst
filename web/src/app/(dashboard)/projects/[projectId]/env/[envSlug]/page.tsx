@@ -1,42 +1,63 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { GlassCard } from '@tetrastack/react-glass-components';
-import { useParams } from 'next/navigation';
+import { useState, useCallback } from "react";
+import { GlassCard } from "@tetrastack/react-glass-components";
+import { useParams } from "next/navigation";
+import { TerminalModal } from "@/components/terminal";
+import { execCommand } from "@/actions/pod-exec";
 
 // Mock data - maps slug to environment info
-const mockEnvironments: Record<string, { branch: string; previewUrl: string; status: string }> = {
-  '001-environments--pull-request-environment': {
-    branch: '001-environments/pull-request-environment',
-    previewUrl: 'https://001-environments--pull-request-environment.catalyst.example.com',
-    status: 'running',
+const mockEnvironments: Record<
+  string,
+  {
+    branch: string;
+    previewUrl: string;
+    status: string;
+    namespace: string;
+    podName: string;
+  }
+> = {
+  "001-environments--pull-request-environment": {
+    branch: "001-environments/pull-request-environment",
+    previewUrl:
+      "https://001-environments--pull-request-environment.catalyst.example.com",
+    status: "running",
+    namespace: "pr-catalyst-001",
+    podName: "catalyst-web-0",
   },
-  '001-environments--web-shell': {
-    branch: '001-environments/web-shell',
-    previewUrl: 'https://001-environments--web-shell.catalyst.example.com',
-    status: 'running',
+  "001-environments--web-shell": {
+    branch: "001-environments/web-shell",
+    previewUrl: "https://001-environments--web-shell.catalyst.example.com",
+    status: "running",
+    namespace: "pr-catalyst-002",
+    podName: "catalyst-web-0",
   },
-  '003-vsc-providers--dev-environment-pr-comment': {
-    branch: '003-vsc-providers/dev-environment-pr-comment',
-    previewUrl: 'https://003-vsc-providers--dev-environment-pr-comment.catalyst.example.com',
-    status: 'running',
+  "003-vsc-providers--dev-environment-pr-comment": {
+    branch: "003-vsc-providers/dev-environment-pr-comment",
+    previewUrl:
+      "https://003-vsc-providers--dev-environment-pr-comment.catalyst.example.com",
+    status: "running",
+    namespace: "pr-catalyst-003",
+    podName: "catalyst-web-0",
   },
-  'copilot--fix-ci': {
-    branch: 'copilot/fix-ci',
-    previewUrl: 'https://copilot--fix-ci.catalyst.example.com',
-    status: 'deploying',
+  "copilot--fix-ci": {
+    branch: "copilot/fix-ci",
+    previewUrl: "https://copilot--fix-ci.catalyst.example.com",
+    status: "deploying",
+    namespace: "pr-catalyst-004",
+    podName: "catalyst-web-0",
   },
 };
 
 // Mock agent runs with task info
 const mockAgentRuns = [
   {
-    id: '1',
-    agent: 'implementation-agent',
-    goal: 'Implement feature changes based on PR requirements',
-    status: 'completed' as const,
-    startTime: '2024-12-18 10:15:00',
-    duration: '8m 20s',
+    id: "1",
+    agent: "implementation-agent",
+    goal: "Implement feature changes based on PR requirements",
+    status: "completed" as const,
+    startTime: "2024-12-18 10:15:00",
+    duration: "8m 20s",
     logs: `[10:15:00] Implementation agent initialized
 [10:15:02] Fetched PR #42: "feat: add preview environments"
 [10:15:05] Analyzing requirements from PR description...
@@ -57,12 +78,12 @@ const mockAgentRuns = [
 [10:23:20] Implementation complete`,
   },
   {
-    id: '2',
-    agent: 'review-agent',
-    goal: 'Review code changes and provide feedback',
-    status: 'running' as const,
-    startTime: '2024-12-18 10:23:40',
-    duration: '3m 25s',
+    id: "2",
+    agent: "review-agent",
+    goal: "Review code changes and provide feedback",
+    status: "running" as const,
+    startTime: "2024-12-18 10:23:40",
+    duration: "3m 25s",
     logs: `[10:23:40] Review agent initialized
 [10:23:42] Fetching diff for PR #42...
 [10:23:45] Found 12 modified files
@@ -79,10 +100,10 @@ const mockAgentRuns = [
 ];
 
 const mockContainers = [
-  { name: 'agent', status: 'running' as const, restarts: 0 },
-  { name: 'web', status: 'running' as const, restarts: 0 },
-  { name: 'db', status: 'running' as const, restarts: 0 },
-  { name: 'worker', status: 'running' as const, restarts: 1 },
+  { name: "agent", status: "running" as const, restarts: 0 },
+  { name: "web", status: "running" as const, restarts: 0 },
+  { name: "db", status: "running" as const, restarts: 0 },
+  { name: "worker", status: "running" as const, restarts: 1 },
 ];
 
 const mockContainerLogs: Record<string, string> = {
@@ -118,50 +139,87 @@ const mockContainerLogs: Record<string, string> = {
 [2024-12-18 10:25:05] Waiting for jobs...`,
 };
 
-function getStatusColor(status: 'running' | 'pending' | 'failed' | 'completed') {
+function getStatusColor(
+  status: "running" | "pending" | "failed" | "completed",
+) {
   switch (status) {
-    case 'running':
-      return 'bg-yellow-500';
-    case 'completed':
-      return 'bg-green-500';
-    case 'pending':
-      return 'bg-gray-500';
-    case 'failed':
-      return 'bg-red-500';
+    case "running":
+      return "bg-yellow-500";
+    case "completed":
+      return "bg-green-500";
+    case "pending":
+      return "bg-gray-500";
+    case "failed":
+      return "bg-red-500";
   }
 }
 
 function getStatusBadge(status: string) {
   switch (status) {
-    case 'running':
-      return 'bg-success-container text-on-success-container';
-    case 'completed':
-      return 'bg-primary-container text-on-primary-container';
-    case 'deploying':
-      return 'bg-secondary-container text-on-secondary-container';
-    case 'pending':
-      return 'bg-surface-variant text-on-surface-variant';
-    case 'failed':
-      return 'bg-error-container text-on-error-container';
+    case "running":
+      return "bg-success-container text-on-success-container";
+    case "completed":
+      return "bg-primary-container text-on-primary-container";
+    case "deploying":
+      return "bg-secondary-container text-on-secondary-container";
+    case "pending":
+      return "bg-surface-variant text-on-surface-variant";
+    case "failed":
+      return "bg-error-container text-on-error-container";
     default:
-      return 'bg-surface-variant text-on-surface-variant';
+      return "bg-surface-variant text-on-surface-variant";
   }
 }
 
 export default function EnvironmentDetailPage() {
   const params = useParams();
   const envSlug = params.envSlug as string;
-  const [selectedContainer, setSelectedContainer] = useState<string | null>('web');
-  const [expandedAgent, setExpandedAgent] = useState<string | null>(mockAgentRuns[0]?.id || null);
+  const [selectedContainer, setSelectedContainer] = useState<string | null>(
+    "web",
+  );
+  const [expandedAgent, setExpandedAgent] = useState<string | null>(
+    mockAgentRuns[0]?.id || null,
+  );
+  const [terminalOpen, setTerminalOpen] = useState(false);
+  const [terminalContainer, setTerminalContainer] = useState<
+    string | undefined
+  >(undefined);
 
   const environment = mockEnvironments[envSlug];
+
+  // Handler for executing commands in the terminal
+  const handleExec = useCallback(
+    async (command: string): Promise<{ stdout: string; stderr: string }> => {
+      if (!environment) {
+        return { stdout: "", stderr: "Environment not found" };
+      }
+
+      return execCommand(
+        environment.namespace,
+        environment.podName,
+        command,
+        terminalContainer,
+      );
+    },
+    [environment, terminalContainer],
+  );
+
+  // Open terminal for a specific container
+  const openTerminal = (containerName: string) => {
+    setTerminalContainer(containerName);
+    setTerminalOpen(true);
+  };
 
   if (!environment) {
     return (
       <GlassCard>
         <div className="text-center py-8">
-          <h2 className="text-lg font-medium text-on-surface mb-2">Environment not found</h2>
-          <p className="text-on-surface-variant">The requested environment does not exist.</p>
+          <h2 className="text-lg font-medium text-on-surface mb-2">
+            Environment not found
+          </h2>
+          <p className="text-on-surface-variant">
+            The requested environment does not exist.
+          </p>
         </div>
       </GlassCard>
     );
@@ -173,8 +231,12 @@ export default function EnvironmentDetailPage() {
       <GlassCard>
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-on-surface">Preview Environment</h2>
-            <h1 className="text-xl font-bold text-on-surface mt-1">{environment.branch}</h1>
+            <h2 className="text-lg font-semibold text-on-surface">
+              Preview Environment
+            </h2>
+            <h1 className="text-xl font-bold text-on-surface mt-1">
+              {environment.branch}
+            </h1>
             <a
               href={environment.previewUrl}
               target="_blank"
@@ -185,7 +247,9 @@ export default function EnvironmentDetailPage() {
             </a>
           </div>
           <div className="flex items-center gap-3">
-            <span className={`px-2 py-0.5 text-xs rounded-full ${getStatusBadge(environment.status)}`}>
+            <span
+              className={`px-2 py-0.5 text-xs rounded-full ${getStatusBadge(environment.status)}`}
+            >
               {environment.status}
             </span>
             <a
@@ -212,33 +276,54 @@ export default function EnvironmentDetailPage() {
               {/* Agent Run Header */}
               <div
                 className={`flex items-center gap-4 px-4 py-3 cursor-pointer transition-colors ${
-                  expandedAgent === run.id ? 'bg-primary/5' : 'hover:bg-surface/50'
+                  expandedAgent === run.id
+                    ? "bg-primary/5"
+                    : "hover:bg-surface/50"
                 }`}
-                onClick={() => setExpandedAgent(expandedAgent === run.id ? null : run.id)}
+                onClick={() =>
+                  setExpandedAgent(expandedAgent === run.id ? null : run.id)
+                }
               >
-                <span className={`w-2 h-2 rounded-full shrink-0 ${getStatusColor(run.status)}`}></span>
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 ${getStatusColor(run.status)}`}
+                ></span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-on-surface">{run.agent}</span>
-                    <span className={`px-2 py-0.5 text-xs rounded-full ${getStatusBadge(run.status)}`}>
+                    <span className="font-medium text-on-surface">
+                      {run.agent}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 text-xs rounded-full ${getStatusBadge(run.status)}`}
+                    >
                       {run.status}
                     </span>
                   </div>
-                  <p className="text-sm text-on-surface-variant truncate">{run.goal}</p>
+                  <p className="text-sm text-on-surface-variant truncate">
+                    {run.goal}
+                  </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="text-xs text-on-surface-variant">{run.startTime}</div>
-                  <div className="text-xs text-on-surface-variant">{run.duration}</div>
+                  <div className="text-xs text-on-surface-variant">
+                    {run.startTime}
+                  </div>
+                  <div className="text-xs text-on-surface-variant">
+                    {run.duration}
+                  </div>
                 </div>
                 <svg
                   className={`w-4 h-4 text-on-surface-variant transition-transform ${
-                    expandedAgent === run.id ? 'rotate-180' : ''
+                    expandedAgent === run.id ? "rotate-180" : ""
                   }`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
                 </svg>
               </div>
 
@@ -259,21 +344,32 @@ export default function EnvironmentDetailPage() {
 
       {/* Containers */}
       <GlassCard>
-        <h2 className="text-lg font-semibold text-on-surface mb-4">Containers</h2>
+        <h2 className="text-lg font-semibold text-on-surface mb-4">
+          Containers
+        </h2>
         <div className="divide-y divide-outline/50 -mx-6">
           {mockContainers.map((container) => (
             <div
               key={container.name}
               className={`flex items-center gap-4 px-6 py-3 cursor-pointer transition-colors ${
-                selectedContainer === container.name ? 'bg-primary/10' : 'hover:bg-surface/50'
+                selectedContainer === container.name
+                  ? "bg-primary/10"
+                  : "hover:bg-surface/50"
               }`}
               onClick={() => setSelectedContainer(container.name)}
             >
-              <span className={`w-2 h-2 rounded-full ${getStatusColor(container.status)}`}></span>
-              <span className="font-medium text-on-surface flex-1">{container.name}</span>
-              <span className="text-sm text-on-surface-variant">{container.status}</span>
+              <span
+                className={`w-2 h-2 rounded-full ${getStatusColor(container.status)}`}
+              ></span>
+              <span className="font-medium text-on-surface flex-1">
+                {container.name}
+              </span>
               <span className="text-sm text-on-surface-variant">
-                {container.restarts} {container.restarts === 1 ? 'restart' : 'restarts'}
+                {container.status}
+              </span>
+              <span className="text-sm text-on-surface-variant">
+                {container.restarts}{" "}
+                {container.restarts === 1 ? "restart" : "restarts"}
               </span>
               <button
                 className="px-3 py-1 text-xs font-medium text-on-surface-variant bg-surface hover:bg-surface/80 border border-outline rounded-lg transition-colors"
@@ -283,6 +379,34 @@ export default function EnvironmentDetailPage() {
                 }}
               >
                 View Logs
+              </button>
+              <button
+                className="px-3 py-1 text-xs font-medium text-on-primary bg-primary hover:opacity-90 rounded-lg transition-opacity flex items-center gap-1"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openTerminal(container.name);
+                }}
+                disabled={container.status !== "running"}
+                title={
+                  container.status !== "running"
+                    ? "Container must be running to open shell"
+                    : "Open shell"
+                }
+              >
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                Shell
               </button>
             </div>
           ))}
@@ -296,15 +420,27 @@ export default function EnvironmentDetailPage() {
             <h2 className="text-lg font-semibold text-on-surface">
               Container Logs - {selectedContainer}
             </h2>
-            <span className="text-xs text-on-surface-variant">Last 100 lines</span>
+            <span className="text-xs text-on-surface-variant">
+              Last 100 lines
+            </span>
           </div>
           <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto max-h-96 overflow-y-auto">
             <pre className="text-sm text-gray-100 font-mono whitespace-pre-wrap">
-              {mockContainerLogs[selectedContainer] || 'No logs available'}
+              {mockContainerLogs[selectedContainer] || "No logs available"}
             </pre>
           </div>
         </GlassCard>
       )}
+
+      {/* Terminal Modal */}
+      <TerminalModal
+        isOpen={terminalOpen}
+        onClose={() => setTerminalOpen(false)}
+        namespace={environment.namespace}
+        podName={environment.podName}
+        containerName={terminalContainer}
+        onExec={handleExec}
+      />
     </>
   );
 }

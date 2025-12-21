@@ -1,13 +1,8 @@
-import { notFound } from 'next/navigation';
-import { getClusters } from '@/actions/clusters';
-import { getNamespaces, NamespaceInfo } from '@/actions/namespaces';
-import { auth } from '@/auth';
-import Link from 'next/link';
-
-interface NamespaceCardProps {
-  namespace: NamespaceInfo;
-  clusterName: string;
-}
+import { notFound } from "next/navigation";
+import { getClusters } from "@/actions/clusters";
+import { getNamespaces, NamespaceInfo } from "@/actions/namespaces";
+import { auth } from "@/auth";
+import Link from "next/link";
 
 interface NamespaceCardProps {
   namespace: NamespaceInfo;
@@ -15,15 +10,20 @@ interface NamespaceCardProps {
 }
 
 function NamespaceCard({ namespace, clusterName }: NamespaceCardProps) {
-  const age = namespace.creationTimestamp ? 
-    Math.floor((Date.now() - new Date(namespace.creationTimestamp).getTime()) / (1000 * 60 * 60 * 24)) : 0;
-  
-  const isCatalystNamespace = namespace.labels && 
-    (namespace.labels['catalyst/team'] || namespace.labels['catalyst/project']);
+  const age = namespace.creationTimestamp
+    ? Math.floor(
+        (Date.now() - new Date(namespace.creationTimestamp).getTime()) /
+          (1000 * 60 * 60 * 24),
+      )
+    : 0;
+
+  const isCatalystNamespace =
+    namespace.labels &&
+    (namespace.labels["catalyst/team"] || namespace.labels["catalyst/project"]);
 
   return (
-    <Link 
-      href={`/clusters/${encodeURIComponent(clusterName)}/namespaces/${encodeURIComponent(namespace.name)}`}
+    <Link
+      href={`/compute/clusters/${encodeURIComponent(clusterName)}/namespaces/${encodeURIComponent(namespace.name)}`}
       className="block"
     >
       <div className="border border-outline rounded-lg p-6 bg-surface shadow-sm hover:shadow-md transition-shadow cursor-pointer">
@@ -37,37 +37,39 @@ function NamespaceCard({ namespace, clusterName }: NamespaceCardProps) {
             </span>
           )}
         </div>
-      
-      <div className="grid grid-cols-1 gap-2">
-        <div>
-          <p className="text-sm text-on-surface-variant">Age</p>
-          <p className="text-sm text-on-surface">
-            {age > 0 ? `${age} days` : 'Less than 1 day'}
-          </p>
-        </div>
-        
-        {namespace.labels && Object.keys(namespace.labels).length > 0 && (
+
+        <div className="grid grid-cols-1 gap-2">
           <div>
-            <p className="text-sm text-on-surface-variant">Labels</p>
-            <div className="flex flex-wrap gap-1 mt-1">
-              {Object.entries(namespace.labels).slice(0, 3).map(([key, value]) => (
-                <span 
-                  key={key} 
-                  className="text-xs bg-secondary-container text-on-secondary-container px-2 py-1 rounded"
-                  title={`${key}: ${value}`}
-                >
-                  {key.includes('/') ? key.split('/')[1] : key}: {value}
-                </span>
-              ))}
-              {Object.keys(namespace.labels).length > 3 && (
-                <span className="text-xs text-on-surface-variant">
-                  +{Object.keys(namespace.labels).length - 3} more
-                </span>
-              )}
-            </div>
+            <p className="text-sm text-on-surface-variant">Age</p>
+            <p className="text-sm text-on-surface">
+              {age > 0 ? `${age} days` : "Less than 1 day"}
+            </p>
           </div>
-        )}
-      </div>
+
+          {namespace.labels && Object.keys(namespace.labels).length > 0 && (
+            <div>
+              <p className="text-sm text-on-surface-variant">Labels</p>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {Object.entries(namespace.labels)
+                  .slice(0, 3)
+                  .map(([key, value]) => (
+                    <span
+                      key={key}
+                      className="text-xs bg-secondary-container text-on-secondary-container px-2 py-1 rounded"
+                      title={`${key}: ${value}`}
+                    >
+                      {key.includes("/") ? key.split("/")[1] : key}: {value}
+                    </span>
+                  ))}
+                {Object.keys(namespace.labels).length > 3 && (
+                  <span className="text-xs text-on-surface-variant">
+                    +{Object.keys(namespace.labels).length - 3} more
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </Link>
   );
@@ -80,11 +82,10 @@ interface PageProps {
 }
 
 export default async function ClusterNamespacesPage({ params }: PageProps) {
-  // Check if user is authenticated and has admin privileges
+  // Check if user is authenticated
   const session = await auth();
-  if (!session?.user?.admin) {
-    notFound();
-    return;
+  if (!session?.user) {
+    return null;
   }
 
   const { clusterName } = await params;
@@ -92,8 +93,8 @@ export default async function ClusterNamespacesPage({ params }: PageProps) {
 
   // Verify cluster exists
   const clusters = await getClusters();
-  const cluster = clusters.find(c => c.name === decodedClusterName);
-  
+  const cluster = clusters.find((c) => c.name === decodedClusterName);
+
   if (!cluster) {
     notFound();
     return;
@@ -105,8 +106,8 @@ export default async function ClusterNamespacesPage({ params }: PageProps) {
   try {
     namespaces = await getNamespaces(decodedClusterName);
   } catch (err) {
-    console.error('Failed to load namespaces:', err);
-    error = err instanceof Error ? err.message : 'Unknown error occurred';
+    console.error("Failed to load namespaces:", err);
+    error = err instanceof Error ? err.message : "Unknown error occurred";
   }
 
   return (
@@ -114,11 +115,11 @@ export default async function ClusterNamespacesPage({ params }: PageProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-4">
-            <Link 
-              href="/clusters" 
+            <Link
+              href="/compute"
               className="text-primary hover:text-primary-variant text-sm"
             >
-              ← Back to Clusters
+              ← Back to Compute
             </Link>
           </div>
           <h1 className="text-3xl font-bold text-on-background catalyst-title">
@@ -139,26 +140,29 @@ export default async function ClusterNamespacesPage({ params }: PageProps) {
             <h2 className="text-lg font-semibold text-on-error-container mb-2">
               Failed to load namespaces
             </h2>
-            <p className="text-on-error-container">
-              {error}
-            </p>
+            <p className="text-on-error-container">{error}</p>
           </div>
         ) : (
           <>
             <div className="mb-6">
               <div className="flex justify-between items-center">
                 <p className="text-sm text-on-surface-variant">
-                  Found {namespaces.length} namespace{namespaces.length !== 1 ? 's' : ''}
+                  Found {namespaces.length} namespace
+                  {namespaces.length !== 1 ? "s" : ""}
                 </p>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {namespaces.map((namespace) => (
-                <NamespaceCard key={namespace.name} namespace={namespace} clusterName={decodedClusterName} />
+                <NamespaceCard
+                  key={namespace.name}
+                  namespace={namespace}
+                  clusterName={decodedClusterName}
+                />
               ))}
             </div>
-            
+
             {namespaces.length === 0 && (
               <div className="text-center py-12">
                 <p className="text-lg text-on-surface-variant">

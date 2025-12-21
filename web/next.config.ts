@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@tetrastack/react-glass-components"],
+  transpilePackages: [
+    "@tetrastack/react-glass-components",
+    "@catalyst/kubernetes-client",
+  ],
   images: {
     remotePatterns: [
       {
@@ -18,8 +21,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  transpilePackages: ["@tetrastack/react-glass-components"],
-  output: 'standalone',
+  output: "standalone",
 };
 
 export default nextConfig;

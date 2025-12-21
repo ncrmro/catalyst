@@ -1,6 +1,6 @@
 # VCS Provider Specification
 
-This specification defines the interface requirements for Version Control System (VCS) providers in Catalyst, along with the current GitHub implementation status.
+This specification defines the functional requirements for Version Control System (VCS) providers in Catalyst.
 
 ## Overview
 
@@ -12,372 +12,137 @@ Catalyst integrates with VCS providers to:
 - Process webhooks for CI/CD automation
 - Fetch file content (specs, configs)
 
-## Provider Interface
-
-### Core Types
-
-```typescript
-type ProviderId = "github" | "gitlab" | "bitbucket" | "azure";
-
-interface ConnectionStatus {
-  connected: boolean;
-  username?: string;
-  avatarUrl?: string;
-  error?: string;
-  authMethod?: "oauth" | "pat" | "app";
-}
-
-interface Repository {
-  id: string;
-  name: string;
-  fullName: string; // owner/repo format
-  owner: string;
-  private: boolean;
-  defaultBranch: string;
-  htmlUrl: string;
-  description?: string;
-  language?: string;
-  updatedAt: Date;
-}
-
-interface FileContent {
-  name: string;
-  path: string;
-  content: string; // decoded content
-  sha: string;
-  htmlUrl: string;
-}
-
-interface PullRequest {
-  id: string;
-  number: number;
-  title: string;
-  state: "open" | "closed" | "merged";
-  draft: boolean;
-  author: string;
-  authorAvatarUrl?: string;
-  sourceBranch: string;
-  targetBranch: string;
-  htmlUrl: string;
-  createdAt: Date;
-  updatedAt: Date;
-  labels: string[];
-  reviewers: string[];
-}
-
-interface Issue {
-  id: string;
-  number: number;
-  title: string;
-  state: "open" | "closed";
-  author: string;
-  htmlUrl: string;
-  createdAt: Date;
-  updatedAt: Date;
-  labels: string[];
-}
-
-interface PRComment {
-  id: number;
-  body: string;
-  author: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface WebhookEvent {
-  type: "push" | "pull_request" | "installation" | "issue";
-  action?: string;
-  repository?: Repository;
-  pullRequest?: PullRequest;
-  sender: string;
-}
-```
-
-### VCSProvider Interface
-
-```typescript
-interface VCSProvider {
-  // Identity
-  readonly id: ProviderId;
-  readonly name: string;
-  readonly iconName: string;
-
-  // Authentication
-  authenticate(userId: string): Promise<AuthenticatedClient>;
-  checkConnection(userId: string): Promise<ConnectionStatus>;
-  storeTokens(userId: string, tokens: TokenData): Promise<void>;
-  refreshTokensIfNeeded(userId: string): Promise<TokenData | null>;
-
-  // Repositories
-  listUserRepositories(client: AuthenticatedClient): Promise<Repository[]>;
-  listOrgRepositories(
-    client: AuthenticatedClient,
-    org: string,
-  ): Promise<Repository[]>;
-  getRepository(
-    client: AuthenticatedClient,
-    owner: string,
-    repo: string,
-  ): Promise<Repository>;
-  getFileContent(
-    client: AuthenticatedClient,
-    owner: string,
-    repo: string,
-    path: string,
-    ref?: string,
-  ): Promise<FileContent | null>;
-  getDirectoryContent(
-    client: AuthenticatedClient,
-    owner: string,
-    repo: string,
-    path: string,
-    ref?: string,
-  ): Promise<FileContent[]>;
-
-  // Pull/Merge Requests
-  listPullRequests(
-    client: AuthenticatedClient,
-    owner: string,
-    repo: string,
-    options?: { state?: "open" | "closed" | "all" },
-  ): Promise<PullRequest[]>;
-  getPullRequest(
-    client: AuthenticatedClient,
-    owner: string,
-    repo: string,
-    number: number,
-  ): Promise<PullRequest>;
-  listPullRequestReviews(
-    client: AuthenticatedClient,
-    owner: string,
-    repo: string,
-    number: number,
-  ): Promise<Review[]>;
-
-  // PR Comments
-  listPRComments(
-    client: AuthenticatedClient,
-    owner: string,
-    repo: string,
-    number: number,
-  ): Promise<PRComment[]>;
-  createPRComment(
-    client: AuthenticatedClient,
-    owner: string,
-    repo: string,
-    number: number,
-    body: string,
-  ): Promise<PRComment>;
-  updatePRComment(
-    client: AuthenticatedClient,
-    owner: string,
-    repo: string,
-    commentId: number,
-    body: string,
-  ): Promise<PRComment>;
-  deletePRComment(
-    client: AuthenticatedClient,
-    owner: string,
-    repo: string,
-    commentId: number,
-  ): Promise<void>;
-
-  // Issues
-  listIssues(
-    client: AuthenticatedClient,
-    owner: string,
-    repo: string,
-    options?: { state?: "open" | "closed" | "all" },
-  ): Promise<Issue[]>;
-
-  // Webhooks
-  verifyWebhookSignature(
-    payload: string,
-    signature: string,
-    secret: string,
-  ): boolean;
-  parseWebhookEvent(headers: Headers, payload: unknown): WebhookEvent;
-}
-```
-
 ---
 
-## Current GitHub Implementation Status
+## Functional Requirements
 
 ### Authentication
 
-| Capability        | Status        | Implementation                 |
-| ----------------- | ------------- | ------------------------------ |
-| OAuth Login       | ✓ Implemented | NextAuth.js GitHub provider    |
-| PAT Fallback      | ✓ Implemented | `GITHUB_PAT` env var, dev mode |
-| App Tokens        | ✓ Implemented | GitHub App with 8-hour tokens  |
-| Token Refresh     | ✓ Implemented | Auto-refresh with 5-min buffer |
-| Token Encryption  | ✓ Implemented | AES-256-GCM in database        |
-| Installation Auth | ✓ Implemented | For webhook operations         |
-
-**Key Files:**
-
-- `src/lib/github.ts` - `getUserOctokit()`, `GITHUB_CONFIG`
-- `src/lib/github-app/token-service.ts` - Token CRUD with encryption
-- `src/lib/github-app/token-refresh.ts` - Auto-refresh logic
-- `src/lib/github-app/token-crypto.ts` - AES-256-GCM encryption
-
-**OAuth Scopes:** `read:user user:email read:org repo`
+| ID       | Requirement                 | Status        | Notes                          |
+| -------- | --------------------------- | ------------- | ------------------------------ |
+| AUTH-001 | OAuth Login                 | ✓ Implemented | NextAuth.js provider           |
+| AUTH-002 | Personal Access Token       | ✓ Implemented | Dev mode, env var fallback     |
+| AUTH-003 | App Token Authentication    | ✓ Implemented | 8-hour token lifetime          |
+| AUTH-004 | Automatic Token Refresh     | ✓ Implemented | Auto-refresh with 5-min buffer |
+| AUTH-005 | Token Encryption at Rest    | ✓ Implemented | AES-256-GCM in database        |
+| AUTH-006 | Installation Authentication | ✓ Implemented | For webhook operations         |
+| AUTH-007 | Connection Status Check     | ✓ Implemented | Verify provider connectivity   |
 
 ### Repository Operations
 
-| Capability         | Status        | GitHub API                         |
-| ------------------ | ------------- | ---------------------------------- |
-| List user repos    | ✓ Implemented | `repos.listForAuthenticatedUser()` |
-| List org repos     | ✓ Implemented | `repos.listForOrg()`               |
-| Get repository     | ✓ Implemented | `repos.get()`                      |
-| Get file content   | ✓ Implemented | `repos.getContent()`               |
-| Get directory      | ✓ Implemented | `repos.getContent()`               |
-| List organizations | ✓ Implemented | `orgs.listForAuthenticatedUser()`  |
-
-**Key Files:**
-
-- `src/actions/repos.github.ts` - Repository listing actions
-- `src/actions/specs.ts` - File content fetching
+| ID       | Requirement             | Status        | Notes                  |
+| -------- | ----------------------- | ------------- | ---------------------- |
+| REPO-001 | List User Repositories  | ✓ Implemented |                        |
+| REPO-002 | List Organization Repos | ✓ Implemented |                        |
+| REPO-003 | Get Repository Details  | ✓ Implemented |                        |
+| REPO-004 | Get File Content        | ✓ Implemented | Decode base64 content  |
+| REPO-005 | Get Directory Listing   | ✓ Implemented | List directory entries |
+| REPO-006 | List User Organizations | ✓ Implemented |                        |
 
 ### Pull Request Operations
 
-| Capability      | Status            | GitHub API            |
-| --------------- | ----------------- | --------------------- |
-| List PRs        | ✓ Implemented     | `pulls.list()`        |
-| Get PR details  | ✓ Implemented     | via webhook payload   |
-| List PR reviews | ✓ Implemented     | `pulls.listReviews()` |
-| Create PR       | ✗ Not implemented | `pulls.create()`      |
-| Update PR       | ✗ Not implemented | `pulls.update()`      |
-| Merge PR        | ✗ Not implemented | `pulls.merge()`       |
+| ID     | Requirement               | Status            | Notes               |
+| ------ | ------------------------- | ----------------- | ------------------- |
+| PR-001 | List Pull Requests        | ✓ Implemented     |                     |
+| PR-002 | Get Pull Request Details  | ✓ Implemented     | Via webhook payload |
+| PR-003 | List Pull Request Reviews | ✓ Implemented     |                     |
+| PR-004 | Create Pull Request       | ✗ Not implemented |                     |
+| PR-005 | Update Pull Request       | ✗ Not implemented |                     |
+| PR-006 | Merge Pull Request        | ✗ Not implemented |                     |
 
-**Key Files:**
+### PR Comments
 
-- `src/lib/github.ts` - `fetchUserRepositoryPullRequests()`
-- `src/actions/pull-requests.ts` - Server actions
-
-### PR Comments (Deployment Status)
-
-| Capability       | Status        | GitHub API                       |
-| ---------------- | ------------- | -------------------------------- |
-| List comments    | ✓ Implemented | `GET /issues/{number}/comments`  |
-| Create comment   | ✓ Implemented | `POST /issues/{number}/comments` |
-| Update comment   | ✓ Implemented | `PATCH /issues/comments/{id}`    |
-| Delete comment   | ✓ Implemented | `DELETE /issues/comments/{id}`   |
-| Find bot comment | ✓ Implemented | Pattern matching for marker      |
-
-**Key Files:**
-
-- `src/lib/github-pr-comments.ts` - Full CRUD implementation
+| ID      | Requirement                | Status        | Notes                       |
+| ------- | -------------------------- | ------------- | --------------------------- |
+| CMT-001 | List PR Comments           | ✓ Implemented |                             |
+| CMT-002 | Create PR Comment          | ✓ Implemented |                             |
+| CMT-003 | Update PR Comment          | ✓ Implemented |                             |
+| CMT-004 | Delete PR Comment          | ✓ Implemented |                             |
+| CMT-005 | Find Bot Comment by Marker | ✓ Implemented | Pattern matching for marker |
 
 ### Issue Operations
 
-| Capability     | Status            | GitHub API                 |
-| -------------- | ----------------- | -------------------------- |
-| List issues    | ✓ Implemented     | `issues.listForRepo()`     |
-| Filter PRs out | ✓ Implemented     | `pull_request` field check |
-| Get issue      | ⚠ Partial         | Via list only              |
-| Create issue   | ✗ Not implemented | `issues.create()`          |
-| Update issue   | ✗ Not implemented | `issues.update()`          |
-
-**Key Files:**
-
-- `src/lib/github.ts` - `fetchIssuesFromRepos()`
-- `src/actions/issues.ts` - Server actions
+| ID      | Requirement              | Status            | Notes                   |
+| ------- | ------------------------ | ----------------- | ----------------------- |
+| ISS-001 | List Repository Issues   | ✓ Implemented     |                         |
+| ISS-002 | Filter Out Pull Requests | ✓ Implemented     | Exclude PRs from issues |
+| ISS-003 | Get Issue Details        | ⚠ Partial         | Via list only           |
+| ISS-004 | Create Issue             | ✗ Not implemented |                         |
+| ISS-005 | Update Issue             | ✗ Not implemented |                         |
 
 ### Webhook Handling
 
-| Event                       | Status        | Actions                   |
-| --------------------------- | ------------- | ------------------------- |
-| `installation`              | ✓ Implemented | Log activity              |
-| `installation_repositories` | ✓ Implemented | Log repo changes          |
-| `push`                      | ✓ Implemented | Log activity              |
-| `pull_request.opened`       | ✓ Implemented | Create preview deployment |
-| `pull_request.synchronize`  | ✓ Implemented | Update preview deployment |
-| `pull_request.reopened`     | ✓ Implemented | Create preview deployment |
-| `pull_request.closed`       | ✓ Implemented | Delete preview deployment |
-| Signature verification      | ✓ Implemented | HMAC-SHA256               |
+| ID     | Requirement               | Status        | Notes                     |
+| ------ | ------------------------- | ------------- | ------------------------- |
+| WH-001 | Verify Webhook Signature  | ✓ Implemented | HMAC-SHA256               |
+| WH-002 | Parse Webhook Event       | ✓ Implemented |                           |
+| WH-003 | Handle Installation Event | ✓ Implemented | Log activity              |
+| WH-004 | Handle Repository Changes | ✓ Implemented | Log repo changes          |
+| WH-005 | Handle Push Event         | ✓ Implemented | Log activity              |
+| WH-006 | Handle PR Opened          | ✓ Implemented | Create preview deployment |
+| WH-007 | Handle PR Synchronized    | ✓ Implemented | Update preview deployment |
+| WH-008 | Handle PR Reopened        | ✓ Implemented | Create preview deployment |
+| WH-009 | Handle PR Closed          | ✓ Implemented | Delete preview deployment |
 
-**Key Files:**
+### Data Storage
 
-- `src/app/api/github/webhook/route.ts` - Webhook handler
-
-### Database Schema
-
-| Table                | Purpose                                     |
-| -------------------- | ------------------------------------------- |
-| `accounts`           | NextAuth OAuth accounts (provider-agnostic) |
-| `github_user_tokens` | GitHub App tokens (encrypted)               |
-| `repos`              | Repository records                          |
-| `pull_requests`      | PR records with `provider` field            |
-
-**Key Files:**
-
-- `src/db/schema.ts` - Drizzle schema definitions
+| ID     | Requirement                | Status        | Notes                          |
+| ------ | -------------------------- | ------------- | ------------------------------ |
+| DB-001 | Store OAuth Accounts       | ✓ Implemented | Provider-agnostic via NextAuth |
+| DB-002 | Store Provider Tokens      | ✓ Implemented | Encrypted storage              |
+| DB-003 | Store Repository Records   | ✓ Implemented |                                |
+| DB-004 | Store Pull Request Records | ✓ Implemented | Includes provider field        |
 
 ---
 
-## Provider-Specific Features
+## Provider Support
 
-### GitHub-Only Features (Not Abstractable)
+### Target Providers
 
-1. **GitHub App Installation** - Org-level permissions and webhooks
-2. **Installation Tokens** - Short-lived tokens for app operations
-3. **GitHub Actions OIDC** - Kubernetes auth via GitHub identity
+| ID       | Provider     | Status            |
+| -------- | ------------ | ----------------- |
+| PROV-001 | GitHub       | ✓ Implemented     |
+| PROV-002 | GitLab       | ✗ Not implemented |
+| PROV-003 | Bitbucket    | ✗ Not implemented |
+| PROV-004 | Azure DevOps | ✗ Not implemented |
 
-### Cross-Provider Equivalents
+### Provider-Specific Constraints
 
-| GitHub       | GitLab               | Bitbucket    | Azure DevOps      |
-| ------------ | -------------------- | ------------ | ----------------- |
-| Pull Request | Merge Request        | Pull Request | Pull Request      |
-| GitHub App   | Project Access Token | App Password | Service Principal |
-| Actions      | CI/CD Pipelines      | Pipelines    | Azure Pipelines   |
-| Webhooks     | Webhooks             | Webhooks     | Service Hooks     |
+| ID      | Constraint                         | Providers |
+| ------- | ---------------------------------- | --------- |
+| CON-001 | App Installation (org-level perms) | GitHub    |
+| CON-002 | Installation Tokens (short-lived)  | GitHub    |
+| CON-003 | Actions OIDC for K8s auth          | GitHub    |
+
+### Cross-Provider Terminology
+
+| Concept     | GitHub       | GitLab        | Bitbucket    | Azure DevOps  |
+| ----------- | ------------ | ------------- | ------------ | ------------- |
+| Code Review | Pull Request | Merge Request | Pull Request | Pull Request  |
+| App Auth    | GitHub App   | Access Token  | App Password | Svc Principal |
+| CI/CD       | Actions      | Pipelines     | Pipelines    | Pipelines     |
+| Events      | Webhooks     | Webhooks      | Webhooks     | Service Hooks |
 
 ---
 
-## Environment Variables
+## Configuration
 
-### Current GitHub Configuration
+### Required Configuration
 
-```bash
-# GitHub App (Primary)
-GITHUB_APP_ID=
-GITHUB_APP_PRIVATE_KEY=
-GITHUB_APP_CLIENT_ID=
-GITHUB_APP_CLIENT_SECRET=
+| ID      | Variable                 | Purpose                  |
+| ------- | ------------------------ | ------------------------ |
+| CFG-001 | Provider App ID          | App identification       |
+| CFG-002 | Provider App Private Key | App authentication       |
+| CFG-003 | Provider Client ID       | OAuth client ID          |
+| CFG-004 | Provider Client Secret   | OAuth client secret      |
+| CFG-005 | Webhook Secret           | Webhook signature verify |
+| CFG-006 | Token Encryption Key     | Encrypt tokens at rest   |
 
-# Security
-GITHUB_WEBHOOK_SECRET=
-TOKEN_ENCRYPTION_KEY=
+### Optional Configuration
 
-# Optional Fallbacks
-GITHUB_PAT=              # Personal Access Token
-GITHUB_TOKEN=            # Alias for PAT
-GITHUB_GHCR_PAT=         # Container registry
-
-# Feature Flags
-GITHUB_REPOS_MODE=       # "mocked" for testing
-GITHUB_ALLOW_PAT_FALLBACK=true  # Allow PAT in production
-GITHUB_DISABLE_APP_CHECKS=true  # Skip validation
-```
-
-### Future Provider Configuration
-
-```bash
-# GitLab
-GITLAB_CLIENT_ID=
-GITLAB_CLIENT_SECRET=
-GITLAB_WEBHOOK_SECRET=
-
-# Bitbucket
-BITBUCKET_CLIENT_ID=
-BITBUCKET_CLIENT_SECRET=
-BITBUCKET_WEBHOOK_SECRET=
-
-# Azure DevOps
-AZURE_DEVOPS_CLIENT_ID=
-AZURE_DEVOPS_CLIENT_SECRET=
-AZURE_DEVOPS_WEBHOOK_SECRET=
-```
+| ID      | Variable               | Purpose                 |
+| ------- | ---------------------- | ----------------------- |
+| CFG-007 | Personal Access Token  | Fallback authentication |
+| CFG-008 | Container Registry PAT | Registry authentication |
+| CFG-009 | Repos Mode             | Mock mode for testing   |
+| CFG-010 | Base URL               | Self-hosted instances   |

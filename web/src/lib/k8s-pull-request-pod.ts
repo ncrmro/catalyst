@@ -2,8 +2,8 @@
 // This module creates job manifests with service accounts that have permissions
 // to create pods for buildx kubernetes driver functionality
 
-import { getCoreV1Api, getClusterConfig } from './k8s-client';
-import { GITHUB_CONFIG } from './github';
+import { getCoreV1Api, getClusterConfig } from "./k8s-client";
+import { GITHUB_CONFIG } from "./github";
 
 export interface PullRequestPodOptions {
   name: string;
@@ -32,7 +32,7 @@ export interface PullRequestPodResult {
  * Get BatchV1Api for job management
  */
 export async function getBatchV1Api() {
-  const k8sModule = await import('@kubernetes/client-node');
+  const k8sModule = await import("@kubernetes/client-node");
   return k8sModule.BatchV1Api;
 }
 
@@ -40,7 +40,7 @@ export async function getBatchV1Api() {
  * Get RbacAuthorizationV1Api for RBAC management
  */
 export async function getRbacAuthorizationV1Api() {
-  const k8sModule = await import('@kubernetes/client-node');
+  const k8sModule = await import("@kubernetes/client-node");
   return k8sModule.RbacAuthorizationV1Api;
 }
 
@@ -49,17 +49,19 @@ export async function getRbacAuthorizationV1Api() {
  */
 export async function createBuildxServiceAccount(
   name: string,
-  namespace: string = 'default',
-  clusterName?: string
+  namespace: string = "default",
+  clusterName?: string,
 ): Promise<void> {
   const kc = await getClusterConfig(clusterName);
   if (!kc) {
-    throw new Error(`Kubernetes cluster configuration not found${clusterName ? ` for cluster: ${clusterName}` : '. No clusters available.'}`);
+    throw new Error(
+      `Kubernetes cluster configuration not found${clusterName ? ` for cluster: ${clusterName}` : ". No clusters available."}`,
+    );
   }
 
   const CoreV1Api = await getCoreV1Api();
   const RbacAuthorizationV1Api = await getRbacAuthorizationV1Api();
-  
+
   const coreApi = kc.makeApiClient(CoreV1Api);
   const rbacApi = kc.makeApiClient(RbacAuthorizationV1Api);
 
@@ -70,191 +72,234 @@ export async function createBuildxServiceAccount(
   try {
     // Create service account
     const serviceAccount = {
-      apiVersion: 'v1',
-      kind: 'ServiceAccount',
+      apiVersion: "v1",
+      kind: "ServiceAccount",
       metadata: {
         name: serviceAccountName,
         namespace: namespace,
         labels: {
-          'app': 'catalyst-buildx',
-          'created-by': 'catalyst-web-app',
-          'pr-job': name
-        }
-      }
+          app: "catalyst-buildx",
+          "created-by": "catalyst-web-app",
+          "pr-job": name,
+        },
+      },
     };
 
     try {
-      await coreApi.createNamespacedServiceAccount({ namespace, body: serviceAccount });
+      await coreApi.createNamespacedServiceAccount({
+        namespace,
+        body: serviceAccount,
+      });
     } catch (error: unknown) {
       // If service account already exists, that's fine - we can reuse it
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const errorBody = (error as { body?: string })?.body || '';
-      if (!errorBody.includes('already exists') && !errorMessage.includes('already exists')) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const errorBody = (error as { body?: string })?.body || "";
+      if (
+        !errorBody.includes("already exists") &&
+        !errorMessage.includes("already exists")
+      ) {
         throw error;
       }
     }
 
     // Create role with pod creation permissions for buildx
     const role = {
-      apiVersion: 'rbac.authorization.k8s.io/v1',
-      kind: 'Role',
+      apiVersion: "rbac.authorization.k8s.io/v1",
+      kind: "Role",
       metadata: {
         name: roleName,
         namespace: namespace,
         labels: {
-          'app': 'catalyst-buildx',
-          'created-by': 'catalyst-web-app',
-          'pr-job': name
-        }
+          app: "catalyst-buildx",
+          "created-by": "catalyst-web-app",
+          "pr-job": name,
+        },
       },
       rules: [
         {
-          apiGroups: ['apps'],
-          resources: ['deployments'],
-          verbs: ['get', 'list', 'watch', 'create', 'update', 'patch', 'delete']
+          apiGroups: ["apps"],
+          resources: ["deployments"],
+          verbs: [
+            "get",
+            "list",
+            "watch",
+            "create",
+            "update",
+            "patch",
+            "delete",
+          ],
         },
         {
-          apiGroups: ['apps'],
-          resources: ['deployments/scale'],
-          verbs: ['patch', 'update']
+          apiGroups: ["apps"],
+          resources: ["deployments/scale"],
+          verbs: ["patch", "update"],
         },
         {
-          apiGroups: ['apps'],
-          resources: ['replicasets'],
-          verbs: ['get', 'list', 'watch']
+          apiGroups: ["apps"],
+          resources: ["replicasets"],
+          verbs: ["get", "list", "watch"],
         },
         {
-          apiGroups: ['apps'],
-          resources: ['statefulsets'],
-          verbs: ['get', 'list', 'create', 'patch']
+          apiGroups: ["apps"],
+          resources: ["statefulsets"],
+          verbs: ["get", "list", "create", "patch"],
         },
         {
-          apiGroups: [''],
-          resources: ['pods', 'services'],
-          verbs: ['get', 'list', 'watch', 'create', 'update', 'patch', 'delete']
+          apiGroups: [""],
+          resources: ["pods", "services"],
+          verbs: [
+            "get",
+            "list",
+            "watch",
+            "create",
+            "update",
+            "patch",
+            "delete",
+          ],
         },
         {
-          apiGroups: [''],
-          resources: ['serviceaccounts'],
-          verbs: ['get', 'list', 'create', 'patch']
+          apiGroups: [""],
+          resources: ["serviceaccounts"],
+          verbs: ["get", "list", "create", "patch"],
         },
         {
-          apiGroups: [''],
-          resources: ['pods/exec'],
-          verbs: ['create']
+          apiGroups: [""],
+          resources: ["pods/exec"],
+          verbs: ["create"],
         },
         {
-          apiGroups: [''],
-          resources: ['configmaps', 'secrets'],
-          verbs: ['get', 'list', 'watch', 'create', 'update', 'patch', 'delete']
+          apiGroups: [""],
+          resources: ["configmaps", "secrets"],
+          verbs: [
+            "get",
+            "list",
+            "watch",
+            "create",
+            "update",
+            "patch",
+            "delete",
+          ],
         },
         {
-          apiGroups: ['networking.k8s.io'],
-          resources: ['networkpolicies'],
-          verbs: ['get', 'list', 'create', 'patch']
+          apiGroups: ["networking.k8s.io"],
+          resources: ["networkpolicies"],
+          verbs: ["get", "list", "create", "patch"],
         },
         {
-          apiGroups: ['policy'],
-          resources: ['poddisruptionbudgets'],
-          verbs: ['get', 'list', 'create', 'patch']
-        }
-      ]
+          apiGroups: ["policy"],
+          resources: ["poddisruptionbudgets"],
+          verbs: ["get", "list", "create", "patch"],
+        },
+      ],
     };
 
     try {
       await rbacApi.createNamespacedRole({ namespace, body: role });
     } catch (error: unknown) {
       // If role already exists, that's fine - we can reuse it
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const errorBody = (error as { body?: string })?.body || '';
-      if (!errorBody.includes('already exists') && !errorMessage.includes('already exists')) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const errorBody = (error as { body?: string })?.body || "";
+      if (
+        !errorBody.includes("already exists") &&
+        !errorMessage.includes("already exists")
+      ) {
         throw error;
       }
     }
 
     // Create role binding
     const roleBinding = {
-      apiVersion: 'rbac.authorization.k8s.io/v1',
-      kind: 'RoleBinding',
+      apiVersion: "rbac.authorization.k8s.io/v1",
+      kind: "RoleBinding",
       metadata: {
         name: roleBindingName,
         namespace: namespace,
         labels: {
-          'app': 'catalyst-buildx',
-          'created-by': 'catalyst-web-app',
-          'pr-job': name
-        }
+          app: "catalyst-buildx",
+          "created-by": "catalyst-web-app",
+          "pr-job": name,
+        },
       },
       subjects: [
         {
-          kind: 'ServiceAccount',
+          kind: "ServiceAccount",
           name: serviceAccountName,
-          namespace: namespace
-        }
+          namespace: namespace,
+        },
       ],
       roleRef: {
-        kind: 'Role',
+        kind: "Role",
         name: roleName,
-        apiGroup: 'rbac.authorization.k8s.io'
-      }
+        apiGroup: "rbac.authorization.k8s.io",
+      },
     };
 
     try {
-      await rbacApi.createNamespacedRoleBinding({ namespace, body: roleBinding });
+      await rbacApi.createNamespacedRoleBinding({
+        namespace,
+        body: roleBinding,
+      });
     } catch (error: unknown) {
       // If role binding already exists, that's fine - we can reuse it
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const errorBody = (error as { body?: string })?.body || '';
-      if (!errorBody.includes('already exists') && !errorMessage.includes('already exists')) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const errorBody = (error as { body?: string })?.body || "";
+      if (
+        !errorBody.includes("already exists") &&
+        !errorMessage.includes("already exists")
+      ) {
         throw error;
       }
     }
-
   } catch (error) {
-    console.error('Error creating buildx service account:', error);
+    console.error("Error creating buildx service account:", error);
     throw error;
   }
 }
 
 /**
  * Create GitHub PAT secret for repository access
- * 
+ *
  * IMPORTANT: This function creates a Kubernetes secret containing a GitHub Personal Access Token
  * that is used by PR pods for git repository operations (cloning, fetching, etc.).
- * 
+ *
  * TOKEN REQUIREMENTS:
  * - For PUBLIC repositories: Token is still required for rate limiting and consistency
  * - For PRIVATE repositories: Token MUST have appropriate repository access permissions
  * - For GitHub Container Registry: Token may need 'read:packages' scope for image pulls
- * 
+ *
  * ENVIRONMENT SETUP:
  * - Production: Should use GitHub App installation tokens (future implementation)
  * - Development: Uses GITHUB_PAT environment variable
  * - CI/Integration Tests: Uses mocked GITHUB_PAT value
- * 
+ *
  * INTEGRATION TESTS:
  * Integration tests mock this environment variable because:
  * 1. CI environments don't have real GitHub PATs configured
  * 2. Tests use public repositories that don't require authentication for cloning
  * 3. The mocked token allows testing the full code path without external dependencies
- * 
+ *
  * FUTURE CONSIDERATIONS:
  * If PR pods need to access private repositories or push to registries, this function
  * should be updated to:
  * 1. Accept user-specific or installation-specific tokens
  * 2. Use GitHub App installation tokens instead of static PATs
  * 3. Support token rotation and refresh mechanisms
- * 
+ *
  * @param namespace Kubernetes namespace to create the secret in
  * @param clusterName Optional cluster name for multi-cluster support
  */
 export async function createGitHubPATSecret(
-  namespace: string = 'default',
-  clusterName?: string
+  namespace: string = "default",
+  clusterName?: string,
 ): Promise<void> {
   const kc = await getClusterConfig(clusterName);
   if (!kc) {
-    throw new Error(`Kubernetes cluster configuration not found${clusterName ? ` for cluster: ${clusterName}` : '. No clusters available.'}`);
+    throw new Error(
+      `Kubernetes cluster configuration not found${clusterName ? ` for cluster: ${clusterName}` : ". No clusters available."}`,
+    );
   }
 
   const CoreV1Api = await getCoreV1Api();
@@ -265,27 +310,27 @@ export async function createGitHubPATSecret(
   const githubGhcrPat = GITHUB_CONFIG.GHCR_PAT;
 
   if (!githubPat) {
-    throw new Error('GITHUB_PAT not found in environment configuration');
+    throw new Error("GITHUB_PAT not found in environment configuration");
   }
 
-  const secretName = 'github-pat-secret';
+  const secretName = "github-pat-secret";
 
   const secret = {
-    apiVersion: 'v1',
-    kind: 'Secret',
+    apiVersion: "v1",
+    kind: "Secret",
     metadata: {
       name: secretName,
       namespace: namespace,
       labels: {
-        'app': 'catalyst-pr-job',
-        'created-by': 'catalyst-web-app'
-      }
+        app: "catalyst-pr-job",
+        "created-by": "catalyst-web-app",
+      },
     },
-    type: 'Opaque',
+    type: "Opaque",
     data: {
-      'token': Buffer.from(githubPat).toString('base64'),
-      'ghcr_token': Buffer.from(githubGhcrPat || githubPat).toString('base64')
-    }
+      token: Buffer.from(githubPat).toString("base64"),
+      ghcr_token: Buffer.from(githubGhcrPat || githubPat).toString("base64"),
+    },
   };
 
   try {
@@ -293,18 +338,25 @@ export async function createGitHubPATSecret(
     await coreApi.createNamespacedSecret({ namespace, body: secret });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorBody = (error as { body?: string })?.body || '';
-    
+    const errorBody = (error as { body?: string })?.body || "";
+
     // If secret already exists, update it instead
-    if (errorBody.includes('already exists') || errorMessage.includes('already exists')) {
+    if (
+      errorBody.includes("already exists") ||
+      errorMessage.includes("already exists")
+    ) {
       try {
-        await coreApi.replaceNamespacedSecret({ name: secretName, namespace, body: secret });
+        await coreApi.replaceNamespacedSecret({
+          name: secretName,
+          namespace,
+          body: secret,
+        });
       } catch (updateError) {
-        console.error('Error updating GitHub PAT secret:', updateError);
+        console.error("Error updating GitHub PAT secret:", updateError);
         throw updateError;
       }
     } else {
-      console.error('Error creating GitHub PAT secret:', error);
+      console.error("Error creating GitHub PAT secret:", error);
       throw error;
     }
   }
@@ -313,18 +365,22 @@ export async function createGitHubPATSecret(
 /**
  * Create a pull request pod job manifest that uses buildx kubernetes driver
  */
-export async function createPullRequestPodJob(options: PullRequestPodOptions): Promise<PullRequestPodResult> {
+export async function createPullRequestPodJob(
+  options: PullRequestPodOptions,
+): Promise<PullRequestPodResult> {
   const {
     name,
-    namespace = 'default',
-    image = 'ghcr.io/ncrmro/catalyst/pr-job-pod:latest',
+    namespace = "default",
+    image = "ghcr.io/ncrmro/catalyst/pr-job-pod:latest",
     clusterName,
-    env
+    env,
   } = options;
 
   const kc = await getClusterConfig(clusterName);
   if (!kc) {
-    throw new Error(`Kubernetes cluster configuration not found${clusterName ? ` for cluster: ${clusterName}` : '. No clusters available.'}`);
+    throw new Error(
+      `Kubernetes cluster configuration not found${clusterName ? ` for cluster: ${clusterName}` : ". No clusters available."}`,
+    );
   }
 
   const BatchV1Api = await getBatchV1Api();
@@ -332,62 +388,67 @@ export async function createPullRequestPodJob(options: PullRequestPodOptions): P
 
   // Use generateName for unique job names - Kubernetes will append a random suffix
   const jobGenerateName = `pr-job-${name}-`;
-  
+
   const serviceAccountName = `${name}-buildx-sa`;
 
   // First create the service account and RBAC
   await createBuildxServiceAccount(name, namespace, clusterName);
-  
+
   // Create GitHub PAT secret for repository access
   await createGitHubPATSecret(namespace, clusterName);
 
   try {
     // Create job manifest
     const job = {
-      apiVersion: 'batch/v1',
-      kind: 'Job',
+      apiVersion: "batch/v1",
+      kind: "Job",
       metadata: {
         generateName: jobGenerateName,
         namespace: namespace,
         labels: {
-          'app': 'catalyst-pr-job',
-          'created-by': 'catalyst-web-app',
-          'pr-name': name
-        }
+          app: "catalyst-pr-job",
+          "created-by": "catalyst-web-app",
+          "pr-name": name,
+        },
       },
       spec: {
         template: {
           metadata: {
             labels: {
-              'app': 'catalyst-pr-job',
-              'created-by': 'catalyst-web-app',
-              'pr-name': name
-            }
+              app: "catalyst-pr-job",
+              "created-by": "catalyst-web-app",
+              "pr-name": name,
+            },
           },
           spec: {
             serviceAccountName: serviceAccountName,
-            restartPolicy: 'Never',
+            restartPolicy: "Never",
             containers: [
               {
-                name: 'buildx-container',
+                name: "buildx-container",
                 image: image,
                 env: [
                   // GitHub token from secret
                   {
-                    name: 'GITHUB_TOKEN',
+                    name: "GITHUB_TOKEN",
                     valueFrom: {
                       secretKeyRef: {
-                        name: 'github-pat-secret',
-                        key: 'token'
-                      }
-                    }
+                        name: "github-pat-secret",
+                        key: "token",
+                      },
+                    },
                   },
                   // Environment variables passed from webhook
-                  ...(env ? Object.entries(env).map(([name, value]) => ({ name, value })) : [])
+                  ...(env
+                    ? Object.entries(env).map(([name, value]) => ({
+                        name,
+                        value,
+                      }))
+                    : []),
                 ],
-                command: ['/bin/sh'],
+                command: ["/bin/sh"],
                 args: [
-                  '-c',
+                  "-c",
                   `
                   set -e
 
@@ -541,39 +602,41 @@ export async function createPullRequestPodJob(options: PullRequestPodOptions): P
                     echo "  ⏭ Skipped Docker build (NEEDS_BUILD=false)"
                   fi
                   echo "Ready for deployment pipeline."
-                  `
+                  `,
                 ],
                 resources: {
                   limits: {
-                    cpu: '500m',
-                    memory: '512Mi'
+                    cpu: "500m",
+                    memory: "512Mi",
                   },
                   requests: {
-                    cpu: '100m',
-                    memory: '128Mi'
-                  }
-                }
-              }
-            ]
-          }
+                    cpu: "100m",
+                    memory: "128Mi",
+                  },
+                },
+              },
+            ],
+          },
         },
         backoffLimit: 3,
-        ttlSecondsAfterFinished: 3600 // Clean up after 1 hour
-      }
+        ttlSecondsAfterFinished: 3600, // Clean up after 1 hour
+      },
     };
 
-    const response = await batchApi.createNamespacedJob({ namespace, body: job });
+    const response = await batchApi.createNamespacedJob({
+      namespace,
+      body: job,
+    });
     const actualJobName = response.metadata?.name || jobGenerateName;
 
     return {
       jobName: actualJobName,
       serviceAccountName,
       namespace,
-      created: true
+      created: true,
     };
-
   } catch (error) {
-    console.error('Error creating pull request pod job:', error);
+    console.error("Error creating pull request pod job:", error);
     throw error;
   }
 }
@@ -583,8 +646,8 @@ export async function createPullRequestPodJob(options: PullRequestPodOptions): P
  */
 export async function getPullRequestPodJobStatus(
   jobName: string,
-  namespace: string = 'default',
-  clusterName?: string
+  namespace: string = "default",
+  clusterName?: string,
 ): Promise<{
   jobName: string;
   status: string;
@@ -595,27 +658,34 @@ export async function getPullRequestPodJobStatus(
 }> {
   const kc = await getClusterConfig(clusterName);
   if (!kc) {
-    throw new Error(`Kubernetes cluster configuration not found${clusterName ? ` for cluster: ${clusterName}` : '. No clusters available.'}`);
+    throw new Error(
+      `Kubernetes cluster configuration not found${clusterName ? ` for cluster: ${clusterName}` : ". No clusters available."}`,
+    );
   }
 
   const BatchV1Api = await getBatchV1Api();
   const batchApi = kc.makeApiClient(BatchV1Api);
 
   try {
-    const response = await batchApi.readNamespacedJob({ name: jobName, namespace });
+    const response = await batchApi.readNamespacedJob({
+      name: jobName,
+      namespace,
+    });
     const job = response;
 
     return {
       jobName,
-      status: job.status?.conditions?.[0]?.type || 'Unknown',
+      status: job.status?.conditions?.[0]?.type || "Unknown",
       succeeded: job.status?.succeeded || 0,
       failed: job.status?.failed || 0,
       active: job.status?.active || 0,
-      conditions: job.status?.conditions || []
+      conditions: (job.status?.conditions || []) as unknown as Record<
+        string,
+        unknown
+      >[],
     };
-
   } catch (error) {
-    console.error('Error getting job status:', error);
+    console.error("Error getting job status:", error);
     throw error;
   }
 }
@@ -625,12 +695,14 @@ export async function getPullRequestPodJobStatus(
  */
 export async function cleanupPullRequestPodJob(
   name: string,
-  namespace: string = 'default',
-  clusterName?: string
+  namespace: string = "default",
+  clusterName?: string,
 ): Promise<void> {
   const kc = await getClusterConfig(clusterName);
   if (!kc) {
-    throw new Error(`Kubernetes cluster configuration not found${clusterName ? ` for cluster: ${clusterName}` : '. No clusters available.'}`);
+    throw new Error(
+      `Kubernetes cluster configuration not found${clusterName ? ` for cluster: ${clusterName}` : ". No clusters available."}`,
+    );
   }
 
   const CoreV1Api = await getCoreV1Api();
@@ -649,18 +721,24 @@ export async function cleanupPullRequestPodJob(
     // Delete jobs with the pr-name label
     const jobs = await batchApi.listNamespacedJob({
       namespace,
-      labelSelector: `pr-name=${name}`
+      labelSelector: `pr-name=${name}`,
     });
 
     for (const job of jobs.items) {
       if (job.metadata?.name) {
-        await batchApi.deleteNamespacedJob({ name: job.metadata.name, namespace });
+        await batchApi.deleteNamespacedJob({
+          name: job.metadata.name,
+          namespace,
+        });
       }
     }
 
     // Delete role binding
     try {
-      await rbacApi.deleteNamespacedRoleBinding({ name: roleBindingName, namespace });
+      await rbacApi.deleteNamespacedRoleBinding({
+        name: roleBindingName,
+        namespace,
+      });
     } catch {
       // Ignore if not found
     }
@@ -674,13 +752,15 @@ export async function cleanupPullRequestPodJob(
 
     // Delete service account
     try {
-      await coreApi.deleteNamespacedServiceAccount({ name: serviceAccountName, namespace });
+      await coreApi.deleteNamespacedServiceAccount({
+        name: serviceAccountName,
+        namespace,
+      });
     } catch {
       // Ignore if not found
     }
-
   } catch (error) {
-    console.error('Error cleaning up pull request pod job:', error);
+    console.error("Error cleaning up pull request pod job:", error);
     throw error;
   }
 }

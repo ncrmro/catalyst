@@ -969,7 +969,7 @@ export async function getPreviewDeploymentStatusFull(podId: string): Promise<{
         k8sStatus: {
           ready: false,
           status: "Error fetching CR",
-          error: e.message,
+          error: errorMessage,
         },
       },
     };

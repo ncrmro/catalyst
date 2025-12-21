@@ -4,9 +4,18 @@ Ordered implementation tasks with dependencies. Each task should be completable 
 
 ## Phase 1: Interface Extraction
 
-### 1.1 Create VCS Types
+### 1.1 Create Package Structure
 
-- [ ] Create `src/lib/vcs/types.ts`
+- [ ] Create `web/packages/@catalyst/vcs-provider/` directory
+- [ ] Create `package.json` with proper exports configuration
+- [ ] Create root `index.ts` that re-exports from `src/index.ts`
+
+**Dependencies:** None
+**Validation:** Package structure exists
+
+### 1.2 Create VCS Types
+
+- [ ] Create `src/types.ts` (in the package)
   - Define `ProviderId` type union
   - Define `ConnectionStatus` interface
   - Define `Repository` interface
@@ -19,28 +28,36 @@ Ordered implementation tasks with dependencies. Each task should be completable 
   - Define `VCSClient` interface (authenticated client wrapper)
   - Export all types
 
-**Dependencies:** None
+**Dependencies:** 1.1
 **Validation:** TypeScript compiles
 
-### 1.2 Create Provider Registry Shell
+### 1.3 Create Provider Registry Shell
 
-- [ ] Create `src/lib/vcs/provider-registry.ts`
+- [ ] Create `src/provider-registry.ts` (in the package)
   - Define `ProviderRegistry` class
   - Implement `register()`, `get()`, `getAll()`, `getDefault()` methods
   - Export singleton instance
 
-**Dependencies:** 1.1
+**Dependencies:** 1.2
 **Validation:** Can import and use registry
 
-### 1.3 Create VCS Index
+### 1.4 Create Package Index
 
-- [ ] Create `src/lib/vcs/index.ts`
+- [ ] Create `src/index.ts` (in the package)
   - Export all types from `types.ts`
   - Export registry from `provider-registry.ts`
   - Add placeholder `getVCSClient()` function
 
-**Dependencies:** 1.1, 1.2
-**Validation:** Can import from `@/lib/vcs`
+**Dependencies:** 1.2, 1.3
+**Validation:** Can import from `@catalyst/vcs-provider`
+
+### 1.5 Create Re-export Barrel
+
+- [ ] Create `web/src/lib/vcs-providers.ts`
+  - Re-export all from `@catalyst/vcs-provider`
+
+**Dependencies:** 1.4
+**Validation:** Can import from `@/lib/vcs-providers`
 
 ---
 
@@ -48,22 +65,22 @@ Ordered implementation tasks with dependencies. Each task should be completable 
 
 ### 2.1 Create GitHub Provider Structure
 
-- [ ] Create directory `src/lib/vcs/providers/github/`
-- [ ] Create `src/lib/vcs/providers/github/index.ts`
+- [ ] Create directory `src/providers/github/` (in the package)
+- [ ] Create `src/providers/github/index.ts`
   - Define `GitHubProvider` class implementing `VCSProvider`
   - Implement constructor with Octokit initialization
 
-**Dependencies:** 1.1, 1.2
+**Dependencies:** 1.2, 1.3
 **Validation:** Can instantiate GitHubProvider
 
-### 2.2 Move Token Management
+### 2.2 Migrate Token Management
 
-- [ ] Move `src/lib/github-app/token-crypto.ts` → `src/lib/vcs/token-crypto.ts`
+- [ ] Copy `web/src/lib/github-app/token-crypto.ts` → package's `src/token-crypto.ts`
   - Make encryption provider-agnostic
-- [ ] Move `src/lib/github-app/token-service.ts` → `src/lib/vcs/providers/github/token-service.ts`
-- [ ] Move `src/lib/github-app/token-refresh.ts` → `src/lib/vcs/providers/github/token-refresh.ts`
-- [ ] Move `src/lib/github-app/auth.ts` → `src/lib/vcs/providers/github/auth.ts`
-- [ ] Update all imports in codebase
+- [ ] Copy `web/src/lib/github-app/token-service.ts` → package's `src/providers/github/token-service.ts`
+- [ ] Copy `web/src/lib/github-app/token-refresh.ts` → package's `src/providers/github/token-refresh.ts`
+- [ ] Copy `web/src/lib/github-app/auth.ts` → package's `src/providers/github/auth.ts`
+- [ ] Update main app imports to use `@/lib/vcs-providers`
 
 **Dependencies:** 2.1
 **Validation:** Token operations still work
@@ -127,12 +144,12 @@ Ordered implementation tasks with dependencies. Each task should be completable 
 
 ### 2.9 Register GitHub Provider
 
-- [ ] Register `GitHubProvider` in `provider-registry.ts`
+- [ ] Register `GitHubProvider` in package's `src/provider-registry.ts`
 - [ ] Set GitHub as default provider
-- [ ] Implement `getVCSClient()` in `src/lib/vcs/index.ts`
+- [ ] Implement `getVCSClient()` in package's `src/index.ts`
 
 **Dependencies:** 2.3-2.8
-**Validation:** `getVCSClient(userId, "github")` returns working client
+**Validation:** `getVCSClient(userId, "github")` returns working client via `@/lib/vcs-providers`
 
 ---
 
@@ -194,7 +211,7 @@ Ordered implementation tasks with dependencies. Each task should be completable 
 
 ### 4.1 Create Webhook Handler
 
-- [ ] Create `src/lib/vcs/webhook-handler.ts`
+- [ ] Create `src/webhook-handler.ts` (in the package)
   - Define common webhook handling logic
   - Route to provider-specific parsers
 
@@ -203,8 +220,9 @@ Ordered implementation tasks with dependencies. Each task should be completable 
 
 ### 4.2 Create Provider Webhook Route
 
-- [ ] Create `src/app/api/vcs/webhook/[provider]/route.ts`
+- [ ] Create `web/src/app/api/vcs/webhook/[provider]/route.ts` (in main app)
   - Accept provider as route parameter
+  - Import from `@/lib/vcs-providers`
   - Use `providerRegistry.get(provider)`
   - Call provider webhook methods
 
@@ -258,11 +276,11 @@ Ordered implementation tasks with dependencies. Each task should be completable 
 
 ### 6.1 Create GitLab Provider Structure
 
-- [ ] Create directory `src/lib/vcs/providers/gitlab/`
-- [ ] Create `src/lib/vcs/providers/gitlab/index.ts`
+- [ ] Create directory `src/providers/gitlab/` (in the package)
+- [ ] Create `src/providers/gitlab/index.ts`
 - [ ] Define `GitLabProvider` class
 
-**Dependencies:** 1.1, 1.2
+**Dependencies:** 1.2, 1.3
 **Validation:** Can instantiate GitLabProvider
 
 ### 6.2 Add GitLab OAuth
@@ -374,22 +392,22 @@ Ordered implementation tasks with dependencies. Each task should be completable 
 
 ### 8.1 Bitbucket Provider
 
-- [ ] Create `src/lib/vcs/providers/bitbucket/`
+- [ ] Create `src/providers/bitbucket/` (in the package)
 - [ ] Implement all VCSProvider methods
-- [ ] Add OAuth configuration
+- [ ] Add OAuth configuration (in main app)
 - [ ] Register provider
 
-**Dependencies:** 1.1, 1.2, 5.3
+**Dependencies:** 1.2, 1.3, 5.3
 **Validation:** Bitbucket fully functional
 
 ### 8.2 Azure DevOps Provider
 
-- [ ] Create `src/lib/vcs/providers/azure/`
+- [ ] Create `src/providers/azure/` (in the package)
 - [ ] Implement all VCSProvider methods
-- [ ] Add OAuth configuration
+- [ ] Add OAuth configuration (in main app)
 - [ ] Register provider
 
-**Dependencies:** 1.1, 1.2, 5.3
+**Dependencies:** 1.2, 1.3, 5.3
 **Validation:** Azure DevOps fully functional
 
 ---

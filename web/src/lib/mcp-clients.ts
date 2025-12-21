@@ -1,10 +1,9 @@
-// @ts-expect-error - experimental_createMCPClient is available at runtime but missing from types
-import { experimental_createMCPClient as createMCPClient } from 'ai';
-import { GITHUB_CONFIG } from '@/lib/github';
+import { experimental_createMCPClient as createMCPClient } from "ai";
+import { GITHUB_CONFIG } from "@/lib/github";
 
 /**
  * GitHub MCP Client configuration and initialization
- * 
+ *
  * This module provides access to GitHub's MCP (Model Context Protocol) server
  * which offers tools for GitHub repository interactions, issue management,
  * pull request analysis, and other GitHub-related functionality.
@@ -23,7 +22,7 @@ export class GitHubMCPClient {
 
   constructor(options: GitHubMCPClientOptions = {}) {
     this.options = {
-      baseUrl: 'https://api.githubcopilot.com/mcp/',
+      baseUrl: "https://api.githubcopilot.com/mcp/",
       ...options,
     };
   }
@@ -37,8 +36,12 @@ export class GitHubMCPClient {
     }
 
     try {
-      const transportConfig: { type: 'sse'; url: string; headers?: Record<string, string> } = {
-        type: 'sse',
+      const transportConfig: {
+        type: "sse";
+        url: string;
+        headers?: Record<string, string>;
+      } = {
+        type: "sse",
         url: this.options.baseUrl!,
       };
 
@@ -58,7 +61,7 @@ export class GitHubMCPClient {
       });
       this.isInitialized = true;
     } catch (error) {
-      console.warn('Failed to initialize GitHub MCP client:', error);
+      console.warn("Failed to initialize GitHub MCP client:", error);
       this.client = null;
       this.isInitialized = false;
     }
@@ -69,7 +72,7 @@ export class GitHubMCPClient {
    */
   async getTools(): Promise<Record<string, unknown>> {
     await this.initialize();
-    
+
     if (!this.client) {
       return {};
     }
@@ -77,7 +80,7 @@ export class GitHubMCPClient {
     try {
       return await this.client.tools();
     } catch (error) {
-      console.warn('Failed to fetch GitHub MCP tools:', error);
+      console.warn("Failed to fetch GitHub MCP tools:", error);
       return {};
     }
   }
@@ -114,7 +117,9 @@ let defaultGitHubMCPClient: GitHubMCPClient | null = null;
  * This function creates a singleton instance for the application
  * For session-based authentication, prefer creating new instances with session access tokens
  */
-export function getGitHubMCPClient(options?: GitHubMCPClientOptions): GitHubMCPClient {
+export function getGitHubMCPClient(
+  options?: GitHubMCPClientOptions,
+): GitHubMCPClient {
   if (!defaultGitHubMCPClient) {
     defaultGitHubMCPClient = new GitHubMCPClient({
       apiKey: GITHUB_CONFIG.MCP_API_KEY,
@@ -128,7 +133,9 @@ export function getGitHubMCPClient(options?: GitHubMCPClientOptions): GitHubMCPC
  * Create a new GitHub MCP client instance with session-based authentication
  * This is the preferred method when using user sessions
  */
-export function createGitHubMCPClient(options: GitHubMCPClientOptions): GitHubMCPClient {
+export function createGitHubMCPClient(
+  options: GitHubMCPClientOptions,
+): GitHubMCPClient {
   return new GitHubMCPClient(options);
 }
 
