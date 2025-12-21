@@ -1,0 +1,378 @@
+[
+  {
+    "apiVersion": "v1",
+    "kind": "ServiceAccount",
+    "metadata": {
+      "name": "catalyst-sa",
+      "namespace": "default"
+    }
+  },
+  {
+    "apiVersion": "rbac.authorization.k8s.io/v1",
+    "kind": "ClusterRoleBinding",
+    "metadata": {
+      "name": "catalyst-sa-admin"
+    },
+    "subjects": [
+      {
+        "kind": "ServiceAccount",
+        "name": "catalyst-sa",
+        "namespace": "default"
+      }
+    ],
+    "roleRef": {
+      "kind": "ClusterRole",
+      "name": "cluster-admin",
+      "apiGroup": "rbac.authorization.k8s.io"
+    }
+  },
+  {
+    "apiVersion": "v1",
+    "kind": "PersistentVolumeClaim",
+    "metadata": {
+      "name": "web-node-modules",
+      "namespace": "default"
+    },
+    "spec": {
+      "accessModes": ["ReadWriteOnce"],
+      "resources": {
+        "requests": {
+          "storage": "2Gi"
+        }
+      }
+    }
+  },
+  {
+    "apiVersion": "v1",
+    "kind": "PersistentVolumeClaim",
+    "metadata": {
+      "name": "web-next-cache",
+      "namespace": "default"
+    },
+    "spec": {
+      "accessModes": ["ReadWriteOnce"],
+      "resources": {
+        "requests": {
+          "storage": "1Gi"
+        }
+      }
+    }
+  },
+  {
+    "apiVersion": "v1",
+    "kind": "PersistentVolumeClaim",
+    "metadata": {
+      "name": "postgres-data",
+      "namespace": "default"
+    },
+    "spec": {
+      "accessModes": ["ReadWriteOnce"],
+      "resources": {
+        "requests": {
+          "storage": "1Gi"
+        }
+      }
+    }
+  },
+  {
+    "apiVersion": "apps/v1",
+    "kind": "Deployment",
+    "metadata": {
+      "name": "postgres",
+      "namespace": "default"
+    },
+    "spec": {
+      "replicas": 1,
+      "selector": {
+        "matchLabels": {
+          "app": "postgres"
+        }
+      },
+      "template": {
+        "metadata": {
+          "labels": {
+            "app": "postgres"
+          }
+        },
+        "spec": {
+          "containers": [
+            {
+              "name": "postgres",
+              "image": "postgres:16",
+              "env": [
+                {
+                  "name": "POSTGRES_USER",
+                  "value": "postgres"
+                },
+                {
+                  "name": "POSTGRES_PASSWORD",
+                  "value": "postgres"
+                },
+                {
+                  "name": "POSTGRES_DB",
+                  "value": "catalyst"
+                }
+              ],
+              "ports": [
+                {
+                  "containerPort": 5432
+                }
+              ],
+              "volumeMounts": [
+                {
+                  "name": "postgres-data",
+                  "mountPath": "/var/lib/postgresql/data"
+                }
+              ]
+            }
+          ],
+          "volumes": [
+            {
+              "name": "postgres-data",
+              "persistentVolumeClaim": {
+                "claimName": "postgres-data"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "apiVersion": "v1",
+    "kind": "Service",
+    "metadata": {
+      "name": "postgres",
+      "namespace": "default"
+    },
+    "spec": {
+      "selector": {
+        "app": "postgres"
+      },
+      "ports": [
+        {
+          "port": 5432,
+          "targetPort": 5432
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "apps/v1",
+    "kind": "Deployment",
+    "metadata": {
+      "name": "web",
+      "namespace": "default"
+    },
+    "spec": {
+      "replicas": 1,
+      "selector": {
+        "matchLabels": {
+          "app": "web"
+        }
+      },
+      "template": {
+        "metadata": {
+          "labels": {
+            "app": "web"
+          }
+        },
+        "spec": {
+          "serviceAccountName": "catalyst-sa",
+          "initContainers": [
+            {
+              "name": "npm-install",
+              "image": "node:22",
+              "workingDir": "/code/web",
+              "command": ["npm", "install"],
+              "volumeMounts": [
+                {
+                  "name": "code",
+                  "mountPath": "/code"
+                },
+                {
+                  "name": "node-modules",
+                  "mountPath": "/code/web/node_modules"
+                }
+              ]
+            },
+            {
+              "name": "db-migrate",
+              "image": "node:22",
+              "workingDir": "/code/web",
+              "command": ["npm", "run", "db:migrate"],
+              "volumeMounts": [
+                {
+                  "name": "code",
+                  "mountPath": "/code"
+                },
+                {
+                  "name": "node-modules",
+                  "mountPath": "/code/web/node_modules"
+                }
+              ],
+              "env": [
+                {
+                  "name": "DATABASE_URL",
+                  "value": "postgres://postgres:postgres@postgres.default.svc.cluster.local:5432/catalyst"
+                },
+                {
+                  "name": "KUBECONFIG",
+                  "value": "/var/kubeconfig"
+                }
+              ]
+            }
+          ],
+          "containers": [
+            {
+              "name": "web",
+              "image": "node:22",
+              "workingDir": "/code/web",
+              "command": ["./node_modules/.bin/next", "dev"],
+              "volumeMounts": [
+                {
+                  "name": "code",
+                  "mountPath": "/code"
+                },
+                {
+                  "name": "node-modules",
+                  "mountPath": "/code/web/node_modules"
+                },
+                {
+                  "name": "next-cache",
+                  "mountPath": "/code/web/.next"
+                }
+              ],
+              "env": [
+                {
+                  "name": "DATABASE_URL",
+                  "value": "postgres://postgres:postgres@postgres.default.svc.cluster.local:5432/catalyst"
+                },
+                {
+                  "name": "KUBECONFIG",
+                  "value": "/var/kubeconfig"
+                }
+              ],
+              "livenessProbe": {
+                "httpGet": {
+                  "path": "/",
+                  "port": 3000
+                },
+                "initialDelaySeconds": 60,
+                "periodSeconds": 15,
+                "timeoutSeconds": 5
+              },
+              "readinessProbe": {
+                "httpGet": {
+                  "path": "/api/health/readiness",
+                  "port": 3000
+                },
+                "initialDelaySeconds": 60,
+                "periodSeconds": 10,
+                "timeoutSeconds": 5
+              }
+            }
+          ],
+          "volumes": [
+            {
+              "name": "code",
+              "hostPath": {
+                "path": "/code",
+                "type": "Directory"
+              }
+            },
+            {
+              "name": "node-modules",
+              "persistentVolumeClaim": {
+                "claimName": "web-node-modules"
+              }
+            },
+            {
+              "name": "next-cache",
+              "persistentVolumeClaim": {
+                "claimName": "web-next-cache"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "apiVersion": "v1",
+    "kind": "Service",
+    "metadata": {
+      "name": "web",
+      "namespace": "default"
+    },
+    "spec": {
+      "type": "NodePort",
+      "selector": {
+        "app": "web"
+      },
+      "ports": [
+        {
+          "port": 3000,
+          "targetPort": 3000,
+          "nodePort": 30000
+        }
+      ]
+    }
+  },
+  {
+    "apiVersion": "apps/v1",
+    "kind": "Deployment",
+    "metadata": {
+      "name": "operator",
+      "namespace": "default"
+    },
+    "spec": {
+      "replicas": 1,
+      "selector": {
+        "matchLabels": {
+          "app": "operator"
+        }
+      },
+      "template": {
+        "metadata": {
+          "labels": {
+            "app": "operator"
+          }
+        },
+        "spec": {
+          "serviceAccountName": "catalyst-sa",
+          "containers": [
+            {
+              "name": "operator",
+              "image": "golang:1.23",
+              "workingDir": "/code/operator",
+              "command": ["/bin/bash", "-c"],
+              "args": ["go mod download\ngo run ./cmd/main.go\n"],
+              "volumeMounts": [
+                {
+                  "name": "code",
+                  "mountPath": "/code"
+                }
+              ],
+              "env": [
+                {
+                  "name": "KUBECONFIG",
+                  "value": "/var/kubeconfig"
+                }
+              ]
+            }
+          ],
+          "volumes": [
+            {
+              "name": "code",
+              "hostPath": {
+                "path": "/code",
+                "type": "Directory"
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+]

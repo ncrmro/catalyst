@@ -6,8 +6,16 @@ worktree
 
 # K3s VM local development
 web/.kube/
-.k3s-vm/
 .k3s-vm-images/
+
+# K3s VM - generated files (source files are committed)
+.k3s-vm/k3s-var.img
+.k3s-vm/vm.pid
+.k3s-vm/vm.log
+.k3s-vm/catalyst-manifests.json
+.k3s-vm/vm/*.qcow2
+.k3s-vm/vm/result
+.k3s-vm/vm/configuration.nix
 __pycache__
 node_modules
 

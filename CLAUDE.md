@@ -189,12 +189,12 @@ Structured logging throughout deployment lifecycle using `src/lib/logging.ts`:
 **VM Management (from project root):**
 
 ```bash
-bin/k3s-vm setup     # Build NixOS VM with K3s (first time only)
-bin/k3s-vm start     # Start VM and extract kubeconfig
+bin/k3s-vm           # Build and start K3s VM (first time setup + start)
 bin/k3s-vm stop      # Stop the running VM
 bin/k3s-vm status    # Check VM status
 bin/k3s-vm reset     # Destroy and rebuild VM
 bin/k3s-vm ssh       # SSH into the VM
+bin/k3s-vm apply     # Apply/update Kubernetes manifests without rebuilding
 ```
 
 **Using kubectl:**
@@ -208,9 +208,11 @@ bin/kubectl get pods -A    # List all pods across namespaces
 
 - Creates a NixOS VM using `nix-build` with QEMU
 - K3s runs as a systemd service inside the VM
-- Port forwarding: SSH (localhost:2222), K3s API (localhost:6443)
+- Port forwarding: SSH (localhost:2222), K3s API (localhost:6443), Web (WEB_PORT from .env → NodePort 30000)
 - Kubeconfig auto-extracted to `web/.kube/config` on start
 - Integration tests use `KUBECONFIG_PRIMARY` env var (base64-encoded JSON kubeconfig)
+- Kubernetes manifests defined in `.k3s-vm/manifests/base.json`
+- Environment variables from `web/.env` are injected into pods
 
 **Requirements:**
 

@@ -29,8 +29,12 @@ KUBECONFIG_FILE = KUBECONFIG_DIR / "config"
 PID_FILE = CONFIG_DIR / "vm.pid"
 
 # VM settings
-DEFAULT_VM_MEMORY = 4096
-DEFAULT_VM_CORES = 2
+DEFAULT_VM_MEMORY = 8192
+DEFAULT_VM_CORES = 4
+
+# Manifests directory
+MANIFESTS_DIR = CONFIG_DIR / "manifests"
+BASE_MANIFEST = MANIFESTS_DIR / "base.json"
 
 # NixOS configuration template for K3s VM
 NIXOS_CONFIG_TEMPLATE = '''
@@ -65,6 +69,12 @@ NIXOS_CONFIG_TEMPLATE = '''
     ];
   }};
 
+  systemd.services.k3s.postStart = ''
+    until [ -f /etc/rancher/k3s/k3s.yaml ]; do sleep 1; done
+    cp /etc/rancher/k3s/k3s.yaml /var/kubeconfig
+    chmod 644 /var/kubeconfig
+  '';
+
   # Root user with SSH key
   users.users.root = {{
     openssh.authorizedKeys.keys = [
@@ -91,10 +101,16 @@ NIXOS_CONFIG_TEMPLATE = '''
     virtualisation.diskSize = 8192;
     virtualisation.graphics = false;
 
+    virtualisation.sharedDirectories = {{
+      code = {{
+        source = "{project_root}";
+        target = "/code";
+      }};
+    }};
+
     # Forward ports for K3s API and SSH
     virtualisation.forwardPorts = [
-      {{ from = "host"; host.port = 6443; guest.port = 6443; }}
-      {{ from = "host"; host.port = 2222; guest.port = 22; }}
+{forward_ports}
     ];
   }};
 
@@ -128,6 +144,50 @@ def debug(msg: str) -> None:
     # Silent by default, can be enabled with environment variable
     if os.environ.get("K3S_VM_DEBUG"):
         print(f"  [debug] {msg}")
+
+
+def get_web_port() -> int | None:
+    """Get PORT from web/.env."""
+    env_file = PROJECT_ROOT / "web" / ".env"
+    if not env_file.exists():
+        return None
+    
+    try:
+        content = env_file.read_text()
+        for line in content.splitlines():
+            line = line.strip()
+            if line.startswith("WEB_PORT="):
+                return int(line.split("=", 1)[1])
+    except (ValueError, IndexError):
+        pass
+    return None
+
+def get_web_env_vars() -> list[dict]:
+    """Reads web/.env and returns list of env var dicts for Kubernetes."""
+    env_file = PROJECT_ROOT / "web" / ".env"
+    if not env_file.exists():
+        return []
+
+    env_vars = []
+    try:
+        content = env_file.read_text()
+        for line in content.splitlines():
+            line = line.strip()
+            if not line or line.startswith('#') or '=' not in line:
+                continue
+
+            key, value = line.split('=', 1)
+            # Remove surrounding quotes if present
+            if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+                value = value[1:-1]
+
+            env_vars.append({"name": key, "value": value})
+
+    except Exception as e:
+        debug(f"Error parsing .env: {e}")
+        return []
+
+    return env_vars
 
 
 def get_ssh_public_key() -> str:
@@ -174,13 +234,15 @@ def wait_for_ssh(timeout: int = 120) -> bool:
     while time.time() - start < timeout:
         try:
             result = run(
-                ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5",
+                ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-o", "ConnectTimeout=5",
                  "-o", "BatchMode=yes", "-p", "2222", "root@localhost", "true"],
                 capture=True, check=False
             )
             if result.returncode == 0:
                 return True
-        except Exception:
+            debug(f"SSH check failed (code {result.returncode}): {result.stderr.strip()}")
+        except Exception as e:
+            debug(f"SSH check error: {e}")
             pass
         time.sleep(2)
     return False
@@ -192,13 +254,18 @@ def wait_for_k3s(timeout: int = 300) -> bool:
     while time.time() - start < timeout:
         try:
             result = run(
-                ["ssh", "-o", "StrictHostKeyChecking=no", "-p", "2222",
-                 "root@localhost", "kubectl get nodes"],
+                ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-p", "2222",
+                 "root@localhost", "kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml get nodes"],
                 capture=True, check=False
             )
             if result.returncode == 0 and "Ready" in result.stdout:
                 return True
-        except Exception:
+            
+            debug(f"K3s check failed (code {result.returncode})")
+            if result.stdout: debug(f"stdout: {result.stdout.strip()}")
+            if result.stderr: debug(f"stderr: {result.stderr.strip()}")
+        except Exception as e:
+            debug(f"K3s check error: {e}")
             pass
         time.sleep(3)
     return False
@@ -208,7 +275,7 @@ def extract_kubeconfig() -> bool:
     """Extract kubeconfig from VM and update .env for integration tests."""
     try:
         result = run(
-            ["ssh", "-o", "StrictHostKeyChecking=no", "-p", "2222",
+            ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-p", "2222",
              "root@localhost", "cat /etc/rancher/k3s/k3s.yaml"],
             capture=True
         )
@@ -302,22 +369,85 @@ console.log(JSON.stringify(kubeconfig));
         debug(f"Could not update .env: {e}")
 
 
-# ============================================================================
-# Commands
-# ============================================================================
+def install_crds() -> None:
+    """Install Custom Resource Definitions from operator directory."""
+    print("  Installing CRDs...")
+    operator_dir = PROJECT_ROOT / "operator"
+    if not operator_dir.exists():
+         print("  Warning: operator directory not found, skipping CRD installation.")
+         return
 
-def cmd_setup(args: argparse.Namespace) -> None:
-    """Build and start the K3s VM."""
-    memory = args.memory or DEFAULT_VM_MEMORY
-    cores = args.cpus or DEFAULT_VM_CORES
+    kubeconfig_path = str(KUBECONFIG_FILE.resolve())
 
-    if is_vm_running():
-        error("VM is already running. Use 'bin/k3s-vm stop' first.")
+    try:
+        # We use nix develop to ensure tools (kubectl, kustomize, controller-gen) are available
+        cmd = [
+            "nix", "develop",
+            "--command", "bash", "-c", "make install"
+        ]
 
-    print(f"Setting up K3s VM (NixOS)")
-    print(f"  Memory: {memory}MB, Cores: {cores}")
-    print()
+        env = os.environ.copy()
+        env["KUBECONFIG"] = kubeconfig_path
 
+        # Run make install in operator directory
+        # We capture output to avoid cluttering unless there is an error
+        run(cmd, cwd=operator_dir, env=env, capture=True)
+        info("CRDs installed successfully")
+    except subprocess.CalledProcessError as e:
+        # If capture=True, stdout/stderr are in e.stdout/e.stderr
+        msg = e.stderr if e.stderr else str(e)
+        print(f"  Warning: Failed to install CRDs: {msg}")
+
+def generate_manifest_content() -> str:
+    """Generate the full Kubernetes manifest JSON with env vars injected."""
+    import json
+
+    if not BASE_MANIFEST.exists():
+        error(f"Base manifest not found: {BASE_MANIFEST}")
+
+    # Load documents from the base manifest
+    with open(BASE_MANIFEST) as f:
+        documents = json.load(f)
+
+    # Get env vars from web/.env
+    env_vars = get_web_env_vars()
+
+    # Inject env vars into web deployment
+    for doc in documents:
+        if doc is None:
+            continue
+        if doc.get("kind") == "Deployment" and doc.get("metadata", {}).get("name") == "web":
+            spec = doc.get("spec", {}).get("template", {}).get("spec", {})
+
+            # Inject into init containers
+            for container in spec.get("initContainers", []):
+                if container.get("name") == "db-migrate":
+                    existing_env = container.get("env", [])
+                    existing_keys = {e["name"] for e in existing_env}
+                    # Only add env vars that aren't already defined in base manifest
+                    filtered_env = [e for e in env_vars if e["name"] not in existing_keys]
+                    container["env"] = existing_env + filtered_env
+
+            # Inject into main container
+            for container in spec.get("containers", []):
+                if container.get("name") == "web":
+                    existing_env = container.get("env", [])
+                    existing_keys = {e["name"] for e in existing_env}
+                    # Only add env vars that aren't already defined in base manifest
+                    filtered_env = [e for e in env_vars if e["name"] not in existing_keys]
+                    container["env"] = existing_env + filtered_env
+
+    # Wrap in a List and dump to JSON
+    k8s_list = {
+        "apiVersion": "v1",
+        "kind": "List",
+        "items": documents
+    }
+    return json.dumps(k8s_list, indent=2)
+
+
+def _build_vm(memory: int, cores: int) -> None:
+    """Build the K3s VM using NixOS."""
     # Create config directory
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     VM_DIR.mkdir(parents=True, exist_ok=True)
@@ -325,13 +455,28 @@ def cmd_setup(args: argparse.Namespace) -> None:
     # Get SSH key
     ssh_key = get_ssh_public_key()
     info("SSH key ready")
+    
+    # Configure forward ports
+    forward_ports = [
+        '{ from = "host"; host.port = 6443; guest.port = 6443; }',
+        '{ from = "host"; host.port = 2222; guest.port = 22; }'
+    ]
+    
+    web_port = get_web_port()
+    if web_port:
+        info(f"Forwarding web port: {web_port}")
+        forward_ports.append(f'{{ from = "host"; host.port = {web_port}; guest.port = 30000; }}')
+    
+    forward_ports_str = "\n      ".join(forward_ports)
 
     # Write NixOS configuration
     config_file = VM_DIR / "configuration.nix"
     config_content = NIXOS_CONFIG_TEMPLATE.format(
         ssh_public_key=ssh_key,
         memory=memory,
-        cores=cores
+        cores=cores,
+        project_root=str(PROJECT_ROOT),
+        forward_ports=forward_ports_str,
     )
     config_file.write_text(config_content)
     info("NixOS configuration written")
@@ -349,20 +494,18 @@ def cmd_setup(args: argparse.Namespace) -> None:
     except subprocess.CalledProcessError:
         error("Failed to build NixOS VM")
 
-    info("VM built successfully")
-
     # Remove old disk image to ensure fresh state
     # The disk image is named after the hostname (k3s-vm.qcow2)
     for disk in VM_DIR.glob("*.qcow2"):
         disk.unlink()
 
-    # Start the VM in background
-    print("  Starting VM...")
+def _start_vm() -> None:
+    """Start the VM in background."""
     # Find the run script (name is based on hostname: run-{hostname}-vm)
     bin_dir = VM_DIR / "result" / "bin"
     vm_scripts = list(bin_dir.glob("run-*-vm"))
     if not vm_scripts:
-        error("VM run script not found in result/bin/")
+        error("VM run script not found in result/bin/. Run 'setup' first.")
     vm_script = vm_scripts[0]
 
     env = os.environ.copy()
@@ -372,40 +515,70 @@ def cmd_setup(args: argparse.Namespace) -> None:
     env.pop("LD_LIBRARY_PATH", None)
 
     # Start VM process
-    log_file = open(CONFIG_DIR / "vm.log", "w")
+    log_file = open(CONFIG_DIR / "vm.log", "w") # Always overwrite log on new start
     proc = subprocess.Popen(
         [str(vm_script), "-nographic"],
         cwd=VM_DIR,
         env=env,
+        stdin=subprocess.DEVNULL,
         stdout=log_file,
         stderr=subprocess.STDOUT,
         start_new_session=True
     )
-
     PID_FILE.write_text(str(proc.pid))
-    info(f"VM started (PID: {proc.pid})")
 
-    # Wait for SSH
+def _wait_for_vm_readiness() -> None:
+    """Wait for SSH and K3s to be ready in the VM."""
     print("  Waiting for VM to boot...")
     if not wait_for_ssh(180):
         error("Timeout waiting for SSH. Check VM logs.")
     info("SSH available")
 
-    # Wait for K3s
     print("  Waiting for K3s to be ready...")
     if not wait_for_k3s(300):
         error("Timeout waiting for K3s. Check VM logs.")
     info("K3s ready")
 
-    # Extract kubeconfig
+def _extract_kubeconfig_and_install_crds() -> None:
+    """Extract kubeconfig, install CRDs, and apply manifests."""
     print("  Extracting kubeconfig...")
     if not extract_kubeconfig():
         error("Failed to extract kubeconfig")
     info(f"Kubeconfig saved to {KUBECONFIG_FILE}")
+    install_crds()
+
+    print("  Applying Kubernetes manifests...")
+    if apply_manifests():
+        info("Manifests applied")
+    else:
+        print("  Warning: Failed to apply manifests. Run 'bin/k3s-vm apply' manually.")
+
+def _ensure_vm_is_running(memory: int, cores: int) -> None:
+    """Ensures the VM is built and running, and K3s is ready."""
+    if is_vm_running():
+        info("VM is already running.")
+    else:
+        # Check if VM is built
+        bin_dir = VM_DIR / "result" / "bin"
+        if not (bin_dir.exists() and list(bin_dir.glob("run-*-vm"))):
+            print(f"Building K3s VM (NixOS)")
+            print(f"  Memory: {memory}MB, Cores: {cores}")
+            print()
+            _build_vm(memory, cores)
+            info("VM built successfully")
+        else:
+            info("VM already built.")
+
+        info("Starting VM...")
+        _start_vm()
+        info(f"VM started (PID: {get_vm_pid()})")
+
+    _wait_for_vm_readiness()
+    _extract_kubeconfig_and_install_crds()
 
     print()
     print("=" * 50)
-    print("K3s VM setup complete!")
+    print("K3s VM ready!")
     print()
     print(f"  SSH:        ssh -p 2222 root@localhost")
     print(f"  K3s API:    https://127.0.0.1:6443")
@@ -414,57 +587,9 @@ def cmd_setup(args: argparse.Namespace) -> None:
     print("Try: bin/kubectl get nodes")
 
 
-def cmd_start(args: argparse.Namespace) -> None:
-    """Start the VM."""
-    if is_vm_running():
-        error("VM is already running.")
-
-    bin_dir = VM_DIR / "result" / "bin"
-    if not bin_dir.exists():
-        error("VM not built. Run 'bin/k3s-vm setup' first.")
-
-    vm_scripts = list(bin_dir.glob("run-*-vm"))
-    if not vm_scripts:
-        error("VM run script not found. Run 'bin/k3s-vm setup' first.")
-    vm_script = vm_scripts[0]
-
-    env = os.environ.copy()
-    env["QEMU_KERNEL_PARAMS"] = "console=ttyS0"
-    env["QEMU_AUDIO_DRV"] = "none"
-    # Unset LD_LIBRARY_PATH to prevent interference with Nix binaries (e.g. QEMU)
-    env.pop("LD_LIBRARY_PATH", None)
-
-    log_file = open(CONFIG_DIR / "vm.log", "a")
-    proc = subprocess.Popen(
-        [str(vm_script), "-nographic"],
-        cwd=VM_DIR,
-        env=env,
-        stdout=log_file,
-        stderr=subprocess.STDOUT,
-        start_new_session=True
-    )
-
-    PID_FILE.write_text(str(proc.pid))
-    info(f"VM started (PID: {proc.pid})")
-
-    print("  Waiting for SSH...")
-    if not wait_for_ssh(120):
-        error("Timeout waiting for SSH")
-    info("SSH available")
-
-    print("  Waiting for K3s...")
-    if not wait_for_k3s(60):
-        print("  Warning: K3s not ready yet, may need more time")
-    else:
-        info("K3s ready")
-
-    # Extract kubeconfig (updates web/.kube/config and KUBECONFIG_PRIMARY in .env)
-    if extract_kubeconfig():
-        info(f"Kubeconfig saved to {KUBECONFIG_FILE}")
-
-    print()
-    print("VM started. Try: bin/kubectl get nodes")
-
+# ============================================================================
+# Commands
+# ============================================================================
 
 def cmd_stop(args: argparse.Namespace) -> None:
     """Stop the VM."""
@@ -509,8 +634,8 @@ def cmd_status(args: argparse.Namespace) -> None:
         # Check K3s status
         try:
             result = run(
-                ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5",
-                 "-p", "2222", "root@localhost", "kubectl get nodes --no-headers"],
+                ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-o", "ConnectTimeout=5",
+                 "-p", "2222", "root@localhost", "kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml get nodes --no-headers"],
                 capture=True, check=False
             )
             if result.returncode == 0:
@@ -525,21 +650,14 @@ def cmd_status(args: argparse.Namespace) -> None:
         bin_dir = VM_DIR / "result" / "bin"
         if bin_dir.exists() and list(bin_dir.glob("run-*-vm")):
             print("  State: stopped (VM built)")
-            print("\n  Run 'bin/k3s-vm start' to start")
+            print("\n  Run 'bin/k3s-vm' to start")
         else:
             print("  State: not configured")
-            print("\n  Run 'bin/k3s-vm setup' to create VM")
+            print("\n  Run 'bin/k3s-vm' to set up and start the VM")
 
 
 def cmd_reset(args: argparse.Namespace) -> None:
     """Reset/destroy the VM."""
-    if not args.yes:
-        print("WARNING: This will delete the VM and all data.")
-        response = input("Are you sure? (yes/no): ")
-        if response.lower() != "yes":
-            print("Cancelled.")
-            return
-
     print("Resetting VM...")
 
     # Stop if running
@@ -565,16 +683,60 @@ def cmd_reset(args: argparse.Namespace) -> None:
         KUBECONFIG_FILE.unlink()
 
     print()
-    print("Reset complete.")
-    print("Run 'bin/k3s-vm setup' to create a new VM.")
+    print("Reset complete. Rebuilding and starting VM...")
+    _ensure_vm_is_running(DEFAULT_VM_MEMORY, DEFAULT_VM_CORES)
 
 
 def cmd_ssh(args: argparse.Namespace) -> None:
     """SSH into the VM."""
     if not is_vm_running():
-        error("VM is not running. Start it with 'bin/k3s-vm start'")
+        error("VM is not running. Start it with 'bin/k3s-vm'")
 
-    os.execlp("ssh", "ssh", "-o", "StrictHostKeyChecking=no", "-p", "2222", "root@localhost")
+    os.execlp("ssh", "ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-p", "2222", "root@localhost")
+
+def apply_manifests() -> bool:
+    """Apply Kubernetes manifests using kubectl."""
+    if not KUBECONFIG_FILE.exists():
+        print("  Error: Kubeconfig not found. Run 'bin/k3s-vm' first.")
+        return False
+
+    manifest_content = generate_manifest_content()
+
+    # Write to a temp file
+    temp_manifest = CONFIG_DIR / "catalyst-manifests.json"
+    temp_manifest.write_text(manifest_content)
+
+    try:
+        env = os.environ.copy()
+        env["KUBECONFIG"] = str(KUBECONFIG_FILE)
+
+        result = run(
+            ["kubectl", "apply", "-f", str(temp_manifest)],
+            env=env,
+            capture=True
+        )
+
+        # Print applied resources
+        for line in result.stdout.strip().split("\n"):
+            if line:
+                info(line)
+
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"  Error applying manifests: {e.stderr if e.stderr else e}")
+        return False
+
+
+def cmd_update_manifests(args: argparse.Namespace) -> None:
+    """Update Kubernetes manifests on the running VM."""
+    if not is_vm_running():
+        error("VM is not running. Start it with 'bin/k3s-vm'")
+
+    print("Applying Kubernetes manifests...")
+    if apply_manifests():
+        print("Manifests applied successfully.")
+    else:
+        error("Failed to apply manifests.")
 
 
 # ============================================================================
@@ -587,25 +749,20 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  bin/k3s-vm setup              Build and start K3s VM
-  bin/k3s-vm start              Start existing VM
-  bin/k3s-vm stop               Stop VM
-  bin/k3s-vm status             Check VM status
-  bin/k3s-vm ssh                SSH into VM
-  bin/k3s-vm reset              Destroy VM
+  bin/k3s-vm                 Build and start K3s VM if not running
+  bin/k3s-vm stop            Stop VM
+  bin/k3s-vm status          Check VM status
+  bin/k3s-vm ssh             SSH into VM
+  bin/k3s-vm reset           Destroy VM
+  bin/k3s-vm apply           Update manifests without rebuilding VM
 """,
     )
     parser.add_argument("--version", action="version", version="k3s-vm 2.0.0 (NixOS)")
+    parser.add_argument("--debug", action="store_true", help="Enable debug output")
+    parser.add_argument("--cpus", type=int, default=DEFAULT_VM_CORES, help=f"CPU cores (default: {DEFAULT_VM_CORES})")
+    parser.add_argument("--memory", type=int, default=DEFAULT_VM_MEMORY, help=f"Memory in MB (default: {DEFAULT_VM_MEMORY})")
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
-
-    # setup
-    p_setup = subparsers.add_parser("setup", help="Build and start K3s VM")
-    p_setup.add_argument("--cpus", type=int, help=f"CPU cores (default: {DEFAULT_VM_CORES})")
-    p_setup.add_argument("--memory", type=int, help=f"Memory in MB (default: {DEFAULT_VM_MEMORY})")
-
-    # start
-    subparsers.add_parser("start", help="Start existing VM")
 
     # stop
     subparsers.add_parser("stop", help="Stop VM")
@@ -614,28 +771,31 @@ Examples:
     subparsers.add_parser("status", help="Show VM status")
 
     # reset
-    p_reset = subparsers.add_parser("reset", help="Destroy VM")
-    p_reset.add_argument("--yes", "-y", action="store_true", help="Skip confirmation")
+    subparsers.add_parser("reset", help="Destroy VM")
 
     # ssh
     subparsers.add_parser("ssh", help="SSH into VM")
 
+    # apply
+    subparsers.add_parser("apply", help="Update manifests without rebuilding VM")
+
     args = parser.parse_args()
 
-    if not args.command:
-        parser.print_help()
-        sys.exit(1)
+    if args.debug:
+        os.environ["K3S_VM_DEBUG"] = "1"
+        debug("Debug mode enabled")
 
-    commands = {
-        "setup": cmd_setup,
-        "start": cmd_start,
-        "stop": cmd_stop,
-        "status": cmd_status,
-        "reset": cmd_reset,
-        "ssh": cmd_ssh,
-    }
-
-    commands[args.command](args)
+    if args.command is None: # No command provided, implicitly setup/start
+        _ensure_vm_is_running(args.memory, args.cpus)
+    else:
+        commands = {
+            "stop": cmd_stop,
+            "status": cmd_status,
+            "reset": cmd_reset,
+            "ssh": cmd_ssh,
+            "apply": cmd_update_manifests,
+        }
+        commands[args.command](args)
 
 
 if __name__ == "__main__":
