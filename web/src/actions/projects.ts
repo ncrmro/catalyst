@@ -57,6 +57,27 @@ export async function fetchProjectById(projectId: string) {
 }
 
 /**
+ * Fetch individual project by slug
+ * Slug is unique per team, so we filter by user's teams
+ */
+export async function fetchProjectBySlug(slug: string) {
+  // Get user's team IDs for authorization
+  const userTeamIds = await getUserTeamIds();
+
+  if (userTeamIds.length === 0) {
+    return null;
+  }
+
+  // Fetch the project with its relations, scoped to user's teams
+  const projects = await getProjects({
+    slugs: [slug],
+    teamIds: userTeamIds,
+  });
+
+  return projects.length > 0 ? projects[0] : null;
+}
+
+/**
  * Fetch pull requests for a specific project across all its repositories
  */
 export async function fetchProjectPullRequests(

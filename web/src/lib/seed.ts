@@ -12,6 +12,7 @@ import type { InferSelectModel } from "drizzle-orm";
 import { eq, and } from "drizzle-orm";
 import { TestInfo } from "@playwright/test";
 import { getMockProjects, getMockReposData } from "@/mocks/github";
+import { generateSlug } from "@/lib/slug";
 
 /**
  * Get user details from a dev password used in authentication
@@ -158,6 +159,7 @@ export async function createCatalystAndMezeProjects(teamId: string) {
     .insert(projects)
     .values({
       name: "Catalyst",
+      slug: generateSlug("Catalyst"),
       fullName: "ncrmro/catalyst",
       description: "Platform for managing deployments and infrastructure",
       ownerLogin: "ncrmro",
@@ -171,6 +173,7 @@ export async function createCatalystAndMezeProjects(teamId: string) {
     .insert(projects)
     .values({
       name: "Meze",
+      slug: generateSlug("Meze"),
       fullName: "ncrmro/meze",
       description: "Modern recipe management and meal planning application",
       ownerLogin: "ncrmro",
@@ -303,6 +306,7 @@ export async function createTeamProjects(
   const projectData = [
     {
       name: `foo-${uniqueSuffix}`,
+      slug: generateSlug(`foo-${uniqueSuffix}`),
       fullName: `jdoe/foo-${uniqueSuffix}`,
       description:
         "A comprehensive web application with frontend and backend components",
@@ -314,6 +318,7 @@ export async function createTeamProjects(
     },
     {
       name: `bar-${uniqueSuffix}`,
+      slug: generateSlug(`bar-${uniqueSuffix}`),
       fullName: `jdoe/bar-${uniqueSuffix}`,
       description: "A microservices project with API-first architecture",
       ownerLogin: "jdoe",
@@ -619,6 +624,7 @@ export async function seedMockDataFromYaml() {
             .values({
               id: `${mockProject.id}-${team.id}`,
               name: mockProject.name,
+              slug: generateSlug(mockProject.name),
               fullName: mockProject.primary_repo,
               description: mockProject.description,
               ownerLogin: mockProject.team,

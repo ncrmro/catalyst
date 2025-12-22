@@ -1,10 +1,18 @@
-import { test as base } from '@playwright/test';
-import { ProjectsPage } from '../page-objects/projects-page';
-import { loginWithDevPassword } from '../helpers';
+import { test as base } from "@playwright/test";
+import { ProjectsPage } from "../page-objects/projects-page";
+import { loginWithDevPassword } from "../helpers";
 
-import { db, projectEnvironments, projects, repos, projectsRepos, teams } from '@/db';
-import { eq, inArray } from 'drizzle-orm';
-import { seedUser } from '@/lib/seed';
+import {
+  db,
+  projectEnvironments,
+  projects,
+  repos,
+  projectsRepos,
+  teams,
+} from "@/db";
+import { eq } from "drizzle-orm";
+import { seedUser } from "@/lib/seed";
+import { generateSlug } from "@/lib/slug";
 
 /**
  * Fixture options for environment setup tests
@@ -16,7 +24,7 @@ type EnvironmentSetupOptions = {
    * - false: Ensure no environments exist (testing the fresh setup flow)
    */
   withEnvironments: boolean;
-  
+
   /**
    * Whether to create projects during setup
    * - true: Ensure the user has at least one project (default behavior)
@@ -33,38 +41,39 @@ async function seedProjectEnvironments(projectId: string) {
     console.log(`Seeding environments for project ${projectId}`);
     const repoId = await findProjectPrimaryRepoId(projectId);
     console.log(`Found primary repo ID: ${repoId}`);
-    
+
     // Create some environments for the project
-    const result = await db.insert(projectEnvironments).values(
-      {
+    const result = await db
+      .insert(projectEnvironments)
+      .values({
         projectId,
         repoId,
-        environment: 'preview',
-        latestDeployment: 'deploy-preview-123'
-      }
-    ).returning();
-    
+        environment: "preview",
+        latestDeployment: "deploy-preview-123",
+      })
+      .returning();
+
     // Insert the second environment separately
-    await db.insert(projectEnvironments).values(
-      {
-        projectId,
-        repoId,
-        environment: 'staging',
-        latestDeployment: 'deploy-staging-456'
-      }
-    );
-    
+    await db.insert(projectEnvironments).values({
+      projectId,
+      repoId,
+      environment: "staging",
+      latestDeployment: "deploy-staging-456",
+    });
+
     console.log(`Created environments: ${JSON.stringify(result)}`);
-    
+
     // Verify environments were created
     const createdEnvironments = await db.query.projectEnvironments.findMany({
-      where: eq(projectEnvironments.projectId, projectId)
+      where: eq(projectEnvironments.projectId, projectId),
     });
-    console.log(`Verified environments: ${JSON.stringify(createdEnvironments)}`);
-    
+    console.log(
+      `Verified environments: ${JSON.stringify(createdEnvironments)}`,
+    );
+
     return true;
   } catch (error) {
-    console.error('Error seeding project environments:', error);
+    console.error("Error seeding project environments:", error);
     return false;
   }
 }
@@ -98,44 +107,57 @@ async function findProjectPrimaryRepoId(projectId: string): Promise<string> {
  */
 async function clearProjectEnvironments(projectId: string) {
   if (!projectId) return;
-  await db.delete(projectEnvironments).where(eq(projectEnvironments.projectId, projectId));
+  await db
+    .delete(projectEnvironments)
+    .where(eq(projectEnvironments.projectId, projectId));
 }
 
 /**
  * Create a project from empty state
  */
-async function createFirstProject(teamId: string, uniqueSuffix: string): Promise<string | null> {
+async function createFirstProject(
+  teamId: string,
+  uniqueSuffix: string,
+): Promise<{ id: string; slug: string } | null> {
   try {
     // Create a repository first
-    const [repo] = await db.insert(repos).values({
-      githubId: Math.floor(Math.random() * 1000000) + 1001,
-      name: `first-project-${uniqueSuffix}`,
-      fullName: `user/first-project-${uniqueSuffix}`,
-      description: 'First project created from empty state',
-      url: `https://github.com/user/first-project-${uniqueSuffix}`,
-      isPrivate: false,
-      language: 'TypeScript',
-      stargazersCount: 0,
-      forksCount: 0,
-      openIssuesCount: 0,
-      ownerLogin: 'user',
-      ownerType: 'User',
-      ownerAvatarUrl: 'https://github.com/identicons/user.png',
-      teamId,
-      pushedAt: new Date(),
-    }).returning();
+    const [repo] = await db
+      .insert(repos)
+      .values({
+        githubId: Math.floor(Math.random() * 1000000) + 1001,
+        name: `first-project-${uniqueSuffix}`,
+        fullName: `user/first-project-${uniqueSuffix}`,
+        description: "First project created from empty state",
+        url: `https://github.com/user/first-project-${uniqueSuffix}`,
+        isPrivate: false,
+        language: "TypeScript",
+        stargazersCount: 0,
+        forksCount: 0,
+        openIssuesCount: 0,
+        ownerLogin: "user",
+        ownerType: "User",
+        ownerAvatarUrl: "https://github.com/identicons/user.png",
+        teamId,
+        pushedAt: new Date(),
+      })
+      .returning();
 
     // Then create a project
-    const [project] = await db.insert(projects).values({
-      name: `first-project-${uniqueSuffix}`,
-      fullName: `user/first-project-${uniqueSuffix}`,
-      description: 'First project created from empty state',
-      ownerLogin: 'user',
-      ownerType: 'User',
-      ownerAvatarUrl: 'https://github.com/identicons/user.png',
-      teamId,
-      previewEnvironmentsCount: 0,
-    }).returning();
+    const projectName = `first-project-${uniqueSuffix}`;
+    const [project] = await db
+      .insert(projects)
+      .values({
+        name: projectName,
+        slug: generateSlug(projectName),
+        fullName: `user/first-project-${uniqueSuffix}`,
+        description: "First project created from empty state",
+        ownerLogin: "user",
+        ownerType: "User",
+        ownerAvatarUrl: "https://github.com/identicons/user.png",
+        teamId,
+        previewEnvironmentsCount: 0,
+      })
+      .returning();
 
     // Connect the project and repo
     await db.insert(projectsRepos).values({
@@ -144,9 +166,9 @@ async function createFirstProject(teamId: string, uniqueSuffix: string): Promise
       isPrimary: true,
     });
 
-    return project.id;
+    return { id: project.id, slug: project.slug };
   } catch (error) {
-    console.error('Error creating first project:', error);
+    console.error("Error creating first project:", error);
     return null;
   }
 }
@@ -170,7 +192,7 @@ async function getUserTeamId(password: string): Promise<string | null> {
     if (userTeams.length === 0) return null;
     return userTeams[0].id;
   } catch (error) {
-    console.error('Error getting user team ID:', error);
+    console.error("Error getting user team ID:", error);
     return null;
   }
 }
@@ -187,30 +209,30 @@ function getUserDetailsFromPassword(password: string) {
   }
 
   const [, baseType, suffix] = passwordMatch;
-  const isAdmin = baseType === 'admin';
+  const isAdmin = baseType === "admin";
 
   // For backward compatibility, use original emails for legacy passwords
   const isLegacy = suffix === undefined;
-  const userSuffix = isLegacy ? (isAdmin ? 'admin' : 'user') : suffix;
+  const userSuffix = isLegacy ? (isAdmin ? "admin" : "user") : suffix;
 
   return {
-    id: `dev-${isAdmin ? 'admin' : 'user'}-${userSuffix}`,
+    id: `dev-${isAdmin ? "admin" : "user"}-${userSuffix}`,
     email: isLegacy
       ? isAdmin
-        ? 'admin@example.com'
-        : 'bob@alice.com'
+        ? "admin@example.com"
+        : "bob@alice.com"
       : isAdmin
         ? `admin-${userSuffix}@example.com`
         : `user-${userSuffix}@example.com`,
     name: isLegacy
       ? isAdmin
-        ? 'Test Admin'
-        : 'Bob Alice'
+        ? "Test Admin"
+        : "Bob Alice"
       : isAdmin
         ? `Test Admin ${userSuffix}`
         : `Test User ${userSuffix}`,
     isAdmin,
-    image: 'https://avatars.githubusercontent.com/u/67470890?s=200&v=4'
+    image: "https://avatars.githubusercontent.com/u/67470890?s=200&v=4",
   };
 }
 
@@ -248,7 +270,7 @@ export const test = base.extend<{
       await seedUser({
         password,
         testInfo,
-        createProjects: true
+        createProjects: true,
       });
     }
 
@@ -262,13 +284,24 @@ export const test = base.extend<{
       // We have projects - navigate to the first one
       await projectsPage.clickProjectCard(0);
 
-      // Get current project ID from URL
+      // Get current project slug from URL
       const url = page.url();
-      projectId = url.split('/projects/')[1];
+      const projectSlug = url.split("/projects/")[1]?.split("/")[0];
 
-      if (!projectId) {
-        throw new Error('Could not determine project ID from URL');
+      if (!projectSlug) {
+        throw new Error("Could not determine project slug from URL");
       }
+
+      // Look up the project ID from the slug for database operations
+      const projectRecord = await db.query.projects.findFirst({
+        where: eq(projects.slug, projectSlug),
+      });
+
+      if (!projectRecord) {
+        throw new Error(`Could not find project with slug: ${projectSlug}`);
+      }
+
+      projectId = projectRecord.id;
 
       // Set up the environment state based on the setup options
       if (setupOptions.withEnvironments) {
@@ -283,14 +316,15 @@ export const test = base.extend<{
       // We expected projects but don't have any - try creating one manually
       const teamId = await getUserTeamId(password);
       if (teamId) {
-        projectId = await createFirstProject(teamId, uniqueSuffix);
-        if (projectId) {
-          // Navigate to the newly created project
-          await page.goto(`/projects/${projectId}`);
-          
+        const createdProject = await createFirstProject(teamId, uniqueSuffix);
+        if (createdProject) {
+          projectId = createdProject.id;
+          // Navigate to the newly created project using slug
+          await page.goto(`/projects/${createdProject.slug}`);
+
           // Set up environments if needed
           if (setupOptions.withEnvironments) {
-            await seedProjectEnvironments(projectId);
+            await seedProjectEnvironments(createdProject.id);
             await page.reload();
           }
         }
@@ -299,6 +333,7 @@ export const test = base.extend<{
     // If we don't have projects and don't want any, do nothing
 
     // Provide the initialized ProjectsPage to the test
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     await use(projectsPage);
 
     // Clean up - not strictly necessary as the database is reset between test runs,
@@ -310,4 +345,4 @@ export const test = base.extend<{
 });
 
 // Re-export expect so tests have it available
-export { expect } from '@playwright/test';
+export { expect } from "@playwright/test";

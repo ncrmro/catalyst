@@ -26,6 +26,7 @@ export interface ProjectRepo {
  */
 export interface GetProjectsParams {
   ids?: string[];
+  slugs?: string[];
   teamIds?: string[];
   ownerLogin?: string;
 }
@@ -35,12 +36,15 @@ export interface GetProjectsParams {
  * Follows bulk operation pattern - handles single or multiple IDs
  */
 export async function getProjects(params: GetProjectsParams) {
-  const { ids, teamIds, ownerLogin } = params;
+  const { ids, slugs, teamIds, ownerLogin } = params;
 
   // Build where conditions
   const conditions = [];
   if (ids && ids.length > 0) {
     conditions.push(inArray(projects.id, ids));
+  }
+  if (slugs && slugs.length > 0) {
+    conditions.push(inArray(projects.slug, slugs));
   }
   if (teamIds && teamIds.length > 0) {
     conditions.push(inArray(projects.teamId, teamIds));
@@ -71,7 +75,9 @@ export async function getProjects(params: GetProjectsParams) {
 /**
  * Inferred type from getProjects - a single project with all relations
  */
-export type ProjectWithRelations = Awaited<ReturnType<typeof getProjects>>[number];
+export type ProjectWithRelations = Awaited<
+  ReturnType<typeof getProjects>
+>[number];
 
 /**
  * Create one or multiple projects

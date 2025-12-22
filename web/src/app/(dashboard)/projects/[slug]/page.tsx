@@ -1,4 +1,4 @@
-import { fetchProjectById } from "@/actions/projects";
+import { fetchProjectBySlug } from "@/actions/projects";
 import { listDirectory, VCSEntry } from "@/actions/version-control-provider";
 import { GlassCard } from "@tetrastack/react-glass-components";
 import { notFound } from "next/navigation";
@@ -14,15 +14,15 @@ interface SpecDirectory {
 
 interface ProjectPageProps {
   params: Promise<{
-    projectId: string;
+    slug: string;
   }>;
 }
 
 export async function generateMetadata({
   params,
 }: ProjectPageProps): Promise<Metadata> {
-  const { projectId } = await params;
-  const project = await fetchProjectById(projectId);
+  const { slug } = await params;
+  const project = await fetchProjectBySlug(slug);
 
   return {
     title: project ? `${project.fullName} - Catalyst` : "Project - Catalyst",
@@ -31,9 +31,9 @@ export async function generateMetadata({
 }
 
 export default async function ProjectPage({ params }: ProjectPageProps) {
-  const { projectId } = await params;
+  const { slug } = await params;
 
-  const project = await fetchProjectById(projectId);
+  const project = await fetchProjectBySlug(slug);
 
   if (!project) {
     notFound();
@@ -70,7 +70,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
 
   return (
     <>
-      <EnvironmentsSection projectId={projectId} />
+      <EnvironmentsSection projectId={project.id} projectSlug={slug} />
 
       {/* Specs Section */}
       <GlassCard>
@@ -112,7 +112,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
               return (
                 <Link
                   key={spec.path}
-                  href={`/projects/${projectId}/spec/${spec.name}`}
+                  href={`/projects/${slug}/spec/${spec.name}`}
                   className="flex items-center gap-4 px-6 py-3 hover:bg-surface/50 transition-colors"
                 >
                   <div className="flex-shrink-0">

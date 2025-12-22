@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { ProjectWithRelations } from '@/models/projects';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { configureProjectEnvironments } from '@/actions/environments';
+import { useState } from "react";
+import { ProjectWithRelations } from "@/models/projects";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { configureProjectEnvironments } from "@/actions/environments";
 
 interface EnvironmentsPageClientProps {
   project: ProjectWithRelations;
@@ -15,44 +15,50 @@ export function EnvironmentsForm({ project }: EnvironmentsPageClientProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const handleSubmit = async (formData: FormData) => {
     setIsSubmitting(true);
     setError(null);
-    
+
     try {
       // Submit directly through the server action
       // We handle redirection here in the client
       const result = await configureProjectEnvironments(formData);
-      
+
       if (result.success) {
         // Redirect back to project page on success
-        router.push(`/projects/${project.id}`);
+        router.push(`/projects/${project.slug}`);
         router.refresh(); // Ensure the project page shows the new environment
       } else {
         setError(result.message);
         setIsSubmitting(false);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to configure environment');
+      setError(
+        err instanceof Error ? err.message : "Failed to configure environment",
+      );
       setIsSubmitting(false);
     }
   };
-  
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="mb-8">
         <Link
-          href={`/projects/${project.id}`}
+          href={`/projects/${project.slug}`}
           className="inline-flex items-center text-primary hover:opacity-80 mb-4"
         >
           ← Back to {project.name}
         </Link>
-        <h1 className="text-3xl font-bold text-on-background mb-4">Configure Environments</h1>
+        <h1 className="text-3xl font-bold text-on-background mb-4">
+          Configure Environments
+        </h1>
         <p className="text-lg text-on-surface-variant mb-6">
-          Set up deployment environments for <span className="font-semibold">{project.fullName}</span>. 
-          We recommend starting with a preview environment which will create pull requests for your changes.
+          Set up deployment environments for{" "}
+          <span className="font-semibold">{project.fullName}</span>. We
+          recommend starting with a preview environment which will create pull
+          requests for your changes.
         </p>
       </div>
 
@@ -66,11 +72,13 @@ export function EnvironmentsForm({ project }: EnvironmentsPageClientProps) {
 
       {/* Environment Configuration Form */}
       <div className="bg-surface border border-outline rounded-lg p-8 shadow-sm">
-        <h2 className="text-xl font-semibold text-on-surface mb-6">Choose Your First Environment</h2>
-        
+        <h2 className="text-xl font-semibold text-on-surface mb-6">
+          Choose Your First Environment
+        </h2>
+
         <form action={handleSubmit}>
           <input type="hidden" name="projectId" value={project.id} />
-          
+
           <div className="space-y-4 mb-8">
             {/* Development Environment */}
             <label className="flex items-start gap-4 p-6 border-2 border-primary rounded-lg cursor-pointer bg-primary-container/20 hover:bg-primary-container/30 transition-colors">
@@ -82,10 +90,13 @@ export function EnvironmentsForm({ project }: EnvironmentsPageClientProps) {
                 className="mt-2 w-4 h-4 text-primary focus:ring-primary"
               />
               <div className="flex-1">
-                <div className="font-semibold text-on-surface text-lg mb-2">Development Environment</div>
+                <div className="font-semibold text-on-surface text-lg mb-2">
+                  Development Environment
+                </div>
                 <div className="text-on-surface-variant text-sm mb-3">
-                  Creates a unique, randomly named environment for development and testing. 
-                  Ideal for experimenting with changes in isolation without affecting others.
+                  Creates a unique, randomly named environment for development
+                  and testing. Ideal for experimenting with changes in isolation
+                  without affecting others.
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   <span className="bg-success-container text-on-success-container px-2 py-1 rounded-full">
@@ -110,11 +121,15 @@ export function EnvironmentsForm({ project }: EnvironmentsPageClientProps) {
                 className="mt-2 w-4 h-4 text-primary focus:ring-primary"
               />
               <div className="flex-1">
-                <div className="font-semibold text-on-surface text-lg mb-2">Production Environment</div>
+                <div className="font-semibold text-on-surface text-lg mb-2">
+                  Production Environment
+                </div>
                 <div className="text-on-surface-variant text-sm mb-3">
-                  Your live, customer-facing environment. Deployments are triggered manually or through 
-                  automated releases when code is merged to your main branch. This environment should 
-                  be configured after you have tested your deployment process with preview environments.
+                  Your live, customer-facing environment. Deployments are
+                  triggered manually or through automated releases when code is
+                  merged to your main branch. This environment should be
+                  configured after you have tested your deployment process with
+                  preview environments.
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   <span className="bg-warning-container text-on-warning-container px-2 py-1 rounded-full">
@@ -139,11 +154,15 @@ export function EnvironmentsForm({ project }: EnvironmentsPageClientProps) {
                 className="mt-2 w-4 h-4 text-primary focus:ring-primary"
               />
               <div className="flex-1">
-                <div className="font-semibold text-on-surface text-lg mb-2">Staging Environment</div>
+                <div className="font-semibold text-on-surface text-lg mb-2">
+                  Staging Environment
+                </div>
                 <div className="text-on-surface-variant text-sm mb-3">
-                  A production-like environment for final testing before release. Ideal for QA testing, 
-                  performance validation, and stakeholder reviews. Typically mirrors your production 
-                  setup but with test data and may have different scaling configurations.
+                  A production-like environment for final testing before
+                  release. Ideal for QA testing, performance validation, and
+                  stakeholder reviews. Typically mirrors your production setup
+                  but with test data and may have different scaling
+                  configurations.
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   <span className="bg-secondary-container text-on-secondary-container px-2 py-1 rounded-full">
@@ -163,20 +182,22 @@ export function EnvironmentsForm({ project }: EnvironmentsPageClientProps) {
           {/* Submit Button */}
           <div className="flex items-center justify-between pt-6 border-t border-outline">
             <Link
-              href={`/projects/${project.id}`}
+              href={`/projects/${project.slug}`}
               className="px-4 py-2 text-sm font-medium text-on-surface bg-surface border border-outline rounded-md hover:bg-secondary-container hover:text-on-secondary-container transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
             >
               Cancel
             </Link>
-            
+
             <button
               type="submit"
               disabled={isSubmitting}
               className={`px-6 py-2 text-sm font-medium text-on-primary bg-primary border border-transparent rounded-md ${
-                isSubmitting ? 'opacity-70 cursor-not-allowed' : 'hover:opacity-90'
+                isSubmitting
+                  ? "opacity-70 cursor-not-allowed"
+                  : "hover:opacity-90"
               } focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2`}
             >
-              {isSubmitting ? 'Configuring...' : 'Configure Environment'}
+              {isSubmitting ? "Configuring..." : "Configure Environment"}
             </button>
           </div>
         </form>
@@ -184,11 +205,15 @@ export function EnvironmentsForm({ project }: EnvironmentsPageClientProps) {
 
       {/* Additional Information */}
       <div className="mt-8 bg-secondary-container/10 border border-secondary rounded-lg p-6">
-        <h3 className="font-semibold text-on-surface mb-3">💡 Getting Started Tip</h3>
+        <h3 className="font-semibold text-on-surface mb-3">
+          💡 Getting Started Tip
+        </h3>
         <p className="text-on-surface-variant text-sm">
-          We strongly recommend starting with a <strong>Development Environment</strong>. This will help you 
-          understand the deployment process and ensure your application works correctly before setting up 
-          production environments. You can always add more environments later.
+          We strongly recommend starting with a{" "}
+          <strong>Development Environment</strong>. This will help you
+          understand the deployment process and ensure your application works
+          correctly before setting up production environments. You can always
+          add more environments later.
         </p>
       </div>
     </div>

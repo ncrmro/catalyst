@@ -1,5 +1,5 @@
 import { listDirectory, readFile } from "@/actions/version-control-provider";
-import { fetchProjectById } from "@/actions/projects";
+import { fetchProjectBySlug } from "@/actions/projects";
 import { GlassCard } from "@tetrastack/react-glass-components";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
@@ -8,7 +8,7 @@ import { MarkdownRenderer } from "@/components/markdown-renderer";
 
 interface SpecPageProps {
   params: Promise<{
-    projectId: string;
+    slug: string;
     specId: string;
   }>;
   searchParams: Promise<{
@@ -19,8 +19,8 @@ interface SpecPageProps {
 export async function generateMetadata({
   params,
 }: SpecPageProps): Promise<Metadata> {
-  const { projectId, specId } = await params;
-  const project = await fetchProjectById(projectId);
+  const { slug, specId } = await params;
+  const project = await fetchProjectBySlug(slug);
 
   return {
     title: project
@@ -34,13 +34,13 @@ export default async function SpecPage({
   params,
   searchParams,
 }: SpecPageProps) {
-  const { projectId, specId } = await params;
+  const { slug, specId } = await params;
   const { file: selectedFile } = await searchParams;
 
   // Default to spec.md if no file specified
   const fileName = selectedFile || "spec.md";
 
-  const project = await fetchProjectById(projectId);
+  const project = await fetchProjectBySlug(slug);
 
   if (!project) {
     notFound();
@@ -77,7 +77,7 @@ export default async function SpecPage({
                   return (
                     <Link
                       key={file.path}
-                      href={`/projects/${projectId}/spec/${specId}?file=${file.name}`}
+                      href={`/projects/${slug}/spec/${specId}?file=${file.name}`}
                       className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
                         isActive
                           ? "bg-primary/10 text-primary font-medium"
@@ -96,7 +96,7 @@ export default async function SpecPage({
           {/* Back to project link */}
           <div className="mt-6 pt-4 border-t border-outline/30">
             <Link
-              href={`/projects/${projectId}`}
+              href={`/projects/${slug}`}
               className="flex items-center gap-2 text-sm text-on-surface-variant hover:text-on-surface transition-colors"
             >
               <svg

@@ -155,8 +155,10 @@ async function connectRepoToProjectReal(
       }
 
       // Create new project
+      const { generateSlug } = await import("@/lib/slug");
       const [newProject] = await createProjects({
         name: projectName,
+        slug: generateSlug(projectName),
         fullName: `${repo.owner.login}/${projectName}`,
         description: description || null,
         ownerLogin: repo.owner.login,

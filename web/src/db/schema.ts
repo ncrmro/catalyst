@@ -232,6 +232,7 @@ export const projects = pgTable(
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
     name: text("name").notNull(),
+    slug: text("slug").notNull(),
     fullName: text("full_name").notNull(),
     description: text("description"),
     ownerLogin: text("owner_login").notNull(),
@@ -251,6 +252,11 @@ export const projects = pgTable(
       // Make full_name unique per team, not globally
       uniqueFullNamePerTeam: uniqueIndex("project_full_name_team_id_unique").on(
         table.fullName,
+        table.teamId,
+      ),
+      // Make slug unique per team for URL-friendly project identification
+      uniqueSlugPerTeam: uniqueIndex("project_slug_team_id_unique").on(
+        table.slug,
         table.teamId,
       ),
     };

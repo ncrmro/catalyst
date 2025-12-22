@@ -87,7 +87,9 @@ export async function createProjectManifest(
       path: data.path,
     });
 
-    revalidatePath(`/projects/${data.projectId}`);
+    // Use project slug for path revalidation (routes use slugs, not IDs)
+    const project = projects[0];
+    revalidatePath(`/projects/${project.slug}`);
 
     return result;
   } catch (error) {
@@ -113,14 +115,18 @@ export async function deleteProjectManifest(
     throw new Error("Unauthorized");
   }
 
+  // Fetch project to get slug for path revalidation
+  const projects = await getProjects({ ids: [projectId] });
+  const projectSlug = projects[0]?.slug ?? projectId;
+
   try {
     await deleteProjectManifests({ projectId, repoId, path });
-    revalidatePath(`/projects/${projectId}`);
+    revalidatePath(`/projects/${projectSlug}`);
   } catch {
     console.log(
       "Database delete failed, simulating delete for mocked environment",
     );
     // In mocked environment, we'll just simulate the delete
-    revalidatePath(`/projects/${projectId}`);
+    revalidatePath(`/projects/${projectSlug}`);
   }
 }

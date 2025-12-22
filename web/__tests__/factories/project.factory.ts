@@ -1,5 +1,6 @@
 import { Factory, faker } from "@/lib/factories";
 import { createProjects, type InsertProject } from "@/models/projects";
+import { generateSlug } from "@/lib/slug";
 
 class ProjectFactory extends Factory<InsertProject> {
   /**
@@ -19,14 +20,18 @@ class ProjectFactory extends Factory<InsertProject> {
   }
 }
 
-export const projectFactory = ProjectFactory.define(({ sequence }) => ({
-  name: faker.company.name(),
-  fullName: `${faker.internet.username()}/${faker.lorem.slug()}`,
-  description: faker.company.catchPhrase(),
-  ownerLogin: faker.internet.username(),
-  ownerType: "User" as const,
-  ownerAvatarUrl: faker.image.avatar(),
-  previewEnvironmentsCount: 0,
-  // teamId will need to be provided when building
-  teamId: "",
-}));
+export const projectFactory = ProjectFactory.define(({ sequence }) => {
+  const name = faker.company.name();
+  return {
+    name,
+    slug: generateSlug(name),
+    fullName: `${faker.internet.username()}/${faker.lorem.slug()}`,
+    description: faker.company.catchPhrase(),
+    ownerLogin: faker.internet.username(),
+    ownerType: "User" as const,
+    ownerAvatarUrl: faker.image.avatar(),
+    previewEnvironmentsCount: 0,
+    // teamId will need to be provided when building
+    teamId: "",
+  };
+});
