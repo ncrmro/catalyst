@@ -200,7 +200,11 @@
               "name": "db-migrate",
               "image": "node:22",
               "workingDir": "/code/web",
-              "command": ["npm", "run", "db:migrate"],
+              "command": [
+                "/bin/sh",
+                "-c",
+                "npm run db:migrate && npm run seed"
+              ],
               "volumeMounts": [
                 {
                   "name": "code",
@@ -215,10 +219,6 @@
                 {
                   "name": "DATABASE_URL",
                   "value": "postgres://postgres:postgres@postgres.default.svc.cluster.local:5432/catalyst"
-                },
-                {
-                  "name": "KUBECONFIG",
-                  "value": "/var/kubeconfig"
                 }
               ]
             }
@@ -249,8 +249,8 @@
                   "value": "postgres://postgres:postgres@postgres.default.svc.cluster.local:5432/catalyst"
                 },
                 {
-                  "name": "KUBECONFIG",
-                  "value": "/var/kubeconfig"
+                  "name": "WATCHPACK_POLLING",
+                  "value": "true"
                 }
               ],
               "livenessProbe": {
@@ -258,7 +258,7 @@
                   "path": "/",
                   "port": 3000
                 },
-                "initialDelaySeconds": 60,
+                "initialDelaySeconds": 5,
                 "periodSeconds": 15,
                 "timeoutSeconds": 5
               },
@@ -267,7 +267,7 @@
                   "path": "/api/health/readiness",
                   "port": 3000
                 },
-                "initialDelaySeconds": 60,
+                "initialDelaySeconds": 5,
                 "periodSeconds": 10,
                 "timeoutSeconds": 5
               }
@@ -344,7 +344,7 @@
           "containers": [
             {
               "name": "operator",
-              "image": "golang:1.23",
+              "image": "golang:1.24",
               "workingDir": "/code/operator",
               "command": ["/bin/bash", "-c"],
               "args": ["go mod download\ngo run ./cmd/main.go\n"],
@@ -352,12 +352,6 @@
                 {
                   "name": "code",
                   "mountPath": "/code"
-                }
-              ],
-              "env": [
-                {
-                  "name": "KUBECONFIG",
-                  "value": "/var/kubeconfig"
                 }
               ]
             }

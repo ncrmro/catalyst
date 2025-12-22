@@ -98,7 +98,7 @@ NIXOS_CONFIG_TEMPLATE = '''
   virtualisation.vmVariant = {{
     virtualisation.memorySize = {memory};
     virtualisation.cores = {cores};
-    virtualisation.diskSize = 8192;
+    virtualisation.diskSize = 40960;
     virtualisation.graphics = false;
 
     virtualisation.sharedDirectories = {{
@@ -163,10 +163,17 @@ def get_web_port() -> int | None:
     return None
 
 def get_web_env_vars() -> list[dict]:
-    """Reads web/.env and returns list of env var dicts for Kubernetes."""
+    """Reads web/.env and returns list of env var dicts for Kubernetes.
+
+    Excludes KUBECONFIG and KUBECONFIG_PRIMARY since pods should use
+    in-cluster authentication via service account tokens.
+    """
     env_file = PROJECT_ROOT / "web" / ".env"
     if not env_file.exists():
         return []
+
+    # Env vars to exclude - pods use in-cluster auth via service account
+    excluded_vars = {"KUBECONFIG", "KUBECONFIG_PRIMARY"}
 
     env_vars = []
     try:
@@ -177,6 +184,12 @@ def get_web_env_vars() -> list[dict]:
                 continue
 
             key, value = line.split('=', 1)
+
+            # Skip excluded env vars
+            if key in excluded_vars:
+                debug(f"Excluding env var {key} (using in-cluster auth)")
+                continue
+
             # Remove surrounding quotes if present
             if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
                 value = value[1:-1]
@@ -580,7 +593,7 @@ def _ensure_vm_is_running(memory: int, cores: int) -> None:
     print("=" * 50)
     print("K3s VM ready!")
     print()
-    print(f"  SSH:        ssh -p 2222 root@localhost")
+    print(f"  SSH:        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2222 root@localhost")
     print(f"  K3s API:    https://127.0.0.1:6443")
     print(f"  Kubeconfig: {KUBECONFIG_FILE}")
     print()
@@ -628,7 +641,7 @@ def cmd_status(args: argparse.Namespace) -> None:
     if is_vm_running():
         pid = get_vm_pid()
         print(f"  State: running (PID: {pid})")
-        print(f"  SSH:   ssh -p 2222 root@localhost")
+        print(f"  SSH:   ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2222 root@localhost")
         print(f"  API:   https://127.0.0.1:6443")
 
         # Check K3s status
@@ -656,20 +669,47 @@ def cmd_status(args: argparse.Namespace) -> None:
             print("\n  Run 'bin/k3s-vm' to set up and start the VM")
 
 
+def find_vm_processes() -> list[int]:
+    """Find all qemu processes running k3s-vm."""
+    pids = []
+    try:
+        result = subprocess.run(
+            ["pgrep", "-f", "qemu.*-name k3s-vm"],
+            capture_output=True, text=True
+        )
+        for line in result.stdout.strip().split("\n"):
+            if line:
+                pids.append(int(line))
+    except (subprocess.CalledProcessError, ValueError):
+        pass
+    return pids
+
+
 def cmd_reset(args: argparse.Namespace) -> None:
     """Reset/destroy the VM."""
     print("Resetting VM...")
 
-    # Stop if running
+    # Stop if running (check PID file first)
     if is_vm_running():
-        info("Stopping VM...")
+        info("Stopping VM (from PID file)...")
         pid = get_vm_pid()
         if pid:
             try:
                 os.kill(pid, signal.SIGKILL)
             except ProcessLookupError:
                 pass
-        PID_FILE.unlink(missing_ok=True)
+
+    # Also find and kill any orphaned qemu processes for this VM
+    orphan_pids = find_vm_processes()
+    if orphan_pids:
+        info(f"Killing orphaned VM processes: {orphan_pids}")
+        for pid in orphan_pids:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
+    PID_FILE.unlink(missing_ok=True)
 
     # Remove VM directory contents
     if VM_DIR.exists():

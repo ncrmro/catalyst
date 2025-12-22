@@ -106,6 +106,32 @@ export class KubeConfig {
   }
 
   /**
+   * Check if running inside a Kubernetes cluster
+   */
+  static isInCluster(): boolean {
+    // Check for service account token - the definitive signal for in-cluster
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const fs = require("fs");
+      return fs.existsSync(
+        "/var/run/secrets/kubernetes.io/serviceaccount/token",
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Load from in-cluster service account
+   */
+  async loadFromCluster(): Promise<void> {
+    const k8s = await loadKubernetesClient();
+    this._kc = new k8s.KubeConfig();
+    this._kc.loadFromCluster();
+    // Don't call configureCluster() for in-cluster - it's already correct
+  }
+
+  /**
    * Load from default kubeconfig location or in-cluster config
    */
   async loadFromDefault(): Promise<void> {
@@ -211,12 +237,29 @@ class KubeConfigRegistry {
   }
 
   /**
-   * Initialize by loading all KUBECONFIG_* environment variables
+   * Initialize by loading kubeconfig from in-cluster or environment variables
    */
   async initialize(): Promise<void> {
     if (this.initialized) return;
 
-    // Find all KUBECONFIG_* environment variables
+    // PRIORITY 1: Check if running in-cluster (service account token exists)
+    // This takes precedence over env vars since .env files may be mounted
+    if (KubeConfig.isInCluster()) {
+      try {
+        const kubeConfig = new KubeConfig();
+        await kubeConfig.loadFromCluster();
+        this.configs.set("in-cluster", kubeConfig);
+        this.initialized = true;
+        return;
+      } catch (error) {
+        console.warn(
+          "Failed to load in-cluster kubeconfig:",
+          error instanceof Error ? error.message : "Unknown error",
+        );
+      }
+    }
+
+    // PRIORITY 2: Find all KUBECONFIG_* environment variables
     const kubeConfigEnvs = Object.keys(process.env).filter(
       (key) => key.startsWith("KUBECONFIG_") && process.env[key],
     );
@@ -237,7 +280,7 @@ class KubeConfigRegistry {
       }
     }
 
-    // Fallback to default kubeconfig if no env vars found
+    // PRIORITY 3: Fall back to default kubeconfig
     if (this.configs.size === 0) {
       try {
         const kubeConfig = new KubeConfig();
