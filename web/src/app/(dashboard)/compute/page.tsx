@@ -1,5 +1,4 @@
 import { getClusters, getGitHubOIDCStatus } from "@/actions/clusters";
-import { auth } from "@/auth";
 import { ClusterCard } from "@/components/ClusterCard";
 import type { ClusterInfo } from "@/lib/k8s-client";
 
@@ -36,12 +35,6 @@ interface ExtendedClusterInfo extends ClusterInfo {
 }
 
 export default async function ComputePage() {
-  // Check if user is authenticated
-  const session = await auth();
-  if (!session?.user) {
-    return null;
-  }
-
   // Try to get real cluster data
   let clusters: ExtendedClusterInfo[] = [];
   try {
@@ -101,7 +94,7 @@ export default async function ComputePage() {
             Compute
           </h1>
           <p className="mt-2 text-on-surface-variant">
-            Monitor and manage your Kubernetes clusters
+            Monitor and manage your Kubernetes clusters, howdy partner
           </p>
         </div>
 

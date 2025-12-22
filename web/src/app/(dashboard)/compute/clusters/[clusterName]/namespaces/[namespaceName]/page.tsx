@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { getClusters } from "@/actions/clusters";
 import { getNamespaces } from "@/actions/namespaces";
 import { getPodsInNamespace, PodInfo } from "@/actions/pods";
-import { auth } from "@/auth";
 import Link from "next/link";
 
 interface PodCardProps {
@@ -134,12 +133,6 @@ interface PageProps {
 }
 
 export default async function NamespaceDetailPage({ params }: PageProps) {
-  // Check if user is authenticated
-  const session = await auth();
-  if (!session?.user) {
-    return null;
-  }
-
   const { clusterName, namespaceName } = await params;
   const decodedClusterName = decodeURIComponent(clusterName);
   const decodedNamespaceName = decodeURIComponent(namespaceName);

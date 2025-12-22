@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { getClusters } from "@/actions/clusters";
 import { getNamespaces, NamespaceInfo } from "@/actions/namespaces";
-import { auth } from "@/auth";
 import Link from "next/link";
 
 interface NamespaceCardProps {
@@ -82,12 +81,6 @@ interface PageProps {
 }
 
 export default async function ClusterNamespacesPage({ params }: PageProps) {
-  // Check if user is authenticated
-  const session = await auth();
-  if (!session?.user) {
-    return null;
-  }
-
   const { clusterName } = await params;
   const decodedClusterName = decodeURIComponent(clusterName);
 

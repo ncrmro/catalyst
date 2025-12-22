@@ -1,4 +1,5 @@
 import { getProviderStatuses, ProviderStatus } from "@/actions/account";
+import { signOutAction } from "@/actions/auth";
 import { auth } from "@/auth";
 import { GlassCard } from "@tetrastack/react-glass-components";
 import { Metadata } from "next";
@@ -192,35 +193,45 @@ export default async function AccountPage() {
 
       {/* User Profile Card */}
       <GlassCard>
-        <div className="flex items-center gap-4">
-          {session.user.image ? (
-            <Image
-              src={session.user.image}
-              alt={session.user.name || "User"}
-              width={64}
-              height={64}
-              className="w-16 h-16 rounded-full"
-            />
-          ) : (
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <span className="text-2xl font-semibold text-primary">
-                {session.user.name?.charAt(0) ||
-                  session.user.email?.charAt(0) ||
-                  "?"}
-              </span>
-            </div>
-          )}
-          <div>
-            <h2 className="text-xl font-semibold text-on-surface">
-              {session.user.name || "User"}
-            </h2>
-            <p className="text-on-surface-variant">{session.user.email}</p>
-            {session.user.admin && (
-              <span className="inline-flex items-center mt-1 px-2 py-0.5 text-xs font-medium rounded-full bg-secondary-container text-on-secondary-container">
-                Admin
-              </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            {session.user.image ? (
+              <Image
+                src={session.user.image}
+                alt={session.user.name || "User"}
+                width={64}
+                height={64}
+                className="w-16 h-16 rounded-full"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                <span className="text-2xl font-semibold text-primary">
+                  {session.user.name?.charAt(0) ||
+                    session.user.email?.charAt(0) ||
+                    "?"}
+                </span>
+              </div>
             )}
+            <div>
+              <h2 className="text-xl font-semibold text-on-surface">
+                {session.user.name || "User"}
+              </h2>
+              <p className="text-on-surface-variant">{session.user.email}</p>
+              {session.user.admin && (
+                <span className="inline-flex items-center mt-1 px-2 py-0.5 text-xs font-medium rounded-full bg-secondary-container text-on-secondary-container">
+                  Admin
+                </span>
+              )}
+            </div>
           </div>
+          <form action={signOutAction}>
+            <button
+              type="submit"
+              className="px-4 py-2 text-sm font-medium rounded-lg bg-error/10 text-error hover:bg-error/20 transition-colors"
+            >
+              Sign Out
+            </button>
+          </form>
         </div>
       </GlassCard>
 
