@@ -48,6 +48,12 @@ jobs:
           cache: 'npm'
           cache-dependency-path: './web/package-lock.json'
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: './operator/go.mod'
+          cache-dependency-path: './operator/go.sum'
+
       - name: Get Playwright version
         id: playwright-version
         run: echo "version=$(node -p "require('./web/package.json').devDependencies['@playwright/test'].replace('^', '')")" >> $GITHUB_OUTPUT
@@ -84,7 +90,46 @@ jobs:
       
       - name: Verify Kind Access
         run: kubectl get all
-      
+
+      - name: Install Catalyst Operator CRDs
+        working-directory: ./operator
+        run: |
+          echo "Installing Catalyst CRDs..."
+          make install
+          echo "CRDs installed:"
+          kubectl get crds | grep catalyst
+
+      - name: Start Catalyst Operator (out-of-cluster)
+        working-directory: ./operator
+        run: |
+          echo "Starting operator in background..."
+          make run > /tmp/operator.log 2>&1 &
+          echo $! > /tmp/operator.pid
+          echo "Operator started with PID: $(cat /tmp/operator.pid)"
+          sleep 3
+
+      - name: Wait for Operator to be ready
+        run: |
+          echo "Waiting for operator health endpoint..."
+          for i in {1..30}; do
+            if curl -sf http://localhost:8081/healthz > /dev/null 2>&1; then
+              echo "Operator health check passed!"
+              exit 0
+            fi
+            if ! kill -0 $(cat /tmp/operator.pid 2>/dev/null) 2>/dev/null; then
+              echo "ERROR: Operator process died unexpectedly"
+              echo "=== Operator Logs ==="
+              cat /tmp/operator.log || true
+              exit 1
+            fi
+            echo "Attempt $i/30: Operator not ready yet, waiting 2s..."
+            sleep 2
+          done
+          echo "ERROR: Operator failed to become ready after 60 seconds"
+          echo "=== Operator Logs ==="
+          cat /tmp/operator.log || true
+          exit 1
+
       - name: Add Kind kubeconfig to .env
         run: |
           # Get kubeconfig from kind as YAML

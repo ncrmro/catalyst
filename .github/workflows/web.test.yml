@@ -145,6 +145,38 @@ jobs:
           echo "KUBECONFIG_PRIMARY=$KUBECONFIG_PRIMARY" >> $GITHUB_ENV
           echo "Kubeconfig exported for E2E tests"
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: './operator/go.mod'
+          cache-dependency-path: './operator/go.sum'
+
+      - name: Install Catalyst Operator CRDs
+        working-directory: ./operator
+        run: |
+          make install
+          kubectl get crds | grep catalyst
+
+      - name: Start Catalyst Operator (out-of-cluster)
+        working-directory: ./operator
+        run: |
+          make run > /tmp/operator.log 2>&1 &
+          echo $! > /tmp/operator.pid
+
+      - name: Wait for Operator to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -sf http://localhost:8081/healthz > /dev/null 2>&1; then
+              echo "Operator ready!"
+              exit 0
+            fi
+            if ! kill -0 $(cat /tmp/operator.pid 2>/dev/null) 2>/dev/null; then
+              echo "Operator died"; cat /tmp/operator.log || true; exit 1
+            fi
+            sleep 2
+          done
+          echo "Operator timeout"; cat /tmp/operator.log || true; exit 1
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
