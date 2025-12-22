@@ -1,0 +1,602 @@
+/**
+ * GitHub VCS Provider
+ *
+ * Implementation of VCSProvider interface for GitHub.
+ */
+
+import { Octokit } from "@octokit/rest";
+import type {
+  VCSProvider,
+  ProviderId,
+  AuthenticatedClient,
+  ConnectionStatus,
+  TokenData,
+  Repository,
+  FileContent,
+  DirectoryEntry,
+  PullRequest,
+  Review,
+  Issue,
+  PRComment,
+  WebhookEvent,
+} from "../../types";
+import { getUserOctokit, GITHUB_CONFIG } from "./client";
+import { storeGitHubTokens, getGitHubTokens } from "./token-service";
+import { refreshTokenIfNeeded } from "./token-refresh";
+import { createHmac, timingSafeEqual } from "crypto";
+
+/**
+ * GitHub VCS Provider implementation
+ */
+export class GitHubProvider implements VCSProvider {
+  readonly id: ProviderId = "github";
+  readonly name = "GitHub";
+  readonly iconName = "github";
+
+  /**
+   * Authenticate a user and return an authenticated client
+   */
+  async authenticate(userId: string): Promise<AuthenticatedClient> {
+    const octokit = await getUserOctokit(userId);
+    return {
+      providerId: this.id,
+      raw: octokit,
+    };
+  }
+
+  /**
+   * Check the connection status for a user
+   */
+  async checkConnection(userId: string): Promise<ConnectionStatus> {
+    try {
+      const tokens = await getGitHubTokens(userId);
+
+      if (!tokens) {
+        return {
+          connected: false,
+          error: "No tokens stored",
+        };
+      }
+
+      const octokit = await getUserOctokit(userId);
+      const { data: user } = await octokit.rest.users.getAuthenticated();
+
+      return {
+        connected: true,
+        username: user.login,
+        avatarUrl: user.avatar_url,
+        authMethod: tokens.installationId ? "app" : "oauth",
+      };
+    } catch (error) {
+      return {
+        connected: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  /**
+   * Store tokens for a user
+   */
+  async storeTokens(userId: string, tokens: TokenData): Promise<void> {
+    await storeGitHubTokens(userId, {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken || "",
+      expiresAt: tokens.expiresAt || new Date(Date.now() + 8 * 60 * 60 * 1000),
+      scope: tokens.scope || "",
+    });
+  }
+
+  /**
+   * Refresh tokens if needed
+   */
+  async refreshTokensIfNeeded(userId: string): Promise<TokenData | null> {
+    const tokens = await refreshTokenIfNeeded(userId);
+    if (!tokens) return null;
+
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      expiresAt: tokens.expiresAt,
+      scope: tokens.scope,
+    };
+  }
+
+  /**
+   * List repositories for the authenticated user
+   */
+  async listUserRepositories(
+    client: AuthenticatedClient,
+  ): Promise<Repository[]> {
+    const octokit = client.raw as Octokit;
+    const { data: repos } = await octokit.rest.repos.listForAuthenticatedUser({
+      per_page: 100,
+      sort: "updated",
+    });
+
+    return repos.map((repo) => this.mapRepository(repo));
+  }
+
+  /**
+   * List repositories for an organization
+   */
+  async listOrgRepositories(
+    client: AuthenticatedClient,
+    org: string,
+  ): Promise<Repository[]> {
+    const octokit = client.raw as Octokit;
+    const { data: repos } = await octokit.rest.repos.listForOrg({
+      org,
+      per_page: 100,
+      sort: "updated",
+    });
+
+    return repos.map((repo) => this.mapRepository(repo));
+  }
+
+  /**
+   * Get a specific repository
+   */
+  async getRepository(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+  ): Promise<Repository> {
+    const octokit = client.raw as Octokit;
+    const { data } = await octokit.rest.repos.get({ owner, repo });
+    return this.mapRepository(data);
+  }
+
+  /**
+   * Get file content from a repository
+   */
+  async getFileContent(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+    path: string,
+    ref?: string,
+  ): Promise<FileContent | null> {
+    const octokit = client.raw as Octokit;
+    try {
+      const { data } = await octokit.rest.repos.getContent({
+        owner,
+        repo,
+        path,
+        ref,
+      });
+
+      if (Array.isArray(data) || data.type !== "file") {
+        return null;
+      }
+
+      const content =
+        data.encoding === "base64"
+          ? Buffer.from(data.content, "base64").toString("utf-8")
+          : data.content;
+
+      return {
+        name: data.name,
+        path: data.path,
+        content,
+        sha: data.sha,
+        htmlUrl: data.html_url || "",
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get directory content from a repository
+   */
+  async getDirectoryContent(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+    path: string,
+    ref?: string,
+  ): Promise<DirectoryEntry[]> {
+    const octokit = client.raw as Octokit;
+    try {
+      const { data } = await octokit.rest.repos.getContent({
+        owner,
+        repo,
+        path,
+        ref,
+      });
+
+      if (!Array.isArray(data)) {
+        return [];
+      }
+
+      return data.map((item) => ({
+        name: item.name,
+        path: item.path,
+        type: item.type as "file" | "dir" | "submodule" | "symlink",
+        sha: item.sha,
+        htmlUrl: item.html_url || "",
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * List pull requests for a repository
+   */
+  async listPullRequests(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+    options?: { state?: "open" | "closed" | "all" },
+  ): Promise<PullRequest[]> {
+    const octokit = client.raw as Octokit;
+    const { data: prs } = await octokit.rest.pulls.list({
+      owner,
+      repo,
+      state: options?.state || "open",
+      per_page: 100,
+    });
+
+    return prs.map((pr) => this.mapPullRequest(pr));
+  }
+
+  /**
+   * Get a specific pull request
+   */
+  async getPullRequest(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+    number: number,
+  ): Promise<PullRequest> {
+    const octokit = client.raw as Octokit;
+    const { data: pr } = await octokit.rest.pulls.get({
+      owner,
+      repo,
+      pull_number: number,
+    });
+
+    return this.mapPullRequest(pr);
+  }
+
+  /**
+   * List reviews for a pull request
+   */
+  async listPullRequestReviews(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+    number: number,
+  ): Promise<Review[]> {
+    const octokit = client.raw as Octokit;
+    const { data: reviews } = await octokit.rest.pulls.listReviews({
+      owner,
+      repo,
+      pull_number: number,
+    });
+
+    return reviews.map((review) => ({
+      id: String(review.id),
+      author: review.user?.login || "unknown",
+      state: this.mapReviewState(review.state),
+      body: review.body || undefined,
+      submittedAt: review.submitted_at
+        ? new Date(review.submitted_at)
+        : undefined,
+    }));
+  }
+
+  /**
+   * List comments on a pull request
+   */
+  async listPRComments(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+    number: number,
+  ): Promise<PRComment[]> {
+    const octokit = client.raw as Octokit;
+    const { data: comments } = await octokit.rest.issues.listComments({
+      owner,
+      repo,
+      issue_number: number,
+    });
+
+    return comments.map((comment) => ({
+      id: comment.id,
+      body: comment.body || "",
+      author: comment.user?.login || "unknown",
+      createdAt: new Date(comment.created_at),
+      updatedAt: new Date(comment.updated_at),
+    }));
+  }
+
+  /**
+   * Create a comment on a pull request
+   */
+  async createPRComment(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+    number: number,
+    body: string,
+  ): Promise<PRComment> {
+    const octokit = client.raw as Octokit;
+    const { data: comment } = await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: number,
+      body,
+    });
+
+    return {
+      id: comment.id,
+      body: comment.body || "",
+      author: comment.user?.login || "unknown",
+      createdAt: new Date(comment.created_at),
+      updatedAt: new Date(comment.updated_at),
+    };
+  }
+
+  /**
+   * Update a comment on a pull request
+   */
+  async updatePRComment(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+    commentId: number,
+    body: string,
+  ): Promise<PRComment> {
+    const octokit = client.raw as Octokit;
+    const { data: comment } = await octokit.rest.issues.updateComment({
+      owner,
+      repo,
+      comment_id: commentId,
+      body,
+    });
+
+    return {
+      id: comment.id,
+      body: comment.body || "",
+      author: comment.user?.login || "unknown",
+      createdAt: new Date(comment.created_at),
+      updatedAt: new Date(comment.updated_at),
+    };
+  }
+
+  /**
+   * Delete a comment on a pull request
+   */
+  async deletePRComment(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+    commentId: number,
+  ): Promise<void> {
+    const octokit = client.raw as Octokit;
+    await octokit.rest.issues.deleteComment({
+      owner,
+      repo,
+      comment_id: commentId,
+    });
+  }
+
+  /**
+   * List issues for a repository
+   */
+  async listIssues(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+    options?: { state?: "open" | "closed" | "all" },
+  ): Promise<Issue[]> {
+    const octokit = client.raw as Octokit;
+    const { data: issues } = await octokit.rest.issues.listForRepo({
+      owner,
+      repo,
+      state: options?.state || "open",
+      per_page: 100,
+    });
+
+    // Filter out pull requests (GitHub returns PRs in issues endpoint)
+    return issues
+      .filter((issue) => !issue.pull_request)
+      .map((issue) => ({
+        id: String(issue.id),
+        number: issue.number,
+        title: issue.title,
+        state: issue.state as "open" | "closed",
+        author: issue.user?.login || "unknown",
+        htmlUrl: issue.html_url,
+        createdAt: new Date(issue.created_at),
+        updatedAt: new Date(issue.updated_at),
+        labels: issue.labels.map((label) =>
+          typeof label === "string" ? label : label.name || "",
+        ),
+      }));
+  }
+
+  /**
+   * Verify a webhook signature
+   */
+  verifyWebhookSignature(
+    payload: string,
+    signature: string,
+    secret: string,
+  ): boolean {
+    const expectedSignature = `sha256=${createHmac("sha256", secret).update(payload).digest("hex")}`;
+
+    try {
+      return timingSafeEqual(
+        Buffer.from(signature),
+        Buffer.from(expectedSignature),
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Parse a webhook event
+   */
+  parseWebhookEvent(headers: Headers, payload: unknown): WebhookEvent {
+    const eventType = headers.get("x-github-event") || "";
+    const data = payload as Record<string, unknown>;
+
+    const baseEvent: WebhookEvent = {
+      type: this.mapEventType(eventType),
+      action: data.action as string | undefined,
+      sender: (data.sender as { login?: string })?.login || "unknown",
+    };
+
+    if (data.repository) {
+      const repo = data.repository as Record<string, unknown>;
+      baseEvent.repository = {
+        id: String(repo.id),
+        name: repo.name as string,
+        fullName: repo.full_name as string,
+        owner: (repo.owner as { login?: string })?.login || "",
+        private: repo.private as boolean,
+        defaultBranch: repo.default_branch as string,
+        htmlUrl: repo.html_url as string,
+        updatedAt: new Date(repo.updated_at as string),
+      };
+    }
+
+    if (data.pull_request) {
+      const pr = data.pull_request as Record<string, unknown>;
+      baseEvent.pullRequest = {
+        id: String(pr.id),
+        number: pr.number as number,
+        title: pr.title as string,
+        state: this.mapPRState(pr.state as string, pr.merged as boolean),
+        draft: pr.draft as boolean,
+        author: (pr.user as { login?: string })?.login || "unknown",
+        sourceBranch: (pr.head as { ref?: string })?.ref || "",
+        targetBranch: (pr.base as { ref?: string })?.ref || "",
+        htmlUrl: pr.html_url as string,
+        createdAt: new Date(pr.created_at as string),
+        updatedAt: new Date(pr.updated_at as string),
+        labels: ((pr.labels as { name?: string }[]) || []).map(
+          (l) => l.name || "",
+        ),
+        reviewers: [],
+      };
+    }
+
+    return baseEvent;
+  }
+
+  // Private helper methods
+
+  private mapRepository(repo: {
+    id: number;
+    name: string;
+    full_name: string;
+    owner: { login: string } | null;
+    private: boolean;
+    default_branch?: string;
+    html_url: string;
+    description?: string | null;
+    language?: string | null;
+    updated_at?: string | null;
+  }): Repository {
+    return {
+      id: String(repo.id),
+      name: repo.name,
+      fullName: repo.full_name,
+      owner: repo.owner?.login || "",
+      private: repo.private,
+      defaultBranch: repo.default_branch || "main",
+      htmlUrl: repo.html_url,
+      description: repo.description || undefined,
+      language: repo.language || undefined,
+      updatedAt: repo.updated_at ? new Date(repo.updated_at) : new Date(),
+    };
+  }
+
+  private mapPullRequest(pr: {
+    id: number;
+    number: number;
+    title: string;
+    state: string;
+    merged?: boolean;
+    draft?: boolean;
+    user: { login: string; avatar_url?: string } | null;
+    head: { ref: string };
+    base: { ref: string };
+    html_url: string;
+    created_at: string;
+    updated_at: string;
+    labels: Array<string | { name?: string }>;
+    requested_reviewers?: Array<{ login: string }> | null;
+  }): PullRequest {
+    return {
+      id: String(pr.id),
+      number: pr.number,
+      title: pr.title,
+      state: this.mapPRState(pr.state, pr.merged),
+      draft: pr.draft || false,
+      author: pr.user?.login || "unknown",
+      authorAvatarUrl: pr.user?.avatar_url,
+      sourceBranch: pr.head.ref,
+      targetBranch: pr.base.ref,
+      htmlUrl: pr.html_url,
+      createdAt: new Date(pr.created_at),
+      updatedAt: new Date(pr.updated_at),
+      labels: pr.labels.map((label) =>
+        typeof label === "string" ? label : label.name || "",
+      ),
+      reviewers: pr.requested_reviewers?.map((r) => r.login) || [],
+    };
+  }
+
+  private mapPRState(
+    state: string,
+    merged?: boolean,
+  ): "open" | "closed" | "merged" {
+    if (merged) return "merged";
+    if (state === "open") return "open";
+    return "closed";
+  }
+
+  private mapReviewState(
+    state: string,
+  ): "approved" | "changes_requested" | "commented" | "pending" {
+    switch (state) {
+      case "APPROVED":
+        return "approved";
+      case "CHANGES_REQUESTED":
+        return "changes_requested";
+      case "COMMENTED":
+        return "commented";
+      default:
+        return "pending";
+    }
+  }
+
+  private mapEventType(
+    eventType: string,
+  ): "push" | "pull_request" | "installation" | "issue" {
+    switch (eventType) {
+      case "push":
+        return "push";
+      case "pull_request":
+        return "pull_request";
+      case "installation":
+      case "installation_repositories":
+        return "installation";
+      case "issues":
+        return "issue";
+      default:
+        return "push";
+    }
+  }
+}
+
+// Register the GitHub provider
+import { providerRegistry } from "../../provider-registry";
+providerRegistry.register(new GitHubProvider());

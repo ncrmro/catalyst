@@ -5,7 +5,7 @@
  */
 
 import { auth } from "@/auth";
-import { getUserOctokit, GITHUB_CONFIG } from "@/lib/github";
+import { providerRegistry } from "@/lib/vcs-providers";
 
 export interface GitHubConnectionStatus {
   connected: boolean;
@@ -29,31 +29,22 @@ export interface ProviderStatus {
 
 /**
  * Check if the current user has a valid GitHub connection
- * Makes a lightweight API call to verify the token works
+ * Uses VCS provider abstraction to verify token validity
  * Supports both OAuth tokens and PAT fallback
  */
 export async function checkGitHubConnection(): Promise<GitHubConnectionStatus> {
   const session = await auth();
 
   try {
-    // getUserOctokit handles PAT fallback automatically
-    const octokit = await getUserOctokit(session.user.id);
-
-    // Use the /user endpoint - lightweight and verifies token validity
-    const { data } = await octokit.rest.users.getAuthenticated();
-
-    // Determine auth method based on what's available
-    const authMethod = session.accessToken
-      ? "oauth"
-      : GITHUB_CONFIG.PAT
-        ? "pat"
-        : undefined;
+    const provider = providerRegistry.getDefault();
+    const status = await provider.checkConnection(session.user.id);
 
     return {
-      connected: true,
-      username: data.login,
-      avatarUrl: data.avatar_url,
-      authMethod,
+      connected: status.connected,
+      username: status.username,
+      avatarUrl: status.avatarUrl,
+      error: status.error,
+      authMethod: status.authMethod === "app" ? "oauth" : status.authMethod, // Map "app" to "oauth" for UI
     };
   } catch (error) {
     console.error("GitHub connection check failed:", error);

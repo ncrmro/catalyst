@@ -1,4 +1,10 @@
-import { GITHUB_CONFIG } from '@/lib/github';
+/**
+ * GitHub OAuth Authentication
+ *
+ * OAuth flow helpers for GitHub App user authentication.
+ */
+
+import { GITHUB_CONFIG } from "./client";
 
 /**
  * Exchange a refresh token for a new access token
@@ -12,17 +18,17 @@ export async function exchangeRefreshToken(refreshToken: string): Promise<{
   scope: string;
 }> {
   // GitHub API endpoint for refreshing tokens
-  const response = await fetch('https://github.com/login/oauth/access_token', {
-    method: 'POST',
+  const response = await fetch("https://github.com/login/oauth/access_token", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'User-Agent': 'Catalyst-App',
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "User-Agent": "Catalyst-App",
     },
     body: JSON.stringify({
       client_id: GITHUB_CONFIG.APP_CLIENT_ID,
       client_secret: GITHUB_CONFIG.APP_CLIENT_SECRET,
-      grant_type: 'refresh_token',
+      grant_type: "refresh_token",
       refresh_token: refreshToken,
     }),
   });
@@ -32,9 +38,11 @@ export async function exchangeRefreshToken(refreshToken: string): Promise<{
   }
 
   const data = await response.json();
-  
+
   if (data.error) {
-    throw new Error(`GitHub refresh error: ${data.error_description || data.error}`);
+    throw new Error(
+      `GitHub refresh error: ${data.error_description || data.error}`,
+    );
   }
 
   // Calculate expiration (GitHub App user tokens expire in 8 hours)
@@ -55,7 +63,10 @@ export async function exchangeRefreshToken(refreshToken: string): Promise<{
  * @param state The state parameter for CSRF protection
  * @returns Tokens and installation information
  */
-export async function exchangeAuthorizationCode(code: string, state?: string): Promise<{
+export async function exchangeAuthorizationCode(
+  code: string,
+  state?: string,
+): Promise<{
   accessToken: string;
   refreshToken: string;
   expiresAt: Date;
@@ -63,12 +74,12 @@ export async function exchangeAuthorizationCode(code: string, state?: string): P
   installationId?: string;
 }> {
   // Exchange code for access token
-  const response = await fetch('https://github.com/login/oauth/access_token', {
-    method: 'POST',
+  const response = await fetch("https://github.com/login/oauth/access_token", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'User-Agent': 'Catalyst-App',
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "User-Agent": "Catalyst-App",
     },
     body: JSON.stringify({
       client_id: GITHUB_CONFIG.APP_CLIENT_ID,
@@ -79,13 +90,17 @@ export async function exchangeAuthorizationCode(code: string, state?: string): P
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to exchange authorization code: ${response.statusText}`);
+    throw new Error(
+      `Failed to exchange authorization code: ${response.statusText}`,
+    );
   }
 
   const data = await response.json();
-  
+
   if (data.error) {
-    throw new Error(`GitHub auth error: ${data.error_description || data.error}`);
+    throw new Error(
+      `GitHub auth error: ${data.error_description || data.error}`,
+    );
   }
 
   // Calculate expiration (GitHub App user tokens expire in 8 hours)
@@ -110,13 +125,13 @@ export async function exchangeAuthorizationCode(code: string, state?: string): P
 export function generateAuthorizationUrl(state?: string): string {
   const params = new URLSearchParams({
     client_id: GITHUB_CONFIG.APP_CLIENT_ID,
-    redirect_uri: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/auth/callback/github`,
-    scope: 'read:user user:email read:org repo',
-    response_type: 'code',
+    redirect_uri: `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/api/auth/callback/github`,
+    scope: "read:user user:email read:org repo",
+    response_type: "code",
   });
 
   if (state) {
-    params.append('state', state);
+    params.append("state", state);
   }
 
   return `https://github.com/login/oauth/authorize?${params.toString()}`;

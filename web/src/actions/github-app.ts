@@ -1,6 +1,6 @@
-'use server';
+"use server";
 
-import { getAllInstallations } from '@/lib/github';
+import { getAllInstallations } from "@/lib/vcs-providers";
 
 /**
  * Server action to fetch GitHub App installations
@@ -10,9 +10,11 @@ export async function getGitHubAppInstallations() {
   try {
     const installations = await getAllInstallations();
     // Filter out any installations with null accounts for safety
-    return installations.filter(installation => installation.account !== null);
+    return installations.filter(
+      (installation) => installation.account !== null,
+    );
   } catch (error) {
-    console.error('Error fetching installations:', error);
+    console.error("Error fetching installations:", error);
     return [];
   }
 }

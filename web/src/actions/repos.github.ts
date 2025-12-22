@@ -12,7 +12,7 @@ import {
   GitHubOrganization,
   ReposData,
 } from "@/mocks/github";
-import { GITHUB_CONFIG } from "@/lib/github";
+import { GITHUB_CONFIG } from "@/lib/vcs-providers";
 
 /**
  * Server action to fetch repositories for the current user from the database

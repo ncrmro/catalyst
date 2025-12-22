@@ -192,8 +192,7 @@ export const {
           token.accessToken &&
           token.refreshToken
         ) {
-          const { storeGitHubTokens } =
-            await import("@/lib/github-app/token-service");
+          const { storeGitHubTokens } = await import("@/lib/vcs-providers");
 
           // Calculate expiration time (8 hours for GitHub App tokens)
           const expiresAt = new Date();
@@ -224,8 +223,7 @@ export const {
           token.accessToken &&
           token.refreshToken
         ) {
-          const { storeGitHubTokens } =
-            await import("@/lib/github-app/token-service");
+          const { storeGitHubTokens } = await import("@/lib/vcs-providers");
 
           // Calculate expiration time (8 hours for GitHub App tokens)
           const expiresAt = new Date();

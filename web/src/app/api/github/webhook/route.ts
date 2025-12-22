@@ -3,7 +3,7 @@ import {
   createKubernetesNamespace,
   deleteKubernetesNamespace,
 } from "@/actions/kubernetes";
-import { getInstallationOctokit, GITHUB_CONFIG } from "@/lib/github";
+import { getInstallationOctokit, GITHUB_CONFIG } from "@/lib/vcs-providers";
 import {
   createPullRequestPodJob,
   cleanupPullRequestPodJob,
@@ -28,11 +28,16 @@ const encoder = new TextEncoder();
 
 function bufferToHex(buffer: ArrayBuffer): string {
   return Array.prototype.map
-    .call(new Uint8Array(buffer), (x: number) => x.toString(16).padStart(2, "0"))
+    .call(new Uint8Array(buffer), (x: number) =>
+      x.toString(16).padStart(2, "0"),
+    )
     .join("");
 }
 
-async function createHmacSha256(secret: string, payload: string): Promise<string> {
+async function createHmacSha256(
+  secret: string,
+  payload: string,
+): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
     encoder.encode(secret),
@@ -41,7 +46,11 @@ async function createHmacSha256(secret: string, payload: string): Promise<string
     ["sign"],
   );
 
-  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    encoder.encode(payload),
+  );
   return `sha256=${bufferToHex(signature)}`;
 }
 

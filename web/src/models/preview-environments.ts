@@ -576,7 +576,7 @@ import {
 import {
   upsertDeploymentComment,
   deleteDeploymentComment,
-} from "@/lib/github-pr-comments";
+} from "@/lib/vcs-providers";
 import {
   previewLogger,
   logPreviewLifecycleEvent,

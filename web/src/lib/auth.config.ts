@@ -5,7 +5,7 @@
 import { Provider } from "next-auth/providers";
 import GitHub from "next-auth/providers/github";
 import { NextAuthConfig } from "next-auth";
-import { GITHUB_CONFIG } from "@/lib/github";
+import { GITHUB_CONFIG } from "@/lib/vcs-providers";
 
 const providers: Provider[] = [
   GitHub({

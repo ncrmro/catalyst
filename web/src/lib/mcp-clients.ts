@@ -1,5 +1,5 @@
 import { experimental_createMCPClient as createMCPClient } from "ai";
-import { GITHUB_CONFIG } from "@/lib/github";
+import { GITHUB_CONFIG } from "@/lib/vcs-providers";
 
 /**
  * GitHub MCP Client configuration and initialization

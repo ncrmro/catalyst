@@ -3,7 +3,7 @@
 // to create pods for buildx kubernetes driver functionality
 
 import { getCoreV1Api, getClusterConfig } from "./k8s-client";
-import { GITHUB_CONFIG } from "./github";
+import { GITHUB_CONFIG } from "./vcs-providers";
 
 export interface PullRequestPodOptions {
   name: string;

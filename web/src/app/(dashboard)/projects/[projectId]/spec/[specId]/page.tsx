@@ -1,4 +1,4 @@
-import { fetchSpecFile, listSpecs } from "@/actions/specs";
+import { listDirectory, readFile } from "@/actions/version-control-provider";
 import { fetchProjectById } from "@/actions/projects";
 import { GlassCard } from "@tetrastack/react-glass-components";
 import { notFound } from "next/navigation";
@@ -40,18 +40,25 @@ export default async function SpecPage({
   // Default to spec.md if no file specified
   const fileName = selectedFile || "spec.md";
 
-  const [project, specContent, allSpecs] = await Promise.all([
-    fetchProjectById(projectId),
-    fetchSpecFile(projectId, specId, fileName),
-    listSpecs(projectId),
-  ]);
+  const project = await fetchProjectById(projectId);
 
   if (!project) {
     notFound();
   }
 
-  // Find the current spec directory to get related files
-  const currentSpec = allSpecs?.find((spec) => spec.name === specId);
+  const repo = project.repositories[0]?.repo;
+  if (!repo) {
+    notFound();
+  }
+
+  // Fetch spec file content and the spec directory files
+  const [fileResult, specDirResult] = await Promise.all([
+    readFile(repo.fullName, `specs/${specId}/${fileName}`),
+    listDirectory(repo.fullName, `specs/${specId}`),
+  ]);
+
+  const specContent = fileResult.success ? fileResult.file : null;
+  const specFiles = specDirResult.success ? specDirResult.entries : [];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -61,9 +68,9 @@ export default async function SpecPage({
           <h3 className="text-sm font-semibold text-on-surface-variant uppercase tracking-wide mb-4">
             Spec Files
           </h3>
-          {currentSpec ? (
+          {specFiles.length > 0 ? (
             <nav className="space-y-1">
-              {currentSpec.files
+              {specFiles
                 .filter((file) => file.name.endsWith(".md"))
                 .map((file) => {
                   const isActive = file.name === fileName;
@@ -86,32 +93,28 @@ export default async function SpecPage({
             <p className="text-sm text-on-surface-variant">No files found</p>
           )}
 
-          {/* All Specs List */}
-          {allSpecs && allSpecs.length > 0 && (
-            <>
-              <h3 className="text-sm font-semibold text-on-surface-variant uppercase tracking-wide mt-6 mb-4">
-                All Specs
-              </h3>
-              <nav className="space-y-1">
-                {allSpecs.map((spec) => {
-                  const isActive = spec.name === specId;
-                  return (
-                    <Link
-                      key={spec.path}
-                      href={`/projects/${projectId}/spec/${spec.name}`}
-                      className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
-                        isActive
-                          ? "bg-secondary/10 text-secondary font-medium"
-                          : "text-on-surface-variant hover:bg-surface-variant hover:text-on-surface"
-                      }`}
-                    >
-                      {spec.name}
-                    </Link>
-                  );
-                })}
-              </nav>
-            </>
-          )}
+          {/* Back to project link */}
+          <div className="mt-6 pt-4 border-t border-outline/30">
+            <Link
+              href={`/projects/${projectId}`}
+              className="flex items-center gap-2 text-sm text-on-surface-variant hover:text-on-surface transition-colors"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+              Back to project
+            </Link>
+          </div>
         </GlassCard>
       </div>
 

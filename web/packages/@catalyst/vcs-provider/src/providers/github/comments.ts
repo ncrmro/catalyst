@@ -8,8 +8,15 @@
  * models/preview-environments.ts which orchestrates calls to these functions.
  */
 
-import { getInstallationOctokit } from "./github";
-import type { PodStatus } from "@/types/preview-environments";
+import { getInstallationOctokit } from "./client";
+
+// Pod status type for deployment comments
+export type PodStatus =
+  | "pending"
+  | "deploying"
+  | "running"
+  | "failed"
+  | "deleting";
 
 // Marker to identify Catalyst deployment comments for upsert operations
 const DEPLOYMENT_COMMENT_MARKER = "<!-- catalyst-preview-deployment -->";
@@ -51,38 +58,31 @@ export function formatDeploymentComment(params: {
 
   let statusEmoji: string;
   let statusText: string;
-  let statusColor: string;
 
   switch (status) {
     case "pending":
       statusEmoji = "🟡";
       statusText = "Pending";
-      statusColor = "yellow";
       break;
     case "deploying":
       statusEmoji = "🔄";
       statusText = "Deploying";
-      statusColor = "blue";
       break;
     case "running":
       statusEmoji = "🟢";
       statusText = "Live";
-      statusColor = "green";
       break;
     case "failed":
       statusEmoji = "🔴";
       statusText = "Failed";
-      statusColor = "red";
       break;
     case "deleting":
       statusEmoji = "⏳";
       statusText = "Deleting";
-      statusColor = "orange";
       break;
     default:
       statusEmoji = "⚪";
       statusText = "Unknown";
-      statusColor = "gray";
   }
 
   let body = `${DEPLOYMENT_COMMENT_MARKER}

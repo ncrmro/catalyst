@@ -1,7 +1,13 @@
+/**
+ * GitHub Token Service
+ *
+ * Secure storage and retrieval of GitHub tokens with encryption.
+ */
+
 import { db } from "@/db";
 import { githubUserTokens } from "@/db/schema";
-import { encryptToken, decryptToken } from "./token-crypto";
 import { eq } from "drizzle-orm";
+import { encryptToken, decryptToken } from "../../token-crypto";
 
 export interface GitHubTokens {
   accessToken: string;
@@ -16,11 +22,14 @@ export interface GitHubTokens {
  * @param userId The user ID to store tokens for
  * @param tokens The tokens to store
  */
-export async function storeGitHubTokens(userId: string, tokens: GitHubTokens): Promise<void> {
+export async function storeGitHubTokens(
+  userId: string,
+  tokens: GitHubTokens,
+): Promise<void> {
   // Encrypt the tokens
   const encryptedAccess = encryptToken(tokens.accessToken);
   const encryptedRefresh = encryptToken(tokens.refreshToken);
-  
+
   // Update or insert tokens using upsert pattern
   await db
     .insert(githubUserTokens)
@@ -59,53 +68,61 @@ export async function storeGitHubTokens(userId: string, tokens: GitHubTokens): P
  * @param userId The user ID to retrieve tokens for
  * @returns Decrypted tokens or null if not found
  */
-export async function getGitHubTokens(userId: string): Promise<GitHubTokens | null> {
+export async function getGitHubTokens(
+  userId: string,
+): Promise<GitHubTokens | null> {
   const tokenRecord = await db
     .select()
     .from(githubUserTokens)
     .where(eq(githubUserTokens.userId, userId))
     .limit(1);
-    
+
   if (!tokenRecord.length) {
     return null;
   }
-  
+
   const record = tokenRecord[0];
-  
+
   // Check if we have encrypted tokens
-  if (!record.accessTokenEncrypted || !record.accessTokenIv || !record.accessTokenAuthTag ||
-      !record.refreshTokenEncrypted || !record.refreshTokenIv || !record.refreshTokenAuthTag) {
+  if (
+    !record.accessTokenEncrypted ||
+    !record.accessTokenIv ||
+    !record.accessTokenAuthTag ||
+    !record.refreshTokenEncrypted ||
+    !record.refreshTokenIv ||
+    !record.refreshTokenAuthTag
+  ) {
     return null;
   }
-  
+
   try {
     // Decrypt the tokens
     const accessToken = decryptToken(
       record.accessTokenEncrypted,
       record.accessTokenIv,
-      record.accessTokenAuthTag
+      record.accessTokenAuthTag,
     );
-    
+
     const refreshToken = decryptToken(
       record.refreshTokenEncrypted,
       record.refreshTokenIv,
-      record.refreshTokenAuthTag
+      record.refreshTokenAuthTag,
     );
-    
+
     // Check for empty tokens (indicates invalidated tokens)
     if (!accessToken || !refreshToken) {
       return null;
     }
-    
+
     return {
       accessToken,
       refreshToken,
       expiresAt: record.tokenExpiresAt!,
-      scope: record.tokenScope || '',
+      scope: record.tokenScope || "",
       installationId: record.installationId || undefined,
     };
   } catch (error) {
-    console.error('Failed to decrypt GitHub tokens:', error);
+    console.error("Failed to decrypt GitHub tokens:", error);
     return null;
   }
 }
@@ -115,7 +132,5 @@ export async function getGitHubTokens(userId: string): Promise<GitHubTokens | nu
  * @param userId The user ID to delete tokens for
  */
 export async function deleteGitHubTokens(userId: string): Promise<void> {
-  await db
-    .delete(githubUserTokens)
-    .where(eq(githubUserTokens.userId, userId));
+  await db.delete(githubUserTokens).where(eq(githubUserTokens.userId, userId));
 }

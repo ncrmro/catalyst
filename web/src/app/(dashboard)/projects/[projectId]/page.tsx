@@ -1,10 +1,16 @@
 import { fetchProjectById } from "@/actions/projects";
-import { listSpecs } from "@/actions/specs";
+import { listDirectory, VCSEntry } from "@/actions/version-control-provider";
 import { GlassCard } from "@tetrastack/react-glass-components";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import Link from "next/link";
 import { EnvironmentsSection } from "./environments-section";
+
+interface SpecDirectory {
+  name: string;
+  path: string;
+  files: VCSEntry[];
+}
 
 interface ProjectPageProps {
   params: Promise<{
@@ -27,13 +33,39 @@ export async function generateMetadata({
 export default async function ProjectPage({ params }: ProjectPageProps) {
   const { projectId } = await params;
 
-  const [project, specs] = await Promise.all([
-    fetchProjectById(projectId),
-    listSpecs(projectId),
-  ]);
+  const project = await fetchProjectById(projectId);
 
   if (!project) {
     notFound();
+  }
+
+  // Get specs from the repository's specs/ directory
+  let specs: SpecDirectory[] = [];
+  const repo = project.repositories[0]?.repo;
+
+  console.log("[ProjectPage] Project:", project.fullName);
+  console.log("[ProjectPage] Repo:", repo?.fullName ?? "NO REPO");
+
+  if (repo) {
+    const specsResult = await listDirectory(repo.fullName, "specs");
+    console.log("[ProjectPage] Specs result:", specsResult);
+
+    if (specsResult.success && specsResult.entries.length > 0) {
+      // Each subdirectory in specs/ is a spec
+      const specDirs = specsResult.entries.filter((e) => e.type === "dir");
+
+      // Fetch files for each spec directory
+      specs = await Promise.all(
+        specDirs.map(async (dir) => {
+          const filesResult = await listDirectory(repo.fullName, dir.path);
+          return {
+            name: dir.name,
+            path: dir.path,
+            files: filesResult.success ? filesResult.entries : [],
+          };
+        }),
+      );
+    }
   }
 
   return (
@@ -48,7 +80,27 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             {specs?.length ?? 0} specifications
           </span>
         </div>
-        {specs && specs.length > 0 ? (
+        {!repo ? (
+          <div className="text-center py-8">
+            <svg
+              className="w-12 h-12 mx-auto text-on-surface-variant/50 mb-3"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+              />
+            </svg>
+            <p className="text-on-surface-variant">No repository linked</p>
+            <p className="text-sm text-on-surface-variant/70 mt-1">
+              Link a repository to this project to view specs
+            </p>
+          </div>
+        ) : specs && specs.length > 0 ? (
           <div className="divide-y divide-outline/50 -mx-6">
             {specs.map((spec) => {
               // Check if spec.md exists in the spec directory

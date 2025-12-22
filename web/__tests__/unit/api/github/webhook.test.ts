@@ -10,8 +10,8 @@ vi.mock("@/actions/kubernetes", () => ({
   deleteKubernetesNamespace: vi.fn(),
 }));
 
-// Mock the GitHub library
-vi.mock("@/lib/github", () => ({
+// Mock the VCS providers library
+vi.mock("@/lib/vcs-providers", () => ({
   getInstallationOctokit: vi.fn(),
   GITHUB_CONFIG: {
     WEBHOOK_SECRET: "test-webhook-secret",
@@ -34,7 +34,7 @@ import {
   createKubernetesNamespace,
   deleteKubernetesNamespace,
 } from "@/actions/kubernetes";
-import { getInstallationOctokit } from "@/lib/github";
+import { getInstallationOctokit } from "@/lib/vcs-providers";
 import {
   createPullRequestPodJob,
   cleanupPullRequestPodJob,

@@ -1,8 +1,17 @@
-import { db, repos, projects, projectsRepos, users, teams, teamsMemberships, projectEnvironments } from '@/db';
-import type { InferSelectModel } from 'drizzle-orm';
-import { eq } from 'drizzle-orm';
-import { TestInfo } from '@playwright/test';
-import { getMockProjects, getMockReposData } from '@/mocks/github';
+import {
+  db,
+  repos,
+  projects,
+  projectsRepos,
+  users,
+  teams,
+  teamsMemberships,
+  projectEnvironments,
+} from "@/db";
+import type { InferSelectModel } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
+import { TestInfo } from "@playwright/test";
+import { getMockProjects, getMockReposData } from "@/mocks/github";
 
 /**
  * Get user details from a dev password used in authentication
@@ -16,30 +25,30 @@ export function getUserDetailsFromPassword(password: string) {
   }
 
   const [, baseType, suffix] = passwordMatch;
-  const isAdmin = baseType === 'admin';
+  const isAdmin = baseType === "admin";
 
   // For backward compatibility, use original emails for legacy passwords
   const isLegacy = suffix === undefined;
-  const userSuffix = isLegacy ? (isAdmin ? 'admin' : 'user') : suffix;
+  const userSuffix = isLegacy ? (isAdmin ? "admin" : "user") : suffix;
 
   return {
-    id: `dev-${isAdmin ? 'admin' : 'user'}-${userSuffix}`,
+    id: `dev-${isAdmin ? "admin" : "user"}-${userSuffix}`,
     email: isLegacy
       ? isAdmin
-        ? 'admin@example.com'
-        : 'bob@alice.com'
+        ? "admin@example.com"
+        : "bob@alice.com"
       : isAdmin
         ? `admin-${userSuffix}@example.com`
         : `user-${userSuffix}@example.com`,
     name: isLegacy
       ? isAdmin
-        ? 'Test Admin'
-        : 'Bob Alice'
+        ? "Test Admin"
+        : "Bob Alice"
       : isAdmin
         ? `Test Admin ${userSuffix}`
         : `Test User ${userSuffix}`,
     isAdmin,
-    image: 'https://avatars.githubusercontent.com/u/67470890?s=200&v=4'
+    image: "https://avatars.githubusercontent.com/u/67470890?s=200&v=4",
   };
 }
 
@@ -94,75 +103,104 @@ export async function createUserWithTeam(params: {
  * Used for development and demo purposes
  */
 export async function createCatalystAndMezeProjects(teamId: string) {
-  console.log('Creating catalyst and meze projects for team:', teamId);
-  
-  // Create catalyst repo and project
-  const [catalystRepo] = await db
+  console.log("Creating catalyst and meze projects for team:", teamId);
+
+  // Insert repos (skip if already exists)
+  await db
     .insert(repos)
     .values({
       githubId: 756437234,
-      name: 'catalyst',
-      fullName: 'ncrmro/catalyst',
-      description: 'Platform for managing deployments and infrastructure',
-      url: 'https://github.com/ncrmro/catalyst',
+      name: "catalyst",
+      fullName: "ncrmro/catalyst",
+      description: "Platform for managing deployments and infrastructure",
+      url: "https://github.com/ncrmro/catalyst",
       isPrivate: false,
-      language: 'TypeScript',
-      ownerLogin: 'ncrmro',
-      ownerType: 'User',
-      ownerAvatarUrl: 'https://avatars.githubusercontent.com/u/8276365?v=4',
+      language: "TypeScript",
+      ownerLogin: "ncrmro",
+      ownerType: "User",
+      ownerAvatarUrl: "https://avatars.githubusercontent.com/u/8276365?v=4",
       teamId,
     })
-    .onConflictDoNothing()
-    .returning();
+    .onConflictDoNothing();
 
-  const [mezeRepo] = await db
+  await db
     .insert(repos)
     .values({
       githubId: 756437235,
-      name: 'meze',
-      fullName: 'ncrmro/meze',
-      description: 'Modern recipe management and meal planning application',
-      url: 'https://github.com/ncrmro/meze',
+      name: "meze",
+      fullName: "ncrmro/meze",
+      description: "Modern recipe management and meal planning application",
+      url: "https://github.com/ncrmro/meze",
       isPrivate: false,
-      language: 'TypeScript',
-      ownerLogin: 'ncrmro',
-      ownerType: 'User',
-      ownerAvatarUrl: 'https://avatars.githubusercontent.com/u/8276365?v=4',
+      language: "TypeScript",
+      ownerLogin: "ncrmro",
+      ownerType: "User",
+      ownerAvatarUrl: "https://avatars.githubusercontent.com/u/8276365?v=4",
       teamId,
     })
-    .onConflictDoNothing()
-    .returning();
+    .onConflictDoNothing();
 
-  // Create projects
-  const [catalystProject] = await db
+  // Query to get the actual repos (repos are shared across teams due to unique github_id constraint)
+  const [catalystRepo] = await db
+    .select()
+    .from(repos)
+    .where(eq(repos.fullName, "ncrmro/catalyst"))
+    .limit(1);
+
+  const [mezeRepo] = await db
+    .select()
+    .from(repos)
+    .where(eq(repos.fullName, "ncrmro/meze"))
+    .limit(1);
+
+  // Insert projects (skip if already exists)
+  await db
     .insert(projects)
     .values({
-      name: 'Catalyst',
-      fullName: 'ncrmro/catalyst',
-      description: 'Platform for managing deployments and infrastructure',
-      ownerLogin: 'ncrmro',
-      ownerType: 'User',
-      ownerAvatarUrl: 'https://avatars.githubusercontent.com/u/8276365?v=4',
+      name: "Catalyst",
+      fullName: "ncrmro/catalyst",
+      description: "Platform for managing deployments and infrastructure",
+      ownerLogin: "ncrmro",
+      ownerType: "User",
+      ownerAvatarUrl: "https://avatars.githubusercontent.com/u/8276365?v=4",
       teamId,
     })
-    .onConflictDoNothing()
-    .returning();
+    .onConflictDoNothing();
+
+  await db
+    .insert(projects)
+    .values({
+      name: "Meze",
+      fullName: "ncrmro/meze",
+      description: "Modern recipe management and meal planning application",
+      ownerLogin: "ncrmro",
+      ownerType: "User",
+      ownerAvatarUrl: "https://avatars.githubusercontent.com/u/8276365?v=4",
+      teamId,
+    })
+    .onConflictDoNothing();
+
+  // Query to get the actual projects for this team
+  const [catalystProject] = await db
+    .select()
+    .from(projects)
+    .where(
+      and(
+        eq(projects.fullName, "ncrmro/catalyst"),
+        eq(projects.teamId, teamId),
+      ),
+    )
+    .limit(1);
 
   const [mezeProject] = await db
-    .insert(projects)
-    .values({
-      name: 'Meze',
-      fullName: 'ncrmro/meze',
-      description: 'Modern recipe management and meal planning application',
-      ownerLogin: 'ncrmro',
-      ownerType: 'User',
-      ownerAvatarUrl: 'https://avatars.githubusercontent.com/u/8276365?v=4',
-      teamId,
-    })
-    .onConflictDoNothing()
-    .returning();
+    .select()
+    .from(projects)
+    .where(
+      and(eq(projects.fullName, "ncrmro/meze"), eq(projects.teamId, teamId)),
+    )
+    .limit(1);
 
-  // Link repos to projects if they were created
+  // Link repos to projects (always attempt, skip if already linked)
   if (catalystRepo && catalystProject) {
     await db
       .insert(projectsRepos)
@@ -172,6 +210,7 @@ export async function createCatalystAndMezeProjects(teamId: string) {
         isPrimary: true,
       })
       .onConflictDoNothing();
+    console.log("Linked catalyst repo to project");
   }
 
   if (mezeRepo && mezeProject) {
@@ -183,6 +222,7 @@ export async function createCatalystAndMezeProjects(teamId: string) {
         isPrimary: true,
       })
       .onConflictDoNothing();
+    console.log("Linked meze repo to project");
   }
 
   return { catalystProject, mezeProject, catalystRepo, mezeRepo };
@@ -198,52 +238,52 @@ export async function createTeamRepos(teamId: string, uniqueSuffix: string) {
       githubId: Math.floor(Math.random() * 1000000) + 1001, // Random ID to avoid conflicts
       name: `foo-frontend-${uniqueSuffix}`,
       fullName: `jdoe/foo-frontend-${uniqueSuffix}`,
-      description: 'Frontend application for the foo project',
+      description: "Frontend application for the foo project",
       url: `https://github.com/jdoe/foo-frontend-${uniqueSuffix}`,
       isPrivate: false,
-      language: 'TypeScript',
+      language: "TypeScript",
       stargazersCount: 42,
       forksCount: 8,
       openIssuesCount: 3,
-      ownerLogin: 'jdoe',
-      ownerType: 'User',
-      ownerAvatarUrl: 'https://github.com/identicons/jdoe.png',
+      ownerLogin: "jdoe",
+      ownerType: "User",
+      ownerAvatarUrl: "https://github.com/identicons/jdoe.png",
       teamId,
-      pushedAt: new Date('2024-01-21T14:30:00Z'),
+      pushedAt: new Date("2024-01-21T14:30:00Z"),
     },
     {
       githubId: Math.floor(Math.random() * 1000000) + 1002,
       name: `foo-backend-${uniqueSuffix}`,
       fullName: `jdoe/foo-backend-${uniqueSuffix}`,
-      description: 'Backend API for the foo project',
+      description: "Backend API for the foo project",
       url: `https://github.com/jdoe/foo-backend-${uniqueSuffix}`,
       isPrivate: false,
-      language: 'Python',
+      language: "Python",
       stargazersCount: 35,
       forksCount: 5,
       openIssuesCount: 7,
-      ownerLogin: 'jdoe',
-      ownerType: 'User',
-      ownerAvatarUrl: 'https://github.com/identicons/jdoe.png',
+      ownerLogin: "jdoe",
+      ownerType: "User",
+      ownerAvatarUrl: "https://github.com/identicons/jdoe.png",
       teamId,
-      pushedAt: new Date('2024-01-21T12:15:00Z'),
+      pushedAt: new Date("2024-01-21T12:15:00Z"),
     },
     {
       githubId: Math.floor(Math.random() * 1000000) + 1003,
       name: `bar-api-${uniqueSuffix}`,
       fullName: `jdoe/bar-api-${uniqueSuffix}`,
-      description: 'API service for the bar project',
+      description: "API service for the bar project",
       url: `https://github.com/jdoe/bar-api-${uniqueSuffix}`,
       isPrivate: false,
-      language: 'Python',
+      language: "Python",
       stargazersCount: 28,
       forksCount: 3,
       openIssuesCount: 5,
-      ownerLogin: 'jdoe',
-      ownerType: 'User',
-      ownerAvatarUrl: 'https://github.com/identicons/jdoe.png',
+      ownerLogin: "jdoe",
+      ownerType: "User",
+      ownerAvatarUrl: "https://github.com/identicons/jdoe.png",
       teamId,
-      pushedAt: new Date('2024-01-21T10:45:00Z'),
+      pushedAt: new Date("2024-01-21T10:45:00Z"),
     },
   ];
 
@@ -254,32 +294,40 @@ export async function createTeamRepos(teamId: string, uniqueSuffix: string) {
  * Generate projects for a team with the given repos
  * Used by both E2E tests and development seeding
  */
-export async function createTeamProjects(teamId: string, uniqueSuffix: string, insertedRepos: InferSelectModel<typeof repos>[]) {
+export async function createTeamProjects(
+  teamId: string,
+  uniqueSuffix: string,
+  insertedRepos: InferSelectModel<typeof repos>[],
+) {
   // Insert sample projects for this team
   const projectData = [
     {
       name: `foo-${uniqueSuffix}`,
       fullName: `jdoe/foo-${uniqueSuffix}`,
-      description: 'A comprehensive web application with frontend and backend components',
-      ownerLogin: 'jdoe',
-      ownerType: 'User',
-      ownerAvatarUrl: 'https://github.com/identicons/jdoe.png',
+      description:
+        "A comprehensive web application with frontend and backend components",
+      ownerLogin: "jdoe",
+      ownerType: "User",
+      ownerAvatarUrl: "https://github.com/identicons/jdoe.png",
       teamId,
       previewEnvironmentsCount: 7,
     },
     {
       name: `bar-${uniqueSuffix}`,
       fullName: `jdoe/bar-${uniqueSuffix}`,
-      description: 'A microservices project with API-first architecture',
-      ownerLogin: 'jdoe',
-      ownerType: 'User',
-      ownerAvatarUrl: 'https://github.com/identicons/jdoe.png',
+      description: "A microservices project with API-first architecture",
+      ownerLogin: "jdoe",
+      ownerType: "User",
+      ownerAvatarUrl: "https://github.com/identicons/jdoe.png",
       teamId,
       previewEnvironmentsCount: 3,
     },
   ];
 
-  const insertedProjects = await db.insert(projects).values(projectData).returning();
+  const insertedProjects = await db
+    .insert(projects)
+    .values(projectData)
+    .returning();
 
   // Create project-repo relationships
   const projectRepoData = [
@@ -306,7 +354,7 @@ export async function createTeamProjects(teamId: string, uniqueSuffix: string, i
 
   return {
     projects: insertedProjects,
-    relationships: projectRepoData
+    relationships: projectRepoData,
   };
 }
 
@@ -315,7 +363,7 @@ export async function createTeamProjects(teamId: string, uniqueSuffix: string, i
  * 1. Create a user if it doesn't exist (with default admin or regular user settings)
  * 2. Find or create a team for the user
  * 3. Optionally seed projects and repositories for the user's team
- * 
+ *
  * Can be used by:
  * - E2E tests (by passing a password)
  * - Development seeding (by passing email/user info directly)
@@ -335,55 +383,60 @@ export async function seedUser(options: {
 }) {
   try {
     let userDetails;
-    
+
     // Determine user details either from password or direct params
     if (options.password) {
       userDetails = getUserDetailsFromPassword(options.password);
       if (!userDetails) {
-        console.warn('Invalid password format, cannot determine user details');
-        return { success: false, message: 'Invalid password format' };
+        console.warn("Invalid password format, cannot determine user details");
+        return { success: false, message: "Invalid password format" };
       }
     } else if (options.email) {
       userDetails = {
         email: options.email,
-        name: options.name || options.email.split('@')[0],
+        name: options.name || options.email.split("@")[0],
         isAdmin: options.admin || false,
-        image: options.image || 'https://avatars.githubusercontent.com/u/67470890?s=200&v=4'
+        image:
+          options.image ||
+          "https://avatars.githubusercontent.com/u/67470890?s=200&v=4",
       };
     } else {
-      return { success: false, message: 'Either password or email must be provided' };
+      return {
+        success: false,
+        message: "Either password or email must be provided",
+      };
     }
 
     // Check if user already exists
     let user;
     let team;
-    
+
     const [existingUser] = await db
       .select()
       .from(users)
       .where(eq(users.email, userDetails.email))
       .limit(1);
-      
+
     if (existingUser) {
       user = existingUser;
-      
+
       // Find user's team
       const [teamMembership] = await db
         .select({
-          teamId: teams.id
+          teamId: teams.id,
         })
         .from(teamsMemberships)
         .innerJoin(teams, eq(teamsMemberships.teamId, teams.id))
         .where(eq(teamsMemberships.userId, user.id))
         .limit(1);
-        
+
       if (teamMembership) {
         const [existingTeam] = await db
           .select()
           .from(teams)
           .where(eq(teams.id, teamMembership.teamId))
           .limit(1);
-          
+
         team = existingTeam;
       } else {
         // User exists but no team - create team
@@ -391,7 +444,7 @@ export async function seedUser(options: {
           email: userDetails.email,
           name: userDetails.name,
           image: userDetails.image,
-          admin: userDetails.isAdmin
+          admin: userDetails.isAdmin,
         });
         team = result.team;
       }
@@ -401,12 +454,12 @@ export async function seedUser(options: {
         email: userDetails.email,
         name: userDetails.name,
         image: userDetails.image,
-        admin: userDetails.isAdmin
+        admin: userDetails.isAdmin,
       });
       user = result.user;
       team = result.team;
     }
-    
+
     // If projects requested and user has a team, check/create projects
     if (options.createProjects && team) {
       // Check if projects already exist for this team
@@ -415,31 +468,37 @@ export async function seedUser(options: {
         .from(projects)
         .where(eq(projects.teamId, team.id))
         .limit(1);
-  
+
       if (existingProjects.length > 0) {
-        console.log('Projects already exist for user team, skipping project creation');
-        return { 
-          success: true, 
-          message: 'User exists with team and projects',
-          data: { userId: user.id, userEmail: user.email, teamId: team.id }
+        console.log(
+          "Projects already exist for user team, skipping project creation",
+        );
+        return {
+          success: true,
+          message: "User exists with team and projects",
+          data: { userId: user.id, userEmail: user.email, teamId: team.id },
         };
       }
-  
+
       // Generate unique suffix for this user's projects
-      let uniqueSuffix = '';
+      let uniqueSuffix = "";
       if (options.testInfo) {
         uniqueSuffix = `${options.testInfo.workerIndex}-${Date.now()}`;
       } else {
-        uniqueSuffix = `${user.email?.split('@')[0] || 'user'}-${Math.floor(Math.random() * 1000000)}`;
+        uniqueSuffix = `${user.email?.split("@")[0] || "user"}-${Math.floor(Math.random() * 1000000)}`;
       }
-  
+
       // Create repos and projects
       const insertedRepos = await createTeamRepos(team.id, uniqueSuffix);
-      const projectResult = await createTeamProjects(team.id, uniqueSuffix, insertedRepos);
-  
-      return { 
-        success: true, 
-        message: 'User created/found and projects seeded successfully',
+      const projectResult = await createTeamProjects(
+        team.id,
+        uniqueSuffix,
+        insertedRepos,
+      );
+
+      return {
+        success: true,
+        message: "User created/found and projects seeded successfully",
         data: {
           userId: user.id,
           userEmail: user.email,
@@ -447,22 +506,23 @@ export async function seedUser(options: {
           uniqueSuffix,
           repositoriesCount: insertedRepos.length,
           projectsCount: projectResult.projects.length,
-          relationshipsCount: projectResult.relationships.length
-        }
+          relationshipsCount: projectResult.relationships.length,
+        },
       };
     }
-    
+
     // User created/found but no projects requested or needed
-    return { 
-      success: true, 
-      message: 'User created/found successfully',
-      data: { userId: user.id, userEmail: user.email, teamId: team?.id }
+    return {
+      success: true,
+      message: "User created/found successfully",
+      data: { userId: user.id, userEmail: user.email, teamId: team?.id },
     };
   } catch (error) {
-    console.error('Error in seedUser:', error);
-    return { 
-      success: false, 
-      message: error instanceof Error ? error.message : 'Unknown error during seeding' 
+    console.error("Error in seedUser:", error);
+    return {
+      success: false,
+      message:
+        error instanceof Error ? error.message : "Unknown error during seeding",
     };
   }
 }
@@ -473,25 +533,28 @@ export async function seedUser(options: {
  */
 export async function seedMockDataFromYaml() {
   try {
-    console.log('📋 Loading YAML mock data...');
+    console.log("📋 Loading YAML mock data...");
     const mockProjects = getMockProjects();
     const mockReposData = getMockReposData();
-    
+
     if (mockProjects.length === 0) {
-      return { success: false, message: 'No mock projects found in YAML data' };
+      return { success: false, message: "No mock projects found in YAML data" };
     }
 
     // Get all teams to seed projects for each
     const allTeams = await db.select().from(teams);
     if (allTeams.length === 0) {
-      return { success: false, message: 'No teams found for seeding mock projects' };
+      return {
+        success: false,
+        message: "No teams found for seeding mock projects",
+      };
     }
 
     console.log(`📋 Seeding for ${allTeams.length} teams`);
 
     const allRepos = [
       ...mockReposData.user_repos,
-      ...Object.values(mockReposData.org_repos).flat()
+      ...Object.values(mockReposData.org_repos).flat(),
     ];
 
     let totalProjectsCreated = 0;
@@ -502,7 +565,7 @@ export async function seedMockDataFromYaml() {
       console.log(`📋 Seeding for team: ${team.name} (${team.id})`);
 
       // Seed repositories from YAML for this team
-      console.log('📋 Seeding repositories from YAML...');
+      console.log("📋 Seeding repositories from YAML...");
       for (const mockRepo of allRepos) {
         try {
           const [repo] = await db
@@ -522,24 +585,33 @@ export async function seedMockDataFromYaml() {
               stargazersCount: mockRepo.stargazers_count,
               forksCount: mockRepo.forks_count,
               openIssuesCount: mockRepo.open_issues_count,
-              createdAt: new Date(mockRepo.created_at || '2023-10-15T14:30:00Z'),
+              createdAt: new Date(
+                mockRepo.created_at || "2023-10-15T14:30:00Z",
+              ),
               updatedAt: new Date(mockRepo.updated_at),
-              pushedAt: mockRepo.pushed_at ? new Date(mockRepo.pushed_at) : null,
+              pushedAt: mockRepo.pushed_at
+                ? new Date(mockRepo.pushed_at)
+                : null,
             })
             .onConflictDoNothing()
             .returning();
-          
+
           if (repo) {
             totalReposCreated++;
-            console.log(`✅ Seeded repo: ${mockRepo.full_name} for team ${team.name}`);
+            console.log(
+              `✅ Seeded repo: ${mockRepo.full_name} for team ${team.name}`,
+            );
           }
         } catch (error) {
-          console.warn(`⚠️ Failed to seed repo ${mockRepo.full_name} for team ${team.name}:`, error);
+          console.warn(
+            `⚠️ Failed to seed repo ${mockRepo.full_name} for team ${team.name}:`,
+            error,
+          );
         }
       }
 
       // Seed projects from YAML for this team
-      console.log('📋 Seeding projects from YAML...');
+      console.log("📋 Seeding projects from YAML...");
       for (const mockProject of mockProjects) {
         try {
           const [project] = await db
@@ -550,31 +622,41 @@ export async function seedMockDataFromYaml() {
               fullName: mockProject.primary_repo,
               description: mockProject.description,
               ownerLogin: mockProject.team,
-              ownerType: 'User',
-              ownerAvatarUrl: 'https://avatars.githubusercontent.com/u/8276365?v=4',
+              ownerType: "User",
+              ownerAvatarUrl:
+                "https://avatars.githubusercontent.com/u/8276365?v=4",
               teamId: team.id,
               previewEnvironmentsCount: mockProject.environments.length,
-              createdAt: new Date('2023-10-15T14:30:00Z'),
-              updatedAt: new Date('2024-01-22T16:45:00Z'),
+              createdAt: new Date("2023-10-15T14:30:00Z"),
+              updatedAt: new Date("2024-01-22T16:45:00Z"),
             })
             .onConflictDoNothing()
             .returning();
 
           if (project) {
             totalProjectsCreated++;
-            console.log(`✅ Seeded project: ${mockProject.name} for team ${team.name}`);
+            console.log(
+              `✅ Seeded project: ${mockProject.name} for team ${team.name}`,
+            );
 
             // Link primary repo to project first so we can use it for environments
-            const primaryRepo = allRepos.find(r => r.full_name === mockProject.primary_repo);
+            const primaryRepo = allRepos.find(
+              (r) => r.full_name === mockProject.primary_repo,
+            );
             let repoRecord = null;
-            
+
             if (primaryRepo) {
               try {
                 // Find the repo for this specific team
                 [repoRecord] = await db
                   .select()
                   .from(repos)
-                  .where(eq(repos.githubId, primaryRepo.id + allTeams.indexOf(team) * 1000000))
+                  .where(
+                    eq(
+                      repos.githubId,
+                      primaryRepo.id + allTeams.indexOf(team) * 1000000,
+                    ),
+                  )
                   .limit(1);
 
                 if (repoRecord) {
@@ -586,11 +668,16 @@ export async function seedMockDataFromYaml() {
                       isPrimary: true,
                     })
                     .onConflictDoNothing();
-                  
-                  console.log(`  ✅ Linked primary repo: ${primaryRepo.full_name} for team ${team.name}`);
+
+                  console.log(
+                    `  ✅ Linked primary repo: ${primaryRepo.full_name} for team ${team.name}`,
+                  );
                 }
               } catch (error) {
-                console.warn(`  ⚠️ Failed to link primary repo ${primaryRepo.full_name} for team ${team.name}:`, error);
+                console.warn(
+                  `  ⚠️ Failed to link primary repo ${primaryRepo.full_name} for team ${team.name}:`,
+                  error,
+                );
               }
             }
 
@@ -604,24 +691,36 @@ export async function seedMockDataFromYaml() {
                       projectId: project.id,
                       repoId: repoRecord.id,
                       environment: env.name,
-                      createdAt: new Date('2023-10-15T14:30:00Z'),
-                      updatedAt: new Date('2024-01-22T16:45:00Z'),
+                      createdAt: new Date("2023-10-15T14:30:00Z"),
+                      updatedAt: new Date("2024-01-22T16:45:00Z"),
                     })
                     .onConflictDoNothing();
-                  
-                  console.log(`  ✅ Seeded environment: ${env.name} for team ${team.name}`);
+
+                  console.log(
+                    `  ✅ Seeded environment: ${env.name} for team ${team.name}`,
+                  );
                 } catch (error) {
-                  console.warn(`  ⚠️ Failed to seed environment ${env.name} for team ${team.name}:`, error);
+                  console.warn(
+                    `  ⚠️ Failed to seed environment ${env.name} for team ${team.name}:`,
+                    error,
+                  );
                 }
               }
             } else {
-              console.warn(`  ⚠️ Cannot create environments for ${mockProject.name} in team ${team.name}: no primary repo found`);
+              console.warn(
+                `  ⚠️ Cannot create environments for ${mockProject.name} in team ${team.name}: no primary repo found`,
+              );
             }
           } else {
-            console.warn(`⚠️ Project ${mockProject.name} for team ${team.name} was not created (likely already exists)`);
+            console.warn(
+              `⚠️ Project ${mockProject.name} for team ${team.name} was not created (likely already exists)`,
+            );
           }
         } catch (error) {
-          console.error(`❌ Failed to seed project ${mockProject.name} for team ${team.name}:`, error);
+          console.error(
+            `❌ Failed to seed project ${mockProject.name} for team ${team.name}:`,
+            error,
+          );
         }
       }
     }
@@ -633,13 +732,16 @@ export async function seedMockDataFromYaml() {
         projectsCount: totalProjectsCreated,
         repositoriesCount: totalReposCreated,
         teamsCount: allTeams.length,
-      }
+      },
     };
   } catch (error) {
-    console.error('❌ Error seeding mock data from YAML:', error);
+    console.error("❌ Error seeding mock data from YAML:", error);
     return {
       success: false,
-      message: error instanceof Error ? error.message : 'Unknown error seeding mock data'
+      message:
+        error instanceof Error
+          ? error.message
+          : "Unknown error seeding mock data",
     };
   }
 }
@@ -650,55 +752,60 @@ export async function seedMockDataFromYaml() {
  */
 export async function seedDefaultUsers() {
   const results = [];
-  
+
   // Check if we're in mocked mode
-  const isMockedMode = process.env.GITHUB_REPOS_MODE === 'mocked' || process.env.MOCKED === '1';
-  
+  const isMockedMode =
+    process.env.GITHUB_REPOS_MODE === "mocked" || process.env.MOCKED === "1";
+
   // Create regular user
-  results.push(await seedUser({
-    email: 'bob@alice.com',
-    name: 'Bob Alice',
-    admin: false,
-    createProjects: false // We'll handle projects separately for mocked mode
-  }));
-  
+  results.push(
+    await seedUser({
+      email: "bob@alice.com",
+      name: "Bob Alice",
+      admin: false,
+      createProjects: false, // We'll handle projects separately for mocked mode
+    }),
+  );
+
   // Create admin user
-  results.push(await seedUser({
-    email: 'admin@example.com',
-    name: 'Test Admin',
-    admin: true,
-    createProjects: false // We'll handle projects separately for mocked mode
-  }));
+  results.push(
+    await seedUser({
+      email: "admin@example.com",
+      name: "Test Admin",
+      admin: true,
+      createProjects: false, // We'll handle projects separately for mocked mode
+    }),
+  );
 
   // If we're in mocked mode, seed the YAML mock data into the database
   if (isMockedMode) {
-    console.log('📋 Seeding YAML mock data into database...');
+    console.log("📋 Seeding YAML mock data into database...");
     const mockSeedResult = await seedMockDataFromYaml();
     return {
-      success: results.every(r => r.success) && mockSeedResult.success,
-      message: mockSeedResult.success 
-        ? 'Default users and mock projects seeded from YAML'
-        : 'Users seeded but mock data failed',
-      results: [...results, mockSeedResult]
+      success: results.every((r) => r.success) && mockSeedResult.success,
+      message: mockSeedResult.success
+        ? "Default users and mock projects seeded from YAML"
+        : "Users seeded but mock data failed",
+      results: [...results, mockSeedResult],
     };
   } else {
-    // Regular mode - create projects normally
-    console.log('🌱 Creating standard projects...');
-    // Get the first user's team for seeding projects
-    const firstUserResult = results[0];
-    if (firstUserResult.success && firstUserResult.data?.teamId) {
-      const standardProjects = await createCatalystAndMezeProjects(firstUserResult.data.teamId);
-      return {
-        success: results.every(r => r.success),
-        message: 'Default users and standard projects seeded',
-        results
-      };
+    // Regular mode - create projects for all users
+    console.log("🌱 Creating standard projects...");
+    for (const result of results) {
+      if (result.success && result.data?.teamId) {
+        await createCatalystAndMezeProjects(result.data.teamId);
+      }
     }
+    return {
+      success: results.every((r) => r.success),
+      message: "Default users and standard projects seeded",
+      results,
+    };
   }
-  
+
   return {
-    success: results.every(r => r.success),
-    message: 'Default users seeded',
-    results
+    success: results.every((r) => r.success),
+    message: "Default users seeded",
+    results,
   };
 }

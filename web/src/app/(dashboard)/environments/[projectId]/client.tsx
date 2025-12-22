@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ProjectWithRelations } from '@/models/projects';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { configureProjectEnvironments } from '@/actions/environments';
 
 interface EnvironmentsPageClientProps {
@@ -11,6 +12,7 @@ interface EnvironmentsPageClientProps {
 
 // Client component to handle form submission and feedback
 export function EnvironmentsForm({ project }: EnvironmentsPageClientProps) {
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -20,8 +22,17 @@ export function EnvironmentsForm({ project }: EnvironmentsPageClientProps) {
     
     try {
       // Submit directly through the server action
-      // This will redirect on success
-      await configureProjectEnvironments(formData);
+      // We handle redirection here in the client
+      const result = await configureProjectEnvironments(formData);
+      
+      if (result.success) {
+        // Redirect back to project page on success
+        router.push(`/projects/${project.id}`);
+        router.refresh(); // Ensure the project page shows the new environment
+      } else {
+        setError(result.message);
+        setIsSubmitting(false);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to configure environment');
       setIsSubmitting(false);
@@ -61,30 +72,30 @@ export function EnvironmentsForm({ project }: EnvironmentsPageClientProps) {
           <input type="hidden" name="projectId" value={project.id} />
           
           <div className="space-y-4 mb-8">
-            {/* Preview Environment */}
+            {/* Development Environment */}
             <label className="flex items-start gap-4 p-6 border-2 border-primary rounded-lg cursor-pointer bg-primary-container/20 hover:bg-primary-container/30 transition-colors">
               <input
                 type="radio"
                 name="environmentType"
-                value="preview"
+                value="development"
                 defaultChecked
                 className="mt-2 w-4 h-4 text-primary focus:ring-primary"
               />
               <div className="flex-1">
-                <div className="font-semibold text-on-surface text-lg mb-2">Preview Environment</div>
+                <div className="font-semibold text-on-surface text-lg mb-2">Development Environment</div>
                 <div className="text-on-surface-variant text-sm mb-3">
-                  Perfect for getting started! When you create a pull request, we&apos;ll automatically create a preview 
-                  environment for testing your changes. The preview environment is cleaned up after the PR is merged or closed.
+                  Creates a unique, randomly named environment for development and testing. 
+                  Ideal for experimenting with changes in isolation without affecting others.
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   <span className="bg-success-container text-on-success-container px-2 py-1 rounded-full">
-                    ✓ Recommended First Step
+                    ✓ Recommended
                   </span>
                   <span className="bg-primary-container text-on-primary-container px-2 py-1 rounded-full">
-                    🔄 Auto PR Creation
+                    🎲 Random Name
                   </span>
                   <span className="bg-secondary-container text-on-secondary-container px-2 py-1 rounded-full">
-                    🚀 Auto Deploy on Merge
+                    🚀 Instant Setup
                   </span>
                 </div>
               </div>
@@ -175,9 +186,9 @@ export function EnvironmentsForm({ project }: EnvironmentsPageClientProps) {
       <div className="mt-8 bg-secondary-container/10 border border-secondary rounded-lg p-6">
         <h3 className="font-semibold text-on-surface mb-3">💡 Getting Started Tip</h3>
         <p className="text-on-surface-variant text-sm">
-          We strongly recommend starting with the <strong>Preview Environment</strong>. This will help you 
+          We strongly recommend starting with a <strong>Development Environment</strong>. This will help you 
           understand the deployment process and ensure your application works correctly before setting up 
-          production environments. You can always add more environments later from your project settings.
+          production environments. You can always add more environments later.
         </p>
       </div>
     </div>

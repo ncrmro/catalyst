@@ -7,8 +7,9 @@ import {
 } from "@/models/environments";
 import { getProjects, incrementPreviewCount } from "@/models/projects";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { getUserTeamIds } from "@/lib/team-auth";
+import { createProjectCR, createEnvironmentCR } from "@/lib/k8s-operator";
+import { generateNameUnchecked } from "@/lib/name-generator";
 
 /**
  * Server actions for creating and managing project environments
@@ -90,42 +91,47 @@ export async function createProjectEnvironment(
       };
     }
 
-    // Check if this environment already exists for this project and repo
-    const exists = await environmentExists(
-      projectId,
-      primaryRepo.repo.id,
-      environmentType,
-    );
+    const sanitizedProjectName = project.name
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "-");
 
-    if (exists) {
-      // Get the existing environment to return its ID
-      const existingEnvs = await getEnvironments({
-        projectIds: [projectId],
-        repoIds: [primaryRepo.repo.id],
-        environments: [environmentType],
+    // Ensure the Project CR exists (idempotent)
+    // We do this to ensure the operator knows about the project
+    try {
+      await createProjectCR("default", sanitizedProjectName, {
+        source: {
+          repositoryUrl: primaryRepo.repo.url,
+          branch: "main",
+        },
+        deployment: {
+          type: "manifest",
+          path: "./",
+        },
       });
-
-      return {
-        success: false,
-        message: `Environment "${environmentType}" already exists for this project`,
-        environmentId: existingEnvs[0]?.id,
-        environmentType,
-        projectId,
-      };
+    } catch (e) {
+      console.error("Failed to ensure K8s Project CR:", e);
+      // Continue, as it might already exist or be managed elsewhere
     }
 
-    // Create the new environment
-    const [newEnvironment] = await createEnvironments({
-      projectId,
-      repoId: primaryRepo.repo.id,
-      environment: environmentType,
-      // We'll set latestDeployment once we actually deploy something
+    // Generate a random name for the environment
+    const randomName = generateNameUnchecked();
+    const environmentName = `dev-${randomName.name}`;
+
+    // Create the Environment CR directly
+    // We bypass the database check and creation as requested
+    await createEnvironmentCR("default", environmentName, {
+      projectRef: {
+        name: sanitizedProjectName,
+      },
+      type: environmentType,
+      source: {
+        commitSha: "HEAD", // TODO: Get actual commit SHA
+        branch: "main", // TODO: Get actual branch
+      },
+      config: {
+        envVars: [],
+      },
     });
-
-    // If this is a preview environment, increment the preview environments count
-    if (environmentType === "preview") {
-      await incrementPreviewCount(projectId);
-    }
 
     // Revalidate the projects and environments pages
     revalidatePath(`/projects/${projectId}`);
@@ -134,8 +140,8 @@ export async function createProjectEnvironment(
     // Return success
     return {
       success: true,
-      message: `Successfully created ${environmentType} environment`,
-      environmentId: newEnvironment.id,
+      message: `Successfully created ${environmentType} environment: ${environmentName}`,
+      environmentId: environmentName, // Using name as ID since we don't have DB ID
       environmentType,
       projectId,
     };
@@ -155,7 +161,9 @@ export async function createProjectEnvironment(
  * Handle form submission and redirect back to the project page
  * This is the handler used by the form action in the UI
  */
-export async function configureProjectEnvironments(formData: FormData) {
+export async function configureProjectEnvironments(
+  formData: FormData,
+): Promise<EnvironmentResult> {
   try {
     const projectId = formData.get("projectId") as string;
     const environmentType = formData.get("environmentType") as string;
@@ -165,25 +173,15 @@ export async function configureProjectEnvironments(formData: FormData) {
     }
 
     // Create the environment
-    const result = await createProjectEnvironment(formData);
-
-    if (!result.success) {
-      console.error("Error configuring environment:", result.message);
-      // For now, we'll still redirect back to the project page even on error
-    }
-
-    // Redirect back to the project page
-    redirect(`/projects/${projectId}`);
+    return await createProjectEnvironment(formData);
   } catch (error) {
     console.error("Error in configureProjectEnvironments:", error);
-
-    // Try to extract the projectId for redirection
-    const projectId = formData.get("projectId") as string;
-    if (projectId) {
-      redirect(`/projects/${projectId}`);
-    } else {
-      // Fallback to projects list if we can't get the project ID
-      redirect("/projects");
-    }
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Unknown error configuring environment",
+    };
   }
 }
