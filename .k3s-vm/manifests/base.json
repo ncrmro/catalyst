@@ -247,10 +247,6 @@
                 {
                   "name": "DATABASE_URL",
                   "value": "postgres://postgres:postgres@postgres.default.svc.cluster.local:5432/catalyst"
-                },
-                {
-                  "name": "WATCHPACK_POLLING",
-                  "value": "true"
                 }
               ],
               "livenessProbe": {

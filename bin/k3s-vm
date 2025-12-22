@@ -248,7 +248,7 @@ def wait_for_ssh(timeout: int = 120) -> bool:
         try:
             result = run(
                 ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-o", "ConnectTimeout=5",
-                 "-o", "BatchMode=yes", "-p", "2222", "root@localhost", "true"],
+                 "-o", "BatchMode=yes", "-p", "2666", "root@localhost", "true"],
                 capture=True, check=False
             )
             if result.returncode == 0:
@@ -267,7 +267,7 @@ def wait_for_k3s(timeout: int = 300) -> bool:
     while time.time() - start < timeout:
         try:
             result = run(
-                ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-p", "2222",
+                ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-p", "2666",
                  "root@localhost", "kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml get nodes"],
                 capture=True, check=False
             )
@@ -288,7 +288,7 @@ def extract_kubeconfig() -> bool:
     """Extract kubeconfig from VM and update .env for integration tests."""
     try:
         result = run(
-            ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-p", "2222",
+            ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-p", "2666",
              "root@localhost", "cat /etc/rancher/k3s/k3s.yaml"],
             capture=True
         )
@@ -472,7 +472,7 @@ def _build_vm(memory: int, cores: int) -> None:
     # Configure forward ports
     forward_ports = [
         '{ from = "host"; host.port = 6443; guest.port = 6443; }',
-        '{ from = "host"; host.port = 2222; guest.port = 22; }'
+        '{ from = "host"; host.port = 2666; guest.port = 22; }'
     ]
     
     web_port = get_web_port()
@@ -593,7 +593,7 @@ def _ensure_vm_is_running(memory: int, cores: int) -> None:
     print("=" * 50)
     print("K3s VM ready!")
     print()
-    print(f"  SSH:        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2222 root@localhost")
+    print(f"  SSH:        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2666 root@localhost")
     print(f"  K3s API:    https://127.0.0.1:6443")
     print(f"  Kubeconfig: {KUBECONFIG_FILE}")
     print()
@@ -641,14 +641,14 @@ def cmd_status(args: argparse.Namespace) -> None:
     if is_vm_running():
         pid = get_vm_pid()
         print(f"  State: running (PID: {pid})")
-        print(f"  SSH:   ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2222 root@localhost")
+        print(f"  SSH:   ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2666 root@localhost")
         print(f"  API:   https://127.0.0.1:6443")
 
         # Check K3s status
         try:
             result = run(
                 ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-o", "ConnectTimeout=5",
-                 "-p", "2222", "root@localhost", "kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml get nodes --no-headers"],
+                 "-p", "2666", "root@localhost", "kubectl --kubeconfig /etc/rancher/k3s/k3s.yaml get nodes --no-headers"],
                 capture=True, check=False
             )
             if result.returncode == 0:
@@ -670,8 +670,9 @@ def cmd_status(args: argparse.Namespace) -> None:
 
 
 def find_vm_processes() -> list[int]:
-    """Find all qemu processes running k3s-vm."""
+    """Find all qemu processes running k3s-vm or holding required ports."""
     pids = []
+    # Find by process name pattern
     try:
         result = subprocess.run(
             ["pgrep", "-f", "qemu.*-name k3s-vm"],
@@ -682,6 +683,22 @@ def find_vm_processes() -> list[int]:
                 pids.append(int(line))
     except (subprocess.CalledProcessError, ValueError):
         pass
+
+    # Also find processes holding our required ports (catches orphaned VMs)
+    for port in [6443, 2666]:
+        try:
+            result = subprocess.run(
+                ["lsof", "-t", "-i", f":{port}"],
+                capture_output=True, text=True
+            )
+            for pid in result.stdout.strip().split("\n"):
+                if pid:
+                    pid_int = int(pid)
+                    if pid_int not in pids:
+                        pids.append(pid_int)
+        except (subprocess.CalledProcessError, ValueError):
+            pass
+
     return pids
 
 
@@ -732,7 +749,7 @@ def cmd_ssh(args: argparse.Namespace) -> None:
     if not is_vm_running():
         error("VM is not running. Start it with 'bin/k3s-vm'")
 
-    os.execlp("ssh", "ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-p", "2222", "root@localhost")
+    os.execlp("ssh", "ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-p", "2666", "root@localhost")
 
 def apply_manifests() -> bool:
     """Apply Kubernetes manifests using kubectl."""

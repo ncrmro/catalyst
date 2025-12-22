@@ -36,7 +36,7 @@
               volumes = [{
                 mountPoint = "/var";
                 image = "./k3s-var.img";
-                size = 20480;
+                size = 40960;
               }];
               forwardPorts = [
                 {
