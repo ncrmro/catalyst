@@ -1,6 +1,6 @@
 import { getClusterConfig, getCustomObjectsApi } from "./k8s-client";
 
-const GROUP = "catalyst.dev";
+const GROUP = "catalyst.catalyst.dev";
 const VERSION = "v1alpha1";
 const PLURAL = "environments";
 
@@ -31,6 +31,69 @@ export interface EnvironmentCR {
     url?: string;
     conditions?: Array<{ type: string; status: string }>;
   };
+}
+
+export interface ProjectCRSpec {
+  source: {
+    repositoryUrl: string;
+    branch: string;
+  };
+  deployment: {
+    type: string;
+    path: string;
+    values?: Record<string, unknown>;
+  };
+  resources?: {
+    defaultQuota?: {
+      cpu?: string;
+      memory?: string;
+    };
+  };
+}
+
+export async function createProjectCR(
+  namespace: string,
+  name: string,
+  spec: ProjectCRSpec,
+) {
+  const CustomObjectsApi = await getCustomObjectsApi();
+  const config = await getClusterConfig();
+  if (!config) throw new Error("No cluster config");
+
+  const client = config.makeApiClient(CustomObjectsApi);
+
+  const body = {
+    apiVersion: `${GROUP}/${VERSION}`,
+    kind: "Project",
+    metadata: {
+      name,
+      namespace,
+    },
+    spec,
+  };
+
+  try {
+    await client.createNamespacedCustomObject({
+      group: GROUP,
+      version: VERSION,
+      namespace,
+      plural: "projects",
+      body,
+    });
+    return { success: true };
+  } catch (error: unknown) {
+    const err = error as {
+      response?: { statusCode?: number };
+      message?: string;
+    };
+    if (err.response?.statusCode === 409) {
+      // Already exists, try update (PATCH)?
+      // For now return success
+      return { success: true, isExisting: true };
+    }
+    console.error("Failed to create Project CR:", error);
+    return { success: false, error: err.message || "Unknown error" };
+  }
 }
 
 export async function createEnvironmentCR(
@@ -74,15 +137,19 @@ export async function createEnvironmentCR(
       body,
     });
     return { success: true };
-  } catch (error: any) {
-    if (error.response?.statusCode === 409) {
+  } catch (error: unknown) {
+    const err = error as {
+      response?: { statusCode?: number };
+      message?: string;
+    };
+    if (err.response?.statusCode === 409) {
       // Already exists, try update (PATCH)
       // For idempotency, we might want to patch spec
       // TODO: Implement patch if needed, or return success if it exists
       return { success: true, isExisting: true };
     }
     console.error("Failed to create Environment CR:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: err.message || "Unknown error" };
   }
 }
 
@@ -104,14 +171,46 @@ export async function getEnvironmentCR(
       plural: PLURAL,
       name,
     });
-    return res.body as EnvironmentCR;
-  } catch (error: any) {
-    if (error.response?.statusCode === 404) return null;
+    // Response is returned directly, not wrapped in { body: ... }
+    return res as EnvironmentCR;
+  } catch (error: unknown) {
+    const err = error as { response?: { statusCode?: number } };
+    if (err.response?.statusCode === 404) return null;
     throw error;
   }
 }
 
-export async function deleteEnvironmentCR(namespace: string, name: string) {
+export async function listEnvironmentCRs(
+  namespace: string,
+  labelSelector?: string,
+): Promise<EnvironmentCR[]> {
+  const CustomObjectsApi = await getCustomObjectsApi();
+  const config = await getClusterConfig();
+  if (!config) throw new Error("No cluster config");
+
+  const client = config.makeApiClient(CustomObjectsApi);
+
+  try {
+    const res = await client.listNamespacedCustomObject({
+      group: GROUP,
+      version: VERSION,
+      namespace,
+      plural: PLURAL,
+      labelSelector,
+    });
+    // Response is returned directly, not wrapped in { body: ... }
+    const list = res as { items?: EnvironmentCR[] };
+    return list.items || [];
+  } catch (error: unknown) {
+    console.error("Failed to list Environment CRs:", error);
+    return [];
+  }
+}
+
+export async function deleteEnvironmentCR(
+  namespace: string,
+  name: string,
+): Promise<{ success: boolean; error?: string }> {
   const CustomObjectsApi = await getCustomObjectsApi();
   const config = await getClusterConfig();
   if (!config) throw new Error("No cluster config");
@@ -127,8 +226,16 @@ export async function deleteEnvironmentCR(namespace: string, name: string) {
       name,
     });
     return { success: true };
-  } catch (error: any) {
-    if (error.response?.statusCode === 404) return { success: true }; // Already gone
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    const err = error as {
+      response?: { statusCode?: number };
+      message?: string;
+    };
+    if (err.response?.statusCode === 404) {
+      // Already deleted, consider success
+      return { success: true };
+    }
+    console.error("Failed to delete Environment CR:", error);
+    return { success: false, error: err.message || "Unknown error" };
   }
 }
