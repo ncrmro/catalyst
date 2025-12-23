@@ -22,32 +22,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
         with:
-          go-version-file: 'operator/go.mod'
-
-      - name: Install dependencies
-        run: |
-          go mod download
-          # Install kubebuilder tools (setup-envtest)
-          go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
-          # Install controller-gen
-          go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
+          nix_path: nixpkgs=channel:nixos-unstable
 
       - name: Verify Generate
         run: |
-          make manifests generate
+          nix develop --command bash -c "
+            make manifests generate
+          "
           git diff --exit-code
 
       - name: Run Tests
         run: |
-          # Use setup-envtest to configure KUBEBUILDER_ASSETS
-          source <(setup-envtest use -p env --bin-dir $(pwd)/bin)
-          make test
+          nix develop --command bash -c "
+            # Use setup-envtest to configure KUBEBUILDER_ASSETS
+            # The Makefile setup-envtest target downloads it to bin/
+            make setup-envtest
+            source <(./bin/setup-envtest use -p env --bin-dir ./bin)
+            make test
+          "
 
       - name: Build Manager Binary
-        run: make build
+        run: |
+          nix develop --command bash -c "
+            make build
+          "
 
   docker:
     name: Build & Push Docker Image
