@@ -588,10 +588,136 @@ Each approach has distinct trade-offs. The choice depends on:
 - Feature requirements (interactive vs output-only)
 - Security model preferences
 
+## Implementation Gotchas
+
+### Using react-xtermjs with Next.js
+
+The recommended approach for integrating xterm.js with React is using [react-xtermjs](https://github.com/Qovery/react-xtermjs), which provides a React-first wrapper with proper lifecycle management.
+
+#### SSR Error: "document is not defined"
+
+**Problem**: react-xtermjs accesses `document` at the module level during import, breaking Next.js SSR.
+
+**Solution**: Use dynamic imports with `ssr: false`:
+
+```typescript
+// terminal.tsx (public API)
+"use client";
+
+import dynamic from "next/dynamic";
+
+export type { TerminalProps } from "./terminal-client";
+
+export const Terminal = dynamic(
+  () => import("./terminal-client").then((mod) => mod.Terminal),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-[400px] bg-[#1e1e1e] flex items-center justify-center">
+        <span className="text-gray-400">Loading terminal...</span>
+      </div>
+    ),
+  }
+);
+```
+
+```typescript
+// terminal-client.tsx (implementation - not imported directly)
+"use client";
+
+import { useXTerm } from "react-xtermjs";
+// ... implementation
+```
+
+#### Infinite Re-render: "Maximum update depth exceeded"
+
+**Problem**: `useXTerm` hook reinitializes terminal when `options` or `listeners` objects change reference.
+
+**Symptom**: Browser console shows "Maximum update depth exceeded" error.
+
+**Root Cause**:
+
+```typescript
+// BAD: Objects recreated every render
+const { ref, instance } = useXTerm({
+  options: {
+    // New object reference each render!
+    cursorBlink: true,
+    rows: 24,
+  },
+  listeners: {
+    // New object reference each render!
+    onData: (data) => handleInput(data),
+  },
+});
+```
+
+**Solution**: Memoize options and listeners, use refs for mutable values:
+
+```typescript
+// GOOD: Stable references with useMemo and refs
+const instanceRef = useRef(null);
+const onExecRef = useRef(onExec);
+
+// Update refs when props change
+useEffect(() => {
+  onExecRef.current = onExec;
+}, [onExec]);
+
+// Memoize options - empty deps means created once
+const options = useMemo(
+  () => ({
+    cursorBlink: true,
+    rows: 24,
+    cols: 80,
+  }),
+  [],
+);
+
+// Memoize listeners - use refs inside to avoid stale closures
+const listeners = useMemo(
+  () => ({
+    onData: (data: string) => {
+      const inst = instanceRef.current;
+      if (!inst) return;
+      // Use refs for all mutable values
+      onExecRef.current(data);
+    },
+  }),
+  [], // Empty deps - all mutable state accessed via refs
+);
+
+const { ref, instance } = useXTerm({ options, listeners });
+
+// Keep instance ref in sync
+useEffect(() => {
+  instanceRef.current = instance;
+}, [instance]);
+```
+
+**Key Pattern**: Use refs (`useRef`) for all values that:
+
+1. Change during component lifecycle (props, state)
+2. Are accessed inside memoized callbacks
+
+This allows `useMemo` to have empty dependency arrays while still accessing current values.
+
+### Legacy: Manual xterm.js Integration
+
+If using xterm.js directly (not recommended), be careful with event handler registration and closures:
+
+**Problem**: Event handlers registered inside async initialization can capture stale closures if defined outside the effect.
+
+**Symptom**: Terminal renders but doesn't accept input; no console errors.
+
+**Solution**: Define event handlers inside the effect where they're registered, or use the ref pattern described above.
+
 ## References
 
+- [react-xtermjs](https://github.com/Qovery/react-xtermjs) - React wrapper for xterm.js (recommended)
 - [Kubernetes Exec Documentation](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.28/#exec)
 - [xterm.js Documentation](https://xtermjs.org/docs/)
 - [Next.js Custom Server](https://nextjs.org/docs/pages/building-your-application/configuring/custom-server)
+- [Next.js Dynamic Imports](https://nextjs.org/docs/app/building-your-application/optimizing/lazy-loading)
 - [WebSocket API](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket)
 - [RFC 6455 - The WebSocket Protocol](https://tools.ietf.org/html/rfc6455)
