@@ -501,6 +501,17 @@ This delivers the core value proposition: automatic preview deployments with pub
 
 ---
 
+## Phase 11: FR-ENV-001 - Graceful Handling of Missing Kubernetes Resources
+
+**Purpose**: Handle cases where Kubernetes resources are missing from cluster
+
+- [x] T134 [FR-ENV-001] Create `KubeResourceNotFound` component in web/src/components/kube/resource-not-found.tsx with resource type, name, and retry button
+- [x] T135 [FR-ENV-001] Update environment page web/src/app/(dashboard)/projects/[slug]/env/[envSlug]/page.tsx to use `KubeResourceNotFound` component
+
+**Checkpoint**: Environment page gracefully handles missing K8s resources
+
+---
+
 ## Child Spec Reference
 
 Operator implementation tasks are tracked separately:

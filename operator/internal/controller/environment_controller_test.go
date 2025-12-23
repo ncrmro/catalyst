@@ -22,8 +22,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	appsv1 "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -104,7 +102,7 @@ var _ = Describe("Environment Controller", func() {
 			k8sClient.Delete(ctx, ns)
 		})
 
-		It("should successfully create a Namespace, Quotas, Policies and update Status", func() {
+		It("should successfully create a Namespace, Quotas, Policies and Workspace Pod", func() {
 			controllerReconciler := &EnvironmentReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
@@ -135,58 +133,46 @@ var _ = Describe("Environment Controller", func() {
 
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "default-policy", Namespace: targetNsName}, policy)).To(Succeed())
 
-			// 3. Verify Build Job Created
+			// 3. Verify Workspace Pod Created
+			// Pod name format: workspace-<project>-<commit[:7]>
+			podName := "workspace-my-project-abc1234"
 
-			// Job name format: build-<project>-<commit[:7]>
-
-			jobName := "build-my-project-abc1234"
-
-			job := &batchv1.Job{}
+			pod := &corev1.Pod{}
 
 			Eventually(func() error {
-
-				return k8sClient.Get(ctx, types.NamespacedName{Name: jobName, Namespace: targetNsName}, job)
-
+				return k8sClient.Get(ctx, types.NamespacedName{Name: podName, Namespace: targetNsName}, pod)
 			}, time.Second*10, time.Millisecond*250).Should(Succeed())
 
-			// 4. Verify Finalizer Added
+			// Verify pod has correct labels
+			Expect(pod.Labels["catalyst.dev/pod-type"]).To(Equal("workspace"))
+			Expect(pod.Labels["catalyst.dev/project"]).To(Equal(projectName))
 
+			// Verify pod runs sleep infinity
+			Expect(pod.Spec.Containers[0].Command).To(Equal([]string{"sleep", "infinity"}))
+
+			// 4. Verify Finalizer Added
 			env := &catalystv1alpha1.Environment{}
 
 			Expect(k8sClient.Get(ctx, typeNamespacedName, env)).To(Succeed())
 
 			Expect(controllerutil.ContainsFinalizer(env, "catalyst.dev/finalizer")).To(BeTrue())
 
-			// 5. Verify Status Updated to Building
-			Expect(env.Status.Phase).To(Equal("Building"))
+			// 5. Verify Status Updated to Provisioning
+			Expect(env.Status.Phase).To(Equal("Provisioning"))
 
-			// 6. Simulate Job Success
-			job.Status.Succeeded = 1
-			Expect(k8sClient.Status().Update(ctx, job)).To(Succeed())
+			// 6. Simulate Pod Running
+			pod.Status.Phase = corev1.PodRunning
+			Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
 
-			// Trigger Reconcile again (or wait for poll)
-			// Since we don't watch Job, we wait for the Requeue (10s) or manually trigger
+			// Trigger Reconcile again
 			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			// 7. Verify Deployment, Service, Ingress
-			dep := &appsv1.Deployment{}
-			Eventually(func() error {
-				return k8sClient.Get(ctx, types.NamespacedName{Name: "app", Namespace: targetNsName}, dep)
-			}, time.Second*10, time.Millisecond*250).Should(Succeed())
-
-			svc := &corev1.Service{}
-			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "app", Namespace: targetNsName}, svc)).To(Succeed())
-
-			ing := &networkingv1.Ingress{}
-			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "app", Namespace: targetNsName}, ing)).To(Succeed())
-
-			// 8. Verify Status Ready
+			// 7. Verify Status Ready
 			Expect(k8sClient.Get(ctx, typeNamespacedName, env)).To(Succeed())
 			Expect(env.Status.Phase).To(Equal("Ready"))
-			Expect(env.Status.URL).To(ContainSubstring("preview.catalyst.dev"))
 		})
 	})
 })

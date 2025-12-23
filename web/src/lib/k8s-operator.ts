@@ -1,55 +1,11 @@
 import { getClusterConfig, getCustomObjectsApi } from "./k8s-client";
+import { EnvironmentCR, EnvironmentCRSpec, ProjectCRSpec } from "@/types/crd";
+
+export type { EnvironmentCR, EnvironmentCRSpec, ProjectCRSpec };
 
 const GROUP = "catalyst.catalyst.dev";
 const VERSION = "v1alpha1";
 const PLURAL = "environments";
-
-export interface EnvironmentCRSpec {
-  projectRef: {
-    name: string;
-  };
-  type: string;
-  source: {
-    commitSha: string;
-    branch: string;
-    prNumber?: number;
-  };
-  config?: {
-    envVars?: Array<{ name: string; value: string }>;
-  };
-}
-
-export interface EnvironmentCR {
-  metadata: {
-    name: string;
-    namespace: string;
-    creationTimestamp?: string;
-  };
-  spec: EnvironmentCRSpec;
-  status?: {
-    phase?: string;
-    url?: string;
-    conditions?: Array<{ type: string; status: string }>;
-  };
-}
-
-export interface ProjectCRSpec {
-  source: {
-    repositoryUrl: string;
-    branch: string;
-  };
-  deployment: {
-    type: string;
-    path: string;
-    values?: Record<string, unknown>;
-  };
-  resources?: {
-    defaultQuota?: {
-      cpu?: string;
-      memory?: string;
-    };
-  };
-}
 
 export async function createProjectCR(
   namespace: string,
@@ -174,8 +130,7 @@ export async function getEnvironmentCR(
     // Response is returned directly, not wrapped in { body: ... }
     return res as EnvironmentCR;
   } catch (error: unknown) {
-    const err = error as { response?: { statusCode?: number } };
-    if (err.response?.statusCode === 404) return null;
+    if (isKubeNotFound(error)) return null;
     throw error;
   }
 }
@@ -227,15 +182,47 @@ export async function deleteEnvironmentCR(
     });
     return { success: true };
   } catch (error: unknown) {
-    const err = error as {
-      response?: { statusCode?: number };
-      message?: string;
-    };
-    if (err.response?.statusCode === 404) {
+    if (isKubeNotFound(error)) {
       // Already deleted, consider success
       return { success: true };
     }
+    const err = error as { message?: string };
     console.error("Failed to delete Environment CR:", error);
     return { success: false, error: err.message || "Unknown error" };
   }
+}
+
+function isKubeNotFound(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const err = error as any;
+
+  // Check standard response.statusCode
+  if (err.response?.statusCode === 404) return true;
+
+  // Check statusCode property directly (some clients)
+  if (err.statusCode === 404) return true;
+
+  // Check body structure if response is missing but body is present
+  if (err.body) {
+    if (typeof err.body === "string") {
+      try {
+        const body = JSON.parse(err.body);
+        if (body.code === 404) return true;
+      } catch {
+        /* ignore */
+      }
+    } else if (typeof err.body === "object" && err.body.code === 404) {
+      return true;
+    }
+  }
+
+  // Check message content as last resort for "HTTP-Code: 404"
+  if (typeof err.message === "string") {
+    if (err.message.includes("HTTP-Code: 404")) return true;
+    if (err.message.includes("Not Found") && err.message.includes("404"))
+      return true;
+  }
+
+  return false;
 }

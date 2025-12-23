@@ -169,6 +169,21 @@ The following files in `web/src/lib/` remain for app-specific logic (gradual mig
 - [ ] Interactive terminal (blocked by Next.js 15 WebSocket support)
 - [ ] Full migration of old k8s-\*.ts files
 - [ ] Integration tests with K3s VM
+- [ ] FR-ENV-001: Graceful handling of missing Kubernetes resources in web UI
+
+## FR-ENV-001: Graceful Handling of Missing Kubernetes Resources
+
+### Approach
+
+1. **Create reusable `KubeResourceNotFound` component** (`web/src/components/kube-resource-not-found.tsx`):
+   - Accepts resource type (e.g., "Environment"), resource name, and optional retry callback
+   - Displays clear message that resource was not found in cluster
+   - Lists possible causes (deleted externally, `make reset`, cluster connectivity, operator not reconciled)
+   - Provides retry button to re-fetch from cluster
+
+2. **Update environment page** (`web/src/app/(dashboard)/projects/[slug]/env/[envSlug]/page.tsx`):
+   - Use `KubeResourceNotFound` component when environment CR is not found
+   - Pass resource type and name for context
 
 ## Operator Integration
 

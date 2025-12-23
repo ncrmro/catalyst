@@ -20,7 +20,6 @@ import (
 	"context"
 	"time"
 
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,7 +43,7 @@ type EnvironmentReconciler struct {
 // +kubebuilder:rbac:groups=catalyst.catalyst.dev,resources=environments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=catalyst.catalyst.dev,resources=environments/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=catalyst.catalyst.dev,resources=projects,verbs=get;list;watch
-// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
@@ -124,86 +123,58 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	// 3. Build Orchestration
-	// Fetch Project to get Repo URL
-	project := &catalystv1alpha1.Project{}
-	if err := r.Get(ctx, client.ObjectKey{Name: env.Spec.ProjectRef.Name, Namespace: env.Namespace}, project); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	jobName := buildJobName(env)
-	job := &batchv1.Job{}
-	err = r.Get(ctx, client.ObjectKey{Name: jobName, Namespace: targetNamespace}, job)
+	// 3. Workspace Pod Management
+	// Create a workspace pod that runs indefinitely for exec access from UI
+	podName := workspacePodName(env)
+	workspacePod := &corev1.Pod{}
+	err = r.Get(ctx, client.ObjectKey{Name: podName, Namespace: targetNamespace}, workspacePod)
 
 	if err != nil && apierrors.IsNotFound(err) {
-		// Job doesn't exist, create it
-		log.Info("Creating Build Job", "job", jobName)
-		job = desiredBuildJob(env, targetNamespace)
-		// Fixup Repo URL from Project
-		// In a real app we'd handle context construction better (e.g. including auth tokens)
-		// Kaniko context format: git://github.com/org/repo#refs/heads/branch or #commit
-		// We use the commit sha from env source
-		job.Spec.Template.Spec.Containers[0].Args[1] = "--context=" + project.Spec.Source.RepositoryURL + "#" + env.Spec.Source.CommitSha
+		// Pod doesn't exist, create it
+		log.Info("Creating Workspace Pod", "pod", podName)
+		workspacePod = desiredWorkspacePod(env, targetNamespace)
 
-		// Note: Job is in different namespace, cannot set owner ref.
+		// Note: Pod is in different namespace, cannot set owner ref.
 		// It will be garbage collected when the Namespace is deleted.
-		if err := r.Create(ctx, job); err != nil {
+		if err := r.Create(ctx, workspacePod); err != nil {
 			return ctrl.Result{}, err
 		}
 		// Update Status
-		env.Status.Phase = "Building"
+		env.Status.Phase = "Provisioning"
 		if err := r.Status().Update(ctx, env); err != nil {
 			return ctrl.Result{}, err
 		}
-		return ctrl.Result{}, nil
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	} else if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	// Check Job Status
-	if job.Status.Succeeded > 0 {
-		// Build Done
-
-		// 4. Deployment & Ingress
-		deploy := desiredDeployment(env, targetNamespace)
-		if err := r.Create(ctx, deploy); err != nil && !apierrors.IsAlreadyExists(err) {
-			return ctrl.Result{}, err
-		}
-
-		svc := desiredService(env, targetNamespace)
-		if err := r.Create(ctx, svc); err != nil && !apierrors.IsAlreadyExists(err) {
-			return ctrl.Result{}, err
-		}
-
-		ing := desiredIngress(env, targetNamespace)
-		if err := r.Create(ctx, ing); err != nil && !apierrors.IsAlreadyExists(err) {
-			return ctrl.Result{}, err
-		}
-
-		// Update Status
+	// Check Pod Status
+	if workspacePod.Status.Phase == corev1.PodRunning {
+		// Pod is running and ready for exec
 		if env.Status.Phase != "Ready" {
 			env.Status.Phase = "Ready"
-			env.Status.URL = "https://" + ing.Spec.Rules[0].Host
+			env.Status.URL = "" // No URL for workspace pods, accessed via exec
 			if err := r.Status().Update(ctx, env); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
-	} else if job.Status.Failed > 0 {
-		env.Status.Phase = "BuildFailed"
+	} else if workspacePod.Status.Phase == corev1.PodFailed {
+		env.Status.Phase = "Failed"
 		if err := r.Status().Update(ctx, env); err != nil {
 			return ctrl.Result{}, err
 		}
-		return ctrl.Result{}, nil // Stop reconciliation until manual intervention or new commit
+		return ctrl.Result{}, nil
 	} else {
-		// Still running
-		if env.Status.Phase != "Building" {
-			env.Status.Phase = "Building"
+		// Still starting up (Pending, etc.)
+		if env.Status.Phase != "Provisioning" {
+			env.Status.Phase = "Provisioning"
 			if err := r.Status().Update(ctx, env); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
-		// Poll job status
-		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+		// Poll pod status
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	}
 
 	return ctrl.Result{}, nil

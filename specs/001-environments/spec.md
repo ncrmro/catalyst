@@ -124,6 +124,7 @@ Development environments receive real public URLs through proxy infrastructure:
 - Dashboard for all environments across projects
 - Log streaming and container inspection
 - One-click environment creation and deletion
+- **[FR-ENV-001] Graceful handling of missing Kubernetes resources**: Pages that display Kubernetes resources must handle cases where a resource exists in the database but is not found in the cluster (e.g., deleted externally, cluster connectivity issues, developer ran `make reset` which cleared the cluster, or operator not yet reconciled). The page must display available context from the database, distinguish between "pending creation" vs "missing/deleted" states, and provide options to retry, re-create, or clean up orphaned records. Primary example: the environment detail page (`/projects/[slug]/env/[envSlug]`) when an Environment CR is missing from the cluster
 
 **MCP (Model Context Protocol):**
 

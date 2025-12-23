@@ -41,7 +41,7 @@ export function Terminal({
   const xtermRef = useRef<XTerminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [commandBuffer, setCommandBuffer] = useState("");
+  const commandBufferRef = useRef("");
   const promptRef = useRef<string>(`${namespace}/${podName}$ `);
 
   // Initialize terminal
@@ -128,34 +128,34 @@ export function Terminal({
       if (charCode === 13) {
         // Enter key
         term.writeln("");
-        if (commandBuffer.trim()) {
-          executeCommand(commandBuffer.trim());
+        if (commandBufferRef.current.trim()) {
+          executeCommand(commandBufferRef.current.trim());
         } else {
           term.write(promptRef.current);
         }
-        setCommandBuffer("");
+        commandBufferRef.current = "";
       } else if (charCode === 127 || charCode === 8) {
         // Backspace
-        if (commandBuffer.length > 0) {
-          setCommandBuffer((prev) => prev.slice(0, -1));
+        if (commandBufferRef.current.length > 0) {
+          commandBufferRef.current = commandBufferRef.current.slice(0, -1);
           term.write("\b \b");
         }
       } else if (charCode === 3) {
         // Ctrl+C
         term.writeln("^C");
-        setCommandBuffer("");
+        commandBufferRef.current = "";
         term.write(promptRef.current);
       } else if (charCode === 4) {
         // Ctrl+D
         onClose?.();
       } else if (charCode >= 32) {
         // Printable characters
-        setCommandBuffer((prev) => prev + data);
+        commandBufferRef.current += data;
         term.write(data);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [commandBuffer, onClose],
+    [onClose],
   );
 
   // Execute command
