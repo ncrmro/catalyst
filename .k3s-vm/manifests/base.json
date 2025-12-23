@@ -34,7 +34,9 @@
       "namespace": "default"
     },
     "spec": {
-      "accessModes": ["ReadWriteOnce"],
+      "accessModes": [
+        "ReadWriteOnce"
+      ],
       "resources": {
         "requests": {
           "storage": "2Gi"
@@ -50,7 +52,9 @@
       "namespace": "default"
     },
     "spec": {
-      "accessModes": ["ReadWriteOnce"],
+      "accessModes": [
+        "ReadWriteOnce"
+      ],
       "resources": {
         "requests": {
           "storage": "1Gi"
@@ -66,7 +70,9 @@
       "namespace": "default"
     },
     "spec": {
-      "accessModes": ["ReadWriteOnce"],
+      "accessModes": [
+        "ReadWriteOnce"
+      ],
       "resources": {
         "requests": {
           "storage": "1Gi"
@@ -146,13 +152,15 @@
       "namespace": "default"
     },
     "spec": {
+      "type": "NodePort",
       "selector": {
         "app": "postgres"
       },
       "ports": [
         {
           "port": 5432,
-          "targetPort": 5432
+          "targetPort": 5432,
+          "nodePort": 30432
         }
       ]
     }
@@ -184,7 +192,10 @@
               "name": "npm-install",
               "image": "node:22",
               "workingDir": "/code/web",
-              "command": ["npm", "install"],
+              "command": [
+                "npm",
+                "install"
+              ],
               "volumeMounts": [
                 {
                   "name": "code",
@@ -228,7 +239,11 @@
               "name": "web",
               "image": "node:22",
               "workingDir": "/code/web",
-              "command": ["./node_modules/.bin/next", "dev"],
+              "command": [
+                "./node_modules/.bin/next",
+                "dev",
+                "--turbopack"
+              ],
               "volumeMounts": [
                 {
                   "name": "code",
@@ -247,6 +262,10 @@
                 {
                   "name": "DATABASE_URL",
                   "value": "postgres://postgres:postgres@postgres.default.svc.cluster.local:5432/catalyst"
+                },
+                {
+                  "name": "WATCHPACK_POLLING",
+                  "value": "true"
                 }
               ],
               "livenessProbe": {
@@ -342,8 +361,13 @@
               "name": "operator",
               "image": "golang:1.24",
               "workingDir": "/code/operator",
-              "command": ["/bin/bash", "-c"],
-              "args": ["go mod download\ngo run ./cmd/main.go\n"],
+              "command": [
+                "/bin/bash",
+                "-c"
+              ],
+              "args": [
+                "go build -o /tmp/operator ./cmd/main.go && exec /tmp/operator"
+              ],
               "volumeMounts": [
                 {
                   "name": "code",

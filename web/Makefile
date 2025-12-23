@@ -6,7 +6,7 @@ help: ## Show this help message
 	@echo 'Usage: make <target>'
 	@echo ''
 	@echo 'Targets:'
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %%-15s %%s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 
 lint: ## Run code quality checks (Prettier, ESLint, Typecheck)
@@ -24,33 +24,61 @@ seed: ## Seed the database with test data
 	npm run seed
 
 seed-projects: ## Seed the database with catalyst and meze projects
-	$(DC) run --rm app npm run seed:projects
+	npm run seed:projects
 
-up: ## Start all services with mocked GitHub data
-	$(DC) up --detach --wait
-	$(DC) run --rm --env GITHUB_REPOS_MODE=mocked --env MOCKED=1 web npm run db:migrate
-	$(DC) run --rm --env GITHUB_REPOS_MODE=mocked --env MOCKED=1 web npm run seed
-	$(DC) run --rm -it --env GITHUB_REPOS_MODE=mocked --env MOCKED=1 web npm run dev
+up: ## Start the K3s VM (hybrid mode) and run local Next.js dev server
+	@echo "Starting K3s VM in Hybrid Mode..."
+	@../bin/k3s-vm
 
-up-real: ## Start all services with real GitHub integration
-	$(DC) up --detach --wait
-	$(DC) run --rm app npm run db:migrate
-	$(DC) run --rm app npm run seed
-	$(DC) run --rm -it app npm run dev
+	@echo "Installing Node.js dependencies..."
+	npm install
 
-down: ## Stop all services
+	@echo "Running database migrations..."
+	npm run db:migrate
+
+	@echo "Seeding database with test data..."
+	npm run seed
+
+	@echo "Starting local Next.js development server..."
+	PORT=$${WEB_PORT:-3000} npm run dev
+
+up-real: ## Start the K3s VM (hybrid mode) and run local Next.js dev server with real GitHub integration
+	@echo "Starting K3s VM in Hybrid Mode..."
+	@../bin/k3s-vm
+
+	@echo "Installing Node.js dependencies..."
+	npm install
+
+	@echo "Running database migrations..."
+	npm run db:migrate
+
+	@echo "Seeding database with test data..."
+	npm run seed
+
+	@echo "Starting local Next.js development server with real GitHub integration..."
+	PORT=$${APP_PORT:-3000} GITHUB_REPOS_MODE=real npm run dev
+
+down: ## Stop local Next.js dev server and Docker Compose services
+	@echo "Stopping local Next.js dev server (if running)..."
+	killall -SIGINT node || true
+	@echo "Stopping Docker Compose services..."
 	$(DC) down --remove-orphans
 
-destroy: ## Clean all services and Next.js cache
+destroy: ## Clean all services and Next.js cache (including K3s VM data)
+	@echo "Destroying Docker Compose services and volumes..."
 	$(DC) down --remove-orphans --volumes
+	@echo "Removing .next build cache..."
 	rm -rf .next
+	@echo "Resetting K3s VM..."
+	../bin/k3s-vm reset
 
 reset: ## Clean and restart all services with fresh data
 	$(MAKE) destroy
 	$(MAKE) up
 
-dbshell: ## Connect to PostgreSQL database shell
-	$(DC) exec db psql -U postgres -d catalyst
+dbshell: ## Connect to PostgreSQL database shell (in K3s VM)
+	@echo "Connecting to PostgreSQL in K3s VM..."
+	@../bin/kubectl exec -it deploy/postgres -- psql -U postgres -d catalyst
 
 ci: ## Run comprehensive CI tests (unit, integration, and e2e)
 	@echo "Running comprehensive CI tests..."

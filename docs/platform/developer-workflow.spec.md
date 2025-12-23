@@ -55,26 +55,25 @@ A NixOS-based K3s VM for testing Kubernetes functionality locally. Provides a re
 ### Quick Start
 
 ```bash
-# First time setup (builds NixOS VM)
-bin/k3s-vm setup
+# First time setup & start (prevents deploying web/operator to cluster)
+bin/k3s-vm
 
-# Start the VM
-bin/k3s-vm start
-
-# Apply manifests to deploy services
-bin/k3s-vm apply
+# Start the web server locally (connects to K3s VM)
+cd web
+npm run dev
 ```
 
 ### Commands
 
 ```bash
-bin/k3s-vm setup     # Build NixOS VM with K3s (first time only)
-bin/k3s-vm start     # Start VM and extract kubeconfig
-bin/k3s-vm apply     # Apply/update Kubernetes manifests
-bin/k3s-vm stop      # Stop the running VM
-bin/k3s-vm status    # Check VM status
-bin/k3s-vm reset     # Destroy and rebuild VM
-bin/k3s-vm ssh       # SSH into the VM
+bin/k3s-vm                   # Start VM but skip web/operator deployments (hybrid mode - default)
+bin/k3s-vm --in-cluster      # Start VM and deploy all services (full cluster mode)
+bin/k3s-vm apply             # Update manifests (skipping web/operator if previously skipped)
+bin/k3s-vm apply --in-cluster # Update manifests (deploying web/operator)
+bin/k3s-vm stop              # Stop the running VM
+bin/k3s-vm status            # Check VM status
+bin/k3s-vm reset             # Destroy and rebuild VM
+bin/k3s-vm ssh               # SSH into the VM
 ```
 
 ### Using kubectl
@@ -91,6 +90,17 @@ bin/kubectl get pods -A    # List all pods across namespaces
 - **Code Sharing**: Project directory mounted via virtiofs at `/code`
 - **Persistent Storage**: PVCs for node_modules, .next cache, and PostgreSQL data
 
+### Hybrid Workflow (Default)
+
+The default behavior of `bin/k3s-vm` supports the "Hybrid Workflow". It starts the K3s control plane and essential services (PostgreSQL) but *does not* deploy the `web` and `operator` applications to the cluster.
+
+Instead, you run them locally:
+
+1. **Web**: Run `npm run dev` in `web/`. It connects to the K3s API via `https://127.0.0.1:6443` using the automatically generated `web/.kube/config`.
+2. **Operator**: Run `make run` in `operator/`. It connects to the same K3s API.
+
+This provides the best of both worlds: real Kubernetes resources with fast local hot-reloading.
+
 ### When to Use
 
 - Testing Kubernetes operators
@@ -101,14 +111,14 @@ bin/kubectl get pods -A    # List all pods across namespaces
 
 ## Comparison
 
-| Feature          | Docker Compose | K3s-VM                   |
-| ---------------- | -------------- | ------------------------ |
-| Setup time       | ~1 minute      | ~5 minutes (first build) |
-| Resource usage   | Lower          | Higher (VM overhead)     |
-| Kubernetes API   | No             | Yes                      |
-| Hot reload       | Yes            | Yes (via virtiofs)       |
-| Offline capable  | Yes (mocked)   | Yes                      |
-| Real K8s testing | No             | Yes                      |
+| Feature          | Docker Compose | K3s-VM (Hybrid - Default) | K3s-VM (Full)            |
+| ---------------- | -------------- | ------------------------- | ------------------------ |
+| Setup time       | ~1 minute      | ~5 minutes (first build)  | ~5 minutes (first build) |
+| Resource usage   | Lower          | Higher (VM overhead)      | Higher (VM overhead)     |
+| Kubernetes API   | No             | Yes                       | Yes                      |
+| Hot reload       | Yes            | Yes (Local Process)       | Yes (via virtiofs)       |
+| Offline capable  | Yes (mocked)   | Yes                       | Yes                      |
+| Real K8s testing | No             | Yes                       | Yes                      |
 
 ## Environment Variables
 
@@ -116,7 +126,8 @@ Both workflows use environment variables from `web/.env`. Key variables:
 
 - `DATABASE_URL`: PostgreSQL connection string
 - `GITHUB_REPOS_MODE`: Set to `mocked` for offline development
-- `KUBECONFIG`: Path to Kubernetes config (K3s-VM sets this automatically)
+- `KUBECONFIG`: Path to Kubernetes config (automatically set by `bin/k3s-vm`)
+- `KUBECONFIG_PRIMARY`: Base64-encoded kubeconfig for integration tests (automatically set by `bin/k3s-vm`)
 
 ## Troubleshooting
 

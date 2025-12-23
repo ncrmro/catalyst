@@ -56,23 +56,16 @@ export class KubeConfig {
       const serverUrl = cluster.server as string;
 
       // Override server URL if KUBERNETES_API_SERVER_HOST is set
+      // This is used in Docker to reach the host's K8s API via host.docker.internal
       if (process.env.KUBERNETES_API_SERVER_HOST) {
         cluster.server = `https://${process.env.KUBERNETES_API_SERVER_HOST}:6443`;
         console.log(
           `Overrode cluster endpoint to ${cluster.server} from KUBERNETES_API_SERVER_HOST`,
         );
-      } else if (
-        process.env.NODE_ENV === "development" &&
-        (serverUrl.includes("localhost") || serverUrl.includes("127.0.0.1"))
-      ) {
-        // Rewrite localhost to host.docker.internal for Docker
-        cluster.server = serverUrl
-          .replace("localhost", "host.docker.internal")
-          .replace("127.0.0.1", "host.docker.internal");
-        console.log(
-          `Rewrote cluster endpoint to ${cluster.server} for Docker connectivity`,
-        );
       }
+      // Note: We no longer auto-rewrite localhost to host.docker.internal
+      // Docker containers should set KUBERNETES_API_SERVER_HOST=host.docker.internal
+      // Local dev (npm run dev) uses localhost:6443 which is forwarded by k3s-vm
 
       // Detect local development environments
       const isLocalCluster =

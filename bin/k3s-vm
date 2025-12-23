@@ -73,7 +73,7 @@ NIXOS_CONFIG_TEMPLATE = '''
     until [ -f /etc/rancher/k3s/k3s.yaml ]; do sleep 1; done
     cp /etc/rancher/k3s/k3s.yaml /var/kubeconfig
     chmod 644 /var/kubeconfig
-  '';
+  '' ;
 
   # Root user with SSH key
   users.users.root = {{
@@ -191,7 +191,7 @@ def get_web_env_vars() -> list[dict]:
                 continue
 
             # Remove surrounding quotes if present
-            if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+            if (value.startswith('"') and value.endswith('"')) or (value.startswith("'" ) and value.endswith("'" )):
                 value = value[1:-1]
 
             env_vars.append({"name": key, "value": value})
@@ -375,8 +375,23 @@ console.log(JSON.stringify(kubeconfig));
                 env_content += "\n"
             env_content += f"KUBECONFIG={kubeconfig_path}\n"
 
+        # Update DATABASE_URL
+        # Point to localhost:5432 which is forwarded to the VM
+        db_url = "postgres://postgres:postgres@localhost:5432/catalyst"
+        if "DATABASE_URL=" in env_content:
+            env_content = re.sub(
+                r'^DATABASE_URL=.*$',
+                f'DATABASE_URL={db_url}',
+                env_content,
+                flags=re.MULTILINE
+            )
+        else:
+            if env_content and not env_content.endswith("\n"):
+                env_content += "\n"
+            env_content += f"DATABASE_URL={db_url}\n"
+
         env_file.write_text(env_content)
-        info("Updated KUBECONFIG_PRIMARY and KUBECONFIG in web/.env")
+        info("Updated KUBECONFIG, KUBECONFIG_PRIMARY, and DATABASE_URL in web/.env")
     except Exception as e:
         # Non-fatal: .env update is optional
         debug(f"Could not update .env: {e}")
@@ -411,7 +426,7 @@ def install_crds() -> None:
         msg = e.stderr if e.stderr else str(e)
         print(f"  Warning: Failed to install CRDs: {msg}")
 
-def generate_manifest_content() -> str:
+def generate_manifest_content(deploy_apps: bool = False) -> str:
     """Generate the full Kubernetes manifest JSON with env vars injected."""
     import json
 
@@ -425,10 +440,20 @@ def generate_manifest_content() -> str:
     # Get env vars from web/.env
     env_vars = get_web_env_vars()
 
+    # Filtered documents
+    final_documents = []
+
     # Inject env vars into web deployment
     for doc in documents:
         if doc is None:
             continue
+        
+        # Skip web and operator deployments unless deploy_apps is True
+        if not deploy_apps and doc.get("kind") == "Deployment":
+            name = doc.get("metadata", {}).get("name")
+            if name in ["web", "operator"]:
+                continue
+
         if doc.get("kind") == "Deployment" and doc.get("metadata", {}).get("name") == "web":
             spec = doc.get("spec", {}).get("template", {}).get("spec", {})
 
@@ -449,17 +474,19 @@ def generate_manifest_content() -> str:
                     # Only add env vars that aren't already defined in base manifest
                     filtered_env = [e for e in env_vars if e["name"] not in existing_keys]
                     container["env"] = existing_env + filtered_env
+        
+        final_documents.append(doc)
 
     # Wrap in a List and dump to JSON
     k8s_list = {
         "apiVersion": "v1",
         "kind": "List",
-        "items": documents
+        "items": final_documents
     }
     return json.dumps(k8s_list, indent=2)
 
 
-def _build_vm(memory: int, cores: int) -> None:
+def _build_vm(memory: int, cores: int, deploy_apps: bool = False) -> None:
     """Build the K3s VM using NixOS."""
     # Create config directory
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -468,17 +495,21 @@ def _build_vm(memory: int, cores: int) -> None:
     # Get SSH key
     ssh_key = get_ssh_public_key()
     info("SSH key ready")
-    
+
     # Configure forward ports
     forward_ports = [
         '{ from = "host"; host.port = 6443; guest.port = 6443; }',
-        '{ from = "host"; host.port = 2666; guest.port = 22; }'
+        '{ from = "host"; host.port = 2666; guest.port = 22; }',
+        '{ from = "host"; host.port = 5432; guest.port = 30432; }'
     ]
-    
-    web_port = get_web_port()
-    if web_port:
-        info(f"Forwarding web port: {web_port}")
-        forward_ports.append(f'{{ from = "host"; host.port = {web_port}; guest.port = 30000; }}')
+
+    # Only forward web port in --in-cluster mode (app runs in K3s)
+    # In hybrid mode (default), the local dev server uses this port
+    if deploy_apps:
+        web_port = get_web_port()
+        if web_port:
+            info(f"Forwarding web port: {web_port} (in-cluster mode)")
+            forward_ports.append(f'{{ from = "host"; host.port = {web_port}; guest.port = 30000; }}')
     
     forward_ports_str = "\n      ".join(forward_ports)
 
@@ -552,7 +583,51 @@ def _wait_for_vm_readiness() -> None:
         error("Timeout waiting for K3s. Check VM logs.")
     info("K3s ready")
 
-def _extract_kubeconfig_and_install_crds() -> None:
+def apply_manifests(deploy_apps: bool = False) -> bool:
+    """Apply Kubernetes manifests using kubectl."""
+    if not KUBECONFIG_FILE.exists():
+        print("  Error: Kubeconfig not found. Run 'bin/k3s-vm' first.")
+        return False
+
+    manifest_content = generate_manifest_content(deploy_apps=deploy_apps)
+
+    # Write to a temp file
+    temp_manifest = CONFIG_DIR / "catalyst-manifests.json"
+    temp_manifest.write_text(manifest_content)
+
+    try:
+        env = os.environ.copy()
+        env["KUBECONFIG"] = str(KUBECONFIG_FILE)
+
+        result = run(
+            ["kubectl", "apply", "-f", str(temp_manifest)],
+            env=env,
+            capture=True
+        )
+
+        # Print applied resources
+        for line in result.stdout.strip().split("\n"):
+            if line:
+                info(line)
+
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"  Error applying manifests: {e.stderr if e.stderr else e}")
+        return False
+
+
+def cmd_update_manifests(args: argparse.Namespace) -> None:
+    """Update Kubernetes manifests on the running VM."""
+    if not is_vm_running():
+        error("VM is not running. Start it with 'bin/k3s-vm'")
+
+    print("Applying Kubernetes manifests...")
+    if apply_manifests(deploy_apps=args.in_cluster):
+        print("Manifests applied successfully.")
+    else:
+        error("Failed to apply manifests.")
+
+def _extract_kubeconfig_and_install_crds(deploy_apps: bool = False) -> None:
     """Extract kubeconfig, install CRDs, and apply manifests."""
     print("  Extracting kubeconfig...")
     if not extract_kubeconfig():
@@ -561,12 +636,12 @@ def _extract_kubeconfig_and_install_crds() -> None:
     install_crds()
 
     print("  Applying Kubernetes manifests...")
-    if apply_manifests():
+    if apply_manifests(deploy_apps=deploy_apps):
         info("Manifests applied")
     else:
         print("  Warning: Failed to apply manifests. Run 'bin/k3s-vm apply' manually.")
 
-def _ensure_vm_is_running(memory: int, cores: int) -> None:
+def _ensure_vm_is_running(memory: int, cores: int, deploy_apps: bool = False) -> None:
     """Ensures the VM is built and running, and K3s is ready."""
     if is_vm_running():
         info("VM is already running.")
@@ -577,7 +652,7 @@ def _ensure_vm_is_running(memory: int, cores: int) -> None:
             print(f"Building K3s VM (NixOS)")
             print(f"  Memory: {memory}MB, Cores: {cores}")
             print()
-            _build_vm(memory, cores)
+            _build_vm(memory, cores, deploy_apps=deploy_apps)
             info("VM built successfully")
         else:
             info("VM already built.")
@@ -587,7 +662,7 @@ def _ensure_vm_is_running(memory: int, cores: int) -> None:
         info(f"VM started (PID: {get_vm_pid()})")
 
     _wait_for_vm_readiness()
-    _extract_kubeconfig_and_install_crds()
+    _extract_kubeconfig_and_install_crds(deploy_apps=deploy_apps)
 
     print()
     print("=" * 50)
@@ -596,9 +671,13 @@ def _ensure_vm_is_running(memory: int, cores: int) -> None:
     print(f"  SSH:        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2666 root@localhost")
     print(f"  K3s API:    https://127.0.0.1:6443")
     print(f"  Kubeconfig: {KUBECONFIG_FILE}")
+    if not deploy_apps:
+        print("  Mode:       Local Dev (Web/Operator pods NOT deployed)")
+        print("              Run apps locally: cd web && npm run dev")
+    else:
+        print("  Mode:       In-Cluster (Web/Operator pods deployed)")
     print()
     print("Try: bin/kubectl get nodes")
-
 
 # ============================================================================
 # Commands
@@ -751,50 +830,6 @@ def cmd_ssh(args: argparse.Namespace) -> None:
 
     os.execlp("ssh", "ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-p", "2666", "root@localhost")
 
-def apply_manifests() -> bool:
-    """Apply Kubernetes manifests using kubectl."""
-    if not KUBECONFIG_FILE.exists():
-        print("  Error: Kubeconfig not found. Run 'bin/k3s-vm' first.")
-        return False
-
-    manifest_content = generate_manifest_content()
-
-    # Write to a temp file
-    temp_manifest = CONFIG_DIR / "catalyst-manifests.json"
-    temp_manifest.write_text(manifest_content)
-
-    try:
-        env = os.environ.copy()
-        env["KUBECONFIG"] = str(KUBECONFIG_FILE)
-
-        result = run(
-            ["kubectl", "apply", "-f", str(temp_manifest)],
-            env=env,
-            capture=True
-        )
-
-        # Print applied resources
-        for line in result.stdout.strip().split("\n"):
-            if line:
-                info(line)
-
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"  Error applying manifests: {e.stderr if e.stderr else e}")
-        return False
-
-
-def cmd_update_manifests(args: argparse.Namespace) -> None:
-    """Update Kubernetes manifests on the running VM."""
-    if not is_vm_running():
-        error("VM is not running. Start it with 'bin/k3s-vm'")
-
-    print("Applying Kubernetes manifests...")
-    if apply_manifests():
-        print("Manifests applied successfully.")
-    else:
-        error("Failed to apply manifests.")
-
 
 # ============================================================================
 # Main
@@ -806,7 +841,8 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  bin/k3s-vm                 Build and start K3s VM if not running
+  bin/k3s-vm                 Start K3s VM (Default: Hybrid mode, apps not deployed)
+  bin/k3s-vm --in-cluster    Start K3s VM and deploy web/operator to cluster
   bin/k3s-vm stop            Stop VM
   bin/k3s-vm status          Check VM status
   bin/k3s-vm ssh             SSH into VM
@@ -814,10 +850,11 @@ Examples:
   bin/k3s-vm apply           Update manifests without rebuilding VM
 """,
     )
-    parser.add_argument("--version", action="version", version="k3s-vm 2.0.0 (NixOS)")
+    parser.add_argument("--version", action="version", version="k3s-vm 2.1.0 (NixOS)")
     parser.add_argument("--debug", action="store_true", help="Enable debug output")
     parser.add_argument("--cpus", type=int, default=DEFAULT_VM_CORES, help=f"CPU cores (default: {DEFAULT_VM_CORES})")
     parser.add_argument("--memory", type=int, default=DEFAULT_VM_MEMORY, help=f"Memory in MB (default: {DEFAULT_VM_MEMORY})")
+    parser.add_argument("--in-cluster", action="store_true", help="Deploy web and operator to cluster (disable for local dev)")
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
@@ -834,7 +871,8 @@ Examples:
     subparsers.add_parser("ssh", help="SSH into VM")
 
     # apply
-    subparsers.add_parser("apply", help="Update manifests without rebuilding VM")
+    apply_parser = subparsers.add_parser("apply", help="Update manifests without rebuilding VM")
+    apply_parser.add_argument("--in-cluster", action="store_true", help="Deploy web and operator to cluster")
 
     args = parser.parse_args()
 
@@ -843,7 +881,7 @@ Examples:
         debug("Debug mode enabled")
 
     if args.command is None: # No command provided, implicitly setup/start
-        _ensure_vm_is_running(args.memory, args.cpus)
+        _ensure_vm_is_running(args.memory, args.cpus, deploy_apps=args.in_cluster)
     else:
         commands = {
             "stop": cmd_stop,
