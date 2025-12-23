@@ -37,11 +37,18 @@
           gcc
           kustomize
           kubebuilder
+          
+          # Testing
+          playwright-driver.browsers
         ];
 
         shellHook = ''
           # Inherit DOCKER_HOST from parent shell, or use default socket
           export DOCKER_HOST="''${DOCKER_HOST:-unix:///var/run/docker.sock}"
+          
+          # Playwright Setup
+          export PLAYWRIGHT_BROWSERS_PATH=${pkgs.playwright-driver.browsers}
+          export PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true
 
           # DOCUMENTATION: Turbopack Compatibility
           # Next.js (Turbopack) may panic if it encounters the .direnv directory due to unresolved symlinks.
