@@ -27,20 +27,14 @@ seed-projects: ## Seed the database with catalyst and meze projects
 	npm run seed:projects
 
 up: ## Start the K3s VM (hybrid mode) and run local Next.js dev server
-	@echo "Starting K3s VM in Hybrid Mode..."
-	@../bin/k3s-vm
-
 	@echo "Installing Node.js dependencies..."
 	npm install
 
-	@echo "Running database migrations..."
-	npm run db:migrate
-
-	@echo "Seeding database with test data..."
-	npm run seed
-
-	@echo "Starting local Next.js development server..."
-	PORT=$${WEB_PORT:-3000} npm run dev
+	@echo "Starting K3s VM, Operator, and Next.js dev server..."
+	npx concurrently --kill-others-on-fail -n "infra,web,operator" -c "blue,magenta,cyan" \
+		"rm -f kubeconfig.yaml && ../bin/k3s-vm && npm run db:migrate && npm run seed" \
+		"PORT=$${WEB_PORT:-3000} npm run dev" \
+		"until [ -f kubeconfig.yaml ]; do sleep 1; done; export KUBECONFIG=$$(pwd)/kubeconfig.yaml; nix develop .. --command make -C ../operator run"
 
 up-real: ## Start the K3s VM (hybrid mode) and run local Next.js dev server with real GitHub integration
 	@echo "Starting K3s VM in Hybrid Mode..."
