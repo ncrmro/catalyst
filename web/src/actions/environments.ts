@@ -1,15 +1,11 @@
 "use server";
 
-import {
-  getEnvironments,
-  createEnvironments,
-  environmentExists,
-} from "@/models/environments";
-import { getProjects, incrementPreviewCount } from "@/models/projects";
+import { getProjects } from "@/models/projects";
 import { revalidatePath } from "next/cache";
 import { getUserTeamIds } from "@/lib/team-auth";
 import { createProjectCR, createEnvironmentCR } from "@/lib/k8s-operator";
 import { generateNameUnchecked } from "@/lib/name-generator";
+import type { EnvironmentType } from "@/types/crd";
 
 /**
  * Server actions for creating and managing project environments
@@ -45,19 +41,17 @@ export async function createProjectEnvironment(
     }
 
     // Validate that the environment type is one of the allowed values
-    const validEnvironmentTypes = [
-      "preview",
-      "production",
-      "staging",
+    const validEnvironmentTypes: EnvironmentType[] = [
+      "deployment",
       "development",
-      "testing",
     ];
-    if (!validEnvironmentTypes.includes(environmentType)) {
+    if (!validEnvironmentTypes.includes(environmentType as EnvironmentType)) {
       return {
         success: false,
         message: `Invalid environment type: ${environmentType}. Must be one of: ${validEnvironmentTypes.join(", ")}`,
       };
     }
+    const validatedEnvType = environmentType as EnvironmentType;
 
     // Check if the user has access to this project
     const userTeamIds = await getUserTeamIds();
@@ -123,7 +117,7 @@ export async function createProjectEnvironment(
       projectRef: {
         name: sanitizedProjectName,
       },
-      type: environmentType,
+      type: validatedEnvType,
       source: {
         commitSha: "HEAD", // TODO: Get actual commit SHA
         branch: "main", // TODO: Get actual branch

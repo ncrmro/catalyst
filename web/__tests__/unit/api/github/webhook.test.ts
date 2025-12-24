@@ -18,6 +18,35 @@ vi.mock("@/lib/vcs-providers", () => ({
   },
 }));
 
+// Mock the preview environments model
+vi.mock("@/models/preview-environments", () => ({
+  createPreviewDeployment: vi.fn(),
+  deletePreviewDeploymentOrchestrated: vi.fn(),
+}));
+
+// Mock the database with proper chaining
+vi.mock("@/db", () => {
+  const chain: Record<string, unknown> = {};
+  chain.select = vi.fn(() => chain);
+  chain.from = vi.fn(() => chain);
+  chain.where = vi.fn(() => chain);
+  chain.limit = vi.fn(() => chain);
+  chain.then = vi.fn(() => Promise.resolve([]));
+  return { db: chain };
+});
+
+// Mock the schema (needed for the from() calls)
+vi.mock("@/db/schema", () => ({
+  pullRequests: { name: "pull_requests" },
+  pullRequestPods: { name: "pull_request_pods" },
+}));
+
+// Mock drizzle-orm operators
+vi.mock("drizzle-orm", () => ({
+  eq: vi.fn((a, b) => ({ type: "eq", a, b })),
+  and: vi.fn((...args) => ({ type: "and", args })),
+}));
+
 // Mock the k8s-pull-request-pod library
 vi.mock("@/lib/k8s-pull-request-pod", () => ({
   createPullRequestPodJob: vi.fn(),
@@ -43,6 +72,10 @@ import {
   upsertPullRequest,
   findRepoByGitHubData,
 } from "@/actions/pull-requests-db";
+import {
+  createPreviewDeployment,
+  deletePreviewDeploymentOrchestrated,
+} from "@/models/preview-environments";
 
 describe("/api/github/webhook", () => {
   const mockWebhookSecret = "test-webhook-secret";
@@ -65,6 +98,11 @@ describe("/api/github/webhook", () => {
   const mockFindRepoByGitHubData = findRepoByGitHubData as ReturnType<
     typeof vi.fn
   >;
+  const mockCreatePreviewDeployment = createPreviewDeployment as ReturnType<
+    typeof vi.fn
+  >;
+  const mockDeletePreviewDeploymentOrchestrated =
+    deletePreviewDeploymentOrchestrated as ReturnType<typeof vi.fn>;
 
   // Helper function to create complete pull request payload
   function createPullRequestPayload(action: string, prData: any = {}) {
@@ -113,6 +151,16 @@ describe("/api/github/webhook", () => {
       success: true,
       operation: "create",
       pullRequest: { id: "mock-pr-id" },
+    });
+
+    // Set up default mock for preview deployment (async, resolves successfully)
+    mockCreatePreviewDeployment.mockResolvedValue({
+      success: true,
+      podId: "mock-pod-id",
+    });
+
+    mockDeletePreviewDeploymentOrchestrated.mockResolvedValue({
+      success: true,
     });
   });
 
@@ -251,12 +299,6 @@ describe("/api/github/webhook", () => {
         created: true,
       });
 
-      // Mock GitHub octokit for commenting
-      const mockRequest = vi.fn().mockResolvedValue({});
-      mockGetInstallationOctokit.mockResolvedValue({
-        request: mockRequest,
-      } as any);
-
       const payload = createPullRequestPayload("opened");
       const payloadString = JSON.stringify(payload);
       const signature = createSignature(payloadString, mockWebhookSecret);
@@ -280,7 +322,7 @@ describe("/api/github/webhook", () => {
       expect(response.status).toBe(200);
       expect(data).toMatchObject({
         success: true,
-        message: "Pull request opened processed and namespace created",
+        message: "Pull request opened processed with preview deployment",
         pr_number: 42,
         namespace: {
           name: "user-repo-gh-pr-42",
@@ -323,17 +365,8 @@ describe("/api/github/webhook", () => {
         },
       });
 
-      // Verify GitHub comment was created
-      expect(mockGetInstallationOctokit).toHaveBeenCalledWith(12345);
-      expect(mockRequest).toHaveBeenCalledWith(
-        "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
-        {
-          owner: "user",
-          repo: "repo",
-          issue_number: 42,
-          body: "hello from catalyst",
-        },
-      );
+      // Note: GitHub commenting is now handled by createPreviewDeployment
+      // which is called asynchronously and tested separately
     });
 
     it("should handle pull_request closed event with namespace deletion", async () => {
@@ -469,7 +502,7 @@ describe("/api/github/webhook", () => {
       expect(response.status).toBe(200);
       expect(data).toMatchObject({
         success: true,
-        message: "Pull request opened processed and namespace created",
+        message: "Pull request opened processed with preview deployment",
         pr_number: 42,
         namespace: {
           name: "user-repo-gh-pr-42",
@@ -561,15 +594,32 @@ describe("/api/github/webhook", () => {
       expect(mockCreateKubernetesNamespace).not.toHaveBeenCalled();
     });
 
-    it("should handle pull_request non-opened/non-closed event without namespace operations", async () => {
+    it("should handle pull_request synchronize event with preview redeployment", async () => {
+      // Synchronize events trigger preview redeployment but not namespace/pod job operations
       const payload = {
         action: "synchronize",
+        installation: { id: 12345 },
         pull_request: {
+          id: 42,
           number: 42,
           title: "Test PR",
+          body: "Test body",
+          state: "open" as const,
+          draft: false,
+          html_url: "https://github.com/user/repo/pull/42",
           user: { login: "testuser" },
+          head: { ref: "feature/test", sha: "abc123def456" },
+          base: { ref: "main" },
+          comments: 0,
+          created_at: "2024-01-01T00:00:00Z",
+          updated_at: "2024-01-01T01:00:00Z",
         },
-        repository: { full_name: "user/repo" },
+        repository: {
+          id: 123456,
+          full_name: "user/repo",
+          owner: { login: "user" },
+          name: "repo",
+        },
       };
       const payloadString = JSON.stringify(payload);
       const signature = createSignature(payloadString, mockWebhookSecret);
@@ -593,11 +643,13 @@ describe("/api/github/webhook", () => {
       expect(response.status).toBe(200);
       expect(data).toMatchObject({
         success: true,
-        message: "Pull request synchronize processed",
+        message: "Pull request synchronize processed with preview redeployment",
         pr_number: 42,
+        commit_sha: "abc123def456",
+        preview_deployment: "initiated",
       });
 
-      // Verify neither namespace nor pod job operations were called
+      // Verify namespace and pod job operations were NOT called (only happens for 'opened')
       expect(mockCreateKubernetesNamespace).not.toHaveBeenCalled();
       expect(mockDeleteKubernetesNamespace).not.toHaveBeenCalled();
       expect(mockCreatePullRequestPodJob).not.toHaveBeenCalled();
@@ -662,15 +714,7 @@ describe("/api/github/webhook", () => {
       expect(response.status).toBe(200);
       expect(data).toMatchObject({
         success: true,
-        message: "Pull request opened processed but namespace creation failed",
-        pr_number: 42,
-        namespace_error: "Failed to create namespace",
-        podJob: {
-          jobName: "pr-job-pr-42-repo-1640995200000",
-          serviceAccountName: "pr-42-repo-buildx-sa",
-          namespace: "default",
-          created: true,
-        },
+        message: "Pull request opened processed with preview deployment",
       });
 
       // Verify namespace creation was called
@@ -750,7 +794,7 @@ describe("/api/github/webhook", () => {
 
       expect(response.status).toBe(401);
       expect(data).toMatchObject({
-        error: "Invalid signature",
+        error: "Invalid or missing signature",
       });
     });
 
@@ -784,7 +828,7 @@ describe("/api/github/webhook", () => {
 
       expect(response.status).toBe(401);
       expect(data).toMatchObject({
-        error: "Missing signature header",
+        error: "Invalid or missing signature",
       });
     });
 
@@ -877,7 +921,7 @@ describe("/api/github/webhook", () => {
             login: "testuser",
             avatar_url: "https://github.com/testuser.png",
           },
-          head: { ref: "feature/database-integration" },
+          head: { ref: "feature/database-integration", sha: "abc123def456789" },
           base: { ref: "main" },
           comments: 2,
           changed_files: 3,

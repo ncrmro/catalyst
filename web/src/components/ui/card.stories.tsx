@@ -57,7 +57,7 @@ export const Default: Story = {
  * Card with header and actions
  */
 export const WithHeaderAndActions: Story = {
-  args: {} as any,
+  args: { children: null },
   render: () => (
     <Card>
       <div className="flex items-center justify-between">
@@ -77,7 +77,7 @@ export const WithHeaderAndActions: Story = {
  * Card with list content
  */
 export const WithListContent: Story = {
-  args: {} as any,
+  args: { children: null },
   render: () => (
     <Card>
       <h2 className="text-lg font-semibold text-on-surface mb-4">Agents</h2>
@@ -110,7 +110,7 @@ export const WithListContent: Story = {
  * Card with interactive elements
  */
 export const WithInteractiveElements: Story = {
-  args: {} as any,
+  args: { children: null },
   render: () => (
     <Card>
       <div className="flex items-center justify-between mb-4">
@@ -139,7 +139,7 @@ export const WithInteractiveElements: Story = {
  * Narrow card layout
  */
 export const NarrowLayout: Story = {
-  args: {} as any,
+  args: { children: null },
   render: () => (
     <div className="w-64">
       <Card>
@@ -169,7 +169,7 @@ export const NarrowLayout: Story = {
  * Wide card layout
  */
 export const WideLayout: Story = {
-  args: {} as any,
+  args: { children: null },
   render: () => (
     <div className="w-[800px]">
       <Card>
@@ -216,7 +216,7 @@ export const WideLayout: Story = {
  * Empty card state
  */
 export const EmptyState: Story = {
-  args: {} as any,
+  args: { children: null },
   render: () => (
     <Card>
       <div className="text-center py-8">
@@ -235,7 +235,7 @@ export const EmptyState: Story = {
  * Card with error state
  */
 export const ErrorState: Story = {
-  args: {} as any,
+  args: { children: null },
   render: () => (
     <Card>
       <div className="flex items-start gap-3">
@@ -287,7 +287,7 @@ export const ErrorState: Story = {
  * Multiple cards in a grid
  */
 export const MultipleCardsGrid: Story = {
-  args: {} as any,
+  args: { children: null },
   render: () => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl">
       <Card>
@@ -345,7 +345,7 @@ export const MultipleCardsGrid: Story = {
  * Nested cards (not recommended, but shown for reference)
  */
 export const NestedCards: Story = {
-  args: {} as any,
+  args: { children: null },
   render: () => (
     <Card>
       <h2 className="text-lg font-semibold text-on-surface mb-4">

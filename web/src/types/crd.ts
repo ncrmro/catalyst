@@ -1,8 +1,10 @@
+export type EnvironmentType = "deployment" | "development";
+
 export interface EnvironmentCRSpec {
   projectRef: {
     name: string;
   };
-  type: string;
+  type: EnvironmentType;
   source: {
     commitSha: string;
     branch: string;

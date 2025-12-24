@@ -701,7 +701,7 @@ export async function getPreviewPodResourceUsage(
       };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const metricsResponse = await new Promise<any>((resolve, reject) => {
+      const metricsResponse = await new Promise<any>((resolve) => {
         metricsClient.applyToRequest({
           ...opts,
           method: "GET",

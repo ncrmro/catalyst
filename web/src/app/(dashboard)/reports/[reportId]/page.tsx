@@ -1,5 +1,5 @@
 import { fetchReportById } from '@/actions/reports';
-import type { Report, PullRequest, Issue } from '@/types/reports';
+import type { PullRequest, Issue } from '@/types/reports';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';

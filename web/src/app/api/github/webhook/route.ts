@@ -3,7 +3,7 @@ import {
   createKubernetesNamespace,
   deleteKubernetesNamespace,
 } from "@/actions/kubernetes";
-import { getInstallationOctokit, GITHUB_CONFIG } from "@/lib/vcs-providers";
+import { GITHUB_CONFIG } from "@/lib/vcs-providers";
 import {
   createPullRequestPodJob,
   cleanupPullRequestPodJob,
@@ -16,7 +16,6 @@ import {
 import {
   createPreviewDeployment,
   deletePreviewDeploymentOrchestrated,
-  getPodById,
 } from "@/models/preview-environments";
 import { db } from "@/db";
 import { pullRequestPods, pullRequests } from "@/db/schema";

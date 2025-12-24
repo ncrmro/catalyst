@@ -112,7 +112,7 @@ export const Large: Story = {
  * All statuses in a row
  */
 export const AllStatuses: Story = {
-  args: {} as any,
+  args: { status: "running" },
   render: () => (
     <div className="flex items-center gap-4">
       <div className="flex items-center gap-2">
@@ -139,7 +139,7 @@ export const AllStatuses: Story = {
  * All sizes comparison
  */
 export const AllSizes: Story = {
-  args: {} as any,
+  args: { status: "running" },
   render: () => (
     <div className="flex items-center gap-6">
       <div className="flex items-center gap-2">
@@ -182,7 +182,7 @@ export const WithCustomClassName: Story = {
  * In context example - agent status list
  */
 export const InContextAgentList: Story = {
-  args: {} as any,
+  args: { status: "running" },
   render: () => (
     <div className="w-80 space-y-3 rounded-lg bg-surface p-4">
       <h3 className="text-sm font-medium text-on-surface">Agent Runs</h3>
@@ -219,7 +219,7 @@ export const InContextAgentList: Story = {
  * In context example - container status list
  */
 export const InContextContainerList: Story = {
-  args: {} as any,
+  args: { status: "running" },
   render: () => (
     <div className="w-80 space-y-3 rounded-lg bg-surface p-4">
       <h3 className="text-sm font-medium text-on-surface">Containers</h3>

@@ -1,12 +1,12 @@
 import { Factory, faker } from "@/lib/factories";
-import { EnvironmentCR, EnvironmentCRSpec } from "@/types/crd";
+import { EnvironmentCR, EnvironmentType } from "@/types/crd";
 
 /**
  * Transient params for EnvironmentCRFactory
  * These are used to control factory behavior without being part of the final object
  */
 interface EnvironmentCRTransientParams {
-  envType?: "preview" | "production" | "staging" | "development";
+  envType?: EnvironmentType;
   branch?: string;
   prNumber?: number;
 }
@@ -88,16 +88,8 @@ class EnvironmentCRFactory extends Factory<
   }
 
   // Environment type traits (use transient params to override type)
-  preview() {
-    return this.transient({ envType: "preview" as const });
-  }
-
-  production() {
-    return this.transient({ envType: "production" as const });
-  }
-
-  staging() {
-    return this.transient({ envType: "staging" as const });
+  deployment() {
+    return this.transient({ envType: "deployment" as const });
   }
 
   development() {
@@ -121,10 +113,8 @@ export const environmentCRFactory = EnvironmentCRFactory.define(
     const projectName = faker.word.noun().toLowerCase();
     const commitSha = faker.git.commitSha();
     const defaultBranch = faker.git.branch();
-    const defaultEnvType = faker.helpers.arrayElement([
-      "preview",
-      "production",
-      "staging",
+    const defaultEnvType: EnvironmentType = faker.helpers.arrayElement([
+      "deployment",
       "development",
     ]);
 
@@ -135,11 +125,9 @@ export const environmentCRFactory = EnvironmentCRFactory.define(
 
     // Generate realistic environment name
     const envName =
-      envType === "production"
-        ? `${projectName}-production`
-        : envType === "staging"
-          ? `${projectName}-staging`
-          : `${projectName}-${branch.replace(/[^a-z0-9-]/g, "-").toLowerCase()}-${sequence}`;
+      envType === "deployment"
+        ? `${projectName}-${faker.helpers.arrayElement(["prod", "staging"])}`
+        : `${projectName}-${branch.replace(/[^a-z0-9-]/g, "-").toLowerCase()}-${sequence}`;
 
     return {
       metadata: {
@@ -158,7 +146,7 @@ export const environmentCRFactory = EnvironmentCRFactory.define(
           prNumber:
             prNumber !== undefined
               ? prNumber
-              : envType === "preview"
+              : envType === "development"
                 ? faker.number.int({ min: 1, max: 999 })
                 : undefined,
         },
@@ -166,7 +154,7 @@ export const environmentCRFactory = EnvironmentCRFactory.define(
           envVars: [
             {
               name: "NODE_ENV",
-              value: envType === "production" ? "production" : "development",
+              value: envType === "deployment" ? "production" : "development",
             },
             { name: "API_URL", value: faker.internet.url() },
             {
