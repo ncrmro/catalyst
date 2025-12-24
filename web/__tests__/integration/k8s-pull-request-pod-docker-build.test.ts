@@ -27,10 +27,11 @@ import type { V1PolicyRule, V1EnvVar } from "@kubernetes/client-node";
 
 import { beforeAll, afterAll, describe, it, expect, vi } from "vitest";
 
-// Mock the GitHub configuration
-vi.mock("@/lib/github", () => ({
+// Mock the VCS providers configuration
+vi.mock("@/lib/vcs-providers", () => ({
   GITHUB_CONFIG: {
     PAT: "mock-github-pat-for-integration-tests",
+    GHCR_PAT: "mock-ghcr-pat-for-integration-tests",
   },
 }));
 

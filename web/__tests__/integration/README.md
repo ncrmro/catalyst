@@ -31,10 +31,11 @@ The following integration test files mock `GITHUB_CONFIG` to provide a mock PAT:
 ```typescript
 import { vi } from 'vitest';
 
-// Mock the GitHub configuration
-vi.mock('@/lib/github', () => ({
+// Mock the VCS providers configuration
+vi.mock('@/lib/vcs-providers', () => ({
   GITHUB_CONFIG: {
-    PAT: 'mock-github-pat-for-integration-tests'
+    PAT: 'mock-github-pat-for-integration-tests',
+    GHCR_PAT: 'mock-ghcr-pat-for-integration-tests'
   }
 }));
 ```
