@@ -234,6 +234,7 @@ export const IconOnly: Story = {
  */
 export const AllVariants: Story = {
   args: {} as any,
+  args: { icon: null },
   render: () => (
     <div className="flex flex-wrap items-center gap-4">
       <div className="flex flex-col items-center gap-2">
@@ -261,6 +262,7 @@ export const AllVariants: Story = {
  */
 export const AllSizes: Story = {
   args: {} as any,
+  args: { icon: null },
   render: () => (
     <div className="flex flex-wrap items-center gap-6">
       <div className="flex flex-col items-center gap-2">
@@ -284,6 +286,7 @@ export const AllSizes: Story = {
  */
 export const IconOnlySizes: Story = {
   args: {} as any,
+  args: { icon: null },
   render: () => (
     <div className="flex flex-wrap items-center gap-6">
       <div className="flex flex-col items-center gap-2">
@@ -307,6 +310,7 @@ export const IconOnlySizes: Story = {
  */
 export const InContextContainerActions: Story = {
   args: {} as any,
+  args: { icon: null },
   render: () => (
     <div className="w-80 rounded-lg bg-surface p-4">
       <h3 className="text-sm font-medium text-on-surface mb-3">
@@ -343,6 +347,7 @@ export const InContextContainerActions: Story = {
  */
 export const InContextToolbar: Story = {
   args: {} as any,
+  args: { icon: null },
   render: () => (
     <div className="flex items-center gap-2 rounded-lg bg-surface p-3 border border-outline/50">
       <IconButton icon={PlusIcon} variant="ghost" aria-label="Add" />
@@ -364,6 +369,7 @@ export const InContextToolbar: Story = {
  */
 export const InContextAgentActions: Story = {
   args: {} as any,
+  args: { icon: null },
   render: () => (
     <div className="w-full max-w-md rounded-lg bg-surface p-4 border border-outline/50">
       <div className="flex items-center justify-between mb-3">

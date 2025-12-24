@@ -27,7 +27,6 @@ import {
 import { db } from "@/db";
 import {
   repos,
-  teams,
   teamsMemberships,
   pullRequestPods,
   pullRequests,

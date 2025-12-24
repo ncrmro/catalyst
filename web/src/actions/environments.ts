@@ -1,11 +1,6 @@
 "use server";
 
-import {
-  getEnvironments,
-  createEnvironments,
-  environmentExists,
-} from "@/models/environments";
-import { getProjects, incrementPreviewCount } from "@/models/projects";
+import { getProjects } from "@/models/projects";
 import { revalidatePath } from "next/cache";
 import { getUserTeamIds } from "@/lib/team-auth";
 import { createProjectCR, createEnvironmentCR } from "@/lib/k8s-operator";
