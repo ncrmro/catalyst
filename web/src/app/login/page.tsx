@@ -12,9 +12,9 @@ export const metadata: Metadata = {
 export default async function LoginPage() {
   const session = await _auth();
 
-  // If user is already authenticated, redirect to home
+  // If user is already authenticated, redirect to projects
   if (session?.user) {
-    redirect("/");
+    redirect("/projects");
   }
 
   return (
