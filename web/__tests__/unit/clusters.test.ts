@@ -1,15 +1,26 @@
 import { vi } from 'vitest';
 
 // Mock the kubernetes client module
-vi.mock('@kubernetes/client-node', () => ({
-  KubeConfig: vi.fn().mockImplementation(() => ({
-    loadFromString: vi.fn(),
-    loadFromDefault: vi.fn(),
-    getCurrentContext: vi.fn(() => 'test-context'),
-    getCurrentCluster: vi.fn(() => ({ server: 'https://test-server:6443' })),
-    makeApiClient: vi.fn()
-  }))
-}));
+vi.mock('@kubernetes/client-node', () => {
+  return {
+    KubeConfig: class {
+      loadFromString = vi.fn();
+      loadFromDefault = vi.fn();
+      loadFromEnvVar = vi.fn(async (envVar) => {
+        // Mock implementation of loadFromEnvVar logic if needed, 
+        // or just rely on loadFromString if the real class calls it.
+        // But since we are mocking the class, we need to replicate behavior or spy on it?
+        // Wait, the test uses the REAL KubeConfig wrapper from @/lib/k8s-client?
+        // Yes. So we are mocking the underlying @kubernetes/client-node library.
+        // The real wrapper calls `new k8s.KubeConfig()`.
+        // So we need to provide a class.
+      });
+      getCurrentContext = vi.fn(() => 'test-context');
+      getCurrentCluster = vi.fn(() => ({ server: 'https://test-server:6443' }));
+      makeApiClient = vi.fn();
+    }
+  };
+});
 
 import { KubeConfig, resetKubeConfigRegistry } from '@/lib/k8s-client';
 import { getClusters } from '@/actions/clusters';

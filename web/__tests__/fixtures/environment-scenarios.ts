@@ -18,7 +18,7 @@ import { containerFactory } from "../factories/container.factory";
  */
 export const successfulDeployment = {
   environment: environmentCRFactory
-    .preview()
+    .development()
     .ready()
     .withPullRequest(42)
     .build({
@@ -29,7 +29,7 @@ export const successfulDeployment = {
       },
       spec: {
         projectRef: { name: "catalyst-web" },
-        type: "preview",
+        type: "development",
         source: {
           commitSha: "abc1234567890def",
           branch: "feat/preview-environments",
@@ -89,7 +89,7 @@ export const successfulDeployment = {
  */
 export const failedDeployment = {
   environment: environmentCRFactory
-    .preview()
+    .development()
     .failed()
     .withPullRequest(43)
     .build({
@@ -100,7 +100,7 @@ export const failedDeployment = {
       },
       spec: {
         projectRef: { name: "catalyst-web" },
-        type: "preview",
+        type: "development",
         source: {
           commitSha: "bad1234567890bad",
           branch: "feat/broken-build",
@@ -140,7 +140,7 @@ export const failedDeployment = {
  */
 export const provisioningDeployment = {
   environment: environmentCRFactory
-    .preview()
+    .development()
     .provisioning()
     .withPullRequest(44)
     .build({
@@ -151,7 +151,7 @@ export const provisioningDeployment = {
       },
       spec: {
         projectRef: { name: "catalyst-web" },
-        type: "preview",
+        type: "development",
         source: {
           commitSha: "def4567890abcdef",
           branch: "feat/new-dashboard",
@@ -187,7 +187,7 @@ export const provisioningDeployment = {
  */
 export const productionEnvironment = {
   environment: environmentCRFactory
-    .production()
+    .deployment()
     .ready()
     .build({
       metadata: {
@@ -197,7 +197,7 @@ export const productionEnvironment = {
       },
       spec: {
         projectRef: { name: "catalyst-web" },
-        type: "production",
+        type: "deployment",
         source: {
           commitSha: "main1234567890abc",
           branch: "main",
@@ -248,7 +248,7 @@ export const productionEnvironment = {
  */
 export const multiAgentEnvironment = {
   environment: environmentCRFactory
-    .preview()
+    .development()
     .deploying()
     .withPullRequest(45)
     .build({
@@ -259,7 +259,7 @@ export const multiAgentEnvironment = {
       },
       spec: {
         projectRef: { name: "catalyst-web" },
-        type: "preview",
+        type: "development",
         source: {
           commitSha: "multi123456789abc",
           branch: "feat/multi-agent-test",
@@ -310,7 +310,7 @@ export const multiAgentEnvironment = {
  */
 export const longBranchNameEnvironment = {
   environment: environmentCRFactory
-    .preview()
+    .development()
     .ready()
     .build({
       metadata: {
@@ -319,7 +319,7 @@ export const longBranchNameEnvironment = {
       },
       spec: {
         projectRef: { name: "catalyst-web" },
-        type: "preview",
+        type: "development",
         source: {
           commitSha: "edge123456789abc",
           branch:
