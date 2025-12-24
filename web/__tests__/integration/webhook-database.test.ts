@@ -18,13 +18,40 @@ import { POST } from "@/app/api/github/webhook/route";
 import { db, pullRequests, repos, teams, users } from "@/db";
 import { eq, and } from "drizzle-orm";
 
-// Mock the GitHub configuration
-vi.mock("@/lib/github", () => ({
+// Mock the VCS providers configuration
+vi.mock("@/lib/vcs-providers", () => ({
   getInstallationOctokit: vi.fn(),
   GITHUB_CONFIG: {
     WEBHOOK_SECRET: "integration-test-webhook-secret",
     PAT: "mock-github-pat-for-integration-tests",
   },
+}));
+
+// Mock the preview environments model (not needed for database integration tests)
+vi.mock("@/models/preview-environments", () => ({
+  createPreviewDeployment: vi.fn().mockResolvedValue({ success: true }),
+  deletePreviewDeploymentOrchestrated: vi.fn().mockResolvedValue({ success: true }),
+}));
+
+// Mock Kubernetes operations (not needed for database integration tests)
+vi.mock("@/actions/kubernetes", () => ({
+  createKubernetesNamespace: vi.fn().mockResolvedValue({
+    success: true,
+    namespace: { name: "test-namespace", created: true },
+  }),
+  deleteKubernetesNamespace: vi.fn().mockResolvedValue({
+    success: true,
+    namespaceName: "test-namespace",
+  }),
+}));
+
+// Mock k8s pod job operations
+vi.mock("@/lib/k8s-pull-request-pod", () => ({
+  createPullRequestPodJob: vi.fn().mockResolvedValue({
+    jobName: "test-job",
+    created: true,
+  }),
+  cleanupPullRequestPodJob: vi.fn().mockResolvedValue(undefined),
 }));
 
 /**
@@ -61,7 +88,7 @@ describe("GitHub Webhook Database Integration", () => {
           login: "testuser",
           avatar_url: "https://github.com/testuser.png",
         },
-        head: { ref: "feature/integration-test" },
+        head: { ref: "feature/integration-test", sha: "abc123def456789" },
         base: { ref: "main" },
         comments: 2,
         changed_files: 3,
@@ -340,7 +367,7 @@ describe("GitHub Webhook Database Integration", () => {
         draft: false,
         html_url: "https://github.com/non-existent/repo/pull/999",
         user: { login: "testuser" },
-        head: { ref: "feature/test" },
+        head: { ref: "feature/test", sha: "def456abc789012" },
         base: { ref: "main" },
         comments: 0,
         created_at: "2024-01-01T00:00:00Z",
