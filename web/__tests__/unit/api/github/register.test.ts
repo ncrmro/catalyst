@@ -3,7 +3,7 @@ import { GET, POST } from '../../../../src/app/api/github/register/route';
 import { vi } from 'vitest';
 
 // Mock the GitHub config
-vi.mock('@/lib/github', () => ({
+vi.mock('@/lib/vcs-providers', () => ({
   GITHUB_CONFIG: {
     APP_ID: 'test-app-id',
     APP_PRIVATE_KEY: 'test-private-key',

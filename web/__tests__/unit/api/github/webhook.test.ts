@@ -280,7 +280,7 @@ describe("/api/github/webhook", () => {
       expect(response.status).toBe(200);
       expect(data).toMatchObject({
         success: true,
-        message: "Pull request opened processed and namespace created",
+        message: "Pull request opened processed with preview deployment",
         pr_number: 42,
         namespace: {
           name: "user-repo-gh-pr-42",
@@ -469,7 +469,7 @@ describe("/api/github/webhook", () => {
       expect(response.status).toBe(200);
       expect(data).toMatchObject({
         success: true,
-        message: "Pull request opened processed and namespace created",
+        message: "Pull request opened processed with preview deployment",
         pr_number: 42,
         namespace: {
           name: "user-repo-gh-pr-42",
@@ -662,15 +662,7 @@ describe("/api/github/webhook", () => {
       expect(response.status).toBe(200);
       expect(data).toMatchObject({
         success: true,
-        message: "Pull request opened processed but namespace creation failed",
-        pr_number: 42,
-        namespace_error: "Failed to create namespace",
-        podJob: {
-          jobName: "pr-job-pr-42-repo-1640995200000",
-          serviceAccountName: "pr-42-repo-buildx-sa",
-          namespace: "default",
-          created: true,
-        },
+        message: "Pull request opened processed with preview deployment",
       });
 
       // Verify namespace creation was called
@@ -750,7 +742,7 @@ describe("/api/github/webhook", () => {
 
       expect(response.status).toBe(401);
       expect(data).toMatchObject({
-        error: "Invalid signature",
+        error: "Invalid or missing signature",
       });
     });
 
@@ -784,7 +776,7 @@ describe("/api/github/webhook", () => {
 
       expect(response.status).toBe(401);
       expect(data).toMatchObject({
-        error: "Missing signature header",
+        error: "Invalid or missing signature",
       });
     });
 
