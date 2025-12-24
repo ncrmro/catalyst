@@ -130,9 +130,17 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	err = r.Get(ctx, client.ObjectKey{Name: podName, Namespace: targetNamespace}, workspacePod)
 
 	if err != nil && apierrors.IsNotFound(err) {
+		// Fetch Project to get build/source config
+		project := &catalystv1alpha1.Project{}
+		// Assuming Project is in the same namespace as Environment
+		if err := r.Get(ctx, client.ObjectKey{Name: env.Spec.ProjectRef.Name, Namespace: req.Namespace}, project); err != nil {
+			log.Error(err, "Failed to get Project for Environment", "project", env.Spec.ProjectRef.Name)
+			return ctrl.Result{}, err
+		}
+
 		// Pod doesn't exist, create it
 		log.Info("Creating Workspace Pod", "pod", podName)
-		workspacePod = desiredWorkspacePod(env, targetNamespace)
+		workspacePod = desiredWorkspacePod(env, project, targetNamespace)
 
 		// Note: Pod is in different namespace, cannot set owner ref.
 		// It will be garbage collected when the Namespace is deleted.

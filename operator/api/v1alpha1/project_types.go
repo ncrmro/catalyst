@@ -30,6 +30,14 @@ type ProjectSpec struct {
 	// Deployment strategy configuration
 	Deployment DeploymentConfig `json:"deployment"`
 
+	// Build configuration for container images
+	// +optional
+	Build *BuildConfig `json:"build,omitempty"`
+
+	// Release configuration for automatic deployments
+	// +optional
+	Release *ReleaseConfig `json:"release,omitempty"`
+
 	// Resources configuration (quotas, limits)
 	Resources ResourceConfig `json:"resources,omitempty"`
 }
@@ -40,6 +48,25 @@ type SourceConfig struct {
 
 	// Branch is the default branch to use
 	Branch string `json:"branch"`
+}
+
+type BuildConfig struct {
+	// Type of build: "nix", "docker"
+	// +kubebuilder:validation:Enum=nix;docker
+	Type string `json:"type"`
+
+	// Path to build context or file (e.g. ".", "Dockerfile")
+	// +optional
+	Path string `json:"path,omitempty"`
+}
+
+type ReleaseConfig struct {
+	// Branch to track for releases (e.g. "main")
+	Branch string `json:"branch"`
+
+	// Strategy: "push" (deploy every push), "tag" (deploy on tag)
+	// +kubebuilder:validation:Enum=push;tag
+	Strategy string `json:"strategy"`
 }
 
 type DeploymentConfig struct {

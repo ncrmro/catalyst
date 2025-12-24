@@ -31,6 +31,43 @@ When user requests a spike always read spikes/README.md for how to create and im
 
 ## Development Commands
 
+### Kubernetes Operator (in `/operator` directory)
+
+**Development Environment:**
+
+The operator directory uses a separate Nix flake to manage its dependencies (Go, Kubectl, Kubebuilder, etc.). **All `make` commands must be run inside this environment.**
+
+```bash
+# Option 1: Using direnv (Recommended)
+cd operator
+direnv allow
+# Now run make commands directly
+
+# Option 2: Using nix develop
+cd operator
+nix develop
+# Now run make commands inside the shell
+```
+
+**Development:**
+
+```bash
+make build            # Build the manager binary
+make manifests        # Generate WebhookConfiguration, ClusterRole and CRDs
+make generate         # Generate code (DeepCopy, etc.)
+make run              # Run the controller locally (connects to active kubeconfig)
+make docker-build     # Build the docker image
+```
+
+**Testing:**
+
+```bash
+make test             # Run unit tests
+make test-e2e         # Run e2e tests (requires Kind)
+```
+
+**Note**: To test against the local K3s VM, ensure your `~/.kube/config` points to it, then run `make run`.
+
 ### Web Application (in `/web` directory)
 
 **Development:**

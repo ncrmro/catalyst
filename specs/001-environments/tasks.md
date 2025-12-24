@@ -512,6 +512,21 @@ This delivers the core value proposition: automatic preview deployments with pub
 
 ---
 
+## Phase 12: Advanced Environment Features
+
+**Purpose**: Implement advanced configuration, build capabilities, and health checks per updated spec.
+
+- [x] T136 [FR-ENV-002] Update Environment CRD in `operator/api/v1alpha1/environment_types.go` to support `devContainer` definition (default: nix).
+- [x] T137 [FR-ENV-002] Implement Nix flake dev shell support in operator builder/runner logic.
+- [x] T138 [FR-ENV-003] Implement build-in-build capability (DinD or Nix) for dev environments in operator pod spec generation.
+- [x] T139 [FR-ENV-004] Add liveness/readiness probe configuration to Environment CRD.
+- [ ] T140 [FR-ENV-004] Implement health check verification in operator reconciliation loop (checking stateful service connectivity).
+- [ ] T141 [FR-ENV-005] Implement service definition parsing (postgres, redis) in Environment CRD and corresponding resource creation in operator.
+- [ ] T142 [FR-ENV-005] Update deployment logic to support "Branch Tracking" and "Release Criteria" in Project CRD.
+- [ ] T143 [FR-ENV-005] Add unit tests for new CRD fields and operator logic.
+
+---
+
 ## Child Spec Reference
 
 Operator implementation tasks are tracked separately:

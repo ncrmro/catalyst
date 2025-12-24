@@ -31,6 +31,12 @@ This separation ensures production stability while enabling rapid experimentatio
 
 Deployment environments run production and staging workloads. They are long-lived, updated through CI/CD pipelines, and configured for reliability and observability.
 
+**Deployment Strategy:**
+
+- **Branch Tracking**: Environments follow a specific branch (e.g., `main`, `staging`). Deployment jobs build that branch when release criteria are met.
+- **Release Logic**: Production is configured to deploy either the latest release commit in a branch (building a container if required) or a Helm chart to a release namespace.
+- **Service Definition**: Both deployment and development environments can define required services (e.g., operator-created Postgres, Redis, etc.).
+
 **Deployment Methods:**
 
 - **Kubernetes Manifests**: Direct YAML definitions for full control
@@ -59,6 +65,9 @@ Development environments are interactive workspaces for humans and agents. They 
 
 **Core Capabilities:**
 
+- **Container Definition**: Users can define the container that runs their development workspace. **Default**: Uses a Nix flake dev shell (`nix develop`).
+- **Build & Test**: The development environment must be able to build and test the production container image/flake (e.g., via Docker-in-Docker or Nix).
+- **Health & Liveness**: The development server must pass a health check (confirming application can talk to all stateful services) and liveness/readiness checks before being marked ready.
 - **Shell Access**: SSH or exec into containers for interactive development
 - **Real Public URLs**: Traffic proxied through Cloudflare (or similar) to the environment
 - **Namespace Resource Control**: Agents have full access to create, modify, and delete Kubernetes resources within their namespace—databases, caches, sidecars, or any infrastructure needed for development

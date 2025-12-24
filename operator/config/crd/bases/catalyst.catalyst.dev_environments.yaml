@@ -56,6 +56,17 @@ spec:
                       type: object
                     type: array
                 type: object
+              devContainer:
+                description: DevContainer defines the development workspace configuration
+                properties:
+                  image:
+                    description: Image to use (overrides default based on type)
+                    type: string
+                  type:
+                    default: nix
+                    description: 'Type of dev container: "nix" (default), "docker"'
+                    type: string
+                type: object
               projectRef:
                 description: ProjectRef references the parent Project
                 properties:

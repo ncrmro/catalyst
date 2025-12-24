@@ -170,6 +170,10 @@ The following files in `web/src/lib/` remain for app-specific logic (gradual mig
 - [ ] Full migration of old k8s-\*.ts files
 - [ ] Integration tests with K3s VM
 - [ ] FR-ENV-001: Graceful handling of missing Kubernetes resources in web UI
+- [ ] FR-ENV-002: Nix flake dev shell support
+- [ ] FR-ENV-003: Build/Test capabilities in dev environment
+- [ ] FR-ENV-004: Health and Liveness checks
+- [ ] FR-ENV-005: Advanced Service Definitions (Postgres, Redis, etc.)
 
 ## FR-ENV-001: Graceful Handling of Missing Kubernetes Resources
 
