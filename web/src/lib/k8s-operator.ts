@@ -192,10 +192,19 @@ export async function deleteEnvironmentCR(
   }
 }
 
+interface KubernetesError {
+  response?: {
+    statusCode?: number;
+  };
+  statusCode?: number;
+  body?: string | { code?: number };
+  message?: string;
+}
+
 function isKubeNotFound(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
 
-  const err = error as any;
+  const err = error as KubernetesError;
 
   // Check standard response.statusCode
   if (err.response?.statusCode === 404) return true;

@@ -20,8 +20,7 @@ import {
   type GitHubRepo,
   type GitHubOrganization,
   type GitHubMockData,
-  type ReposData,
-  type MockPullRequest
+  type ReposData
 } from '@/schemas/github-mock';
 import { z } from 'zod';
 

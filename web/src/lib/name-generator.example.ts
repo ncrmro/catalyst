@@ -120,7 +120,7 @@ export async function example5_ManualPreviewEnvironment(params: {
   branch?: string;
   imageUri: string;
 }) {
-  const { userId, repoId, branch, imageUri } = params;
+  const { branch } = params;
 
   // Step 1: Generate namespace name
   let namespace: string;

@@ -88,7 +88,6 @@ const ChevronIcon = ({ isExpanded }: { isExpanded: boolean }) => (
  * ```
  */
 export function AgentRunCard({
-  id,
   agent,
   goal,
   status,

@@ -143,7 +143,7 @@ export const Medium: Story = {
  * All statuses in a row for comparison
  */
 export const AllStatuses: Story = {
-  args: {} as any,
+  args: { status: "running" },
   render: () => (
     <div className="flex flex-wrap items-center gap-3">
       <StatusBadge status="ready" />
@@ -161,7 +161,7 @@ export const AllStatuses: Story = {
  * All sizes comparison
  */
 export const AllSizes: Story = {
-  args: {} as any,
+  args: { status: "running" },
   render: () => (
     <div className="flex flex-wrap items-center gap-4">
       <div className="flex flex-col items-center gap-2">
@@ -203,7 +203,7 @@ export const UnknownStatus: Story = {
  * In context example - environment list
  */
 export const InContextEnvironmentList: Story = {
-  args: {} as any,
+  args: { status: "running" },
   render: () => (
     <div className="w-96 space-y-3 rounded-lg bg-surface p-4">
       <h3 className="text-sm font-medium text-on-surface">
@@ -255,7 +255,7 @@ export const InContextEnvironmentList: Story = {
  * In context example - agent runs header
  */
 export const InContextAgentHeader: Story = {
-  args: {} as any,
+  args: { status: "running" },
   render: () => (
     <div className="w-full max-w-2xl space-y-3 rounded-lg bg-surface p-4">
       <h3 className="text-sm font-medium text-on-surface">Recent Agents</h3>
@@ -317,7 +317,7 @@ export const InContextAgentHeader: Story = {
  * In context example - deployment pipeline
  */
 export const InContextDeploymentPipeline: Story = {
-  args: {} as any,
+  args: { status: "running" },
   render: () => (
     <div className="w-full max-w-md space-y-3 rounded-lg bg-surface p-4">
       <h3 className="text-sm font-medium text-on-surface">
