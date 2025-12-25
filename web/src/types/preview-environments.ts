@@ -1,7 +1,5 @@
 // Type definitions for PR Preview Environments
 
-import { InferSelectModel, InferInsertModel } from "drizzle-orm";
-import { pullRequestPods } from "@/db/schema";
 import { z } from "zod";
 
 export type PodStatus =
@@ -132,6 +130,36 @@ export interface PreviewEnvironmentConfig {
   publicUrl: string;
 }
 
-// Drizzle ORM type inference
-export type SelectPullRequestPod = InferSelectModel<typeof pullRequestPods>;
-export type InsertPullRequestPod = InferInsertModel<typeof pullRequestPods>;
+// Database types manually defined to match schema (keep in sync with src/db/schema.ts)
+// This avoids importing drizzle-orm which would bundle Node.js dependencies
+
+export interface SelectPullRequestPod {
+  id: string;
+  source: "pull_request" | "manual";
+  pullRequestId: string | null;
+  createdBy: string | null;
+  commitSha: string;
+  namespace: string;
+  deploymentName: string;
+  status: "pending" | "deploying" | "running" | "failed" | "deleting";
+  publicUrl: string | null;
+  branch: string;
+  imageTag: string | null;
+  errorMessage: string | null;
+  resourcesAllocated: {
+    cpu: string;
+    memory: string;
+    pods: number;
+  } | null;
+  expiresAt: Date | null;
+  lastDeployedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt: Date | null;
+}
+
+export type InsertPullRequestPod = Omit<
+  SelectPullRequestPod,
+  "id" | "createdAt" | "updatedAt"
+> &
+  Partial<Pick<SelectPullRequestPod, "createdAt" | "updatedAt">>;
