@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -60,7 +61,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	targetNamespace := "env-" + env.Name
+	targetNamespace := fmt.Sprintf("%s-%s", env.Spec.ProjectRef.Name, env.Name)
 
 	// Finalizer logic
 	if !env.ObjectMeta.DeletionTimestamp.IsZero() {
@@ -101,6 +102,12 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		ns = &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: targetNamespace,
+				Labels: map[string]string{
+					"catalyst.dev/team":        "catalyst", // TODO: Get from Project or Env
+					"catalyst.dev/project":     env.Spec.ProjectRef.Name,
+					"catalyst.dev/environment": env.Name,
+					"catalyst.dev/branch":      env.Spec.Source.Branch,
+				},
 			},
 		}
 		// Note: We cannot set OwnerReference for cluster-scoped resources like Namespace
@@ -124,6 +131,17 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// 3. Workspace Pod Management
+
+	// Wait for default service account to be ready
+	sa := &corev1.ServiceAccount{}
+	if err := r.Get(ctx, client.ObjectKey{Name: "default", Namespace: targetNamespace}, sa); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("Waiting for default ServiceAccount", "namespace", targetNamespace)
+			return ctrl.Result{RequeueAfter: time.Second}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
 	// Create a workspace pod that runs indefinitely for exec access from UI
 	podName := workspacePodName(env)
 	workspacePod := &corev1.Pod{}

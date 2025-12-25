@@ -47,8 +47,7 @@ To ensure reliability and maintainability, the operator will be tested at three 
 - [ ] **T005**: Implement `Reconcile` loop skeleton in `internal/controller/environment_controller.go`.
 - [ ] **T006**: Implement Namespace management.
   - Check if namespace exists.
-  - Create namespace if missing (name format: `env-<project>-<id>`).
-  - Add OwnerReference to the Namespace (pointing to Environment CR) for automatic garbage collection.
+    - Check/Create namespace `<project>-<environment>`.  - Add OwnerReference to the Namespace (pointing to Environment CR) for automatic garbage collection.
 - [ ] **T007**: Implement Status updates.
   - Update `Environment.Status.Phase` to "Initializing".
   - Update `Environment.Status.Conditions`.

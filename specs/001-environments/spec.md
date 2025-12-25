@@ -96,7 +96,24 @@ When a PR is opened, a development environment serves as the preview environment
 
 ### Kubernetes Foundation
 
-All environments operate within dedicated Kubernetes namespaces, providing:
+All environments operate within dedicated Kubernetes namespaces, structured hierarchically:
+
+**Namespace Hierarchy:**
+
+1.  **Team Namespace** (`<team-name>`): Contains shared infrastructure (monitoring, logging).
+2.  **Project Namespace** (`<team-name>-<project-name>`): Logical grouping for project resources.
+3.  **Environment Namespace** (`<team-name>-<project-name>-<environment-name>`): The actual target for workload deployments.
+
+**Labels:**
+
+All generated namespaces and resources are tagged with:
+
+- `catalyst.dev/team`
+- `catalyst.dev/project`
+- `catalyst.dev/environment`
+- `catalyst.dev/branch`
+
+**Isolation Features:**
 
 - **Resource Isolation**: CPU, memory, and storage quotas per environment
 - **Network Isolation**: Network policies restrict cross-namespace traffic
