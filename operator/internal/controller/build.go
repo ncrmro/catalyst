@@ -21,14 +21,15 @@ const (
 	workspaceImage      = "alpine:latest"
 )
 
-// registryHost returns the container registry host.
+// getRegistryHost returns the container registry host.
+// Called at runtime to support dynamic reconfiguration.
 // Priority: CONTAINER_REGISTRY_HOST env > default
-var registryHost = func() string {
+func getRegistryHost() string {
 	if host := os.Getenv("CONTAINER_REGISTRY_HOST"); host != "" {
 		return host
 	}
 	return defaultRegistryHost
-}()
+}
 
 func workspacePodName(env *catalystv1alpha1.Environment) string {
 	commitPart := env.Spec.Source.CommitSha

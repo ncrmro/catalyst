@@ -14,10 +14,11 @@ import (
 )
 
 // Default values for ingress configuration (can be overridden via environment variables)
+// These defaults match the web application defaults for consistency
 const (
-	defaultPreviewDomain      = "preview.catalyst.dev"
-	defaultTLSClusterIssuer   = "letsencrypt-prod"
-	defaultIngressClassName   = "nginx"
+	defaultPreviewDomain    = "preview.localhost"
+	defaultTLSClusterIssuer = "letsencrypt-prod"
+	defaultIngressClassName = "nginx"
 )
 
 // getIngressDomain returns the domain for preview environments.
@@ -62,7 +63,7 @@ func getIngressClassName(ingress catalystv1alpha1.IngressConfig) string {
 // - Create Ingress with TLS
 
 func desiredDeployment(env *catalystv1alpha1.Environment, namespace string) *appsv1.Deployment {
-	imageTag := fmt.Sprintf("%s/%s:%s", registryHost, env.Spec.ProjectRef.Name, env.Spec.Source.CommitSha)
+	imageTag := fmt.Sprintf("%s/%s:%s", getRegistryHost(), env.Spec.ProjectRef.Name, env.Spec.Source.CommitSha)
 	name := "app" // Standard name within the isolated namespace
 
 	replicas := int32(1)

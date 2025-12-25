@@ -87,7 +87,16 @@ export interface PreviewIngressConfig {
 }
 
 /**
+ * Get a non-empty string value, returning undefined if empty or nullish.
+ * This ensures empty strings don't override defaults.
+ */
+function nonEmpty(value: string | null | undefined): string | undefined {
+  return value && value.trim() ? value : undefined;
+}
+
+/**
  * Get ingress configuration with priority: project settings > environment variables > defaults.
+ * Uses nullish coalescing (??) to properly handle the fallback chain.
  *
  * @param projectConfig - Optional project-level configuration
  * @returns Resolved ingress configuration
@@ -99,16 +108,16 @@ export function resolveIngressConfig(projectConfig?: {
 }): PreviewIngressConfig {
   return {
     domain:
-      projectConfig?.customDomain ||
-      process.env.PREVIEW_DOMAIN ||
+      nonEmpty(projectConfig?.customDomain) ??
+      nonEmpty(process.env.PREVIEW_DOMAIN) ??
       "preview.localhost",
     tlsClusterIssuer:
-      projectConfig?.tlsClusterIssuer ||
-      process.env.PREVIEW_TLS_CLUSTER_ISSUER ||
+      nonEmpty(projectConfig?.tlsClusterIssuer) ??
+      nonEmpty(process.env.PREVIEW_TLS_CLUSTER_ISSUER) ??
       "letsencrypt-prod",
     ingressClassName:
-      projectConfig?.ingressClassName ||
-      process.env.PREVIEW_INGRESS_CLASS ||
+      nonEmpty(projectConfig?.ingressClassName) ??
+      nonEmpty(process.env.PREVIEW_INGRESS_CLASS) ??
       "nginx",
   };
 }

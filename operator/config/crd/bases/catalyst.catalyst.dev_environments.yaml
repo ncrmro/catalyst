@@ -56,6 +56,22 @@ spec:
                       type: object
                     type: array
                 type: object
+              ingress:
+                description: Ingress configuration for this environment
+                properties:
+                  domain:
+                    description: Domain is the custom domain for preview URLs (e.g.,
+                      "preview.mycompany.com")
+                    type: string
+                  ingressClassName:
+                    description: IngressClassName is the ingress class to use (e.g.,
+                      "nginx", "traefik")
+                    type: string
+                  tlsClusterIssuer:
+                    description: TLSClusterIssuer is the cert-manager cluster issuer
+                      for TLS certificates
+                    type: string
+                type: object
               projectRef:
                 description: ProjectRef references the parent Project
                 properties:
