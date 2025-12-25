@@ -14,10 +14,10 @@ test.describe('Authentication', () => {
     // Click the sign in button
     await page.getByRole('button', { name: 'Sign in with Password' }).click();
     
-    // Wait for redirect to home page
-    await page.waitForURL('/');
+    // Wait for redirect to home page or projects page
+    await page.waitForURL('**/projects');
     
-    // Verify we're logged in by checking for the sign out button
-    await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+    // Verify we're logged in by checking for the Projects heading
+    await expect(page.getByRole('heading', { name: 'Projects', level: 1 })).toBeVisible();
   });
 });

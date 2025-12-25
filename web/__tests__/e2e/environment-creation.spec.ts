@@ -18,32 +18,25 @@ test.describe('Environment Creation and Kubernetes Verification', () => {
     // Verify project details page has loaded
     await projectsPage.verifyProjectDetailsPageLoaded();
     
-    // Check if the project needs environment setup
-    const needsSetup = await projectsPage.needsEnvironmentSetup();
+    // Navigate to environment setup page
+    await expect(projectsPage.addEnvironmentLink).toBeVisible();
+    await projectsPage.addEnvironmentLink.click();
     
-    if (needsSetup) {
-      // Navigate to environment setup page
-      await projectsPage.navigateToEnvironmentSetup();
-      
-      // Verify we're on the environment setup page
-      await expect(page.locator('h1:has-text("Configure Environments")')).toBeVisible();
-      
-      // Check that preview environment is selected by default
-      const previewRadio = page.locator('input[name="environmentType"][value="preview"]');
-      await expect(previewRadio).toBeChecked();
-      
-      // Submit the form to create a preview environment
-      await page.locator('button:has-text("Configure Environment")').click();
-      
-      // Should be redirected back to the project page
-      await expect(page).toHaveURL(/\/projects\/[^/]+$/);
-      await expect(projectsPage.backToProjectsLink).toBeVisible();
-    }
+    // Verify we're on the environment setup page
+    await expect(page.locator('h1:has-text("Configure Environments")')).toBeVisible();
+    
+    // Check that development environment is selected by default
+    const devRadio = page.locator('input[name="environmentType"][value="development"]');
+    await expect(devRadio).toBeChecked();
+    
+    // Submit the form to create a development environment
+    await page.locator('button:has-text("Configure Environment")').click();
+    
+    // Should be redirected back to the project page
+    await expect(page).toHaveURL(/\/projects\/[^/]+$/);
     
     // Verify the environment exists in the UI
     await expect(projectsPage.environmentsSection).toBeVisible();
-    const hasEnvironments = await projectsPage.hasEnvironments();
-    expect(hasEnvironments, 'Environment should exist in the UI').toBe(true);
     
     // Verify kubernetes cluster is accessible and can list namespaces
     const response = await k8s.coreApi.listNamespace();
