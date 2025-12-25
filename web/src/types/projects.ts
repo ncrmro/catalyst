@@ -4,73 +4,25 @@
  * Shared type definitions that can be safely imported by client components.
  * This file MUST NOT import from "@/db" or "@/models/*" to avoid bundling pg.
  *
- * These types are manually defined to match the database schema without importing
- * drizzle-orm, which allows them to be used in Storybook stories and client components
- * without requiring database/Node.js dependencies.
+ * With Storybook mocks in place for drizzle-orm and @/db/schema, we can now
+ * use type-only imports to infer types from the schema without bundling Node.js dependencies.
  */
 
-// Base types manually defined to match schema (keep in sync with src/db/schema.ts)
-export interface Project {
-  id: string;
-  name: string;
-  slug: string;
-  fullName: string;
-  description: string | null;
-  ownerLogin: string;
-  ownerType: string;
-  ownerAvatarUrl: string | null;
-  teamId: string;
-  previewEnvironmentsCount: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import type { InferSelectModel } from "drizzle-orm";
+import type {
+  projects,
+  projectsRepos,
+  projectEnvironments,
+  repos,
+  teams,
+} from "@/db/schema";
 
-export interface Repo {
-  id: string;
-  githubId: number;
-  name: string;
-  fullName: string;
-  description: string | null;
-  url: string;
-  isPrivate: boolean;
-  language: string | null;
-  stargazersCount: number;
-  forksCount: number;
-  openIssuesCount: number;
-  ownerLogin: string;
-  ownerType: string;
-  ownerAvatarUrl: string | null;
-  teamId: string;
-  createdAt: Date;
-  updatedAt: Date;
-  pushedAt: Date | null;
-}
-
-export interface Team {
-  id: string;
-  name: string;
-  description: string | null;
-  ownerId: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface ProjectRepoRow {
-  projectId: string;
-  repoId: string;
-  isPrimary: boolean;
-  createdAt: Date;
-}
-
-export interface ProjectEnvironment {
-  id: string;
-  projectId: string;
-  repoId: string;
-  environment: string;
-  latestDeployment: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
+// Base types derived from schema (auto-sync with migrations)
+export type Project = InferSelectModel<typeof projects>;
+export type Repo = InferSelectModel<typeof repos>;
+export type Team = InferSelectModel<typeof teams>;
+export type ProjectRepoRow = InferSelectModel<typeof projectsRepos>;
+export type ProjectEnvironment = InferSelectModel<typeof projectEnvironments>;
 
 // Client-friendly interface for repository info
 export interface ProjectRepo {

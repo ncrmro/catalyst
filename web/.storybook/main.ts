@@ -43,6 +43,17 @@ const config: StorybookConfig = {
       ),
     });
 
+    // Configure Vite to handle drizzle-orm and pg as external for SSR
+    // This prevents them from being bundled while allowing type imports
+    config.ssr = config.ssr || {};
+    config.ssr.noExternal = config.ssr.noExternal || [];
+    // Ensure drizzle-orm is treated specially - types only, no runtime
+    config.ssr.external = config.ssr.external || [];
+    if (!Array.isArray(config.ssr.external)) {
+      config.ssr.external = [];
+    }
+    config.ssr.external.push("drizzle-orm", "pg");
+
     // Force Vite to pre-bundle Next.js modules with proper CJS/ESM handling
     config.optimizeDeps = config.optimizeDeps || {};
     config.optimizeDeps.include = config.optimizeDeps.include || [];
@@ -50,6 +61,10 @@ const config: StorybookConfig = {
       "next/dist/client/components/redirect-status-code",
       "next/navigation",
     );
+    
+    // Exclude drizzle-orm and pg from optimization
+    config.optimizeDeps.exclude = config.optimizeDeps.exclude || [];
+    config.optimizeDeps.exclude.push("drizzle-orm", "pg");
 
     // Enable named exports from CJS modules
     config.optimizeDeps.esbuildOptions =
