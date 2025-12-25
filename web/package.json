@@ -8,6 +8,7 @@
   ],
   "type": "module",
   "scripts": {
+    "prepare": "next-ws patch",
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",

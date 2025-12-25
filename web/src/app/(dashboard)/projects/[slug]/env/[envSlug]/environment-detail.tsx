@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { GlassCard } from "@tetrastack/react-glass-components";
-import { TerminalModal } from "@/components/terminal";
+import { ImprovedTerminalModal } from "@/components/improved-terminal-wrapper";
 import { execCommand } from "@/actions/pod-exec";
 import { EnvironmentCR } from "@/types/crd";
 
@@ -305,12 +305,13 @@ export default function EnvironmentDetailView({
       </GlassCard>
 
       {/* Terminal Modal */}
-      <TerminalModal
+      <ImprovedTerminalModal
         isOpen={terminalOpen}
         onClose={() => setTerminalOpen(false)}
         namespace={targetNamespace}
         podName={podName}
         containerName={terminalContainer}
+        useWebSocket={true}
         onExec={handleExec}
       />
     </>
