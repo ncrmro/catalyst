@@ -271,6 +271,7 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   repositories: many(projectsRepos),
   environments: many(projectEnvironments),
   manifests: many(projectManifests),
+  deploymentConfigs: many(projectDeploymentConfigs),
 }));
 
 export const projectsRepos = pgTable(
@@ -575,3 +576,130 @@ export const reports = pgTable("reports", {
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });
+
+/**
+ * Deployment Strategy Types
+ * - docker: Deploy using a Docker image (built from Dockerfile or pre-built)
+ * - helm: Deploy using a Helm chart
+ * - kubernetes: Deploy using raw Kubernetes manifests
+ */
+export type DeploymentStrategy = "docker" | "helm" | "kubernetes";
+
+/**
+ * CI Provider Types
+ * - internal: Catalyst handles building and deploying
+ * - github_actions: User deploys via GitHub Actions (we provide docs)
+ * - gitlab_ci: User deploys via GitLab CI
+ * - external: User handles deployment through other means
+ */
+export type CIProvider =
+  | "internal"
+  | "github_actions"
+  | "gitlab_ci"
+  | "external";
+
+/**
+ * Environment Name Types
+ * - production: Live customer-facing environment
+ * - staging: Pre-production testing environment
+ * - preview: Ephemeral environments for pull requests
+ */
+export type EnvironmentName = "production" | "staging" | "preview";
+
+/**
+ * Deployment Configuration Type for JSONB storage
+ */
+export interface DeploymentConfig {
+  // Docker configuration
+  dockerfilePath?: string;
+  dockerBakeFile?: string;
+  dockerImage?: string; // Pre-built image to use instead of building
+  dockerBuildArgs?: Record<string, string>;
+
+  // Helm configuration
+  helmChartPath?: string;
+  helmValuesPath?: string;
+  helmValues?: Record<string, unknown>;
+
+  // Kubernetes configuration
+  kubernetesManifestPath?: string;
+
+  // Resource configuration
+  resources?: {
+    cpu?: string;
+    memory?: string;
+    replicas?: number;
+  };
+
+  // Environment variables (non-secret)
+  envVars?: Array<{ name: string; value: string }>;
+}
+
+/**
+ * Project Deployment Configurations Table
+ *
+ * Stores deployment configuration for each environment type (production, staging, preview)
+ * per project. This allows users to define how their application should be built and
+ * deployed for each environment.
+ *
+ * Key features:
+ * - Defines build strategy (Docker, Helm, K8s manifests)
+ * - Specifies which branch triggers deployments
+ * - Configures whether Catalyst handles CI/CD or user deploys externally
+ * - Stores environment-specific configuration
+ */
+export const projectDeploymentConfigs = pgTable(
+  "project_deployment_configs",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    // Environment name: production, staging, preview
+    environmentName: text("environment_name")
+      .notNull()
+      .$type<EnvironmentName>(),
+    // Whether this environment is enabled
+    enabled: boolean("enabled").notNull().default(false),
+    // Deployment strategy
+    deploymentStrategy: text("deployment_strategy")
+      .notNull()
+      .$type<DeploymentStrategy>()
+      .default("docker"),
+    // CI provider - who handles the build/deploy
+    ciProvider: text("ci_provider")
+      .notNull()
+      .$type<CIProvider>()
+      .default("internal"),
+    // Branch that triggers deployment (e.g., "main", "develop", or "*" for PRs)
+    triggerBranch: text("trigger_branch").notNull().default("main"),
+    // Whether to auto-deploy on push to trigger branch
+    autoDeploy: boolean("auto_deploy").notNull().default(false),
+    // Whether manual approval is required before deploy
+    requireApproval: boolean("require_approval").notNull().default(false),
+    // Deployment configuration (JSON)
+    config: jsonb("config").$type<DeploymentConfig>().default({}),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Each project can only have one config per environment name
+    unique("unique_project_environment").on(
+      table.projectId,
+      table.environmentName,
+    ),
+    index("idx_deployment_config_project").on(table.projectId),
+  ],
+);
+
+export const projectDeploymentConfigsRelations = relations(
+  projectDeploymentConfigs,
+  ({ one }) => ({
+    project: one(projects, {
+      fields: [projectDeploymentConfigs.projectId],
+      references: [projects.id],
+    }),
+  }),
+);

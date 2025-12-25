@@ -15,6 +15,7 @@ export function ProjectNav({ slug }: ProjectNavProps) {
   const options = [
     { value: "overview", label: "Overview", href: basePath },
     { value: "repo", label: "Repo", href: `${basePath}/repo` },
+    { value: "settings", label: "Settings", href: `${basePath}/settings` },
     { value: "dev", label: "Dev", href: `${basePath}/dev` },
   ];
 
@@ -22,6 +23,8 @@ export function ProjectNav({ slug }: ProjectNavProps) {
   let activeValue = "overview";
   if (pathname.startsWith(`${basePath}/repo`)) {
     activeValue = "repo";
+  } else if (pathname.startsWith(`${basePath}/settings`)) {
+    activeValue = "settings";
   } else if (pathname.startsWith(`${basePath}/dev`)) {
     activeValue = "dev";
   }
