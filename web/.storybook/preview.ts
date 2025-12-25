@@ -1,6 +1,13 @@
 import type { Preview } from "@storybook/nextjs-vite";
 import "../src/app/globals.css";
 
+/**
+ * Fixtures are available for use in stories:
+ * import { reposFixtures, projectsFixtures, usersFixtures } from "@/lib/fixtures";
+ * 
+ * Example: src/components/fixture-usage-example.stories.tsx
+ */
+
 const preview: Preview = {
   parameters: {
     controls: {
