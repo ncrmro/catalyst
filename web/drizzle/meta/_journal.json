@@ -106,6 +106,13 @@
       "when": 1766390952712,
       "tag": "0014_silky_magus",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1735107000000,
+      "tag": "0015_add_project_domain_config",
+      "breakpoints": true
     }
   ]
 }

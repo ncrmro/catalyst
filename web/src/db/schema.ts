@@ -244,6 +244,10 @@ export const projects = pgTable(
     previewEnvironmentsCount: integer("preview_environments_count")
       .notNull()
       .default(0),
+    // Custom domain configuration for preview environments
+    customDomain: text("custom_domain"), // e.g., "previews.myapp.com" - users must CNAME *.customDomain to ingress
+    ingressEnabled: boolean("ingress_enabled").notNull().default(true), // Enable ingress creation for preview environments
+    tlsEnabled: boolean("tls_enabled").notNull().default(false), // Enable TLS/HTTPS for preview environments
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },
