@@ -21,7 +21,6 @@
     "test:watch": "vitest watch -c vitest.unit.config.ts",
     "test:coverage": "vitest run -c vitest.unit.config.ts --coverage",
     "test:e2e": "playwright test",
-    "cleanup:old-tests": "node remove-old-tests.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
