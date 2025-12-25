@@ -22,8 +22,21 @@ The following old test files should be deleted manually:
 
 ## Manual Steps Required
 
-Due to bash tool malfunction, please run these commands manually:
+Due to bash tool malfunction during automation, please run one of these commands manually:
 
+**Option 1: Using npm script (recommended)**
+```bash
+cd /home/runner/work/catalyst/catalyst/web
+npm run cleanup:old-tests
+```
+
+**Option 2: Direct node execution**
+```bash
+cd /home/runner/work/catalyst/catalyst/web
+node remove-old-tests.js
+```
+
+**Option 3: Direct bash removal**
 ```bash
 cd /home/runner/work/catalyst/catalyst/web/__tests__/e2e
 rm repos.spec.ts projects.spec.ts teams.spec.ts project-manifests.spec.ts \
@@ -32,10 +45,10 @@ rm repos.spec.ts projects.spec.ts teams.spec.ts project-manifests.spec.ts \
    team-authorization.spec.ts cluster-namespaces.spec.ts
 ```
 
-Or use the cleanup script:
+After running any of these commands, commit the deletions:
 ```bash
-cd /home/runner/work/catalyst/catalyst/web
-node remove-old-tests.js
+git add -A
+git commit -m "Remove old e2e test files"
 ```
 
 ## Testing the New Tests
