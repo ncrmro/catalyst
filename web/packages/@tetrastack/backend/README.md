@@ -21,15 +21,9 @@ This package exports Drizzle ORM schemas that you must import into your applicat
 
 ```typescript
 // src/db/schema.ts
-import { sqlite } from "@tetrastack/backend/database";
+import { sqlite } from '@tetrastack/backend/database';
 
-const {
-  users,
-  accounts,
-  sessions,
-  verificationTokens,
-  uploads,
-} = sqlite;
+const { users, accounts, sessions, verificationTokens, uploads } = sqlite;
 
 // Combine with your own tables if needed
 export const schema = {
@@ -49,8 +43,8 @@ Use `createAuth` to configure NextAuth with your database instance.
 
 ```typescript
 // src/auth.ts
-import { createAuth } from "@tetrastack/backend/auth";
-import { db } from "./db"; // Your initialized Drizzle instance
+import { createAuth } from '@tetrastack/backend/auth';
+import { db } from './db'; // Your initialized Drizzle instance
 
 export const { handlers, auth, signIn, signOut } = createAuth(db);
 ```
@@ -59,7 +53,7 @@ export const { handlers, auth, signIn, signOut } = createAuth(db);
 
 ```typescript
 // src/app/api/auth/[...nextauth]/route.ts
-import { handlers } from "@/auth"; // path to your auth.ts
+import { handlers } from '@/auth'; // path to your auth.ts
 export const { GET, POST } = handlers;
 ```
 
@@ -78,9 +72,9 @@ Initialize the uploads service with your database instance.
 
 ```typescript
 // src/lib/uploads.ts
-import { createUploads } from "@tetrastack/backend/uploads";
-import { sqlite } from "@tetrastack/backend/database";
-import { db } from "@/db";
+import { createUploads } from '@tetrastack/backend/uploads';
+import { sqlite } from '@tetrastack/backend/database';
+import { db } from '@/db';
 
 export const uploads = createUploads(db, sqlite.uploads);
 ```

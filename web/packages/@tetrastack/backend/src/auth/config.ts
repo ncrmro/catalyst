@@ -1,70 +1,98 @@
-import NextAuth, { NextAuthConfig } from "next-auth";
-import { DrizzleAdapter } from "@auth/drizzle-adapter";
-import { sqlite } from "../database";
-import { providers } from "./providers";
-import { uuidv7 } from "../utils";
-import { eq } from "drizzle-orm";
+import NextAuth, { NextAuthConfig } from 'next-auth';
+import { sqlite } from '../database';
+import { providers } from './providers';
+import { uuidv7 } from '../utils';
+import { eq } from 'drizzle-orm';
+import type { Provider } from 'next-auth/providers';
 
 const { users } = sqlite;
 
-import type { Provider } from "next-auth/providers";
+/** User type returned from database queries */
+interface DbUser {
+  id: string;
+  email: string | null;
+  name: string | null;
+}
+
+/** Database interface with query and insert methods needed for auth */
+interface AuthDatabase {
+  query: {
+    users: {
+      findFirst: (opts: {
+        where: ReturnType<typeof eq>;
+      }) => Promise<DbUser | undefined>;
+    };
+  };
+  insert: (table: typeof users) => {
+    values: (data: {
+      id: string;
+      email: string;
+      name: string | null | undefined;
+    }) => { returning: () => Promise<DbUser[]> };
+  };
+}
 
 /**
  * Configuration options for createAuth
+ * Generic TDatabase allows any Drizzle database instance to be passed.
  */
-export interface CreateAuthConfig {
-  database?: any;
+export interface CreateAuthConfig<TDatabase = unknown> {
+  database?: TDatabase;
   providers?: Provider[];
+  callbacks?: NextAuthConfig['callbacks'];
 }
 
 /**
  * Creates auth configuration for Node.js mode (with database)
  */
-const createAuthConfigNode = (
-  database: any,
+const createAuthConfigNode = <TDatabase extends AuthDatabase>(
+  database: TDatabase,
   customProviders?: Provider[],
-): NextAuthConfig => ({
-  adapter: DrizzleAdapter(database),
-  providers: customProviders ?? providers,
-  session: {
-    strategy: "jwt",
-  },
-  callbacks: {
-    async signIn({ user }) {
-      if (user.email) {
-        let dbUser = await database.query.users.findFirst({
-          where: eq(users.email, user.email),
-        });
+): NextAuthConfig => {
+  const db = database;
 
-        if (!dbUser) {
-          dbUser = await database
-            .insert(users)
-            .values({
-              id: uuidv7(),
-              email: user.email,
-              name: user.name,
-            })
-            .returning()
-            .then((res: any[]) => res[0]);
+  return {
+    providers: customProviders ?? providers,
+    session: {
+      strategy: 'jwt',
+    },
+    callbacks: {
+      async signIn({ user }) {
+        if (user.email) {
+          let dbUser = await db.query.users.findFirst({
+            where: eq(users.email, user.email),
+          });
+
+          if (!dbUser) {
+            const inserted = await db
+              .insert(users)
+              .values({
+                id: uuidv7(),
+                email: user.email,
+                name: user.name,
+              })
+              .returning();
+            dbUser = inserted[0];
+          }
+          user.id = dbUser?.id;
         }
-        user.id = dbUser?.id;
-      }
-      return true;
+        return true;
+      },
+      jwt: async ({ token, user }) => {
+        if (user) {
+          token.userId = user.id;
+        }
+        return token;
+      },
+      session: async ({ session, token }) => {
+        if (token.userId) {
+          session.user.id = token.userId as string;
+        }
+        return session;
+      },
     },
-    jwt: async ({ token, user }) => {
-      if (user) {
-        token.userId = user.id;
-      }
-      return token;
-    },
-    session: async ({ session, token }) => {
-      if (token.userId) {
-        session.user.id = token.userId as string;
-      }
-      return session;
-    },
-  },
-});
+  };
+};
 
 /**
  * Creates auth configuration for Edge mode (without database)
@@ -75,7 +103,7 @@ const createAuthConfigEdge = (
 ): NextAuthConfig => ({
   providers: customProviders ?? providers,
   session: {
-    strategy: "jwt",
+    strategy: 'jwt',
   },
   callbacks: {
     jwt: async ({ token, user }) => {
@@ -119,11 +147,31 @@ const createAuthConfigEdge = (
  * export const { auth } = createAuth();
  * ```
  */
-export function createAuth(
-  config?: CreateAuthConfig,
+export function createAuth<TDatabase extends AuthDatabase>(
+  config?: CreateAuthConfig<TDatabase>,
 ): ReturnType<typeof NextAuth> {
   if (config?.database) {
-    return NextAuth(createAuthConfigNode(config.database, config.providers));
+    const nodeConfig = createAuthConfigNode(config.database, config.providers);
+    // Merge custom callbacks with the base callbacks
+    if (config.callbacks) {
+      const baseCallbacks = nodeConfig.callbacks || {};
+      nodeConfig.callbacks = {
+        ...baseCallbacks,
+        ...config.callbacks,
+        // Merge signIn to call both base and custom
+        signIn: async (params) => {
+          // Call base signIn first (handles user lookup/creation)
+          const baseResult = await baseCallbacks.signIn?.(params);
+          if (baseResult === false) return false;
+          // Then call custom signIn if provided
+          if (config.callbacks?.signIn) {
+            return config.callbacks.signIn(params);
+          }
+          return baseResult ?? true;
+        },
+      };
+    }
+    return NextAuth(nodeConfig);
   }
   return NextAuth(createAuthConfigEdge(config?.providers));
 }
@@ -131,7 +179,9 @@ export function createAuth(
 /**
  * Creates auth configuration based on mode
  */
-export const createAuthConfig = (config?: CreateAuthConfig): NextAuthConfig => {
+export const createAuthConfig = <TDatabase extends AuthDatabase>(
+  config?: CreateAuthConfig<TDatabase>,
+): NextAuthConfig => {
   if (config?.database) {
     return createAuthConfigNode(config.database, config.providers);
   }

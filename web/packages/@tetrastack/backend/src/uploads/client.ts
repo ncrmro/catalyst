@@ -1,4 +1,4 @@
-import { S3Client } from "@aws-sdk/client-s3";
+import { S3Client } from '@aws-sdk/client-s3';
 
 // Environment variables required
 // R2_ACCOUNT_ID     // Cloudflare account ID
@@ -8,7 +8,7 @@ import { S3Client } from "@aws-sdk/client-s3";
 // R2_PUBLIC_URL     // Optional: public bucket URL for direct access
 
 export const r2Client = new S3Client({
-  region: "auto", // Cloudflare R2 uses 'auto'
+  region: 'auto', // Cloudflare R2 uses 'auto'
   endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
   credentials: {
     accessKeyId: process.env.R2_ACCESS_KEY_ID!,
