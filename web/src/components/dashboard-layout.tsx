@@ -12,9 +12,15 @@ interface DashboardLayoutProps {
     email?: string | null;
     admin?: boolean;
   };
+  /** Action callback for sign out - passed from server component */
+  onSignOut: () => Promise<void>;
 }
 
-export default function DashboardLayout({ children, user }: DashboardLayoutProps) {
+export default function DashboardLayout({
+  children,
+  user,
+  onSignOut,
+}: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -44,7 +50,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
                   />
                 </svg>
               </button>
-              
+
               <span className="catalyst-title text-xl md:text-2xl font-bold text-on-surface">
                 Catalyst
               </span>
@@ -52,14 +58,14 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
                 Development Platform
               </span>
             </div>
-            
+
             <div className="flex items-center gap-2 md:gap-4">
               {user && (
                 <div className="hidden sm:block text-sm text-on-surface-variant">
                   Welcome, {user.name || user.email}!
                 </div>
               )}
-              <SignOut />
+              <SignOut onSignOut={onSignOut} />
             </div>
           </div>
         </div>
@@ -76,13 +82,15 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
         )}
 
         {/* Sidebar */}
-        <div className={`
-          ${sidebarOpen ? 'block' : 'hidden'} md:block
+        <div
+          className={`
+          ${sidebarOpen ? "block" : "hidden"} md:block
           fixed md:static inset-y-0 left-0 z-50 md:z-auto
           w-64 flex-shrink-0
-        `}>
-          <Sidebar 
-            className="h-full" 
+        `}
+        >
+          <Sidebar
+            className="h-full"
             onLinkClick={() => setSidebarOpen(false)}
             user={user}
           />
@@ -90,9 +98,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
 
         {/* Main Content */}
         <main className="flex-1 overflow-auto">
-          <div className="p-4 md:p-6">
-            {children}
-          </div>
+          <div className="p-4 md:p-6">{children}</div>
         </main>
       </div>
 
@@ -100,16 +106,28 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
       <footer className="bg-surface border-t border-outline mt-auto">
         <div className="px-4 md:px-6 py-4">
           <div className="flex items-center justify-center gap-4 md:gap-6 text-sm text-on-surface-variant flex-wrap">
-            <Link href="/teams" className="hover:text-on-surface hover:underline">
+            <Link
+              href="/teams"
+              className="hover:text-on-surface hover:underline"
+            >
               Teams
             </Link>
-            <Link href="/projects" className="hover:text-on-surface hover:underline">
+            <Link
+              href="/projects"
+              className="hover:text-on-surface hover:underline"
+            >
               Projects
             </Link>
-            <Link href="/reports" className="hover:text-on-surface hover:underline">
+            <Link
+              href="/reports"
+              className="hover:text-on-surface hover:underline"
+            >
               Reports
             </Link>
-            <Link href="/repos" className="hover:text-on-surface hover:underline">
+            <Link
+              href="/repos"
+              className="hover:text-on-surface hover:underline"
+            >
               Repositories
             </Link>
           </div>

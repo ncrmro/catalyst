@@ -10,16 +10,11 @@ import { projects } from "@/db/schema";
 import { eq, inArray, and } from "drizzle-orm";
 import type { InferInsertModel } from "drizzle-orm";
 
+// Re-export types from shared types file for backwards compatibility
+export type { ProjectWithRelations, ProjectRepo } from "@/types/projects";
+
 export type InsertProject = InferInsertModel<typeof projects>;
 export type UpdateProject = Partial<Omit<InsertProject, "id" | "createdAt">>;
-
-export interface ProjectRepo {
-  id: string;
-  name: string;
-  full_name: string;
-  url: string;
-  primary: boolean;
-}
 
 /**
  * Query parameters for flexible project filtering
@@ -71,13 +66,6 @@ export async function getProjects(params: GetProjectsParams) {
     },
   });
 }
-
-/**
- * Inferred type from getProjects - a single project with all relations
- */
-export type ProjectWithRelations = Awaited<
-  ReturnType<typeof getProjects>
->[number];
 
 /**
  * Create one or multiple projects
