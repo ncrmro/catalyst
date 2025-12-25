@@ -4,6 +4,8 @@ import Link from "next/link";
 import {
   getPreviewEnvironmentStatus,
   getPreviewEnvironmentLogs,
+  deletePreviewEnvironment,
+  retryDeployment,
 } from "@/actions/preview-environments";
 import { DeleteButton } from "./DeleteButton";
 import { RetryButton } from "./RetryButton";
@@ -181,8 +183,14 @@ export default async function PreviewEnvironmentDetailPage({
               </svg>
             </a>
           )}
-          {status.dbStatus === "failed" && <RetryButton podId={id} />}
-          <DeleteButton podId={id} deploymentName={status.deploymentName} />
+          {status.dbStatus === "failed" && (
+            <RetryButton podId={id} onRetry={retryDeployment} />
+          )}
+          <DeleteButton
+            podId={id}
+            deploymentName={status.deploymentName}
+            onDelete={deletePreviewEnvironment}
+          />
         </div>
       </div>
 

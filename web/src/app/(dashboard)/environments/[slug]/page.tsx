@@ -1,6 +1,7 @@
 // Split into separate client and server components to fix the "use client" + metadata issue
 
 import { fetchProjectBySlug } from "@/actions/projects";
+import { configureProjectEnvironments } from "@/actions/environments";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { EnvironmentsForm } from "./client";
@@ -44,5 +45,10 @@ export default async function EnvironmentsPage({
     notFound();
   }
 
-  return <EnvironmentsForm project={project} />;
+  return (
+    <EnvironmentsForm
+      project={project}
+      onSubmit={configureProjectEnvironments}
+    />
+  );
 }
