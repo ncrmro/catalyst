@@ -20,7 +20,9 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@/__tests__/*": ["./__tests__/*"]
+      "@/__tests__/*": ["./__tests__/*"],
+      "@fixtures": ["./fixtures"],
+      "@fixtures/*": ["./fixtures/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
