@@ -34,6 +34,10 @@ type EnvironmentSpec struct {
 
 	// Config overrides
 	Config EnvironmentConfig `json:"config,omitempty"`
+
+	// Ingress configuration for this environment
+	// +optional
+	Ingress IngressConfig `json:"ingress,omitempty"`
 }
 
 type ProjectReference struct {
@@ -62,6 +66,21 @@ type EnvironmentConfig struct {
 type EnvVar struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
+}
+
+// IngressConfig defines the ingress configuration for an environment
+type IngressConfig struct {
+	// Domain is the custom domain for preview URLs (e.g., "preview.mycompany.com")
+	// +optional
+	Domain string `json:"domain,omitempty"`
+
+	// TLSClusterIssuer is the cert-manager cluster issuer for TLS certificates
+	// +optional
+	TLSClusterIssuer string `json:"tlsClusterIssuer,omitempty"`
+
+	// IngressClassName is the ingress class to use (e.g., "nginx", "traefik")
+	// +optional
+	IngressClassName string `json:"ingressClassName,omitempty"`
 }
 
 // EnvironmentStatus defines the observed state of Environment.

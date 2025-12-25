@@ -12,6 +12,8 @@ import {
   repos,
   teams,
   teamsMemberships,
+  projects,
+  projectsRepos,
 } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import type {
@@ -69,6 +71,46 @@ export function generateNamespace(repoName: string, prNumber: number): string {
   }
 
   return namespace;
+}
+
+/**
+ * Ingress configuration for a preview environment.
+ * All fields are optional - defaults come from environment variables.
+ */
+export interface PreviewIngressConfig {
+  /** Custom domain for preview URLs (e.g., "preview.mycompany.com") */
+  domain?: string;
+  /** TLS cluster issuer for cert-manager (e.g., "letsencrypt-prod") */
+  tlsClusterIssuer?: string;
+  /** Ingress class name (e.g., "nginx", "traefik") */
+  ingressClassName?: string;
+}
+
+/**
+ * Get ingress configuration with priority: project settings > environment variables > defaults.
+ *
+ * @param projectConfig - Optional project-level configuration
+ * @returns Resolved ingress configuration
+ */
+export function resolveIngressConfig(projectConfig?: {
+  customDomain?: string | null;
+  tlsClusterIssuer?: string | null;
+  ingressClassName?: string | null;
+}): PreviewIngressConfig {
+  return {
+    domain:
+      projectConfig?.customDomain ||
+      process.env.PREVIEW_DOMAIN ||
+      "preview.localhost",
+    tlsClusterIssuer:
+      projectConfig?.tlsClusterIssuer ||
+      process.env.PREVIEW_TLS_CLUSTER_ISSUER ||
+      "letsencrypt-prod",
+    ingressClassName:
+      projectConfig?.ingressClassName ||
+      process.env.PREVIEW_INGRESS_CLASS ||
+      "nginx",
+  };
 }
 
 /**
@@ -610,6 +652,47 @@ export interface CreatePreviewDeploymentResult {
 }
 
 /**
+ * Look up project configuration for a repository.
+ * Returns the project's ingress settings if found.
+ */
+async function getProjectConfigForRepo(repoFullName: string): Promise<{
+  customDomain?: string | null;
+  tlsClusterIssuer?: string | null;
+  ingressClassName?: string | null;
+} | null> {
+  try {
+    // Find repo by full name
+    const repo = await db.query.repos.findFirst({
+      where: eq(repos.fullName, repoFullName),
+    });
+
+    if (!repo) return null;
+
+    // Find project connected to this repo
+    const projectRepo = await db.query.projectsRepos.findFirst({
+      where: eq(projectsRepos.repoId, repo.id),
+      with: {
+        project: true,
+      },
+    });
+
+    if (!projectRepo?.project) return null;
+
+    return {
+      customDomain: projectRepo.project.customDomain,
+      tlsClusterIssuer: projectRepo.project.tlsClusterIssuer,
+      ingressClassName: projectRepo.project.ingressClassName,
+    };
+  } catch (error) {
+    previewLogger.warn("Failed to fetch project config for repo", {
+      repoFullName,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+    return null;
+  }
+}
+
+/**
  * Create a preview deployment for a pull request.
  *
  * Orchestrates:
@@ -644,7 +727,12 @@ export async function createPreviewDeployment(
   // CR Namespace: default (control plane)
   const crNamespace = "default";
 
-  const publicUrl = generatePublicUrl(targetNamespace);
+  // Look up project-level ingress configuration
+  const projectConfig = await getProjectConfigForRepo(repoFullName);
+  const ingressConfig = resolveIngressConfig(projectConfig ?? undefined);
+
+  // Generate public URL using resolved domain
+  const publicUrl = generatePublicUrl(targetNamespace, ingressConfig.domain);
   const imageTag = generateImageTag(repoFullName, prNumber, commitSha);
 
   // Start deployment timer for performance tracking
@@ -658,6 +746,7 @@ export async function createPreviewDeployment(
     commitSha,
     branch,
     repoFullName,
+    ingressDomain: ingressConfig.domain,
   });
 
   // Step 1: Create database record (idempotent)
@@ -722,7 +811,7 @@ export async function createPreviewDeployment(
     namespace: targetNamespace,
   });
 
-  // Step 3: Create Environment CR
+  // Step 3: Create Environment CR with ingress configuration
   await updatePodStatus(podId, "deploying");
 
   logPreviewLifecycleEvent("k8s-cr-creation-started", {
@@ -742,6 +831,12 @@ export async function createPreviewDeployment(
     },
     config: {
       envVars: [], // Add any default env vars
+    },
+    // Pass ingress configuration to the operator
+    ingress: {
+      domain: ingressConfig.domain,
+      tlsClusterIssuer: ingressConfig.tlsClusterIssuer,
+      ingressClassName: ingressConfig.ingressClassName,
     },
   });
 

@@ -244,6 +244,14 @@ export const projects = pgTable(
     previewEnvironmentsCount: integer("preview_environments_count")
       .notNull()
       .default(0),
+    // Ingress/Domain Configuration
+    // Custom domain for preview environments (overrides PREVIEW_DOMAIN env var)
+    // Users should CNAME *.{customDomain} to the ingress controller
+    customDomain: text("custom_domain"),
+    // TLS cluster issuer for cert-manager (overrides PREVIEW_TLS_CLUSTER_ISSUER)
+    tlsClusterIssuer: text("tls_cluster_issuer"),
+    // Ingress class name (overrides PREVIEW_INGRESS_CLASS)
+    ingressClassName: text("ingress_class_name"),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },

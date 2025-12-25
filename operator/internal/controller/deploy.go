@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"os"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -11,6 +12,49 @@ import (
 
 	catalystv1alpha1 "github.com/ncrmro/catalyst/operator/api/v1alpha1"
 )
+
+// Default values for ingress configuration (can be overridden via environment variables)
+const (
+	defaultPreviewDomain      = "preview.catalyst.dev"
+	defaultTLSClusterIssuer   = "letsencrypt-prod"
+	defaultIngressClassName   = "nginx"
+)
+
+// getIngressDomain returns the domain for preview environments.
+// Priority: CR spec > PREVIEW_DOMAIN env > default
+func getIngressDomain(ingress catalystv1alpha1.IngressConfig) string {
+	if ingress.Domain != "" {
+		return ingress.Domain
+	}
+	if envDomain := os.Getenv("PREVIEW_DOMAIN"); envDomain != "" {
+		return envDomain
+	}
+	return defaultPreviewDomain
+}
+
+// getTLSClusterIssuer returns the cert-manager cluster issuer.
+// Priority: CR spec > PREVIEW_TLS_CLUSTER_ISSUER env > default
+func getTLSClusterIssuer(ingress catalystv1alpha1.IngressConfig) string {
+	if ingress.TLSClusterIssuer != "" {
+		return ingress.TLSClusterIssuer
+	}
+	if envIssuer := os.Getenv("PREVIEW_TLS_CLUSTER_ISSUER"); envIssuer != "" {
+		return envIssuer
+	}
+	return defaultTLSClusterIssuer
+}
+
+// getIngressClassName returns the ingress class name.
+// Priority: CR spec > PREVIEW_INGRESS_CLASS env > default
+func getIngressClassName(ingress catalystv1alpha1.IngressConfig) string {
+	if ingress.IngressClassName != "" {
+		return ingress.IngressClassName
+	}
+	if envClass := os.Getenv("PREVIEW_INGRESS_CLASS"); envClass != "" {
+		return envClass
+	}
+	return defaultIngressClassName
+}
 
 // Spec: operator/spec.md
 // Goals:
@@ -76,9 +120,14 @@ func desiredService(env *catalystv1alpha1.Environment, namespace string) *corev1
 }
 
 func desiredIngress(env *catalystv1alpha1.Environment, namespace string) *networkingv1.Ingress {
-	// Host format: pr-123-org-repo.preview.catalyst.dev
-	// For now: <env-name>.preview.catalyst.dev
-	host := fmt.Sprintf("%s.preview.catalyst.dev", env.Name)
+	// Get ingress configuration from CR spec with environment variable fallbacks
+	domain := getIngressDomain(env.Spec.Ingress)
+	tlsIssuer := getTLSClusterIssuer(env.Spec.Ingress)
+	ingressClass := getIngressClassName(env.Spec.Ingress)
+
+	// Host format: <env-name>.<domain>
+	// Example: pr-123-org-repo.preview.catalyst.dev
+	host := fmt.Sprintf("%s.%s", env.Name, domain)
 	pathType := networkingv1.PathTypePrefix
 
 	return &networkingv1.Ingress{
@@ -86,11 +135,11 @@ func desiredIngress(env *catalystv1alpha1.Environment, namespace string) *networ
 			Name:      "app",
 			Namespace: namespace,
 			Annotations: map[string]string{
-				"cert-manager.io/cluster-issuer": "letsencrypt-prod",
+				"cert-manager.io/cluster-issuer": tlsIssuer,
 			},
 		},
 		Spec: networkingv1.IngressSpec{
-			IngressClassName: ptr("nginx"),
+			IngressClassName: ptr(ingressClass),
 			TLS: []networkingv1.IngressTLS{
 				{
 					Hosts:      []string{host},
@@ -122,6 +171,13 @@ func desiredIngress(env *catalystv1alpha1.Environment, namespace string) *networ
 			},
 		},
 	}
+}
+
+// GeneratePublicURL generates the public URL for an environment based on ingress configuration.
+// This is used to populate the Environment CR status.url field.
+func GeneratePublicURL(env *catalystv1alpha1.Environment) string {
+	domain := getIngressDomain(env.Spec.Ingress)
+	return fmt.Sprintf("https://%s.%s", env.Name, domain)
 }
 
 func toCoreEnvVars(vars []catalystv1alpha1.EnvVar) []corev1.EnvVar {
