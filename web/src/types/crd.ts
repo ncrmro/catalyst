@@ -18,6 +18,14 @@ export interface EnvironmentCRSpec {
   config?: {
     envVars?: Array<{ name: string; value: string }>;
   };
+  ingress?: {
+    enabled: boolean;
+    host?: string; // Custom hostname for this environment (e.g., env-preview-123.preview.example.com)
+    tls?: {
+      enabled: boolean;
+      issuer?: string; // cert-manager ClusterIssuer name
+    };
+  };
 }
 
 export interface EnvironmentCR {
