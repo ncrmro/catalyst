@@ -31,6 +31,9 @@ export async function createProjectEnvironment(
   try {
     const projectId = formData.get("projectId") as string;
     const environmentType = formData.get("environmentType") as string;
+    const deploymentSubType = formData.get("deploymentSubType") as
+      | string
+      | null;
 
     if (!projectId || !environmentType) {
       return {
@@ -107,9 +110,16 @@ export async function createProjectEnvironment(
       // Continue, as it might already exist or be managed elsewhere
     }
 
-    // Generate a random name for the environment
-    const randomName = generateNameUnchecked();
-    const environmentName = `dev-${randomName.name}`;
+    // Generate environment name based on type
+    let environmentName: string;
+    if (validatedEnvType === "development") {
+      // Generate random name for development environments
+      const randomName = generateNameUnchecked();
+      environmentName = `dev-${randomName.name}`;
+    } else {
+      // Use deploymentSubType (production or staging) as the name for deployment environments
+      environmentName = deploymentSubType || "production";
+    }
 
     // Create the Environment CR directly
     // We bypass the database check and creation as requested

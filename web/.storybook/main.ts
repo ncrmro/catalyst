@@ -8,7 +8,7 @@ import { fileURLToPath } from "url";
  * This function is used to resolve the absolute path of a package.
  * It is needed in projects that use Yarn PnP or are set up within a monorepo.
  */
-function getAbsolutePath(value: string): any {
+function getAbsolutePath(value: string): string {
   return dirname(fileURLToPath(import.meta.resolve(`${value}/package.json`)));
 }
 const config: StorybookConfig = {
@@ -26,10 +26,39 @@ const config: StorybookConfig = {
     // Add path aliases for Vite to match tsconfig.json
     const __dirname = dirname(fileURLToPath(import.meta.url));
     config.resolve = config.resolve || {};
-    config.resolve.alias = {
-      ...config.resolve.alias,
+    config.resolve.alias = config.resolve.alias || {};
+
+    // Use Object.assign to ADD aliases without replacing the object
+    Object.assign(config.resolve.alias, {
       "@/__tests__": path.resolve(__dirname, "../__tests__"),
+      // Mock Node.js-only modules that cannot run in the browser
+      pg: path.resolve(__dirname, "./mocks/pg.js"),
+      "next/server": path.resolve(__dirname, "./mocks/next-server.js"),
+      "next-auth": path.resolve(__dirname, "./mocks/next-auth.js"),
+      "@/auth": path.resolve(__dirname, "./mocks/next-auth.js"),
+      // Mock server actions that import server-only code
+      "@/actions/environments": path.resolve(
+        __dirname,
+        "./mocks/actions-environments.js",
+      ),
+    });
+
+    // Force Vite to pre-bundle Next.js modules with proper CJS/ESM handling
+    config.optimizeDeps = config.optimizeDeps || {};
+    config.optimizeDeps.include = config.optimizeDeps.include || [];
+    config.optimizeDeps.include.push(
+      "next/dist/client/components/redirect-status-code",
+      "next/navigation",
+    );
+
+    // Enable named exports from CJS modules
+    config.optimizeDeps.esbuildOptions =
+      config.optimizeDeps.esbuildOptions || {};
+    config.optimizeDeps.esbuildOptions.loader = {
+      ...config.optimizeDeps.esbuildOptions.loader,
+      ".js": "jsx",
     };
+
     return config;
   },
 };

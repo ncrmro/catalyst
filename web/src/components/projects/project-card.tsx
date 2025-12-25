@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { ProjectWithRelations } from "@/models/projects";
+import type { ProjectWithRelations } from "@/types/projects";
 
 export function ProjectCard({ project }: { project: ProjectWithRelations }) {
   return (

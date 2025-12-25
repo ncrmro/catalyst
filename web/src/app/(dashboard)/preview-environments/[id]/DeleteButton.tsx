@@ -2,14 +2,25 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { deletePreviewEnvironment } from "@/actions/preview-environments";
 
-interface DeleteButtonProps {
-  podId: string;
-  deploymentName: string;
+/** Result type for delete action */
+export interface DeleteResult {
+  success: boolean;
+  error?: string;
 }
 
-export function DeleteButton({ podId, deploymentName }: DeleteButtonProps) {
+export interface DeleteButtonProps {
+  podId: string;
+  deploymentName: string;
+  /** Action callback for deletion - passed from server component */
+  onDelete: (podId: string) => Promise<DeleteResult>;
+}
+
+export function DeleteButton({
+  podId,
+  deploymentName,
+  onDelete,
+}: DeleteButtonProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showConfirm, setShowConfirm] = useState(false);
@@ -18,7 +29,7 @@ export function DeleteButton({ podId, deploymentName }: DeleteButtonProps) {
   const handleDelete = () => {
     setError(null);
     startTransition(async () => {
-      const result = await deletePreviewEnvironment(podId);
+      const result = await onDelete(podId);
 
       if (result.success) {
         router.push("/preview-environments");
