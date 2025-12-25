@@ -5,7 +5,7 @@
  * Handles PR operations using the models layer
  */
 
-import { z } from "zod";
+import { z } from "@tetrastack/backend/utils";
 import {
   upsertPullRequests,
   findPullRequestByProvider,

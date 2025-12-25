@@ -3,7 +3,7 @@
  * These schemas are inferred from the database schema to ensure type safety
  */
 
-import { z } from 'zod';
+import { z } from '@tetrastack/backend/utils';
 
 /**
  * Zod schema for creating a pull request

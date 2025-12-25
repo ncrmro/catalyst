@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@tetrastack/backend/utils";
 
 /**
  * DNS-1123 label validation schema for slugs

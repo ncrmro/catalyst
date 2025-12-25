@@ -2,7 +2,7 @@
 
 import { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { pullRequestPods } from "@/db/schema";
-import { z } from "zod";
+import { z } from "@tetrastack/backend/utils";
 
 export type PodStatus =
   | "pending"

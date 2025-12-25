@@ -22,7 +22,7 @@ import {
   type GitHubMockData,
   type ReposData
 } from '@/schemas/github-mock';
-import { z } from 'zod';
+import { z } from '@tetrastack/backend/utils';
 
 // Re-export types from schema for backward compatibility
 export type { 

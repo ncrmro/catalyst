@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from '@tetrastack/backend/utils';
 
 /**
  * Shared schema for periodic reports - moved from agents/periodic-report.ts

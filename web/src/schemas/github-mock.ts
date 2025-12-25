@@ -3,7 +3,7 @@
  * These schemas ensure type safety when loading YAML mock data
  */
 
-import { z } from 'zod';
+import { z } from '@tetrastack/backend/utils';
 
 /**
  * GitHub owner schema (simplified)
