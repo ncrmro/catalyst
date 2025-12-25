@@ -1,0 +1,70 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import {
+  fetchProjectCommits,
+  type CommitWithRepo,
+  type CommitTimelineFilters as FilterValues,
+} from "@/actions/commits";
+import { CommitTimeline } from "@/components/commit-timeline";
+import { CommitTimelineFilters } from "@/components/commit-timeline-filters";
+
+export function CommitsPageContent() {
+  const [commits, setCommits] = useState<CommitWithRepo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [authors, setAuthors] = useState<string[]>([]);
+  const [repositories, setRepositories] = useState<string[]>([]);
+  const [filters, setFilters] = useState<FilterValues>({});
+
+  // Load initial data
+  useEffect(() => {
+    loadCommits(filters);
+  }, []);
+
+  const loadCommits = async (currentFilters: FilterValues) => {
+    setLoading(true);
+    try {
+      const result = await fetchProjectCommits(currentFilters, {
+        perPage: 50,
+      });
+      setCommits(result.commits);
+
+      // Extract unique authors and repos from results
+      const uniqueAuthors = new Set<string>();
+      const uniqueRepos = new Set<string>();
+
+      result.commits.forEach((commit) => {
+        if (commit.author) {
+          uniqueAuthors.add(commit.author);
+        }
+        if (commit.repositoryFullName) {
+          uniqueRepos.add(commit.repositoryFullName);
+        }
+      });
+
+      setAuthors(Array.from(uniqueAuthors).sort());
+      setRepositories(Array.from(uniqueRepos).sort());
+    } catch (error) {
+      console.error("Error loading commits:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFilterChange = (newFilters: FilterValues) => {
+    setFilters(newFilters);
+    loadCommits(newFilters);
+  };
+
+  return (
+    <div className="space-y-6">
+      <CommitTimelineFilters
+        authors={authors}
+        repositories={repositories}
+        onFilterChange={handleFilterChange}
+      />
+
+      <CommitTimeline commits={commits} loading={loading} />
+    </div>
+  );
+}

@@ -17,6 +17,7 @@ export type {
   Review,
   Issue,
   PRComment,
+  Commit,
   WebhookEvent,
   VCSProvider,
 } from "./types";

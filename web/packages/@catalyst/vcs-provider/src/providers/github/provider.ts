@@ -18,6 +18,7 @@ import type {
   Review,
   Issue,
   PRComment,
+  Commit,
   WebhookEvent,
 } from "../../types";
 import { getUserOctokit, GITHUB_CONFIG } from "./client";
@@ -417,6 +418,46 @@ export class GitHubProvider implements VCSProvider {
           typeof label === "string" ? label : label.name || "",
         ),
       }));
+  }
+
+  /**
+   * List commits for a repository
+   */
+  async listCommits(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+    options?: {
+      sha?: string;
+      since?: Date;
+      until?: Date;
+      author?: string;
+      perPage?: number;
+      page?: number;
+    },
+  ) {
+    const octokit = client.raw as Octokit;
+    const { data: commits } = await octokit.rest.repos.listCommits({
+      owner,
+      repo,
+      sha: options?.sha,
+      since: options?.since?.toISOString(),
+      until: options?.until?.toISOString(),
+      author: options?.author,
+      per_page: options?.perPage || 30,
+      page: options?.page || 1,
+    });
+
+    return commits.map((commit) => ({
+      sha: commit.sha,
+      message: commit.commit.message,
+      author: commit.author?.login || commit.commit.author?.name || "unknown",
+      authorEmail: commit.commit.author?.email || "",
+      authorAvatarUrl: commit.author?.avatar_url,
+      date: new Date(commit.commit.author?.date || new Date()),
+      htmlUrl: commit.html_url,
+      repositoryFullName: `${owner}/${repo}`,
+    }));
   }
 
   /**

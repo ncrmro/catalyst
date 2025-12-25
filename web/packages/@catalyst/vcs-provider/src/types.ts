@@ -109,6 +109,18 @@ export interface PRComment {
   updatedAt: Date;
 }
 
+// Commit types
+export interface Commit {
+  sha: string;
+  message: string;
+  author: string;
+  authorEmail: string;
+  authorAvatarUrl?: string;
+  date: Date;
+  htmlUrl: string;
+  repositoryFullName: string;
+}
+
 // Webhook types
 export interface WebhookEvent {
   type: "push" | "pull_request" | "installation" | "issue";
@@ -212,6 +224,21 @@ export interface VCSProvider {
     repo: string,
     options?: { state?: "open" | "closed" | "all" },
   ): Promise<Issue[]>;
+
+  // Commits
+  listCommits(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+    options?: {
+      sha?: string; // branch/ref
+      since?: Date;
+      until?: Date;
+      author?: string;
+      perPage?: number;
+      page?: number;
+    },
+  ): Promise<Commit[]>;
 
   // Webhooks
   verifyWebhookSignature(
