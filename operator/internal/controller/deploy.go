@@ -28,7 +28,7 @@ func getImageForDeployment(env *catalystv1alpha1.Environment) string {
 
 	// Fallback to cluster registry for development/workspace modes
 	projectName := env.Spec.ProjectRef.Name
-	commitSha := env.Spec.Source.CommitSha
+	commitSha := env.Spec.Sources[0].CommitSha
 	return fmt.Sprintf("%s/%s:%s", registryHost, projectName, commitSha)
 }
 
@@ -103,69 +103,39 @@ func desiredService(env *catalystv1alpha1.Environment, namespace string) *corev1
 // desiredIngress creates an Ingress resource for the environment.
 // When isLocal is true, it uses hostname-based routing with *.localhost (e.g., namespace.localhost:8080).
 // When isLocal is false, it uses hostname-based routing with TLS (production mode).
+// If env.Spec.Ingress is configured, it uses that configuration; otherwise falls back to defaults.
 func desiredIngress(env *catalystv1alpha1.Environment, namespace string, isLocal bool) *networkingv1.Ingress {
+	// Check if ingress is explicitly disabled via CRD config
+	if env.Spec.Ingress != nil && !env.Spec.Ingress.Enabled {
+		return nil
+	}
+
+	var host string
+
 	if isLocal {
 		// Hostname-based routing for local development
 		// Pattern: namespace.localhost (e.g., catalyst-catalyst-dev.localhost:8080)
 		// Modern browsers resolve *.localhost to 127.0.0.1
-		host := fmt.Sprintf("%s.localhost", namespace)
-		pathType := networkingv1.PathTypePrefix
-
-		return &networkingv1.Ingress{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "app",
-				Namespace: namespace,
-			},
-			Spec: networkingv1.IngressSpec{
-				IngressClassName: ptr("nginx"),
-				Rules: []networkingv1.IngressRule{
-					{
-						Host: host,
-						IngressRuleValue: networkingv1.IngressRuleValue{
-							HTTP: &networkingv1.HTTPIngressRuleValue{
-								Paths: []networkingv1.HTTPIngressPath{
-									{
-										Path:     "/",
-										PathType: &pathType,
-										Backend: networkingv1.IngressBackend{
-											Service: &networkingv1.IngressServiceBackend{
-												Name: "app",
-												Port: networkingv1.ServiceBackendPort{
-													Number: 80,
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		}
+		host = fmt.Sprintf("%s.localhost", namespace)
+	} else if env.Spec.Ingress != nil && env.Spec.Ingress.Host != "" {
+		// Use configured host from CRD
+		host = env.Spec.Ingress.Host
+	} else {
+		// Production mode fallback: hostname-based routing
+		// Host format: <env-name>.preview.catalyst.dev
+		host = fmt.Sprintf("%s.preview.catalyst.dev", env.Name)
 	}
 
-	// Production mode: hostname-based routing with TLS
-	// Host format: <env-name>.preview.catalyst.dev
-	host := fmt.Sprintf("%s.preview.catalyst.dev", env.Name)
 	pathType := networkingv1.PathTypePrefix
 
-	return &networkingv1.Ingress{
+	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app",
-			Namespace: namespace,
-			Annotations: map[string]string{
-				"cert-manager.io/cluster-issuer": "letsencrypt-prod",
-			},
+			Name:        "app",
+			Namespace:   namespace,
+			Annotations: map[string]string{},
 		},
 		Spec: networkingv1.IngressSpec{
-			IngressClassName: ptr("nginx"),
-			TLS: []networkingv1.IngressTLS{
-				{
-					Hosts:      []string{host},
-					SecretName: fmt.Sprintf("%s-tls", env.Name),
-				},
-			},
+			IngressClassName: ptr("nginx"), // TODO: make configurable
 			Rules: []networkingv1.IngressRule{
 				{
 					Host: host,
@@ -191,6 +161,24 @@ func desiredIngress(env *catalystv1alpha1.Environment, namespace string, isLocal
 			},
 		},
 	}
+
+	// Add TLS configuration if enabled (only for non-local mode)
+	if !isLocal && env.Spec.Ingress != nil && env.Spec.Ingress.TLS != nil && env.Spec.Ingress.TLS.Enabled {
+		issuer := env.Spec.Ingress.TLS.Issuer
+		if issuer == "" {
+			issuer = "letsencrypt-prod" // Default issuer
+		}
+
+		ingress.Annotations["cert-manager.io/cluster-issuer"] = issuer
+		ingress.Spec.TLS = []networkingv1.IngressTLS{
+			{
+				Hosts:      []string{host},
+				SecretName: fmt.Sprintf("%s-tls", env.Name),
+			},
+		}
+	}
+
+	return ingress
 }
 
 // generateURL creates the public URL for the environment based on the deployment mode.
@@ -204,6 +192,15 @@ func generateURL(env *catalystv1alpha1.Environment, namespace string, isLocal bo
 			ingressPort = "8080"
 		}
 		return fmt.Sprintf("http://%s.localhost:%s/", namespace, ingressPort)
+	}
+
+	// Check if custom host is configured
+	if env.Spec.Ingress != nil && env.Spec.Ingress.Host != "" {
+		scheme := "http"
+		if env.Spec.Ingress.TLS != nil && env.Spec.Ingress.TLS.Enabled {
+			scheme = "https"
+		}
+		return fmt.Sprintf("%s://%s/", scheme, env.Spec.Ingress.Host)
 	}
 
 	// Production hostname-based URL with HTTPS

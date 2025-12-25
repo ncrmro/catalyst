@@ -42,6 +42,10 @@ type EnvironmentSpec struct {
 
 	// Config overrides
 	Config EnvironmentConfig `json:"config,omitempty"`
+
+	// Ingress configuration for exposing the environment
+	// +optional
+	Ingress *IngressConfig `json:"ingress,omitempty"`
 }
 
 type ProjectReference struct {
@@ -75,6 +79,28 @@ type EnvironmentConfig struct {
 type EnvVar struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
+}
+
+type IngressConfig struct {
+	// Enabled controls whether to create an Ingress resource
+	Enabled bool `json:"enabled"`
+
+	// Host is the hostname for the ingress (e.g., env-preview-123.preview.example.com)
+	// +optional
+	Host string `json:"host,omitempty"`
+
+	// TLS configuration for HTTPS
+	// +optional
+	TLS *IngressTLSConfig `json:"tls,omitempty"`
+}
+
+type IngressTLSConfig struct {
+	// Enabled controls whether to enable TLS
+	Enabled bool `json:"enabled"`
+
+	// Issuer is the cert-manager ClusterIssuer name
+	// +optional
+	Issuer string `json:"issuer,omitempty"`
 }
 
 // EnvironmentStatus defines the observed state of Environment.
