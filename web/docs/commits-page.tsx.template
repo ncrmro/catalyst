@@ -1,0 +1,30 @@
+import { Suspense } from "react";
+import { CommitsPageContent } from "./commits-page-content";
+
+/**
+ * Commits Timeline Page
+ * Shows a bird's eye view of all commits across project repositories
+ */
+export const metadata = {
+  title: "Commit Timeline - Catalyst",
+  description: "View commits across all your project repositories.",
+};
+
+export default function CommitsPage() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-on-background mb-2">
+          Commit Timeline
+        </h1>
+        <p className="text-on-surface-variant">
+          View and filter commits across all your project repositories.
+        </p>
+      </div>
+
+      <Suspense fallback={<div>Loading commits...</div>}>
+        <CommitsPageContent />
+      </Suspense>
+    </div>
+  );
+}
