@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { toggleGitHubOIDC } from "@/actions/clusters";
 import type { ClusterInfo } from "@/lib/k8s-client";
+import type { GitHubOIDCResult } from "@/lib/k8s-github-oidc";
 
-interface ExtendedClusterInfo extends ClusterInfo {
+export interface ExtendedClusterInfo extends ClusterInfo {
   costPerMonth?: string;
   currentNodes?: number;
   maxNodes?: number;
@@ -15,11 +15,16 @@ interface ExtendedClusterInfo extends ClusterInfo {
   githubOIDCEnabled?: boolean;
 }
 
-interface ClusterCardProps {
+export interface ClusterCardProps {
   cluster: ExtendedClusterInfo;
+  /** Action callback for toggling GitHub OIDC - passed from server component */
+  onToggleOIDC?: (
+    clusterName: string,
+    enabled: boolean,
+  ) => Promise<GitHubOIDCResult>;
 }
 
-export function ClusterCard({ cluster }: ClusterCardProps) {
+export function ClusterCard({ cluster, onToggleOIDC }: ClusterCardProps) {
   const [githubOIDCEnabled, setGithubOIDCEnabled] = useState(
     cluster.githubOIDCEnabled || false,
   );
@@ -29,8 +34,8 @@ export function ClusterCard({ cluster }: ClusterCardProps) {
   const isRealCluster = !!(cluster.endpoint && cluster.source);
 
   const handleGitHubOIDCToggle = () => {
-    if (!isRealCluster) {
-      return; // Don't allow toggling for mock clusters
+    if (!isRealCluster || !onToggleOIDC) {
+      return; // Don't allow toggling for mock clusters or if no handler
     }
 
     const newValue = !githubOIDCEnabled;
@@ -38,7 +43,7 @@ export function ClusterCard({ cluster }: ClusterCardProps) {
 
     startTransition(async () => {
       try {
-        await toggleGitHubOIDC(cluster.name, newValue);
+        await onToggleOIDC(cluster.name, newValue);
         setGithubOIDCEnabled(newValue);
       } catch (err) {
         setError(

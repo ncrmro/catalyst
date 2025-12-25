@@ -3,11 +3,11 @@ import {
   ListObjectsV2Command,
   PutObjectCommand,
   GetObjectCommand,
-} from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { r2Client, R2_BUCKET_NAME, R2_PUBLIC_URL } from "./client";
-import { uuidv7 } from "../utils/uuidv7";
-import { eq } from "drizzle-orm";
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { r2Client, R2_BUCKET_NAME, R2_PUBLIC_URL } from './client';
+import { uuidv7 } from '../utils/uuidv7';
+import { eq } from 'drizzle-orm';
 
 interface CreatePresignedUploadOptions {
   filename: string;
@@ -26,7 +26,37 @@ interface ListObjectsOptions {
   prefix?: string;
 }
 
-export const createUploads = (db: any, uploadsTable: any) => ({
+/** Database interface for upload operations - supports any Drizzle database */
+interface UploadsDatabase {
+  insert: (table: UploadsTableLike) => {
+    values: (data: UploadInsertData) => Promise<unknown>;
+  };
+  delete: (table: UploadsTableLike) => {
+    where: (condition: ReturnType<typeof eq>) => Promise<unknown>;
+  };
+}
+
+/** Minimal table interface - actual Drizzle table types are too complex for union typing */
+interface UploadsTableLike {
+  key: Parameters<typeof eq>[0];
+}
+
+/** Data structure for inserting upload records */
+interface UploadInsertData {
+  id: string;
+  key: string;
+  filename: string;
+  contentType: string;
+  size: number;
+  entityId?: string;
+  entityType?: string;
+  url?: string;
+}
+
+export const createUploads = (
+  db: UploadsDatabase,
+  uploadsTable: UploadsTableLike,
+) => ({
   createPresignedUpload: async ({
     filename,
     contentType,
@@ -35,8 +65,8 @@ export const createUploads = (db: any, uploadsTable: any) => ({
     entityId,
     entityType,
   }: CreatePresignedUploadOptions) => {
-    const fileExtension = filename.split(".").pop();
-    const key = `uploads/${entityType || "misc"}/${entityId || "anonymous"}/${uuidv7()}.${fileExtension}`;
+    const fileExtension = filename.split('.').pop();
+    const key = `uploads/${entityType || 'misc'}/${entityId || 'anonymous'}/${uuidv7()}.${fileExtension}`;
 
     const putObjectCommand = new PutObjectCommand({
       Bucket: R2_BUCKET_NAME,
@@ -45,7 +75,6 @@ export const createUploads = (db: any, uploadsTable: any) => ({
       ContentLength: maxSizeBytes, // This is for client-side validation, actual file size can be smaller
     });
 
-    // @ts-ignore
     const url = await getSignedUrl(r2Client, putObjectCommand, { expiresIn });
 
     // Store metadata in database
@@ -71,7 +100,6 @@ export const createUploads = (db: any, uploadsTable: any) => ({
       Bucket: R2_BUCKET_NAME,
       Key: key,
     });
-    // @ts-ignore
     return getSignedUrl(r2Client, getObjectCommand, { expiresIn });
   },
 

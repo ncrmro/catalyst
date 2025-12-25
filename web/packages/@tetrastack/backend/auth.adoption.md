@@ -10,8 +10,8 @@ For applications that need user persistence and database storage:
 
 ```typescript
 // src/lib/auth.ts
-import { createAuth } from "@tetrastack/backend/auth";
-import { database } from "../database";
+import { createAuth } from '@tetrastack/backend/auth';
+import { database } from '../database';
 
 export const { handlers, auth, signIn, signOut } = createAuth({ database });
 ```
@@ -22,7 +22,7 @@ For edge runtimes or when database access is not needed:
 
 ```typescript
 // src/lib/auth.ts
-import { createAuth } from "@tetrastack/backend/auth";
+import { createAuth } from '@tetrastack/backend/auth';
 
 export const { auth } = createAuth();
 ```
@@ -35,9 +35,9 @@ Import schemas for your database:
 
 ```typescript
 // src/database/schema.ts
-import { sqlite } from "@tetrastack/backend/database";
+import { sqlite } from '@tetrastack/backend/database';
 // or
-import { postgres } from "@tetrastack/backend/database";
+import { postgres } from '@tetrastack/backend/database';
 
 export const schema = {
   ...sqlite, // or ...postgres
@@ -48,9 +48,9 @@ export const schema = {
 
 ```typescript
 // src/database/index.ts
-import { drizzle } from "drizzle-orm/libsql";
-import { createClient } from "@libsql/client";
-import { schema } from "./schema";
+import { drizzle } from 'drizzle-orm/libsql';
+import { createClient } from '@libsql/client';
+import { schema } from './schema';
 
 const client = createClient({
   url: process.env.DATABASE_URL!,
@@ -64,8 +64,8 @@ export const db = drizzle(client, { schema });
 
 ```typescript
 // src/lib/auth.ts
-import { createAuth } from "@tetrastack/backend/auth";
-import { db } from "../database";
+import { createAuth } from '@tetrastack/backend/auth';
+import { db } from '../database';
 
 export const { handlers, auth, signIn, signOut } = createAuth({ database: db });
 ```
@@ -74,7 +74,7 @@ export const { handlers, auth, signIn, signOut } = createAuth({ database: db });
 
 ```typescript
 // src/app/api/auth/[...nextauth]/route.ts
-import { handlers } from "@/lib/auth";
+import { handlers } from '@/lib/auth';
 
 export const { GET, POST } = handlers;
 ```
@@ -87,9 +87,9 @@ Add OAuth or other providers alongside the default credentials provider:
 import {
   createAuth,
   providers as defaultProviders,
-} from "@tetrastack/backend/auth";
-import GitHub from "next-auth/providers/github";
-import Google from "next-auth/providers/google";
+} from '@tetrastack/backend/auth';
+import GitHub from 'next-auth/providers/github';
+import Google from 'next-auth/providers/google';
 
 export const { handlers, auth, signIn, signOut } = createAuth({
   database,
@@ -110,8 +110,8 @@ export const { handlers, auth, signIn, signOut } = createAuth({
 Or replace the default providers entirely:
 
 ```typescript
-import { createAuth } from "@tetrastack/backend/auth";
-import GitHub from "next-auth/providers/github";
+import { createAuth } from '@tetrastack/backend/auth';
+import GitHub from 'next-auth/providers/github';
 
 export const { handlers, auth, signIn, signOut } = createAuth({
   database,
@@ -130,22 +130,22 @@ export const { handlers, auth, signIn, signOut } = createAuth({
 
 ```typescript
 // src/proxy.ts
-import { auth } from "@/lib/auth";
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { auth } from '@/lib/auth';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 export default async function proxy(req: NextRequest) {
   const session = await auth();
 
-  if (!session && req.nextUrl.pathname.startsWith("/dashboard")) {
-    return NextResponse.redirect(new URL("/login", req.url));
+  if (!session && req.nextUrl.pathname.startsWith('/dashboard')) {
+    return NextResponse.redirect(new URL('/login', req.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: ['/dashboard/:path*'],
 };
 ```
 

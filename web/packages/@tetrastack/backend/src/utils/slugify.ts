@@ -7,7 +7,7 @@ interface SlugifyOptions {
 
 export function slugify(text: string, options: SlugifyOptions = {}): string {
   const {
-    separator = "-",
+    separator = '-',
     lowercase = true,
     strict = true,
     maxLength,
@@ -21,14 +21,14 @@ export function slugify(text: string, options: SlugifyOptions = {}): string {
 
   if (strict) {
     result = result
-      .normalize("NFD") // The normalize() method returns the Unicode Normalization Form of a given string.
-      .replace(/[\u0300-\u036f]/g, "") // Remove accents
-      .replace(/[^\w\s-]/g, ""); // Remove all non-word chars
+      .normalize('NFD') // The normalize() method returns the Unicode Normalization Form of a given string.
+      .replace(/[\u0300-\u036f]/g, '') // Remove accents
+      .replace(/[^\w\s-]/g, ''); // Remove all non-word chars
   }
 
   result = result
     .replace(/\s+/g, separator) // Replace spaces with separator
-    .replace(new RegExp(`${separator}+`, "g"), separator); // Replace multiple separators with single
+    .replace(new RegExp(`${separator}+`, 'g'), separator); // Replace multiple separators with single
 
   if (maxLength) {
     result = result.substring(0, maxLength);

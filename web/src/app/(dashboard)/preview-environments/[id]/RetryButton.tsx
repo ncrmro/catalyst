@@ -2,16 +2,23 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { retryDeployment } from "@/actions/preview-environments";
 
-interface RetryButtonProps {
+/** Result type for retry action */
+export interface RetryResult {
+  success: boolean;
+  error?: string;
+}
+
+export interface RetryButtonProps {
   podId: string;
+  /** Action callback for retry - passed from server component */
+  onRetry: (podId: string) => Promise<RetryResult>;
 }
 
 /**
  * Client component for retrying a failed deployment
  */
-export function RetryButton({ podId }: RetryButtonProps) {
+export function RetryButton({ podId, onRetry }: RetryButtonProps) {
   const [isRetrying, setIsRetrying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -20,7 +27,7 @@ export function RetryButton({ podId }: RetryButtonProps) {
     setIsRetrying(true);
     setError(null);
 
-    const result = await retryDeployment(podId);
+    const result = await onRetry(podId);
 
     if (result.success) {
       router.refresh();
