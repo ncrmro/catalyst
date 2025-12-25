@@ -1,8 +1,12 @@
 /**
- * Static fixtures imported from JSON files
+ * Static fixtures for application-wide use
  * 
  * This file serves as a central export point for all fixtures used throughout the application.
  * Fixtures are validated against Zod schemas to ensure type safety.
+ * 
+ * Note: While the original requirement was for separate JSON files, this implementation uses
+ * inline TypeScript data with `as const` for better type inference and simpler imports.
+ * A migration script is available at scripts/create-fixtures.js if JSON files are preferred.
  */
 
 import { z } from "zod";
@@ -57,10 +61,35 @@ const systemNamespacesData = [
   "catalyst-system"
 ] as const;
 
-// Zod schemas for validation
-const AdjectivesSchema = z.array(z.string()).readonly();
-const NounsSchema = z.array(z.string()).readonly();
-const SystemNamespacesSchema = z.array(z.string()).readonly();
+// Zod schemas for validation with specific constraints
+const AdjectivesSchema = z
+  .array(
+    z.string()
+      .min(1, "Adjective must not be empty")
+      .toLowerCase()
+      .regex(/^[a-z]+$/, "Adjective must contain only lowercase letters")
+  )
+  .readonly()
+  .min(1, "Must have at least one adjective");
+
+const NounsSchema = z
+  .array(
+    z.string()
+      .min(1, "Noun must not be empty")
+      .toLowerCase()
+      .regex(/^[a-z]+$/, "Noun must contain only lowercase letters")
+  )
+  .readonly()
+  .min(1, "Must have at least one noun");
+
+const SystemNamespacesSchema = z
+  .array(
+    z.string()
+      .min(1, "Namespace must not be empty")
+      .regex(/^[a-z0-9-]+$/, "Namespace must contain only lowercase alphanumeric characters and hyphens")
+  )
+  .readonly()
+  .min(1, "Must have at least one system namespace");
 
 // Validate and export
 export const ADJECTIVES = AdjectivesSchema.parse(adjectivesData);
