@@ -13,6 +13,7 @@ import { eq, and } from "drizzle-orm";
 import { TestInfo } from "@playwright/test";
 import { getMockProjects, getMockReposData } from "@/mocks/github";
 import { generateSlug } from "@/lib/slug";
+import { reposFixtures, projectsFixtures, usersFixtures } from "@/lib/fixtures";
 
 /**
  * Get user details from a dev password used in authentication
@@ -106,20 +107,14 @@ export async function createUserWithTeam(params: {
 export async function createCatalystAndMezeProjects(teamId: string) {
   console.log("Creating catalyst and meze projects for team:", teamId);
 
+  // Use fixtures for repo data
+  const [catalystRepoData, mezeRepoData] = reposFixtures;
+
   // Insert repos (skip if already exists)
   await db
     .insert(repos)
     .values({
-      githubId: 756437234,
-      name: "catalyst",
-      fullName: "ncrmro/catalyst",
-      description: "Platform for managing deployments and infrastructure",
-      url: "https://github.com/ncrmro/catalyst",
-      isPrivate: false,
-      language: "TypeScript",
-      ownerLogin: "ncrmro",
-      ownerType: "User",
-      ownerAvatarUrl: "https://avatars.githubusercontent.com/u/8276365?v=4",
+      ...catalystRepoData,
       teamId,
     })
     .onConflictDoNothing();
@@ -127,16 +122,7 @@ export async function createCatalystAndMezeProjects(teamId: string) {
   await db
     .insert(repos)
     .values({
-      githubId: 756437235,
-      name: "meze",
-      fullName: "ncrmro/meze",
-      description: "Modern recipe management and meal planning application",
-      url: "https://github.com/ncrmro/meze",
-      isPrivate: false,
-      language: "TypeScript",
-      ownerLogin: "ncrmro",
-      ownerType: "User",
-      ownerAvatarUrl: "https://avatars.githubusercontent.com/u/8276365?v=4",
+      ...mezeRepoData,
       teamId,
     })
     .onConflictDoNothing();
@@ -145,26 +131,24 @@ export async function createCatalystAndMezeProjects(teamId: string) {
   const [catalystRepo] = await db
     .select()
     .from(repos)
-    .where(eq(repos.fullName, "ncrmro/catalyst"))
+    .where(eq(repos.fullName, catalystRepoData.fullName))
     .limit(1);
 
   const [mezeRepo] = await db
     .select()
     .from(repos)
-    .where(eq(repos.fullName, "ncrmro/meze"))
+    .where(eq(repos.fullName, mezeRepoData.fullName))
     .limit(1);
+
+  // Use fixtures for project data
+  const [catalystProjectData, mezeProjectData] = projectsFixtures;
 
   // Insert projects (skip if already exists)
   await db
     .insert(projects)
     .values({
-      name: "Catalyst",
-      slug: generateSlug("Catalyst"),
-      fullName: "ncrmro/catalyst",
-      description: "Platform for managing deployments and infrastructure",
-      ownerLogin: "ncrmro",
-      ownerType: "User",
-      ownerAvatarUrl: "https://avatars.githubusercontent.com/u/8276365?v=4",
+      ...catalystProjectData,
+      slug: generateSlug(catalystProjectData.name),
       teamId,
     })
     .onConflictDoNothing();
@@ -172,13 +156,8 @@ export async function createCatalystAndMezeProjects(teamId: string) {
   await db
     .insert(projects)
     .values({
-      name: "Meze",
-      slug: generateSlug("Meze"),
-      fullName: "ncrmro/meze",
-      description: "Modern recipe management and meal planning application",
-      ownerLogin: "ncrmro",
-      ownerType: "User",
-      ownerAvatarUrl: "https://avatars.githubusercontent.com/u/8276365?v=4",
+      ...mezeProjectData,
+      slug: generateSlug(mezeProjectData.name),
       teamId,
     })
     .onConflictDoNothing();
@@ -189,7 +168,7 @@ export async function createCatalystAndMezeProjects(teamId: string) {
     .from(projects)
     .where(
       and(
-        eq(projects.fullName, "ncrmro/catalyst"),
+        eq(projects.fullName, catalystProjectData.fullName),
         eq(projects.teamId, teamId),
       ),
     )
@@ -199,7 +178,10 @@ export async function createCatalystAndMezeProjects(teamId: string) {
     .select()
     .from(projects)
     .where(
-      and(eq(projects.fullName, "ncrmro/meze"), eq(projects.teamId, teamId)),
+      and(
+        eq(projects.fullName, mezeProjectData.fullName),
+        eq(projects.teamId, teamId),
+      ),
     )
     .limit(1);
 
@@ -763,12 +745,15 @@ export async function seedDefaultUsers() {
   const isMockedMode =
     process.env.GITHUB_REPOS_MODE === "mocked" || process.env.MOCKED === "1";
 
+  // Use fixtures for user data
+  const [regularUser, adminUser] = usersFixtures;
+
   // Create regular user
   results.push(
     await seedUser({
-      email: "bob@alice.com",
-      name: "Bob Alice",
-      admin: false,
+      email: regularUser.email,
+      name: regularUser.name || null,
+      admin: regularUser.admin,
       createProjects: false, // We'll handle projects separately for mocked mode
     }),
   );
@@ -776,9 +761,9 @@ export async function seedDefaultUsers() {
   // Create admin user
   results.push(
     await seedUser({
-      email: "admin@example.com",
-      name: "Test Admin",
-      admin: true,
+      email: adminUser.email,
+      name: adminUser.name || null,
+      admin: adminUser.admin,
       createProjects: false, // We'll handle projects separately for mocked mode
     }),
   );
