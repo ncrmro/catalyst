@@ -22,6 +22,12 @@ const nextConfig: NextConfig = {
     ],
   },
   output: "standalone",
+  experimental: {
+    // Enable WebSocket support via next-ws
+    serverActions: {
+      bodySizeLimit: "2mb",
+    },
+  },
 };
 
 export default nextConfig;
