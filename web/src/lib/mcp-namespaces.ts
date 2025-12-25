@@ -2,17 +2,7 @@
 
 import { listNamespaces } from '@/lib/k8s-namespaces';
 import { NamespaceInfo } from '@/actions/namespaces';
-
-/**
- * System namespaces that are accessible to all authenticated users
- */
-const SYSTEM_NAMESPACES = [
-  'default',
-  'kube-system',
-  'kube-public',
-  'kube-node-lease',
-  'catalyst-system'
-];
+import { SYSTEM_NAMESPACES } from '@/fixtures';
 
 /**
  * Get namespaces that a specific user can access based on their team memberships
