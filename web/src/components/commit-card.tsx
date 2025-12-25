@@ -1,9 +1,31 @@
 import { CommitWithRepo } from "@/actions/commits";
 import Link from "next/link";
-import { formatDistanceToNow } from "date-fns";
 
 interface CommitCardProps {
   commit: CommitWithRepo;
+}
+
+// Helper function to format relative time
+function formatTimeAgo(date: Date): string {
+  const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+  
+  const intervals = {
+    year: 31536000,
+    month: 2592000,
+    week: 604800,
+    day: 86400,
+    hour: 3600,
+    minute: 60,
+  };
+  
+  for (const [unit, secondsInUnit] of Object.entries(intervals)) {
+    const interval = Math.floor(seconds / secondsInUnit);
+    if (interval >= 1) {
+      return `${interval} ${unit}${interval === 1 ? '' : 's'} ago`;
+    }
+  }
+  
+  return 'just now';
 }
 
 export function CommitCard({ commit }: CommitCardProps) {
@@ -12,7 +34,7 @@ export function CommitCard({ commit }: CommitCardProps) {
   const body = bodyLines.join("\n").trim();
 
   // Format relative time
-  const timeAgo = formatDistanceToNow(commit.date, { addSuffix: true });
+  const timeAgo = formatTimeAgo(commit.date);
 
   // Short SHA for display
   const shortSha = commit.sha.substring(0, 7);
