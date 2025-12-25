@@ -12,6 +12,8 @@ import {
   repos,
   teams,
   teamsMemberships,
+  projects,
+  projectsRepos,
 } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import type {
@@ -80,7 +82,7 @@ export function generateNamespace(repoName: string, prNumber: number): string {
  */
 export function generatePublicUrl(namespace: string, domain?: string): string {
   const baseDomain =
-    domain || process.env.PREVIEW_DOMAIN || "preview.localhost";
+    domain || process.env.DEFAULT_PREVIEW_DOMAIN || "preview.localhost";
   return `https://${namespace}.${baseDomain}`;
 }
 
@@ -599,6 +601,8 @@ export interface CreatePreviewDeploymentParams {
   buildJobNamespace?: string;
   /** Use Helm chart deployment instead of direct K8s API (default: false) */
   useHelmDeployment?: boolean;
+  /** Optional repo ID to fetch project configuration */
+  repoId?: string;
 }
 
 export interface CreatePreviewDeploymentResult {
@@ -634,7 +638,32 @@ export async function createPreviewDeployment(
     installationId,
     owner,
     repoName,
+    repoId,
   } = params;
+
+  // Fetch project configuration if repoId is provided
+  let customDomain: string | null = null;
+  let ingressEnabled = true;
+  let tlsEnabled = false;
+
+  if (repoId) {
+    const projectConfig = await db
+      .select({
+        customDomain: projects.customDomain,
+        ingressEnabled: projects.ingressEnabled,
+        tlsEnabled: projects.tlsEnabled,
+      })
+      .from(projectsRepos)
+      .innerJoin(projects, eq(projectsRepos.projectId, projects.id))
+      .where(eq(projectsRepos.repoId, repoId))
+      .limit(1);
+
+    if (projectConfig.length > 0) {
+      customDomain = projectConfig[0].customDomain;
+      ingressEnabled = projectConfig[0].ingressEnabled;
+      tlsEnabled = projectConfig[0].tlsEnabled;
+    }
+  }
 
   // Generate identifiers
   // CR Name: preview-<prNumber>
@@ -644,7 +673,8 @@ export async function createPreviewDeployment(
   // CR Namespace: default (control plane)
   const crNamespace = "default";
 
-  const publicUrl = generatePublicUrl(targetNamespace);
+  // Use custom domain if configured, otherwise use default
+  const publicUrl = generatePublicUrl(targetNamespace, customDomain || undefined);
   const imageTag = generateImageTag(repoFullName, prNumber, commitSha);
 
   // Start deployment timer for performance tracking
@@ -743,6 +773,18 @@ export async function createPreviewDeployment(
     config: {
       envVars: [], // Add any default env vars
     },
+    ingress: ingressEnabled
+      ? {
+          enabled: true,
+          host: publicUrl.replace("https://", "").replace("http://", ""),
+          tls: tlsEnabled
+            ? {
+                enabled: true,
+                issuer: process.env.TLS_ISSUER || "letsencrypt-prod",
+              }
+            : undefined,
+        }
+      : undefined,
   });
 
   if (!crResult.success) {

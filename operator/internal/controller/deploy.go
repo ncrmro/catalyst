@@ -76,27 +76,28 @@ func desiredService(env *catalystv1alpha1.Environment, namespace string) *corev1
 }
 
 func desiredIngress(env *catalystv1alpha1.Environment, namespace string) *networkingv1.Ingress {
-	// Host format: pr-123-org-repo.preview.catalyst.dev
-	// For now: <env-name>.preview.catalyst.dev
-	host := fmt.Sprintf("%s.preview.catalyst.dev", env.Name)
+	// Check if ingress is disabled
+	if env.Spec.Ingress == nil || !env.Spec.Ingress.Enabled {
+		return nil
+	}
+
+	// Use configured host or fallback to default
+	host := env.Spec.Ingress.Host
+	if host == "" {
+		// Fallback: <env-name>.preview.catalyst.dev
+		host = fmt.Sprintf("%s.preview.catalyst.dev", env.Name)
+	}
+
 	pathType := networkingv1.PathTypePrefix
 
-	return &networkingv1.Ingress{
+	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app",
-			Namespace: namespace,
-			Annotations: map[string]string{
-				"cert-manager.io/cluster-issuer": "letsencrypt-prod",
-			},
+			Name:        "app",
+			Namespace:   namespace,
+			Annotations: map[string]string{},
 		},
 		Spec: networkingv1.IngressSpec{
-			IngressClassName: ptr("nginx"),
-			TLS: []networkingv1.IngressTLS{
-				{
-					Hosts:      []string{host},
-					SecretName: fmt.Sprintf("%s-tls", env.Name),
-				},
-			},
+			IngressClassName: ptr("nginx"), // TODO: make configurable
 			Rules: []networkingv1.IngressRule{
 				{
 					Host: host,
@@ -122,6 +123,24 @@ func desiredIngress(env *catalystv1alpha1.Environment, namespace string) *networ
 			},
 		},
 	}
+
+	// Add TLS configuration if enabled
+	if env.Spec.Ingress.TLS != nil && env.Spec.Ingress.TLS.Enabled {
+		issuer := env.Spec.Ingress.TLS.Issuer
+		if issuer == "" {
+			issuer = "letsencrypt-prod" // Default issuer
+		}
+
+		ingress.Annotations["cert-manager.io/cluster-issuer"] = issuer
+		ingress.Spec.TLS = []networkingv1.IngressTLS{
+			{
+				Hosts:      []string{host},
+				SecretName: fmt.Sprintf("%s-tls", env.Name),
+			},
+		}
+	}
+
+	return ingress
 }
 
 func toCoreEnvVars(vars []catalystv1alpha1.EnvVar) []corev1.EnvVar {
