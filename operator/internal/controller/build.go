@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -16,9 +17,19 @@ import (
 // running commands, and debugging via exec from the UI.
 
 const (
-	registryHost   = "registry.cluster.local:5000"
-	workspaceImage = "alpine:latest"
+	defaultRegistryHost = "registry.cluster.local:5000"
+	workspaceImage      = "alpine:latest"
 )
+
+// getRegistryHost returns the container registry host.
+// Called at runtime to support dynamic reconfiguration.
+// Priority: CONTAINER_REGISTRY_HOST env > default
+func getRegistryHost() string {
+	if host := os.Getenv("CONTAINER_REGISTRY_HOST"); host != "" {
+		return host
+	}
+	return defaultRegistryHost
+}
 
 func workspacePodName(env *catalystv1alpha1.Environment) string {
 	commitPart := env.Spec.Source.CommitSha

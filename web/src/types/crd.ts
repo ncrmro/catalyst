@@ -1,5 +1,18 @@
 export type EnvironmentType = "deployment" | "development";
 
+/**
+ * Ingress configuration for preview environments.
+ * All fields are optional - if not specified, defaults from environment variables are used.
+ */
+export interface IngressConfig {
+  /** Custom domain for preview URLs (e.g., "preview.mycompany.com") */
+  domain?: string;
+  /** TLS cluster issuer for cert-manager (e.g., "letsencrypt-prod") */
+  tlsClusterIssuer?: string;
+  /** Ingress class name (e.g., "nginx", "traefik") */
+  ingressClassName?: string;
+}
+
 export interface EnvironmentCRSpec {
   projectRef: {
     name: string;
@@ -13,6 +26,8 @@ export interface EnvironmentCRSpec {
   config?: {
     envVars?: Array<{ name: string; value: string }>;
   };
+  /** Ingress configuration for this environment */
+  ingress?: IngressConfig;
 }
 
 export interface EnvironmentCR {
