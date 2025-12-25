@@ -5,6 +5,7 @@ import type { ProjectWithRelations } from "@/types/projects";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
 
 /** Result type for environment configuration actions */
 export interface EnvironmentResult {
@@ -64,24 +65,25 @@ export function EnvironmentsForm({ project, onSubmit }: EnvironmentsFormProps) {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="mb-8">
+      {/* Header Card */}
+      <Card className="mb-6 p-6">
         <Link
-          href={`/projects/${project.slug}`}
+          href="/projects"
           className="inline-flex items-center text-primary hover:opacity-80 mb-4"
         >
-          ← Back to {project.name}
+          ← Back to Projects
         </Link>
-        <h1 className="text-3xl font-bold text-on-background mb-4">
-          Configure Environments
-        </h1>
-        <p className="text-lg text-on-surface-variant mb-6">
-          Set up deployment environments for{" "}
-          <span className="font-semibold">{project.fullName}</span>. We
-          recommend starting with a preview environment which will create pull
-          requests for your changes.
-        </p>
-      </div>
+        <div className="prose prose-sm dark:prose-invert max-w-none">
+          <h1 className="text-3xl font-bold text-on-background mb-2">
+            Create Environment
+          </h1>
+          <p className="text-on-surface-variant">
+            Start with a <strong>Development Environment</strong> to experiment
+            safely. Deployment environments require approvals and access
+            controls.
+          </p>
+        </div>
+      </Card>
 
       {/* Error message */}
       {error && (
@@ -92,35 +94,16 @@ export function EnvironmentsForm({ project, onSubmit }: EnvironmentsFormProps) {
       )}
 
       {/* Environment Configuration Form */}
-      <div className="bg-surface border border-outline rounded-lg p-8 shadow-sm">
-        <h2 className="text-xl font-semibold text-on-surface mb-6">
-          Choose Your First Environment
-        </h2>
-
-        {/* Getting Started Tip */}
-        <div className="mb-8 bg-primary-container/10 border border-primary rounded-lg p-6">
-          <h3 className="font-semibold text-on-surface mb-3 flex items-center gap-2">
-            <span className="text-2xl">💡</span>
-            <span>Getting Started</span>
-          </h3>
-          <p className="text-on-surface-variant text-sm">
-            New to the platform? Start with a{" "}
-            <strong>Development Environment</strong> to experiment safely.
-            Deployment environments (Production/Staging) involve ACLs, approval
-            workflows, and release processes—best configured after testing your
-            workflow.
-          </p>
-        </div>
-
+      <Card className="p-6">
         <form action={handleSubmit}>
           <input type="hidden" name="projectId" value={project.id} />
 
-          <div className="space-y-4 mb-8">
+          <div className="space-y-4">
             {/* Development Environment Option */}
             <div
               onClick={() => setSelectedEnvType("development")}
               className={cn(
-                "border rounded-lg p-6 cursor-pointer transition-all",
+                "border rounded-lg p-5 cursor-pointer transition-all",
                 selectedEnvType === "development"
                   ? "border-primary bg-primary/5 ring-2 ring-primary"
                   : "border-outline/50 hover:border-outline hover:bg-surface/50",
@@ -135,31 +118,18 @@ export function EnvironmentsForm({ project, onSubmit }: EnvironmentsFormProps) {
                   onChange={() => setSelectedEnvType("development")}
                   className="mt-1"
                 />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-lg font-semibold text-on-surface">
-                      Development Environments
+                <div className="flex-1 prose prose-sm dark:prose-invert max-w-none">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-base font-semibold text-on-surface m-0">
+                      Development
                     </h3>
                     <span className="px-2 py-0.5 text-xs rounded-full bg-success-container text-on-success-container">
-                      ✓ Recommended
+                      Recommended
                     </span>
                   </div>
-                  <p className="text-sm text-on-surface-variant mb-3">
-                    Creates isolated environments for development, testing, and
-                    experimentation. Ideal for trying changes without affecting
-                    production systems.
+                  <p className="text-sm text-on-surface-variant m-0">
+                    Isolated environments for testing and experimentation.
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="px-2 py-1 text-xs rounded bg-surface-variant/30 text-on-surface-variant">
-                      🎲 Random Name
-                    </span>
-                    <span className="px-2 py-1 text-xs rounded bg-surface-variant/30 text-on-surface-variant">
-                      🚀 Instant Setup
-                    </span>
-                    <span className="px-2 py-1 text-xs rounded bg-surface-variant/30 text-on-surface-variant">
-                      🔓 No Approvals
-                    </span>
-                  </div>
                 </div>
               </div>
             </div>
@@ -168,7 +138,7 @@ export function EnvironmentsForm({ project, onSubmit }: EnvironmentsFormProps) {
             <div
               onClick={() => setSelectedEnvType("deployment")}
               className={cn(
-                "border rounded-lg p-6 cursor-pointer transition-all",
+                "border rounded-lg p-5 cursor-pointer transition-all",
                 selectedEnvType === "deployment"
                   ? "border-primary bg-primary/5 ring-2 ring-primary"
                   : "border-outline/50 hover:border-outline hover:bg-surface/50",
@@ -183,35 +153,17 @@ export function EnvironmentsForm({ project, onSubmit }: EnvironmentsFormProps) {
                   onChange={() => setSelectedEnvType("deployment")}
                   className="mt-1"
                 />
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-on-surface mb-2">
-                    Deployment Environments
+                <div className="flex-1 prose prose-sm dark:prose-invert max-w-none">
+                  <h3 className="text-base font-semibold text-on-surface m-0 mb-1">
+                    Deployment
                   </h3>
-                  <p className="text-sm text-on-surface-variant mb-3">
-                    Production and staging environments with controlled access,
-                    approval workflows, and release processes. These
-                    environments enforce ACLs, require team approvals, and
-                    follow strict deployment procedures.
+                  <p className="text-sm text-on-surface-variant m-0">
+                    Production and staging with access controls and approvals.
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="px-2 py-1 text-xs rounded bg-surface-variant/30 text-on-surface-variant">
-                      🔒 Access Controls
-                    </span>
-                    <span className="px-2 py-1 text-xs rounded bg-surface-variant/30 text-on-surface-variant">
-                      ✅ Approval Required
-                    </span>
-                    <span className="px-2 py-1 text-xs rounded bg-surface-variant/30 text-on-surface-variant">
-                      📋 Release Process
-                    </span>
-                  </div>
 
                   {/* Sub-selection: Production vs Staging */}
                   {selectedEnvType === "deployment" && (
-                    <div className="mt-4 pl-6 border-l-2 border-primary/30 space-y-3">
-                      <p className="text-xs font-medium text-on-surface-variant mb-2">
-                        Select deployment type:
-                      </p>
-
+                    <div className="mt-4 pl-4 border-l-2 border-primary/30 space-y-2">
                       {/* Production Sub-option */}
                       <label
                         className={cn(
@@ -235,12 +187,11 @@ export function EnvironmentsForm({ project, onSubmit }: EnvironmentsFormProps) {
                               Production
                             </span>
                             <span className="px-1.5 py-0.5 text-xs rounded bg-error-container/20 text-error">
-                              Live Traffic
+                              Live
                             </span>
                           </div>
-                          <p className="text-xs text-on-surface-variant mt-1">
-                            Customer-facing environment with strictest controls,
-                            monitoring, and team approvals
+                          <p className="text-xs text-on-surface-variant mt-0.5 m-0">
+                            Customer-facing with strict controls
                           </p>
                         </div>
                       </label>
@@ -271,9 +222,8 @@ export function EnvironmentsForm({ project, onSubmit }: EnvironmentsFormProps) {
                               Pre-Production
                             </span>
                           </div>
-                          <p className="text-xs text-on-surface-variant mt-1">
-                            QA testing and stakeholder review with
-                            production-like setup and test data
+                          <p className="text-xs text-on-surface-variant mt-0.5 m-0">
+                            QA and stakeholder review
                           </p>
                         </div>
                       </label>
@@ -285,7 +235,7 @@ export function EnvironmentsForm({ project, onSubmit }: EnvironmentsFormProps) {
           </div>
 
           {/* Submit Button */}
-          <div className="flex items-center justify-between pt-6 border-t border-outline">
+          <div className="flex items-center justify-end gap-3 mt-6">
             <Link
               href={`/projects/${project.slug}`}
               className="px-4 py-2 text-sm font-medium text-on-surface bg-surface border border-outline rounded-md hover:bg-secondary-container hover:text-on-secondary-container transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
@@ -296,17 +246,18 @@ export function EnvironmentsForm({ project, onSubmit }: EnvironmentsFormProps) {
             <button
               type="submit"
               disabled={isSubmitting}
-              className={`px-6 py-2 text-sm font-medium text-on-primary bg-primary border border-transparent rounded-md ${
+              className={cn(
+                "px-6 py-2 text-sm font-medium text-on-primary bg-primary border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
                 isSubmitting
                   ? "opacity-70 cursor-not-allowed"
-                  : "hover:opacity-90"
-              } focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2`}
+                  : "hover:opacity-90",
+              )}
             >
-              {isSubmitting ? "Configuring..." : "Configure Environment"}
+              {isSubmitting ? "Creating..." : "Create Environment"}
             </button>
           </div>
         </form>
-      </div>
+      </Card>
     </div>
   );
 }
