@@ -57,8 +57,7 @@
     "react-xtermjs": "^1.0.10",
     "tailwind-merge": "^2.4.0",
     "ws": "^8.18.3",
-    "yaml": "^2.8.1",
-    "zod": "^3.25.76"
+    "yaml": "^2.8.1"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^4.1.3",

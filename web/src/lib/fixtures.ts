@@ -5,40 +5,47 @@
  * All fixtures are validated against Zod schemas generated from the Drizzle schema.
  */
 
-import { z } from "zod";
+import { z, createInsertSchema } from "@tetrastack/backend/utils";
+import { repos, projects, users } from "@/db/schema";
 
 // ============================================================================
-// Zod Schemas (manual creation since drizzle-zod isn't available)
-// These schemas match the database schema from src/db/schema.ts
+// Zod Schemas (generated from Drizzle schema using drizzle-zod)
 // ============================================================================
 
-export const repoFixtureSchema = z.object({
-  githubId: z.number(),
-  name: z.string(),
-  fullName: z.string(),
-  description: z.string().nullable().optional(),
-  url: z.string(),
-  isPrivate: z.boolean(),
-  language: z.string().nullable().optional(),
-  ownerLogin: z.string(),
-  ownerType: z.string(),
-  ownerAvatarUrl: z.string().nullable().optional(),
+// Generate insert schemas from Drizzle tables
+const repoInsertSchema = createInsertSchema(repos);
+const projectInsertSchema = createInsertSchema(projects);
+const userInsertSchema = createInsertSchema(users);
+
+// Create fixture schemas - these are subsets of the insert schemas
+// excluding auto-generated fields and teamId which is added during seeding
+export const repoFixtureSchema = repoInsertSchema.pick({
+  githubId: true,
+  name: true,
+  fullName: true,
+  description: true,
+  url: true,
+  isPrivate: true,
+  language: true,
+  ownerLogin: true,
+  ownerType: true,
+  ownerAvatarUrl: true,
 });
 
-export const projectFixtureSchema = z.object({
-  name: z.string(),
-  fullName: z.string(),
-  description: z.string().nullable().optional(),
-  ownerLogin: z.string(),
-  ownerType: z.string(),
-  ownerAvatarUrl: z.string().nullable().optional(),
+export const projectFixtureSchema = projectInsertSchema.pick({
+  name: true,
+  fullName: true,
+  description: true,
+  ownerLogin: true,
+  ownerType: true,
+  ownerAvatarUrl: true,
 });
 
-export const userFixtureSchema = z.object({
-  email: z.string().email(),
-  name: z.string().nullable().optional(),
-  admin: z.boolean(),
-  image: z.string().nullable().optional(),
+export const userFixtureSchema = userInsertSchema.pick({
+  email: true,
+  name: true,
+  admin: true,
+  image: true,
 });
 
 // ============================================================================
