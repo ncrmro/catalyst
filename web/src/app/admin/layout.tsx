@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import DashboardLayout from "@/components/dashboard-layout";
+import { signOutAction } from "@/actions/auth";
 
 export default async function AdminLayout({
   children,
@@ -16,7 +17,7 @@ export default async function AdminLayout({
   }
 
   return (
-    <DashboardLayout user={session?.user}>
+    <DashboardLayout user={session?.user} onSignOut={signOutAction}>
       <div className="space-y-6">
         <div className="border-b border-outline pb-4">
           <h1 className="text-2xl font-bold text-on-surface">Admin Panel</h1>

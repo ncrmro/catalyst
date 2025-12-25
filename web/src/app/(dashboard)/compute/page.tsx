@@ -1,4 +1,8 @@
-import { getClusters, getGitHubOIDCStatus } from "@/actions/clusters";
+import {
+  getClusters,
+  getGitHubOIDCStatus,
+  toggleGitHubOIDC,
+} from "@/actions/clusters";
 import { ClusterCard } from "@/components/ClusterCard";
 import type { ClusterInfo } from "@/lib/k8s-client";
 
@@ -103,6 +107,7 @@ export default async function ComputePage() {
             <ClusterCard
               key={`${cluster.name}-${cluster.source}-${index}`}
               cluster={cluster}
+              onToggleOIDC={toggleGitHubOIDC}
             />
           ))}
         </div>

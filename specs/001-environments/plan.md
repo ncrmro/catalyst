@@ -169,6 +169,7 @@ The following files in `web/src/lib/` remain for app-specific logic (gradual mig
 - [ ] Interactive terminal (blocked by Next.js 15 WebSocket support)
 - [ ] Full migration of old k8s-\*.ts files
 - [ ] Integration tests with K3s VM
+- [ ] Verify Namespace naming: `<team>-<project>-<env>` with labels
 - [ ] FR-ENV-001: Graceful handling of missing Kubernetes resources in web UI
 
 ## FR-ENV-001: Graceful Handling of Missing Kubernetes Resources

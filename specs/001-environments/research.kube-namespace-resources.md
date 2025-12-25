@@ -54,7 +54,10 @@ apiVersion: v1
 kind: ResourceQuota
 metadata:
   name: dev-environment-quota
-  namespace: dev-pr-123
+  namespace: myteam-myproject-pr-123
+  labels:
+    catalyst.dev/team: "myteam"
+    catalyst.dev/project: "myproject"
 spec:
   hard:
     # Compute limits

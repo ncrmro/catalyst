@@ -50,7 +50,10 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: default-deny-ingress
-  namespace: dev-pr-123
+  namespace: myteam-myproject-pr-123
+  labels:
+    catalyst.dev/team: "myteam"
+    catalyst.dev/project: "myproject"
 spec:
   podSelector: {} # Selects all pods
   policyTypes:

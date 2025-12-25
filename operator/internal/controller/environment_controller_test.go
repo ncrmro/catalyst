@@ -97,7 +97,7 @@ var _ = Describe("Environment Controller", func() {
 			}
 
 			// Cleanup Namespace
-			targetNsName := "env-" + resourceName
+			targetNsName := projectName + "-" + resourceName
 			ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}}
 			k8sClient.Delete(ctx, ns)
 		})
@@ -115,13 +115,28 @@ var _ = Describe("Environment Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// 1. Verify Namespace Created
-			targetNsName := "env-" + resourceName
+			targetNsName := projectName + "-" + resourceName
 			ns := &corev1.Namespace{}
 			Eventually(func() error {
 				return k8sClient.Get(ctx, types.NamespacedName{Name: targetNsName}, ns)
 			}, time.Second*10, time.Millisecond*250).Should(Succeed())
 
 			Expect(ns.Name).To(Equal(targetNsName))
+
+			// Simulate Controller Manager: Create default ServiceAccount
+			sa := &corev1.ServiceAccount{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "default",
+					Namespace: targetNsName,
+				},
+			}
+			Expect(k8sClient.Create(ctx, sa)).To(Succeed())
+
+			// Trigger Reconcile again (since the first one might have returned RequeueAfter)
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
 
 			// 2. Verify Resources
 

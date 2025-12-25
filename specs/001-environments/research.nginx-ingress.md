@@ -44,7 +44,10 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: app-ingress
-  namespace: dev-pr-123
+  namespace: myteam-myproject-pr-123
+  labels:
+    catalyst.dev/team: "myteam"
+    catalyst.dev/project: "myproject"
 spec:
   ingressClassName: nginx
   rules:
@@ -190,6 +193,8 @@ metadata:
   name: preview
   namespace: dev-pr-123
   labels:
+    catalyst.dev/team: "myteam"
+    catalyst.dev/project: "myproject"
     catalyst.dev/pr: "123"
     catalyst.dev/repo: "org-repo"
 spec:

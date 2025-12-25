@@ -86,6 +86,11 @@ kind: Environment
 metadata:
   name: pr-123
   namespace: catalyst-system # Where the CR lives
+  labels:
+    catalyst.dev/team: "my-team"
+    catalyst.dev/project: "my-project"
+    catalyst.dev/environment: "pr-123"
+    catalyst.dev/branch: "feature/login"
 spec:
   projectRef:
     name: my-project
@@ -117,7 +122,12 @@ status:
 The core logic resides here. When an `Environment` CR is created or updated:
 
 1.  **Namespace Management**:
-    - Create target namespace (e.g., `dev-pr-123`).
+    - Create target namespace following the hierarchy: `<team-name>-<project-name>-<environment-name>`.
+    - Apply standard labels to the namespace:
+        - `catalyst.dev/team`: `<team-name>`
+        - `catalyst.dev/project`: `<project-name>`
+        - `catalyst.dev/environment`: `<environment-name>`
+        - `catalyst.dev/branch`: `<branch-name>`
     - Apply `ResourceQuota` (CPU/Mem limits).
     - Apply `NetworkPolicy` (Isolation rules).
 

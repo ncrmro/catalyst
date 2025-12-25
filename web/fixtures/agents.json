@@ -1,0 +1,142 @@
+{
+  "configured": [
+    {
+      "id": "agent-platform-001",
+      "agentType": "platform",
+      "enabled": true,
+      "config": {
+        "resourceMonitoring": true,
+        "securityScanning": true,
+        "performanceOptimization": true,
+        "clusterHealthChecks": true,
+        "autoScaling": false,
+        "costOptimization": true
+      },
+      "lastRunAt": "2025-12-25T08:30:00Z",
+      "lastRunStatus": "completed"
+    },
+    {
+      "id": "agent-project-001",
+      "agentType": "project",
+      "enabled": true,
+      "config": {
+        "testMaintenance": true,
+        "dependencyUpdates": true,
+        "codeQualityChecks": true,
+        "documentationGeneration": false,
+        "performanceProfiling": true,
+        "securityAudits": true,
+        "buildOptimization": false
+      },
+      "lastRunAt": "2025-12-25T09:15:00Z",
+      "lastRunStatus": "completed"
+    },
+    {
+      "id": "agent-qa-001",
+      "agentType": "qa",
+      "enabled": true,
+      "config": {
+        "automatedTesting": true,
+        "visualRegressionTesting": false,
+        "accessibilityTesting": true,
+        "performanceTesting": true,
+        "securityTesting": true,
+        "crossBrowserTesting": false,
+        "loadTesting": true
+      },
+      "lastRunAt": "2025-12-25T07:45:00Z",
+      "lastRunStatus": "completed"
+    },
+    {
+      "id": "agent-project-002",
+      "agentType": "project",
+      "enabled": true,
+      "config": {
+        "testMaintenance": true,
+        "dependencyUpdates": false,
+        "codeQualityChecks": true,
+        "documentationGeneration": true,
+        "performanceProfiling": false,
+        "securityAudits": true,
+        "buildOptimization": true
+      },
+      "lastRunAt": "2025-12-24T22:30:00Z",
+      "lastRunStatus": "failed"
+    }
+  ],
+  "unconfigured": [
+    {
+      "id": "agent-platform-002",
+      "agentType": "platform",
+      "enabled": false,
+      "config": null,
+      "lastRunAt": null,
+      "lastRunStatus": null
+    },
+    {
+      "id": "agent-project-003",
+      "agentType": "project",
+      "enabled": false,
+      "config": null,
+      "lastRunAt": null,
+      "lastRunStatus": null
+    },
+    {
+      "id": "agent-qa-002",
+      "agentType": "qa",
+      "enabled": false,
+      "config": null,
+      "lastRunAt": null,
+      "lastRunStatus": null
+    }
+  ],
+  "disabled": [
+    {
+      "id": "agent-platform-003",
+      "agentType": "platform",
+      "enabled": false,
+      "config": {
+        "resourceMonitoring": true,
+        "securityScanning": false,
+        "performanceOptimization": false,
+        "clusterHealthChecks": true,
+        "autoScaling": true,
+        "costOptimization": false
+      },
+      "lastRunAt": "2025-12-20T14:22:00Z",
+      "lastRunStatus": "completed"
+    },
+    {
+      "id": "agent-project-004",
+      "agentType": "project",
+      "enabled": false,
+      "config": {
+        "testMaintenance": false,
+        "dependencyUpdates": true,
+        "codeQualityChecks": false,
+        "documentationGeneration": false,
+        "performanceProfiling": false,
+        "securityAudits": true,
+        "buildOptimization": false
+      },
+      "lastRunAt": "2025-12-18T11:05:00Z",
+      "lastRunStatus": "failed"
+    },
+    {
+      "id": "agent-qa-003",
+      "agentType": "qa",
+      "enabled": false,
+      "config": {
+        "automatedTesting": true,
+        "visualRegressionTesting": true,
+        "accessibilityTesting": false,
+        "performanceTesting": false,
+        "securityTesting": true,
+        "crossBrowserTesting": true,
+        "loadTesting": false
+      },
+      "lastRunAt": "2025-12-22T16:40:00Z",
+      "lastRunStatus": "completed"
+    }
+  ]
+}
