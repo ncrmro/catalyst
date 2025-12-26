@@ -86,6 +86,9 @@ export const FullDisplay: Story = {
  * All priority levels displayed together for comparison.
  */
 export const AllPriorityLevels: Story = {
+  args: {
+    priority: workItems.highPriority[0].priority,
+  },
   render: () => (
     <div className="flex gap-8">
       <div className="w-48">

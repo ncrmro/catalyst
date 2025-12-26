@@ -278,7 +278,7 @@ export const test = base.extend<{
     await projectsPage.goto();
 
     // Check if we have projects without failing
-    const hasProjects = await projectsPage.expectProjectsToExist(false);
+    const hasProjects = await projectsPage.hasProjects();
 
     if (hasProjects) {
       // We have projects - navigate to the first one
