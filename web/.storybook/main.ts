@@ -61,7 +61,7 @@ const config: StorybookConfig = {
       "next/dist/client/components/redirect-status-code",
       "next/navigation",
     );
-    
+
     // Exclude drizzle-orm and pg from optimization
     config.optimizeDeps.exclude = config.optimizeDeps.exclude || [];
     config.optimizeDeps.exclude.push("drizzle-orm", "pg");
@@ -73,6 +73,11 @@ const config: StorybookConfig = {
       ...config.optimizeDeps.esbuildOptions.loader,
       ".js": "jsx",
     };
+
+    // Ignore .next directory to avoid inotify watch limit issues
+    config.server = config.server || {};
+    config.server.watch = config.server.watch || {};
+    config.server.watch.ignored = ["**/.next/**"];
 
     return config;
   },
