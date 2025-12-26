@@ -1,14 +1,39 @@
+import { Metadata } from "next";
 import { _auth } from "@/auth";
-import { redirect } from "next/navigation";
+import { PreviewEnvironmentsList } from "@/app/preview-environments/components/PreviewEnvironmentsList";
+import { PreviewEnvironmentsSection } from "@/app/preview-environments/components/PreviewEnvironmentsSection";
 
-export default async function HomePage() {
+export const metadata: Metadata = {
+  title: "Dashboard - Catalyst",
+  description:
+    "Your Catalyst development platform dashboard with latest project insights.",
+};
+
+export default async function Home() {
   const session = await _auth();
 
-  // Redirect authenticated users to projects
-  if (session?.user) {
-    redirect("/projects");
+  // Middleware handles auth redirect, but session might still be null during edge cases
+  if (!session?.user) {
+    return null;
   }
 
-  // Redirect unauthenticated users to login
-  redirect("/login");
+  return (
+    <div className="space-y-6">
+      {/* Welcome Section */}
+      <div>
+        <h1 className="text-2xl md:text-3xl font-bold text-on-background mb-2">
+          Welcome back, {session.user.name || session.user.email?.split("@")[0]}
+          !
+        </h1>
+        <p className="text-sm md:text-base text-on-surface-variant">
+          Here&apos;s your latest project overview and insights.
+        </p>
+      </div>
+
+      {/* Preview Environments Section */}
+      <PreviewEnvironmentsSection>
+        <PreviewEnvironmentsList />
+      </PreviewEnvironmentsSection>
+    </div>
+  );
 }
