@@ -39,6 +39,12 @@ export async function EnvironmentsSection({
     <GlassCard>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-on-surface">Environments</h2>
+        <Link
+          href={`/environments/${project.slug}`}
+          className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-on-primary bg-primary rounded-lg hover:opacity-90 transition-opacity"
+        >
+          Add Environment
+        </Link>
       </div>
 
       {/* Deployment Environments */}
@@ -83,16 +89,6 @@ export async function EnvironmentsSection({
             </div>
           )}
         </div>
-      </div>
-
-      {/* Add Environment Button */}
-      <div className="mt-4 pt-4 border-t border-outline/50 -mx-6 px-6">
-        <Link
-          href={`/environments/${project.slug}`}
-          className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-on-primary bg-primary rounded-lg hover:opacity-90 transition-opacity"
-        >
-          Add Environment
-        </Link>
       </div>
     </GlassCard>
   );

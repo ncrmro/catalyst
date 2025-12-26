@@ -1,10 +1,9 @@
 import { fetchProjectBySlug } from "@/actions/projects";
 import { listDirectory, VCSEntry } from "@/actions/version-control-provider";
-import { GlassCard } from "@tetrastack/react-glass-components";
+import { listEnvironmentCRs } from "@/lib/k8s-operator";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
-import Link from "next/link";
-import { EnvironmentsSection } from "./environments-section";
+import { ProjectPageContent } from "./project-page-content";
 
 interface SpecDirectory {
   name: string;
@@ -39,6 +38,23 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     notFound();
   }
 
+  // Get environments from K8s
+  const sanitizedProjectName = project.name
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-");
+
+  const k8sEnvironments = await listEnvironmentCRs("default");
+  const environments = k8sEnvironments.filter(
+    (env) => env.spec.projectRef.name === sanitizedProjectName,
+  );
+
+  const deploymentEnvironments = environments.filter(
+    (env) => env.spec.type === "deployment",
+  );
+  const developmentEnvironments = environments.filter(
+    (env) => env.spec.type === "development",
+  );
+
   // Get specs from the repository's specs/ directory
   let specs: SpecDirectory[] = [];
   const repo = project.repositories[0]?.repo;
@@ -69,127 +85,16 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   }
 
   return (
-    <>
-      <EnvironmentsSection projectId={project.id} projectSlug={slug} />
-
-      {/* Specs Section */}
-      <GlassCard>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-on-surface">Specs</h2>
-          <span className="text-sm text-on-surface-variant">
-            {specs?.length ?? 0} specifications
-          </span>
-        </div>
-        {!repo ? (
-          <div className="text-center py-8">
-            <svg
-              className="w-12 h-12 mx-auto text-on-surface-variant/50 mb-3"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
-              />
-            </svg>
-            <p className="text-on-surface-variant">No repository linked</p>
-            <p className="text-sm text-on-surface-variant/70 mt-1">
-              Link a repository to this project to view specs
-            </p>
-          </div>
-        ) : specs && specs.length > 0 ? (
-          <div className="divide-y divide-outline/50 -mx-6">
-            {specs.map((spec) => {
-              // Check if spec.md exists in the spec directory
-              const hasSpecFile = spec.files.some((f) => f.name === "spec.md");
-              const fileCount = spec.files.filter((f) =>
-                f.name.endsWith(".md"),
-              ).length;
-
-              return (
-                <Link
-                  key={spec.path}
-                  href={`/projects/${slug}/spec/${spec.name}`}
-                  className="flex items-center gap-4 px-6 py-3 hover:bg-surface/50 transition-colors"
-                >
-                  <div className="flex-shrink-0">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <svg
-                        className="w-5 h-5 text-primary"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-on-surface">{spec.name}</h3>
-                    <p className="text-sm text-on-surface-variant">
-                      {fileCount} markdown {fileCount === 1 ? "file" : "files"}
-                    </p>
-                  </div>
-                  {hasSpecFile ? (
-                    <span className="px-2 py-0.5 text-xs rounded-full bg-secondary-container text-on-secondary-container">
-                      has spec
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 text-xs rounded-full bg-surface-variant text-on-surface-variant">
-                      no spec.md
-                    </span>
-                  )}
-                  <svg
-                    className="w-4 h-4 text-on-surface-variant flex-shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </Link>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <svg
-              className="w-12 h-12 mx-auto text-on-surface-variant/50 mb-3"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            <p className="text-on-surface-variant">No specs found</p>
-            <p className="text-sm text-on-surface-variant/70 mt-1">
-              Add a{" "}
-              <code className="bg-surface-variant px-1.5 py-0.5 rounded">
-                specs/
-              </code>{" "}
-              directory to your repository
-            </p>
-          </div>
-        )}
-      </GlassCard>
-    </>
+    <ProjectPageContent
+      project={{
+        slug: project.slug,
+        name: project.name,
+        fullName: project.fullName,
+      }}
+      deploymentEnvironments={deploymentEnvironments}
+      developmentEnvironments={developmentEnvironments}
+      specs={specs}
+      hasRepo={!!repo}
+    />
   );
 }
