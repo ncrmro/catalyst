@@ -2,6 +2,107 @@ import Link from "next/link";
 import { GlassCard } from "@tetrastack/react-glass-components";
 import { EnvironmentRow } from "@/components/environment-row";
 import type { EnvironmentCR } from "@/types/crd";
+import { Task, ASSIGNEES } from "@/components/tasks/types";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { PriorityBadge } from "@/components/ui/priority-badge";
+
+// Mock task fixtures - uses actual project slugs: "catalyst" and "meze"
+const taskFixtures: Task[] = [
+  // catalyst feature tasks
+  {
+    id: "task-1",
+    title: "Implement user authentication flow",
+    status: "in_progress",
+    priority: "high",
+    type: "feature",
+    project: "catalyst",
+    projectSlug: "catalyst",
+    assignee: ASSIGNEES.claude,
+    dueDate: "2024-01-15",
+    spec: {
+      id: "spec-001",
+      name: "SPEC-001: Auth System",
+      href: "/projects/catalyst/spec/001-auth-system",
+    },
+    description:
+      "Implement complete auth flow including login, logout, session management.",
+  },
+  {
+    id: "task-2",
+    title: "Add project creation wizard",
+    status: "todo",
+    priority: "medium",
+    type: "feature",
+    project: "catalyst",
+    projectSlug: "catalyst",
+    assignee: ASSIGNEES.bill,
+    dueDate: "2024-01-25",
+    spec: {
+      id: "spec-009",
+      name: "SPEC-009: Projects",
+      href: "/projects/catalyst/spec/009-projects",
+    },
+    description: "Build step-by-step wizard for creating new projects.",
+  },
+  {
+    id: "task-3",
+    title: "Build environment deployment UI",
+    status: "completed",
+    priority: "high",
+    type: "feature",
+    project: "catalyst",
+    projectSlug: "catalyst",
+    assignee: ASSIGNEES.copilot,
+    dueDate: "2024-01-10",
+  },
+  // meze feature tasks
+  {
+    id: "task-4",
+    title: "Recipe import from URLs",
+    status: "in_progress",
+    priority: "high",
+    type: "feature",
+    project: "meze",
+    projectSlug: "meze",
+    assignee: ASSIGNEES.claude,
+    dueDate: "2024-01-18",
+    spec: {
+      id: "spec-002",
+      name: "SPEC-002: Recipe Import",
+      href: "/projects/meze/spec/002-recipe-import",
+    },
+    description: "Parse and import recipes from popular cooking websites.",
+  },
+  {
+    id: "task-5",
+    title: "Meal planning calendar",
+    status: "todo",
+    priority: "medium",
+    type: "feature",
+    project: "meze",
+    projectSlug: "meze",
+    assignee: ASSIGNEES.copilot,
+    dueDate: "2024-01-22",
+    spec: {
+      id: "spec-003",
+      name: "SPEC-003: Meal Planning",
+      href: "/projects/meze/spec/003-meal-planning",
+    },
+    description: "Weekly meal planner with drag-and-drop interface.",
+  },
+  {
+    id: "task-6",
+    title: "Shopping list generation",
+    status: "completed",
+    priority: "high",
+    type: "feature",
+    project: "meze",
+    projectSlug: "meze",
+    assignee: ASSIGNEES.bill,
+    dueDate: "2024-01-08",
+    description: "Generate shopping lists from selected recipes.",
+  },
+];
 
 interface SpecDirectory {
   name: string;
@@ -30,6 +131,9 @@ export function ProjectPageContent({
 }: ProjectPageContentProps) {
   return (
     <>
+      {/* Feature Tasks Section */}
+      <FeatureTasksSection projectSlug={project.slug} />
+
       {/* Environments Section */}
       <GlassCard>
         <div className="flex items-center justify-between mb-4">
@@ -207,5 +311,81 @@ export function ProjectPageContent({
         )}
       </GlassCard>
     </>
+  );
+}
+
+function FeatureTasksSection({ projectSlug }: { projectSlug: string }) {
+  // Filter to feature tasks for this project
+  const featureTasks = taskFixtures.filter(
+    (task) => task.type === "feature" && task.projectSlug === projectSlug,
+  );
+
+  return (
+    <GlassCard>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-on-surface">Feature Tasks</h2>
+        <div className="flex items-center gap-4">
+          <Link
+            href={`/projects/${projectSlug}#specs`}
+            className="text-sm text-primary hover:underline"
+          >
+            Specs
+          </Link>
+          <Link
+            href={`/tasks/${projectSlug}`}
+            className="text-sm text-primary hover:underline"
+          >
+            View all tasks
+          </Link>
+        </div>
+      </div>
+
+      {featureTasks.length > 0 ? (
+        <div className="divide-y divide-outline/50 -mx-6">
+          {featureTasks.map((task) => (
+            <Link
+              key={task.id}
+              href={`/tasks/${projectSlug}/${task.id}`}
+              className="flex items-center justify-between gap-4 px-6 py-3 hover:bg-surface/50 transition-colors"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-on-surface font-medium truncate">
+                  {task.spec && (
+                    <span className="text-primary">
+                      {task.spec.href.split("/").pop()}:{" "}
+                    </span>
+                  )}
+                  {task.title}
+                </p>
+              </div>
+              <div className="flex items-center gap-4 shrink-0">
+                <PriorityBadge priority={task.priority} size="sm" />
+                <StatusBadge status={task.status.replace("_", " ")} size="sm" />
+              </div>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-8">
+          <svg
+            className="w-12 h-12 mx-auto text-on-surface-variant/50 mb-3"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+            />
+          </svg>
+          <p className="text-on-surface-variant">No feature tasks</p>
+          <p className="text-sm text-on-surface-variant/70 mt-1">
+            Tasks linked to specs will appear here
+          </p>
+        </div>
+      )}
+    </GlassCard>
   );
 }
