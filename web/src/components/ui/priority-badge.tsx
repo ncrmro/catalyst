@@ -12,36 +12,36 @@ export function PriorityBadge({
   className,
   size = "sm",
 }: PriorityBadgeProps) {
-  const getPriorityClasses = () => {
+  const getDots = () => {
     switch (priority) {
       case "critical":
-        return "bg-error text-on-error";
+        return "•••";
       case "high":
-        return "bg-error-container text-on-error-container";
+        return "•••";
       case "medium":
-        return "bg-secondary-container text-on-secondary-container";
+        return "••";
       case "low":
-        return "bg-surface-variant text-on-surface-variant";
+        return "•";
       default:
-        return "bg-surface-variant text-on-surface-variant";
+        return "•";
     }
   };
 
   const sizeClasses = {
-    sm: "px-2 py-0.5 text-xs",
-    md: "px-3 py-1 text-sm",
+    sm: "text-sm w-6",
+    md: "text-base w-8",
   };
 
   return (
     <span
       className={cn(
-        "inline-flex items-center justify-center rounded-full font-medium capitalize",
-        getPriorityClasses(),
+        "inline-flex items-center justify-end font-bold tracking-tight text-on-surface-variant",
         sizeClasses[size],
         className,
       )}
+      title={priority}
     >
-      {priority}
+      {getDots()}
     </span>
   );
 }

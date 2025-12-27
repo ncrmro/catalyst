@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { Task, ASSIGNEES } from "@/components/tasks/types";
 import { TaskDetailCard } from "@/components/tasks/TaskDetailCard";
+import { AgentChat } from "@/components/chat/AgentChat";
 
 interface TaskPageProps {
   params: Promise<{
@@ -169,10 +170,13 @@ export default async function TaskPage({ params }: TaskPageProps) {
   }
 
   return (
-    <TaskDetailCard
-      task={task}
-      projectSlug={projectSlug}
-      projectName={project.name}
-    />
+    <div className="space-y-4">
+      <TaskDetailCard
+        task={task}
+        projectSlug={projectSlug}
+        projectName={project.name}
+      />
+      <AgentChat projectSlug={projectSlug} tasks={taskFixtures} />
+    </div>
   );
 }

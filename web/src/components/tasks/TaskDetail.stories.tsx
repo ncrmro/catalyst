@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { TaskDetail } from "./TaskDetail";
 import { Task, ASSIGNEES } from "./types";
 
