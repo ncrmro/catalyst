@@ -169,3 +169,8 @@ body {
 .catalyst-title {
   text-transform: uppercase;
 }
+
+/* Navigation uppercase styling */
+nav a {
+  text-transform: uppercase;
+}

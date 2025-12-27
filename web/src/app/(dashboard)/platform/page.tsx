@@ -38,7 +38,7 @@ interface ExtendedClusterInfo extends ClusterInfo {
   githubOIDCEnabled?: boolean;
 }
 
-export default async function ComputePage() {
+export default async function PlatformPage() {
   // Try to get real cluster data
   let clusters: ExtendedClusterInfo[] = [];
   try {
@@ -95,10 +95,10 @@ export default async function ComputePage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-on-background catalyst-title">
-            Compute
+            Platform
           </h1>
           <p className="mt-2 text-on-surface-variant">
-            Monitor and manage your Kubernetes clusters, howdy partner
+            Monitor and manage your clusters and environments
           </p>
         </div>
 

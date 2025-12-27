@@ -51,7 +51,26 @@ export class GitHubProvider implements VCSProvider {
     try {
       const tokens = await getGitHubTokens(userId);
 
+      // Check for PAT fallback if no database tokens
       if (!tokens) {
+        const isPATAllowed =
+          process.env.NODE_ENV !== "production" ||
+          GITHUB_CONFIG.ALLOW_PAT_FALLBACK;
+
+        if (isPATAllowed && GITHUB_CONFIG.PAT) {
+          // Validate PAT by making API call
+          const { Octokit } = await import("@octokit/rest");
+          const octokit = new Octokit({ auth: GITHUB_CONFIG.PAT });
+          const { data: user } = await octokit.rest.users.getAuthenticated();
+
+          return {
+            connected: true,
+            username: user.login,
+            avatarUrl: user.avatar_url,
+            authMethod: "pat",
+          };
+        }
+
         return {
           connected: false,
           error: "No tokens stored",
