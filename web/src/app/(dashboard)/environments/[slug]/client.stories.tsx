@@ -211,6 +211,34 @@ export const Mobile: Story = {
 };
 
 /**
+ * Wizard Context - Shows form without header (for use in setup wizard)
+ */
+export const WizardContext: Story = {
+  args: {
+    project: createMockProject(),
+    onSubmit: mockSubmit,
+    hideHeader: true,
+    onBack: () => console.log("Back clicked"),
+    cancelButtonText: "Back",
+    submitButtonText: "Create Environment",
+  },
+};
+
+/**
+ * Wizard Context with custom button texts
+ */
+export const WizardContextCustomButtons: Story = {
+  args: {
+    project: createMockProject(),
+    onSubmit: mockSubmit,
+    hideHeader: true,
+    onBack: () => console.log("Back clicked"),
+    cancelButtonText: "Previous Step",
+    submitButtonText: "Complete Setup",
+  },
+};
+
+/**
  * Comparison - Shows documentation of the 2-option design
  */
 export const DesignOverview: Story = {
