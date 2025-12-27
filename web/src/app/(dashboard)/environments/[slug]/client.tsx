@@ -20,10 +20,25 @@ export interface EnvironmentsFormProps {
   project: ProjectWithRelations;
   /** Action callback for form submission - passed from server component */
   onSubmit: (formData: FormData) => Promise<EnvironmentResult>;
+  /** Optional callback for wizard back navigation */
+  onBack?: () => void;
+  /** Hide the header section when used in wizard context */
+  hideHeader?: boolean;
+  /** Custom submit button text */
+  submitButtonText?: string;
+  /** Custom cancel button text */
+  cancelButtonText?: string;
 }
 
 // Client component to handle form submission and feedback
-export function EnvironmentsForm({ project, onSubmit }: EnvironmentsFormProps) {
+export function EnvironmentsForm({
+  project,
+  onSubmit,
+  onBack,
+  hideHeader = false,
+  submitButtonText = "Create Environment",
+  cancelButtonText = "Cancel",
+}: EnvironmentsFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,25 +80,27 @@ export function EnvironmentsForm({ project, onSubmit }: EnvironmentsFormProps) {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header Card */}
-      <Card className="mb-6 p-6">
-        <Link
-          href="/projects"
-          className="inline-flex items-center text-primary hover:opacity-80 mb-4"
-        >
-          ← Back to Projects
-        </Link>
-        <div className="prose prose-sm dark:prose-invert max-w-none">
-          <h1 className="text-3xl font-bold text-on-background mb-2">
-            Create Environment
-          </h1>
-          <p className="text-on-surface-variant">
-            Start with a <strong>Development Environment</strong> to experiment
-            safely. Deployment environments require approvals and access
-            controls.
-          </p>
-        </div>
-      </Card>
+      {/* Header Card - hidden when used in wizard context */}
+      {!hideHeader && (
+        <Card className="mb-6 p-6">
+          <Link
+            href="/projects"
+            className="inline-flex items-center text-primary hover:opacity-80 mb-4"
+          >
+            ← Back to Projects
+          </Link>
+          <div className="prose prose-sm dark:prose-invert max-w-none">
+            <h1 className="text-3xl font-bold text-on-background mb-2">
+              Create Environment
+            </h1>
+            <p className="text-on-surface-variant">
+              Start with a <strong>Development Environment</strong> to
+              experiment safely. Deployment environments require approvals and
+              access controls.
+            </p>
+          </div>
+        </Card>
+      )}
 
       {/* Error message */}
       {error && (
@@ -235,13 +252,23 @@ export function EnvironmentsForm({ project, onSubmit }: EnvironmentsFormProps) {
           </div>
 
           {/* Submit Button */}
-          <div className="flex items-center justify-end gap-3 mt-6">
-            <Link
-              href={`/projects/${project.slug}`}
-              className="px-4 py-2 text-sm font-medium text-on-surface bg-surface border border-outline rounded-md hover:bg-secondary-container hover:text-on-secondary-container transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-            >
-              Cancel
-            </Link>
+          <div className="flex items-center justify-between mt-6">
+            {onBack ? (
+              <button
+                type="button"
+                onClick={onBack}
+                className="px-4 py-2 text-sm font-medium text-on-surface bg-surface border border-outline rounded-md hover:bg-secondary-container hover:text-on-secondary-container transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+              >
+                {cancelButtonText}
+              </button>
+            ) : (
+              <Link
+                href={`/projects/${project.slug}`}
+                className="px-4 py-2 text-sm font-medium text-on-surface bg-surface border border-outline rounded-md hover:bg-secondary-container hover:text-on-secondary-container transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+              >
+                {cancelButtonText}
+              </Link>
+            )}
 
             <button
               type="submit"
@@ -253,7 +280,7 @@ export function EnvironmentsForm({ project, onSubmit }: EnvironmentsFormProps) {
                   : "hover:opacity-90",
               )}
             >
-              {isSubmitting ? "Creating..." : "Create Environment"}
+              {isSubmitting ? "Creating..." : submitButtonText}
             </button>
           </div>
         </form>

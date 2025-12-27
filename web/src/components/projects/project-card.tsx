@@ -23,8 +23,11 @@ export function ProjectCard({ project }: { project: ProjectWithRelations }) {
       {/* Main content */}
       <div className="flex-1 min-w-0">
         <h3 className="text-lg font-semibold text-on-surface truncate">
-          {project.fullName}
+          {project.name}
         </h3>
+        <p className="text-on-surface-variant text-sm truncate">
+          {project.ownerLogin}/{project.slug}
+        </p>
         {project.description && (
           <p className="text-on-surface-variant text-sm mt-1 truncate">
             {project.description}

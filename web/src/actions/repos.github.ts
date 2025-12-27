@@ -11,6 +11,8 @@ import {
   GitHubRepo,
   GitHubOrganization,
   ReposData,
+  ReposDataFailed,
+  ReposDataWithReason,
 } from "@/mocks/github";
 import { GITHUB_CONFIG } from "@/lib/vcs-providers";
 
@@ -21,18 +23,20 @@ import { GITHUB_CONFIG } from "@/lib/vcs-providers";
 
 /**
  * Fetch real GitHub repositories for the current user and organizations
+ * Falls back to GITHUB_PAT if user doesn't have OAuth token
  */
-async function fetchRealGitHubRepos(): Promise<
-  ReposData | { github_integration_enabled: false }
-> {
+async function fetchRealGitHubRepos(): Promise<ReposData | ReposDataFailed> {
   const session = await auth();
 
-  if (!session?.accessToken) {
-    return { github_integration_enabled: false };
+  // Try OAuth token first, then fall back to PAT for development
+  const token = session?.accessToken || GITHUB_CONFIG.PAT;
+
+  if (!token) {
+    return { github_integration_enabled: false, reason: "no_access_token" };
   }
 
   const octokit = new Octokit({
-    auth: session.accessToken,
+    auth: token,
   });
 
   try {
@@ -79,7 +83,7 @@ async function fetchRealGitHubRepos(): Promise<
   } catch (error) {
     console.error("Error fetching GitHub repositories:", error);
     // Return empty data with github_integration_enabled flag set to false
-    return { github_integration_enabled: false };
+    return { github_integration_enabled: false, reason: "error" };
   }
 }
 
@@ -188,7 +192,9 @@ if (!String.prototype.hashCode) {
 /**
  * Fetch repositories for the current user from the database and optionally from GitHub
  */
-export async function fetchGitHubRepos(): Promise<ReposData> {
+export async function fetchGitHubRepos(): Promise<
+  ReposData | ReposDataWithReason
+> {
   // Check if we should return mocked data
   const mocked = process.env.MOCKED === "1";
 
@@ -298,7 +304,8 @@ export async function fetchGitHubRepos(): Promise<ReposData> {
   if (githubData.github_integration_enabled === false) {
     // GitHub integration is not enabled - just use database repositories
     console.log(
-      "GitHub integration not enabled, using only database repositories",
+      "GitHub integration not enabled, using only database repositories. Reason:",
+      githubData.reason,
     );
 
     // Organize the database repositories by owner
@@ -307,6 +314,9 @@ export async function fetchGitHubRepos(): Promise<ReposData> {
     return {
       ...organizedRepos,
       github_integration_enabled: false,
+      // Pass through the reason: "no_access_token" means user not connected,
+      // "error" means there was an error connecting
+      reason: githubData.reason,
     };
   }
 
