@@ -146,21 +146,31 @@ def debug(msg: str) -> None:
         print(f"  [debug] {msg}")
 
 
-def get_web_port() -> int | None:
-    """Get PORT from web/.env."""
+def get_env_var(name: str, default: int | None = None) -> int | None:
+    """Get an integer env var from web/.env."""
     env_file = PROJECT_ROOT / "web" / ".env"
     if not env_file.exists():
-        return None
-    
+        return default
+
     try:
         content = env_file.read_text()
         for line in content.splitlines():
             line = line.strip()
-            if line.startswith("WEB_PORT="):
+            if line.startswith(f"{name}="):
                 return int(line.split("=", 1)[1])
     except (ValueError, IndexError):
         pass
-    return None
+    return default
+
+
+def get_web_port() -> int | None:
+    """Get WEB_PORT from web/.env."""
+    return get_env_var("WEB_PORT")
+
+
+def get_ingress_port() -> int:
+    """Get INGRESS_PORT from web/.env, defaults to 8080."""
+    return get_env_var("INGRESS_PORT", 8080) or 8080
 
 def get_web_env_vars() -> list[dict]:
     """Reads web/.env and returns list of env var dicts for Kubernetes.
@@ -426,6 +436,52 @@ def install_crds() -> None:
         msg = e.stderr if e.stderr else str(e)
         print(f"  Warning: Failed to install CRDs: {msg}")
 
+
+def install_ingress_nginx() -> None:
+    """Install NGINX ingress controller via Helm for path-based routing."""
+    print("  Installing NGINX ingress controller...")
+
+    kubeconfig_path = str(KUBECONFIG_FILE.resolve())
+    env = os.environ.copy()
+    env["KUBECONFIG"] = kubeconfig_path
+
+    try:
+        # Check if ingress-nginx is already installed
+        result = subprocess.run(
+            ["helm", "list", "-n", "ingress-nginx", "-q"],
+            env=env,
+            capture_output=True,
+            text=True
+        )
+        if "ingress-nginx" in result.stdout:
+            info("NGINX ingress already installed")
+            return
+
+        # Add ingress-nginx repo
+        run(
+            ["helm", "repo", "add", "ingress-nginx", "https://kubernetes.github.io/ingress-nginx"],
+            env=env,
+            capture=True
+        )
+        run(["helm", "repo", "update"], env=env, capture=True)
+
+        # Install ingress-nginx with NodePort on 30080
+        run([
+            "helm", "install", "ingress-nginx", "ingress-nginx/ingress-nginx",
+            "--namespace", "ingress-nginx",
+            "--create-namespace",
+            "--set", "controller.service.type=NodePort",
+            "--set", "controller.service.nodePorts.http=30080",
+            "--set", "controller.service.nodePorts.https=30443",
+            "--wait", "--timeout=120s"
+        ], env=env, capture=True)
+
+        info("NGINX ingress installed (NodePort 30080)")
+    except subprocess.CalledProcessError as e:
+        msg = e.stderr if e.stderr else str(e)
+        print(f"  Warning: Failed to install NGINX ingress: {msg}")
+
+
 def generate_manifest_content(deploy_apps: bool = False) -> str:
     """Generate the full Kubernetes manifest JSON with env vars injected."""
     import json
@@ -497,10 +553,12 @@ def _build_vm(memory: int, cores: int, deploy_apps: bool = False) -> None:
     info("SSH key ready")
 
     # Configure forward ports
+    ingress_port = get_ingress_port()
     forward_ports = [
         '{ from = "host"; host.port = 6443; guest.port = 6443; }',
         '{ from = "host"; host.port = 2666; guest.port = 22; }',
-        '{ from = "host"; host.port = 5432; guest.port = 30432; }'
+        '{ from = "host"; host.port = 5432; guest.port = 30432; }',
+        f'{{ from = "host"; host.port = {ingress_port}; guest.port = 30080; }}'  # Ingress HTTP
     ]
 
     # Only forward web port in --in-cluster mode (app runs in K3s)
@@ -628,7 +686,7 @@ def cmd_update_manifests(args: argparse.Namespace) -> None:
         error("Failed to apply manifests.")
 
 def _extract_kubeconfig_and_install_crds(deploy_apps: bool = False) -> None:
-    """Extract kubeconfig, install CRDs, and apply manifests."""
+    """Extract kubeconfig, install CRDs, apply manifests, and install ingress."""
     print("  Extracting kubeconfig...")
     if not extract_kubeconfig():
         error("Failed to extract kubeconfig")
@@ -640,6 +698,9 @@ def _extract_kubeconfig_and_install_crds(deploy_apps: bool = False) -> None:
         info("Manifests applied")
     else:
         print("  Warning: Failed to apply manifests. Run 'bin/k3s-vm apply' manually.")
+
+    # Install NGINX ingress for path-based routing
+    install_ingress_nginx()
 
 def _ensure_vm_is_running(memory: int, cores: int, deploy_apps: bool = False) -> None:
     """Ensures the VM is built and running, and K3s is ready."""
@@ -664,12 +725,14 @@ def _ensure_vm_is_running(memory: int, cores: int, deploy_apps: bool = False) ->
     _wait_for_vm_readiness()
     _extract_kubeconfig_and_install_crds(deploy_apps=deploy_apps)
 
+    ingress_port = get_ingress_port()
     print()
     print("=" * 50)
     print("K3s VM ready!")
     print()
     print(f"  SSH:        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2666 root@localhost")
     print(f"  K3s API:    https://127.0.0.1:6443")
+    print(f"  Ingress:    http://localhost:{ingress_port} (path-based routing)")
     print(f"  Kubeconfig: {KUBECONFIG_FILE}")
     if not deploy_apps:
         print("  Mode:       Local Dev (Web/Operator pods NOT deployed)")
@@ -677,6 +740,7 @@ def _ensure_vm_is_running(memory: int, cores: int, deploy_apps: bool = False) ->
     else:
         print("  Mode:       In-Cluster (Web/Operator pods deployed)")
     print()
+    print(f"Preview environments: http://localhost:{ingress_port}/{{namespace}}/")
     print("Try: bin/kubectl get nodes")
 
 # ============================================================================

@@ -12,6 +12,8 @@ This plan covers the `@catalyst/kubernetes-client` package. The operator is a se
 ## Related Research
 
 - [research.web-terminal.md](./research.web-terminal.md) - Web terminal implementation approaches (WebSocket, SSE, polling, custom servers)
+- [research.local-url-testing.md](./research.local-url-testing.md) - Local preview URL testing with path-based routing
+- [research.operator.md](./research.operator.md) - Proposed Environment CRD schema for deployment environments
 
 ## Current Status
 
@@ -38,6 +40,26 @@ This plan covers the `@catalyst/kubernetes-client` package. The operator is a se
   - Next.js 15 doesn't support WebSocket route handlers natively
   - `next-ws` package not compatible with Next.js 15
   - See [research.web-terminal.md](./research.web-terminal.md) for alternatives
+
+### In Progress
+
+- **Deployment Environments with E2E Validation** - Extending operator for web-accessible deployments
+  - Operator creates Deployment + Service + Ingress for `type=deployment` environments
+  - Path-based routing: `http://localhost:8080/{namespace}/`
+  - E2E tests validate URL accessibility in both local (K3s VM) and CI (Kind)
+  - See [research.operator.md](./research.operator.md) for proposed CRD changes
+
+## Kubernetes Cluster Environments
+
+| Context               | Cluster Provider | Purpose                          |
+| --------------------- | ---------------- | -------------------------------- |
+| Local development     | K3s VM           | NixOS-based VM with QEMU         |
+| GitHub Actions (CI)   | Kind             | Kubernetes-in-Docker for testing |
+| GitHub Copilot agents | Kind             | Same infrastructure as CI        |
+
+**Local K3s VM**: Primary development environment. Start with `bin/k3s-vm`, uses kubeconfig at `web/.kube/config`.
+
+**Kind (CI)**: Used in GitHub Actions for e2e tests. Requires explicit NGINX ingress installation and port mapping configuration.
 
 ## Package Structure
 

@@ -384,7 +384,7 @@ With multiple developers:
 
 ## Task Summary
 
-- **Total Tasks**: 91
+- **Total Tasks**: 135
 - **Setup Phase**: 4 tasks
 - **Foundational Phase**: 6 tasks (BLOCKING)
 - **User Story 1 (P1 - MVP)**: 16 tasks
@@ -394,8 +394,11 @@ With multiple developers:
 - **User Story 5 (P3)**: 13 tasks
 - **MCP Tools (P1)**: 12 tasks
 - **Polish Phase**: 19 tasks
+- **Phase 10 (@catalyst/kubernetes-client)**: 41 tasks
+- **Phase 11 (FR-ENV-001)**: 2 tasks
+- **Phase 12 (Deployment Environments E2E)**: 35 tasks
 
-**Parallel Opportunities**: 23 tasks marked [P] can run in parallel within their phases
+**Parallel Opportunities**: 30+ tasks marked [P] can run in parallel within their phases
 
 **MVP Scope** (recommended first delivery):
 
@@ -405,6 +408,18 @@ With multiple developers:
 - **Total MVP**: 26 tasks
 
 This delivers the core value proposition: automatic preview deployments with public URLs.
+
+**Deployment Environment E2E Scope** (Phase 12):
+
+- Documentation (2 tasks)
+- Operator Extensions (15 tasks)
+- E2E Test Infrastructure (6 tasks)
+- E2E Test Cases (4 tasks)
+- CI Workflow (5 tasks)
+- Validation (5 tasks)
+- **Total**: 35 tasks
+
+This enables web-accessible deployment environments with validated URL accessibility.
 
 ---
 
@@ -509,6 +524,74 @@ This delivers the core value proposition: automatic preview deployments with pub
 - [x] T135 [FR-ENV-001] Update environment page web/src/app/(dashboard)/projects/[slug]/env/[envSlug]/page.tsx to use `KubeResourceNotFound` component
 
 **Checkpoint**: Environment page gracefully handles missing K8s resources
+
+---
+
+## Phase 12: Deployment Environments with E2E URL Validation
+
+**Purpose**: Extend operator to support deployment environments and validate URLs are accessible via E2E tests
+
+**Goal**: Create deployment environments (nginx) with Ingress and verify HTTP accessibility in both local (K3s VM) and CI (Kind)
+
+**Related Research**:
+
+- [research.operator.md](./research.operator.md) - Proposed CRD schema with deployment config
+- [research.local-url-testing.md](./research.local-url-testing.md) - Path-based routing for local/CI
+
+### Documentation
+
+- [ ] T136 Update AGENTS.md with Kubernetes cluster environments table (K3s VM for local, Kind for CI/Copilot)
+- [ ] T137 Update specs/001-environments/spec.md with deployment environment flow documentation
+
+### Operator Extensions (Go)
+
+- [ ] T138 Add DeploymentConfig struct to operator/api/v1alpha1/environment_types.go (image, port, replicas, resources)
+- [ ] T139 [P] Run `make generate` in operator/ to regenerate DeepCopy functions
+- [ ] T140 [P] Run `make manifests` in operator/ to regenerate CRD YAML
+- [ ] T141 Create operator/internal/controller/deployment.go with deployment environment reconciliation
+- [ ] T142 Implement createAppDeployment() in deployment.go - creates nginx:alpine Deployment
+- [ ] T143 [P] Implement createAppService() in deployment.go - creates ClusterIP Service on port 80
+- [ ] T144 [P] Implement createAppIngress() in deployment.go - creates path-based Ingress with rewrite
+- [ ] T145 Update environment_controller.go to branch on spec.Type (development vs deployment)
+- [ ] T146 Update reconcileEnvironment() to call reconcileDeploymentEnvironment() for type=deployment
+- [ ] T147 Add status condition updates for DeploymentReady, ServiceReady, IngressReady
+- [ ] T148 Generate public URL in status: `http://localhost:{port}/{namespace}/`
+- [ ] T149 Run `go build ./...` in operator/ to verify compilation
+- [ ] T150 Run `go test ./...` in operator/ to verify tests pass
+
+### E2E Test Infrastructure
+
+- [ ] T151 Create .github/kind-config-ingress.yaml with port mappings (containerPort 80 → hostPort 8080)
+- [ ] T152 [P] Create web/**tests**/e2e/fixtures/deployment-env-fixture.ts with DeploymentEnvFixture interface
+- [ ] T153 Implement fixture setup: create project, create deployment environment via UI
+- [ ] T154 Implement fixture waitForReady: poll Environment CR status until phase=Ready (60s timeout)
+- [ ] T155 Implement fixture cleanup: delete Environment CR, verify namespace deleted
+- [ ] T156 Create web/**tests**/e2e/deployment-url-validation.spec.ts
+
+### E2E Test Cases
+
+- [ ] T157 Test case: Create deployment environment → verify CR status transitions to Ready
+- [ ] T158 Test case: Navigate to public URL → verify HTTP 200 response
+- [ ] T159 Test case: Verify nginx welcome page content is visible
+- [ ] T160 Test case: Delete environment → verify cleanup completes
+
+### CI Workflow Updates
+
+- [ ] T161 Update .github/workflows/web.test.yml e2e job to use Kind config with port mappings
+- [ ] T162 Add NGINX ingress controller installation step to e2e job
+- [ ] T163 Add operator deployment step to e2e job (build image, load into Kind, apply manifests)
+- [ ] T164 Set environment variables: LOCAL_PREVIEW_ROUTING=true, INGRESS_PORT=8080
+- [ ] T165 Run deployment URL validation tests as part of e2e job
+
+### Validation
+
+- [ ] T166 Run e2e tests locally with K3s VM: `bin/k3s-vm && npm run test:e2e deployment-url`
+- [ ] T167 Verify tests pass in GitHub Actions with Kind cluster
+- [ ] T168 Verify test execution time < 120s
+- [ ] T169 Run npm run lint in web/
+- [ ] T170 Run npm run typecheck in web/
+
+**Checkpoint**: Deployment environments create web-accessible nginx instances, E2E tests validate URL accessibility in both local and CI environments.
 
 ---
 

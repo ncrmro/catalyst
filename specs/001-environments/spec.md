@@ -11,6 +11,7 @@ Catalyst manages two types of environments: **Deployment Environments** (product
 - [research.docker-registry.md](./research.docker-registry.md) - Docker Distribution registry for storing PR branch images
 - [research.nginx-ingress.md](./research.nginx-ingress.md) - NGINX ingress controller for routing to preview environments
 - [research.web-terminal.md](./research.web-terminal.md) - Web terminal implementation approaches (WebSocket, SSE, polling, custom servers)
+- [research.local-url-testing.md](./research.local-url-testing.md) - Local development URL testing approaches (nip.io, hosts, dnsmasq, tunnels)
 
 ## Child Specifications
 
