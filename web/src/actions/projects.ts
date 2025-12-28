@@ -6,8 +6,15 @@
 
 import { getProjects } from "@/models/projects";
 import { auth } from "@/auth";
-import { Octokit } from "@octokit/rest";
+import { Octokit } from "@octokit/rest"; // Keep Octokit for now, might be needed elsewhere
 import { getUserTeamIds } from "@/lib/team-auth";
+import {
+  fetchPullRequests,
+  fetchIssues,
+  fetchPullRequestById,
+  type EnrichedPullRequest,
+  type EnrichedIssue
+} from "@/lib/vcs-providers";
 import type { PullRequest, Issue } from "@/types/reports";
 import { db } from "@/db";
 import { pullRequestPods, pullRequests as pullRequestsTable } from "@/db/schema";
@@ -103,9 +110,17 @@ export async function fetchProjectPullRequests(
 
     // Fetch real pull requests from GitHub API
     console.log("Fetching real pull requests for project", projectId);
-    const prs = await fetchRealPullRequests(repositories);
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) {
+      console.warn("No user ID found for fetching project pull requests");
+      return [];
+    }
+    const repoNames = repositories.map(r => r.full_name);
+    const prs = await fetchPullRequests(userId, repoNames);
 
     // Enrich PRs with preview environment data
+    // Cast EnrichedPullRequest to PullRequest as they are compatible structure-wise
     return enrichPullRequestsWithPreviewEnvs(prs, repositories);
   } catch (error) {
     console.error("Error fetching project pull requests:", error);
@@ -190,7 +205,14 @@ export async function fetchProjectIssues(projectId: string): Promise<Issue[]> {
 
     // Fetch real issues from GitHub API
     console.log("Fetching real issues for project", projectId);
-    return await fetchRealIssues(repositories);
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) {
+      console.warn("No user ID found for fetching project issues");
+      return [];
+    }
+    const repoNames = repositories.map(r => r.full_name);
+    return await fetchIssues(userId, repoNames);
   } catch (error) {
     console.error("Error fetching project issues:", error);
     return [];
@@ -216,76 +238,30 @@ export async function getPullRequest(
       return null;
     }
 
-    const session = await auth();
-    if (!session?.accessToken) {
-      console.warn("No GitHub access token found");
-      return null;
-    }
-
-    const octokit = new Octokit({
-      auth: session.accessToken,
-    });
-
     const [owner, repoName] = repo.fullName.split("/");
     if (!owner || !repoName) {
       console.warn(`Invalid repository name format: ${repo.fullName}`);
       return null;
     }
 
-    // Fetch PR from GitHub
-    const { data: pr } = await octokit.rest.pulls.get({
-      owner,
-      repo: repoName,
-      pull_number: prNumber,
-    });
-
-    // Fetch reviews to determine status
-    let status: "draft" | "ready" | "changes_requested" = "ready";
-    if (pr.draft) {
-      status = "draft";
-    } else {
-      try {
-        const { data: reviews } = await octokit.rest.pulls.listReviews({
-          owner,
-          repo: repoName,
-          pull_number: prNumber,
-        });
-
-        if (reviews.some((review) => review.state === "CHANGES_REQUESTED")) {
-          status = "changes_requested";
-        }
-      } catch (error) {
-        console.warn(`Could not fetch reviews for PR ${prNumber}:`, error);
-      }
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) {
+      console.warn("No user ID found for fetching single pull request");
+      return null;
     }
 
-    // Determine priority
-    const labels = pr.labels.map((label) =>
-      typeof label === "string" ? label : label.name || "",
-    );
-    let priority: "high" | "medium" | "low" = "medium";
-    if (
-      labels.some(
-        (label) =>
-          label.toLowerCase().includes("urgent") ||
-          label.toLowerCase().includes("critical"),
-      )
-    ) {
-      priority = "high";
-    } else if (
-      labels.some(
-        (label) =>
-          label.toLowerCase().includes("minor") ||
-          label.toLowerCase().includes("low"),
-      )
-    ) {
-      priority = "low";
+    const pr = await fetchPullRequestById(userId, owner, repoName, prNumber);
+
+    if (!pr) {
+      return null;
     }
 
+    const expectedBranchName = `pr-${pr.repository}-${pr.number}`;
     // Fetch preview environment if exists
     const previewEnv = await db.query.pullRequestPods.findFirst({
       where: and(
-        eq(pullRequestPods.branch, pr.head.ref),
+        eq(pullRequestPods.branch, expectedBranchName),
         eq(pullRequestPods.source, "pull_request"),
       ),
       with: {
@@ -294,18 +270,7 @@ export async function getPullRequest(
     });
 
     return {
-      id: pr.id,
-      title: pr.title,
-      number: pr.number,
-      author: pr.user?.login || "unknown",
-      author_avatar: pr.user?.avatar_url || "",
-      repository: repoName,
-      url: pr.html_url,
-      created_at: pr.created_at,
-      updated_at: pr.updated_at,
-      comments_count: pr.comments,
-      priority,
-      status,
+      ...pr,
       previewEnvironmentId: previewEnv?.id,
       previewUrl: previewEnv?.publicUrl ?? undefined,
       previewStatus: previewEnv?.status,
@@ -316,254 +281,5 @@ export async function getPullRequest(
   }
 }
 
-/**
- * Fetch real pull requests from GitHub API for given repositories
- */
-async function fetchRealPullRequests(
-  repositories: { id: number; name: string; full_name: string; url: string }[],
-): Promise<PullRequest[]> {
-  const session = await auth();
 
-  if (!session?.accessToken) {
-    console.warn("No GitHub access token found for fetching pull requests");
-    return [];
-  }
 
-  const octokit = new Octokit({
-    auth: session.accessToken,
-  });
-
-  const allPullRequests: PullRequest[] = [];
-
-  for (const repo of repositories) {
-    try {
-      const [owner, repoName] = repo.full_name.split("/");
-      if (!owner || !repoName) {
-        console.warn(`Invalid repository name format: ${repo.full_name}`);
-        continue;
-      }
-
-      const { data: prs } = await octokit.rest.pulls.list({
-        owner,
-        repo: repoName,
-        state: "open",
-        per_page: 100,
-        sort: "updated",
-        direction: "desc",
-      });
-
-      for (const pr of prs) {
-        // Determine priority based on labels (simple heuristic)
-        const labels = pr.labels.map((label) =>
-          typeof label === "string" ? label : label.name || "",
-        );
-        let priority: "high" | "medium" | "low" = "medium";
-        if (
-          labels.some(
-            (label) =>
-              label.toLowerCase().includes("urgent") ||
-              label.toLowerCase().includes("critical"),
-          )
-        ) {
-          priority = "high";
-        } else if (
-          labels.some(
-            (label) =>
-              label.toLowerCase().includes("minor") ||
-              label.toLowerCase().includes("low"),
-          )
-        ) {
-          priority = "low";
-        }
-
-        // Determine status based on review state and draft status
-        let status: "draft" | "ready" | "changes_requested" = "ready";
-        if (pr.draft) {
-          status = "draft";
-        } else {
-          // Check for requested changes in reviews (this is a simplified check)
-          try {
-            const { data: reviews } = await octokit.rest.pulls.listReviews({
-              owner,
-              repo: repoName,
-              pull_number: pr.number,
-            });
-
-            if (
-              reviews.some((review) => review.state === "CHANGES_REQUESTED")
-            ) {
-              status = "changes_requested";
-            }
-          } catch (error) {
-            console.warn(`Could not fetch reviews for PR ${pr.number}:`, error);
-          }
-        }
-
-        allPullRequests.push({
-          id: pr.id,
-          title: pr.title,
-          number: pr.number,
-          author: pr.user?.login || "unknown",
-          author_avatar: pr.user?.avatar_url || "",
-          repository: repoName,
-          url: pr.html_url,
-          created_at: pr.created_at,
-          updated_at: pr.updated_at,
-          comments_count: 0, // Comments count would need separate API calls for accurate count
-          priority,
-          status,
-        });
-      }
-    } catch (error) {
-      console.warn(
-        `Could not fetch pull requests for repository ${repo.full_name}:`,
-        error,
-      );
-    }
-  }
-
-  return allPullRequests;
-}
-
-/**
- * Fetch real issues from GitHub API for given repositories
- */
-async function fetchRealIssues(
-  repositories: { id: number; name: string; full_name: string; url: string }[],
-): Promise<Issue[]> {
-  const session = await auth();
-
-  if (!session?.accessToken) {
-    console.warn("No GitHub access token found for fetching issues");
-    return [];
-  }
-
-  const octokit = new Octokit({
-    auth: session.accessToken,
-  });
-
-  const allIssues: Issue[] = [];
-
-  for (const repo of repositories) {
-    try {
-      const [owner, repoName] = repo.full_name.split("/");
-      if (!owner || !repoName) {
-        console.warn(`Invalid repository name format: ${repo.full_name}`);
-        continue;
-      }
-
-      const { data: issues } = await octokit.rest.issues.listForRepo({
-        owner,
-        repo: repoName,
-        state: "open",
-        per_page: 100,
-        sort: "updated",
-        direction: "desc",
-        // Only get issues, not pull requests
-        filter: "all",
-      });
-
-      for (const issue of issues) {
-        // Skip pull requests (they show up in issues API)
-        if (issue.pull_request) {
-          continue;
-        }
-
-        const labels = issue.labels.map((label) =>
-          typeof label === "string" ? label : label.name || "",
-        );
-
-        // Determine priority based on labels
-        let priority: "high" | "medium" | "low" = "medium";
-        if (
-          labels.some(
-            (label) =>
-              label.toLowerCase().includes("urgent") ||
-              label.toLowerCase().includes("critical") ||
-              label.toLowerCase().includes("high"),
-          )
-        ) {
-          priority = "high";
-        } else if (
-          labels.some(
-            (label) =>
-              label.toLowerCase().includes("minor") ||
-              label.toLowerCase().includes("low"),
-          )
-        ) {
-          priority = "low";
-        }
-
-        // Determine effort estimate based on labels
-        let effort_estimate: "small" | "medium" | "large" = "medium";
-        if (
-          labels.some(
-            (label) =>
-              label.toLowerCase().includes("small") ||
-              label.toLowerCase().includes("quick"),
-          )
-        ) {
-          effort_estimate = "small";
-        } else if (
-          labels.some(
-            (label) =>
-              label.toLowerCase().includes("large") ||
-              label.toLowerCase().includes("epic"),
-          )
-        ) {
-          effort_estimate = "large";
-        }
-
-        // Determine type based on labels
-        let type: "bug" | "feature" | "improvement" | "idea" = "improvement";
-        if (
-          labels.some(
-            (label) =>
-              label.toLowerCase().includes("bug") ||
-              label.toLowerCase().includes("defect"),
-          )
-        ) {
-          type = "bug";
-        } else if (
-          labels.some(
-            (label) =>
-              label.toLowerCase().includes("feature") ||
-              label.toLowerCase().includes("enhancement"),
-          )
-        ) {
-          type = "feature";
-        } else if (
-          labels.some(
-            (label) =>
-              label.toLowerCase().includes("idea") ||
-              label.toLowerCase().includes("proposal"),
-          )
-        ) {
-          type = "idea";
-        }
-
-        allIssues.push({
-          id: issue.id,
-          title: issue.title,
-          number: issue.number,
-          repository: repoName,
-          url: issue.html_url,
-          created_at: issue.created_at,
-          updated_at: issue.updated_at,
-          labels,
-          priority,
-          effort_estimate,
-          type,
-          state: issue.state as "open" | "closed",
-        });
-      }
-    } catch (error) {
-      console.warn(
-        `Could not fetch issues for repository ${repo.full_name}:`,
-        error,
-      );
-    }
-  }
-
-  return allIssues;
-}

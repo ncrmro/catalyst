@@ -13,16 +13,15 @@ export {
   getUserOctokit,
   getInstallationOctokit,
   getAllInstallations,
-  fetchRealPullRequests, 
-  fetchRealIssues,       
+  fetchPullRequests, // Renamed from fetchRealPullRequests
+  fetchIssues,       // Renamed from fetchRealIssues
   fetchPullRequestById,
-  fetchCIStatus,         // New export
+  fetchCIStatus,
   fetchUserRepositoryPullRequests,
   isGitHubTokenError,
   determinePRPriority,
   determinePRStatus,
 } from "./client";
-
 export type { EnrichedPullRequest, EnrichedIssue } from "./client";
 
 // Export auth utilities

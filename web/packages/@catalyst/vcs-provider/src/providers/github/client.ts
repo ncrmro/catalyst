@@ -456,7 +456,7 @@ function normalizeCommitStatus(status: {
  * @param repositories Array of repository full names (e.g., 'owner/repo')
  * @returns Array of pull requests with metadata
  */
-export async function fetchRealPullRequests(
+export async function fetchPullRequests(
   userId: string,
   repositories: string[],
 ): Promise<EnrichedPullRequest[]> {
@@ -520,7 +520,8 @@ export async function fetchRealPullRequests(
           let status: "draft" | "ready" | "changes_requested" = "ready";
           if (pr.draft) {
             status = "draft";
-          } else {
+          }
+          else {
             // Check for requested changes in reviews (this is a simplified check)
             try {
               const { data: reviews } = await octokit.rest.pulls.listReviews({
@@ -892,7 +893,7 @@ export async function fetchIssuesFromRepos(
  * @param repositories Array of repository names in format 'owner/repo'
  * @returns Array of issues with metadata
  */
-export async function fetchRealIssues(
+export async function fetchIssues(
   userId: string,
   repositories: string[],
 ): Promise<EnrichedIssue[]> {

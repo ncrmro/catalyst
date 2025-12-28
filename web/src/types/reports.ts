@@ -37,6 +37,7 @@ export interface PullRequest {
   previewEnvironmentId?: string;
   previewUrl?: string;
   previewStatus?: 'pending' | 'deploying' | 'running' | 'failed' | 'deleting';
+  body?: string; // PR description
 }
 
 export interface Issue {
