@@ -260,6 +260,15 @@ const taskFixtures: Task[] = [
   },
 ];
 
+interface GettingStartedTask {
+  id: string;
+  title: string;
+  description: string;
+  href: string;
+  isComplete: boolean;
+  icon: "environment" | "spec" | "repo";
+}
+
 interface ProjectPageContentProps {
   project: {
     slug: string;
