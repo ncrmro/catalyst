@@ -2,7 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   transpilePackages: [
+    "@tetrastack/backend",
     "@tetrastack/react-glass-components",
+    "@tetrastack/react-agent-chat",
     "@catalyst/kubernetes-client",
   ],
   images: {

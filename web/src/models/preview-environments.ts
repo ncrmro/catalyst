@@ -74,11 +74,26 @@ export function generateNamespace(repoName: string, prNumber: number): string {
 /**
  * Generate public URL for a preview environment.
  *
+ * Supports two routing modes:
+ * - **Production (hostname-based)**: `https://env-preview-123.preview.catalyst.dev/`
+ * - **Local development (path-based)**: `http://localhost:80/env-preview-123/`
+ *
+ * Local development uses path-based routing to avoid DNS configuration requirements.
+ * Set `LOCAL_PREVIEW_ROUTING=true` to enable path-based routing.
+ *
  * @param namespace - Kubernetes namespace name
  * @param domain - Base domain for preview environments (default: from env)
- * @returns Full HTTPS URL for the preview environment
+ * @returns Full URL for the preview environment
  */
 export function generatePublicUrl(namespace: string, domain?: string): string {
+  // Local development: path-based routing (rootless, no DNS needed)
+  // Uses port 8080 by default to avoid requiring root privileges
+  if (process.env.LOCAL_PREVIEW_ROUTING === "true") {
+    const port = process.env.INGRESS_PORT || "8080";
+    return `http://localhost:${port}/${namespace}/`;
+  }
+
+  // Production: hostname-based routing
   const baseDomain =
     domain || process.env.PREVIEW_DOMAIN || "preview.localhost";
   return `https://${namespace}.${baseDomain}`;

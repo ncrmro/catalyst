@@ -74,6 +74,8 @@ RUN useradd --system --uid 1001 --gid nodejs nextjs
 
 # Copy drizzle migrations and config
 COPY --from=builder /app/package.json ./package.json
+# TODO this is non optimal as we shouldn't need the packages here and this really means w should rework how drizzle-orm/kit get installed, prob in the base layer
+COPY --from=builder /app/packages/ ./packages/
 RUN npm install --production=false drizzle-orm drizzle-kit
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts  /app/drizzle.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle  /app/drizzle
