@@ -118,7 +118,6 @@ export async function fetchProjectPullRequests(
  */
 async function enrichPullRequestsWithPreviewEnvs(
   prs: PullRequest[],
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   repositories: { id: number; name: string; full_name: string; url: string }[],
 ): Promise<PullRequest[]> {
   // Fetch all preview environments for these repositories
@@ -126,32 +125,41 @@ async function enrichPullRequestsWithPreviewEnvs(
   const previewEnvs = await db
     .select({
       id: pullRequestPods.id,
-      prNumber: pullRequestsTable.number,
-      repoFullName: pullRequestsTable.repoId,
+      branch: pullRequestPods.branch,
       publicUrl: pullRequestPods.publicUrl,
       status: pullRequestPods.status,
-      branch: pullRequestPods.branch,
     })
     .from(pullRequestPods)
-    .leftJoin(
-      pullRequestsTable,
-      eq(pullRequestPods.pullRequestId, pullRequestsTable.id),
-    )
     .where(eq(pullRequestPods.source, "pull_request"));
 
-  // Create a map for quick lookup
+  // Create a map for quick lookup using branch name (which contains repo and PR number)
   const previewEnvMap = new Map<string, typeof previewEnvs[0]>();
   previewEnvs.forEach((env) => {
-    if (env.prNumber && env.branch) {
-      const key = `${env.branch}-${env.prNumber}`;
-      previewEnvMap.set(key, env);
+    if (env.branch) {
+      // Store by branch name since we can extract repo and PR number from it
+      previewEnvMap.set(env.branch, env);
     }
   });
 
   // Enrich PRs with preview environment data
   return prs.map((pr) => {
-    const key = `${pr.repository}-${pr.number}`;
-    const previewEnv = previewEnvMap.get(key);
+    // Try to find preview env by matching branch pattern (typically: pr-{repo}-{number})
+    // or by exact branch name from PR
+    let previewEnv: typeof previewEnvs[0] | undefined;
+    
+    // Try multiple key formats to match preview environments
+    const possibleKeys = [
+      `pr-${pr.repository}-${pr.number}`, // Standard preview env branch pattern
+      pr.repository, // In case branch name matches repo name
+    ];
+    
+    for (const key of possibleKeys) {
+      const env = previewEnvMap.get(key);
+      if (env) {
+        previewEnv = env;
+        break;
+      }
+    }
 
     return {
       ...pr,

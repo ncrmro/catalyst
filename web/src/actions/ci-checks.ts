@@ -143,6 +143,7 @@ function normalizeCheckRun(checkRun: {
         state = "failing";
         break;
       case "cancelled":
+      case "timed_out":
         state = "cancelled";
         break;
       case "skipped":
@@ -150,7 +151,8 @@ function normalizeCheckRun(checkRun: {
         state = "skipped";
         break;
       default:
-        state = "failing"; // action_required, timed_out, stale
+        // action_required, stale
+        state = "failing";
     }
   } else if (checkRun.status === "queued" || checkRun.status === "in_progress") {
     state = "pending";
