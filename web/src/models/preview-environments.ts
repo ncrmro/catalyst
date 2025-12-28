@@ -410,23 +410,11 @@ export async function listActivePreviewPods(userId: string): Promise<{
 // Resource Usage and Age Calculation (T050, T051, T052)
 // ============================================================================
 
-// Re-export PodResourceUsage type for actions layer
-export type { PodResourceUsage };
-
-// Import resource quota limits from types (used in models layer)
-import { RESOURCE_QUOTA_LIMITS } from "@/types/preview-environments";
-
-/**
- * Extended pod info with resource usage and age information.
- */
-export interface PreviewPodWithMetrics {
-  pod: SelectPullRequestPod;
-  pullRequest: SelectPullRequest;
-  repo: SelectRepo;
-  resourceUsage?: PodResourceUsage;
-  ageDays: number;
-  isExceedingQuota: boolean;
-}
+// Import resource quota limits and types
+import {
+  RESOURCE_QUOTA_LIMITS,
+  type PreviewPodWithMetrics,
+} from "@/types/preview-environments";
 
 /**
  * Calculate age in days from a date.

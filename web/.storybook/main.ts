@@ -31,6 +31,7 @@ const config: StorybookConfig = {
     // Use Object.assign to ADD aliases without replacing the object
     Object.assign(config.resolve.alias, {
       "@/__tests__": path.resolve(__dirname, "../__tests__"),
+      "@fixtures": path.resolve(__dirname, "../fixtures"),
       // Mock Node.js-only modules that cannot run in the browser
       pg: path.resolve(__dirname, "./mocks/pg.js"),
       "next/server": path.resolve(__dirname, "./mocks/next-server.js"),
@@ -61,6 +62,10 @@ const config: StorybookConfig = {
       "next/dist/client/components/redirect-status-code",
       "next/navigation",
     );
+
+    // Exclude drizzle-orm and pg from optimization
+    config.optimizeDeps.exclude = config.optimizeDeps.exclude || [];
+    config.optimizeDeps.exclude.push("drizzle-orm", "pg");
 
     // Exclude drizzle-orm and pg from optimization
     config.optimizeDeps.exclude = config.optimizeDeps.exclude || [];

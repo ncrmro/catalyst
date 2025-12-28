@@ -1,0 +1,124 @@
+openapi: 3.0.0
+info:
+  title: Projects Management API
+  version: 1.0.0
+paths:
+  /api/mcp/create_project:
+    post:
+      summary: Create a new project
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                repositoryId:
+                  type: string
+                teamId:
+                  type: string
+      responses:
+        '200':
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+
+  /api/mcp/list_projects:
+    get:
+      summary: List all projects
+      responses:
+        '200':
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+
+  /api/mcp/get_project:
+    get:
+      summary: Get project details
+      parameters:
+        - name: slug
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+
+  /api/mcp/configure_agent:
+    post:
+      summary: Configure a project agent
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                projectId:
+                  type: string
+                agentType:
+                  type: string
+                  enum: [platform, project, qa]
+                enabled:
+                  type: boolean
+                config:
+                  type: object
+      responses:
+        '200':
+          description: Agent configured
+
+  /api/mcp/get_prioritized_work:
+    get:
+      summary: Get prioritized work items for a project
+      parameters:
+        - name: projectId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Prioritized work items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkItem'
+
+components:
+  schemas:
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        status:
+          type: string
+          enum: [active, archived, suspended]
+    WorkItem:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        priorityScore:
+          type: integer
+        category:
+          type: string

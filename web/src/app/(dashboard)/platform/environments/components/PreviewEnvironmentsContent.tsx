@@ -1,9 +1,11 @@
 import Link from "next/link";
 import {
   getPreviewEnvironmentsWithMetrics,
-  type PreviewPodWithMetrics,
 } from "@/actions/preview-environments";
-import { RESOURCE_QUOTA_LIMITS } from "@/types/preview-environments";
+import {
+  RESOURCE_QUOTA_LIMITS,
+  type PreviewPodWithMetrics,
+} from "@/types/preview-environments";
 
 /**
  * Get status badge styling based on pod status
