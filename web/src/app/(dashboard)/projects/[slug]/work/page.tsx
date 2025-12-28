@@ -1,10 +1,8 @@
 import { fetchProjectBySlug, fetchProjectPullRequests } from "@/actions/projects";
-import { getCIStatus } from "@/actions/ci-checks";
 import { GlassCard } from "@tetrastack/react-glass-components";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import Link from "next/link";
-import { CIStatusBadge } from "@/components/ci/CIStatusBadge";
 
 interface WorkPageProps {
   params: Promise<{

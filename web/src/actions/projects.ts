@@ -121,7 +121,6 @@ async function enrichPullRequestsWithPreviewEnvs(
   repositories: { id: number; name: string; full_name: string; url: string }[],
 ): Promise<PullRequest[]> {
   // Fetch all preview environments for these repositories
-  const repoFullNames = repositories.map((r) => r.full_name);
   
   const previewEnvs = await db
     .select({
@@ -156,7 +155,7 @@ async function enrichPullRequestsWithPreviewEnvs(
     return {
       ...pr,
       previewEnvironmentId: previewEnv?.id,
-      previewUrl: previewEnv?.publicUrl,
+      previewUrl: previewEnv?.publicUrl ?? undefined,
       previewStatus: previewEnv?.status,
     };
   });
@@ -299,7 +298,7 @@ export async function getPullRequest(
       priority,
       status,
       previewEnvironmentId: previewEnv?.id,
-      previewUrl: previewEnv?.publicUrl || undefined,
+      previewUrl: previewEnv?.publicUrl ?? undefined,
       previewStatus: previewEnv?.status,
     };
   } catch (error) {

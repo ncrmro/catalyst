@@ -120,7 +120,18 @@ export async function getCIStatus(
 /**
  * Normalize a GitHub Check Run to CICheck format
  */
-function normalizeCheckRun(checkRun: any): CICheck {
+function normalizeCheckRun(checkRun: {
+  id: number;
+  name: string;
+  status: string;
+  conclusion: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  html_url: string | null;
+  details_url: string | null;
+  output: { title: string | null } | null;
+  app: { slug: string } | null;
+}): CICheck {
   // Map GitHub check run conclusion and status to our state
   let state: CICheckState = "pending";
   if (checkRun.status === "completed") {
@@ -183,7 +194,15 @@ function normalizeCheckRun(checkRun: any): CICheck {
 /**
  * Normalize a GitHub Commit Status to CICheck format
  */
-function normalizeCommitStatus(status: any): CICheck {
+function normalizeCommitStatus(status: {
+  id: number;
+  context: string;
+  state: string;
+  description: string | null;
+  target_url: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}): CICheck {
   // Map GitHub status state to our state
   let state: CICheckState;
   switch (status.state) {
