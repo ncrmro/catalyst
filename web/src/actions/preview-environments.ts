@@ -18,11 +18,6 @@ import {
   retryFailedDeployment,
   createManualPreviewEnvironment,
   type CreateManualPreviewResult,
-  type SelectPullRequestPod,
-  type SelectPullRequest,
-  type SelectRepo,
-  type PreviewPodWithMetrics,
-  type PodResourceUsage,
 } from "@/models/preview-environments";
 import { db } from "@/db";
 import {
@@ -32,27 +27,17 @@ import {
   pullRequests,
 } from "@/db/schema";
 import { eq, inArray, desc } from "drizzle-orm";
-
-// Re-export types for frontend components
-export type { SelectPullRequestPod, SelectPullRequest, SelectRepo };
-export type { PreviewPodWithMetrics, PodResourceUsage };
-export type {
+import type {
+  SelectPullRequestPod,
+  SelectPullRequest,
+  SelectRepo,
+  PreviewPodWithMetrics,
+  PodResourceUsage,
   PodStatus,
   ResourceAllocation,
+  PreviewPodWithRelations,
+  ActionResult,
 } from "@/types/preview-environments";
-
-// Type for preview pod with related data
-export type PreviewPodWithRelations = SelectPullRequestPod & {
-  pullRequest: SelectPullRequest;
-  repo: SelectRepo;
-};
-
-// Result types for actions
-export interface ActionResult<T = void> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
 
 /**
  * List all active preview environments for the current user.

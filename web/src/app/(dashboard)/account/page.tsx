@@ -61,15 +61,24 @@ function ProviderIcon({
   }
 }
 
-function ProviderCard({ provider }: { provider: ProviderStatus }) {
+function ProviderCard({
+  provider,
+  highlighted,
+}: {
+  provider: ProviderStatus;
+  highlighted?: boolean;
+}) {
   return (
     <div
+      id={`provider-${provider.id}`}
       className={`relative p-6 rounded-xl border transition-all ${
-        provider.available
-          ? provider.connected
-            ? "border-primary/50 bg-primary/5"
-            : "border-outline/50 bg-surface hover:border-primary/30"
-          : "border-outline/30 bg-surface-variant/30 opacity-60"
+        highlighted
+          ? "border-primary ring-2 ring-primary/50 bg-primary/10 animate-pulse"
+          : provider.available
+            ? provider.connected
+              ? "border-primary/50 bg-primary/5"
+              : "border-outline/50 bg-surface hover:border-primary/30"
+            : "border-outline/30 bg-surface-variant/30 opacity-60"
       }`}
     >
       {/* Coming Soon Badge */}
@@ -174,9 +183,14 @@ function ProviderCard({ provider }: { provider: ProviderStatus }) {
   );
 }
 
-export default async function AccountPage() {
+interface AccountPageProps {
+  searchParams: Promise<{ highlight?: string }>;
+}
+
+export default async function AccountPage({ searchParams }: AccountPageProps) {
   const session = await auth();
   const providers = await getProviderStatuses();
+  const { highlight } = await searchParams;
 
   const connectedCount = providers.filter((p) => p.connected).length;
   const availableCount = providers.filter((p) => p.available).length;
@@ -253,7 +267,11 @@ export default async function AccountPage() {
 
         <div className="space-y-4">
           {providers.map((provider) => (
-            <ProviderCard key={provider.id} provider={provider} />
+            <ProviderCard
+              key={provider.id}
+              provider={provider}
+              highlighted={highlight === provider.id}
+            />
           ))}
         </div>
       </GlassCard>

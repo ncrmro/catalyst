@@ -25,10 +25,10 @@ export interface StatusBadgeProps {
 }
 
 /**
- * StatusBadge - A pill-shaped badge that displays status with appropriate colors
+ * StatusBadge - A text label that displays status
  *
  * Used throughout the application to show the status of environments,
- * agents, and other resources with semantic colors from Material Design 3.
+ * agents, and other resources.
  *
  * @example
  * ```tsx
@@ -42,41 +42,17 @@ export function StatusBadge({
   className,
   size = "sm",
 }: StatusBadgeProps) {
-  // Normalize status to lowercase for comparison
-  const normalizedStatus = status.toLowerCase();
-
-  // Status color mapping using Material Design 3 tokens
-  const getStatusClasses = () => {
-    switch (normalizedStatus) {
-      case "ready":
-      case "running":
-        return "bg-success-container text-on-success-container";
-      case "completed":
-        return "bg-primary-container text-on-primary-container";
-      case "deploying":
-      case "provisioning":
-        return "bg-secondary-container text-on-secondary-container";
-      case "pending":
-        return "bg-surface-variant text-on-surface-variant";
-      case "failed":
-        return "bg-error-container text-on-error-container";
-      default:
-        return "bg-surface-variant text-on-surface-variant";
-    }
-  };
-
   // Size variants
   const sizeClasses = {
-    xs: "px-1.5 py-0.5 text-[10px]",
-    sm: "px-2 py-0.5 text-xs",
-    md: "px-3 py-1 text-sm",
+    xs: "text-[10px]",
+    sm: "text-xs",
+    md: "text-sm",
   };
 
   return (
     <span
       className={cn(
-        "inline-flex items-center justify-center rounded-full font-medium capitalize",
-        getStatusClasses(),
+        "inline-flex items-center text-on-surface-variant capitalize",
         sizeClasses[size],
         className,
       )}

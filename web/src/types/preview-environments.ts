@@ -1,8 +1,10 @@
 // Type definitions for PR Preview Environments
 
 import { InferSelectModel, InferInsertModel } from "drizzle-orm";
-import { pullRequestPods } from "@/db/schema";
+import { pullRequestPods, pullRequests, repos } from "@/db/schema";
 import { z } from "zod";
+import type { PodResourceUsage } from "@/lib/k8s-preview-deployment";
+export type { PodResourceUsage };
 
 export type PodStatus =
   | "pending"
@@ -12,8 +14,37 @@ export type PodStatus =
   | "deleting";
 
 // ============================================================================
-// Validation Schemas (T074-T076)
+// Data Types
 // ============================================================================
+
+// Drizzle ORM type inference
+export type SelectPullRequestPod = InferSelectModel<typeof pullRequestPods>;
+export type InsertPullRequestPod = InferInsertModel<typeof pullRequestPods>;
+export type SelectPullRequest = InferSelectModel<typeof pullRequests>;
+export type SelectRepo = InferSelectModel<typeof repos>;
+
+// Type for preview pod with related data
+export type PreviewPodWithRelations = SelectPullRequestPod & {
+  pullRequest: SelectPullRequest;
+  repo: SelectRepo;
+};
+
+// Extended pod info with resource usage and age information
+export interface PreviewPodWithMetrics {
+  pod: SelectPullRequestPod;
+  pullRequest: SelectPullRequest;
+  repo: SelectRepo;
+  resourceUsage?: PodResourceUsage;
+  ageDays: number;
+  isExceedingQuota: boolean;
+}
+
+// Result types for actions
+export interface ActionResult<T = void> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
 
 /**
  * DNS-1123 compliant namespace validation.
@@ -132,6 +163,3 @@ export interface PreviewEnvironmentConfig {
   publicUrl: string;
 }
 
-// Drizzle ORM type inference
-export type SelectPullRequestPod = InferSelectModel<typeof pullRequestPods>;
-export type InsertPullRequestPod = InferInsertModel<typeof pullRequestPods>;

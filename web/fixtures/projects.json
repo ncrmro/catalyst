@@ -1,0 +1,112 @@
+{
+  "active": [
+    {
+      "id": "proj-001",
+      "name": "Catalyst Web",
+      "slug": "catalyst-web",
+      "description": "Main web application for the Catalyst platform. Built with Next.js 15, TypeScript, and Tailwind CSS.",
+      "status": "active",
+      "teamId": "team-001",
+      "teamName": "Platform Engineering",
+      "repositoryCount": 3,
+      "openWorkItemCount": 12,
+      "createdAt": "2024-01-15T08:30:00.000Z",
+      "updatedAt": "2025-12-20T14:22:00.000Z"
+    },
+    {
+      "id": "proj-002",
+      "name": "API Gateway",
+      "slug": "api-gateway",
+      "description": "Central API gateway handling authentication, rate limiting, and request routing for all platform services.",
+      "status": "active",
+      "teamId": "team-001",
+      "teamName": "Platform Engineering",
+      "repositoryCount": 2,
+      "openWorkItemCount": 8,
+      "createdAt": "2024-02-01T10:15:00.000Z",
+      "updatedAt": "2025-12-24T16:45:00.000Z"
+    },
+    {
+      "id": "proj-003",
+      "name": "Mobile App",
+      "slug": "mobile-app",
+      "description": "React Native mobile application for iOS and Android platforms.",
+      "status": "active",
+      "teamId": "team-002",
+      "teamName": "Mobile Team",
+      "repositoryCount": 1,
+      "openWorkItemCount": 23,
+      "createdAt": "2024-03-10T09:00:00.000Z",
+      "updatedAt": "2025-12-23T11:30:00.000Z"
+    }
+  ],
+  "suspended": [
+    {
+      "id": "proj-004",
+      "name": "Analytics Dashboard",
+      "slug": "analytics-dashboard",
+      "description": "Internal analytics and reporting dashboard. Temporarily suspended pending data architecture review.",
+      "status": "suspended",
+      "teamId": "team-003",
+      "teamName": "Data Team",
+      "repositoryCount": 2,
+      "openWorkItemCount": 5,
+      "createdAt": "2024-04-22T13:20:00.000Z",
+      "updatedAt": "2025-11-15T09:10:00.000Z"
+    },
+    {
+      "id": "proj-005",
+      "name": "Email Service",
+      "slug": "email-service",
+      "description": "Microservice for handling transactional emails and notifications. Suspended for migration to third-party provider.",
+      "status": "suspended",
+      "teamId": "team-001",
+      "teamName": "Platform Engineering",
+      "repositoryCount": 1,
+      "openWorkItemCount": 2,
+      "createdAt": "2024-05-08T15:45:00.000Z",
+      "updatedAt": "2025-10-30T14:00:00.000Z"
+    }
+  ],
+  "archived": [
+    {
+      "id": "proj-006",
+      "name": "Legacy Admin Panel",
+      "slug": "legacy-admin-panel",
+      "description": "Original admin panel built with Vue.js 2. Replaced by new Next.js admin interface in Catalyst Web.",
+      "status": "archived",
+      "teamId": "team-001",
+      "teamName": "Platform Engineering",
+      "repositoryCount": 1,
+      "openWorkItemCount": 0,
+      "createdAt": "2023-06-12T10:00:00.000Z",
+      "updatedAt": "2024-08-15T16:30:00.000Z"
+    },
+    {
+      "id": "proj-007",
+      "name": "Monolith API",
+      "slug": "monolith-api",
+      "description": "Original monolithic API. Successfully migrated to microservices architecture and archived.",
+      "status": "archived",
+      "teamId": "team-001",
+      "teamName": "Platform Engineering",
+      "repositoryCount": 1,
+      "openWorkItemCount": 0,
+      "createdAt": "2023-01-05T08:00:00.000Z",
+      "updatedAt": "2024-06-20T12:00:00.000Z"
+    },
+    {
+      "id": "proj-008",
+      "name": "Marketing Website V1",
+      "slug": "marketing-website-v1",
+      "description": null,
+      "status": "archived",
+      "teamId": "team-004",
+      "teamName": "Marketing",
+      "repositoryCount": 1,
+      "openWorkItemCount": 0,
+      "createdAt": "2023-03-18T14:30:00.000Z",
+      "updatedAt": "2024-09-01T10:15:00.000Z"
+    }
+  ]
+}

@@ -3,15 +3,15 @@
  * These schemas ensure type safety when loading YAML mock data
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 /**
  * GitHub owner schema (simplified)
  */
 export const githubOwnerSchema = z.object({
   login: z.string().min(1),
-  type: z.enum(['User', 'Organization']),
-  avatar_url: z.string().url()
+  type: z.enum(["User", "Organization"]),
+  avatar_url: z.string().url(),
 });
 
 /**
@@ -19,7 +19,7 @@ export const githubOwnerSchema = z.object({
  */
 export const githubRepoConnectionSchema = z.object({
   projectId: z.string().min(1),
-  isPrimary: z.boolean()
+  isPrimary: z.boolean(),
 });
 
 /**
@@ -44,7 +44,7 @@ export const githubRepoSchema = z.object({
   open_issues_count: z.number().int().nonnegative(),
   connection: githubRepoConnectionSchema.nullable().optional(),
   database_id: z.string().optional(),
-  teamId: z.string().optional()
+  teamId: z.string().optional(),
 });
 
 /**
@@ -54,7 +54,7 @@ export const githubOrganizationSchema = z.object({
   login: z.string().min(1),
   id: z.number().int().positive(),
   avatar_url: z.string().url(),
-  description: z.string().nullable()
+  description: z.string().nullable(),
 });
 
 /**
@@ -71,8 +71,8 @@ export const mockPullRequestSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   comments_count: z.number().int().nonnegative(),
-  priority: z.enum(['high', 'medium', 'low']),
-  status: z.enum(['draft', 'ready', 'changes_requested'])
+  priority: z.enum(["high", "medium", "low"]),
+  status: z.enum(["draft", "ready", "changes_requested"]),
 });
 
 /**
@@ -81,7 +81,7 @@ export const mockPullRequestSchema = z.object({
 export const projectEnvironmentSchema = z.object({
   name: z.string().min(1),
   namespace_pattern: z.string().min(1),
-  cluster: z.string().min(1)
+  cluster: z.string().min(1),
 });
 
 /**
@@ -93,7 +93,7 @@ export const mockProjectSchema = z.object({
   description: z.string().min(1),
   team: z.string().min(1),
   primary_repo: z.string().min(1),
-  environments: z.array(projectEnvironmentSchema)
+  environments: z.array(projectEnvironmentSchema),
 });
 
 /**
@@ -104,17 +104,41 @@ export const githubMockDataSchema = z.object({
   organizations: z.array(githubOrganizationSchema),
   org_repos: z.record(z.string(), z.array(githubRepoSchema)),
   pull_requests: z.array(mockPullRequestSchema),
-  projects: z.array(mockProjectSchema).optional()
+  projects: z.array(mockProjectSchema).optional(),
 });
 
 /**
- * Repository data structure for API responses
+ * Repository data structure for successful API responses
+ * github_integration_enabled is always true when repos are successfully fetched
  */
 export const reposDataSchema = z.object({
   user_repos: z.array(githubRepoSchema),
   organizations: z.array(githubOrganizationSchema),
   org_repos: z.record(z.string(), z.array(githubRepoSchema)),
-  github_integration_enabled: z.boolean()
+  github_integration_enabled: z.literal(true),
+});
+
+/**
+ * Repository data structure for failed API responses (no repos available)
+ * `reason` indicates why GitHub integration failed:
+ * - "no_access_token": GitHub is configured but user hasn't connected their account
+ * - "error": There was an error connecting to GitHub API
+ */
+export const reposDataFailedSchema = z.object({
+  github_integration_enabled: z.literal(false),
+  reason: z.enum(["no_access_token", "error"]),
+});
+
+/**
+ * Repository data structure when GitHub integration is disabled but database repos are available
+ * Contains repos from the database with a reason for why GitHub integration is not enabled
+ */
+export const reposDataWithReasonSchema = z.object({
+  user_repos: z.array(githubRepoSchema),
+  organizations: z.array(githubOrganizationSchema),
+  org_repos: z.record(z.string(), z.array(githubRepoSchema)),
+  github_integration_enabled: z.literal(false),
+  reason: z.enum(["no_access_token", "error"]),
 });
 
 /**
@@ -129,3 +153,5 @@ export type ProjectEnvironment = z.infer<typeof projectEnvironmentSchema>;
 export type MockProject = z.infer<typeof mockProjectSchema>;
 export type GitHubMockData = z.infer<typeof githubMockDataSchema>;
 export type ReposData = z.infer<typeof reposDataSchema>;
+export type ReposDataFailed = z.infer<typeof reposDataFailedSchema>;
+export type ReposDataWithReason = z.infer<typeof reposDataWithReasonSchema>;

@@ -1,0 +1,260 @@
+# Implementation Plan: Projects Management
+
+**Branch**: `009-projects` | **Date**: 2025-12-28 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `/specs/009-projects/spec.md`
+
+## Summary
+
+| Phase | Tasks     | User Story        | Priority | Notes                          |
+| ----- | --------- | ----------------- | -------- | ------------------------------ |
+| 1     | T001-T004 | Setup             | -        | Minimal schema (slug only)     |
+| 2     | T005-T014 | US1: Manage Specs | P1       | File-based, VCS API            |
+| 3     | T015-T024 | US2: View PRs     | P1       | PRs + preview env links        |
+| 4     | T025-T034 | US3: CI Checks    | P1       | GitHub Checks API integration  |
+| 5     | T035-T044 | US4-6: Polish     | P2       | Context, branch mgmt, settings |
+
+**Total Tasks**: ~44
+**MVP Scope**: Phases 1-4 (US1 + US2 + US3)
+**Key Principle**: VCS-First - fetch data from GitHub, don't sync to database
+
+## Design Decisions
+
+### VCS-First Architecture
+
+**Decision**: Read PRs, specs, and CI checks directly from GitHub API instead of syncing to database tables.
+
+**Rationale**:
+
+- Simpler implementation (no sync logic, no stale data)
+- Always up-to-date data
+- Less database complexity
+- Faster to ship MVP
+
+**Trade-offs**:
+
+- API rate limits (mitigate with caching)
+- No offline access to VCS data
+- Slower page loads for large repos (mitigate with pagination)
+
+### File-Based Spec Management
+
+**Decision**: Specs are read/written as files in the repo's `specs/` folder, not indexed in database.
+
+**Rationale**:
+
+- Specs are source-controlled with the code
+- Uses existing spec-kit patterns
+- No sync complexity
+- Works with any git workflow
+
+**Implementation**:
+
+- Read: Fetch directory listing + file contents via GitHub API
+- Write: Create commits/PRs via GitHub API
+
+## Technical Context
+
+**Language/Version**: TypeScript 5.x with Next.js 15 (App Router)
+**Primary Dependencies**: Next.js 15, NextAuth.js, Drizzle ORM, Octokit
+**Storage**: PostgreSQL with Drizzle ORM (minimal extensions)
+**Testing**: Vitest (unit/integration), Playwright (E2E)
+**Target Platform**: Linux server (Docker/Kubernetes deployment)
+
+## Project Structure
+
+### Source Code
+
+```text
+web/
+├── src/
+│   ├── db/
+│   │   └── schema.ts                    # Add slug to projects (if needed)
+│   ├── models/
+│   │   └── projects.ts                  # Existing - minimal changes
+│   ├── actions/
+│   │   ├── projects.ts                  # Existing project actions
+│   │   ├── specs.ts                     # NEW: Spec file operations
+│   │   ├── work-items.ts                # NEW: PR listing from VCS
+│   │   └── ci-checks.ts                 # NEW: CI status from VCS
+│   ├── lib/
+│   │   ├── vcs/
+│   │   │   ├── types.ts                 # VCS provider interfaces
+│   │   │   ├── github.ts                # GitHub API adapter
+│   │   │   └── specs.ts                 # Spec file operations
+│   │   └── types/
+│   │       ├── specs.ts                 # SpecFile, SpecContent types
+│   │       └── ci-checks.ts             # StatusCheck types
+│   └── app/
+│       └── projects/
+│           └── [slug]/
+│               ├── page.tsx             # Project overview
+│               ├── specs/
+│               │   ├── page.tsx         # Spec list
+│               │   └── [specId]/
+│               │       └── page.tsx     # Spec detail/edit
+│               ├── work/
+│               │   └── page.tsx         # PR list
+│               └── prs/
+│                   └── [number]/
+│                       └── page.tsx     # PR detail with CI checks
+├── __tests__/
+│   ├── unit/
+│   │   └── lib/
+│   │       └── vcs/
+│   │           ├── github.test.ts
+│   │           └── specs.test.ts
+│   └── integration/
+│       └── actions/
+│           ├── specs.test.ts
+│           └── work-items.test.ts
+```
+
+## Phase Details
+
+### Phase 1: Setup (Minimal)
+
+**Goal**: Ensure projects table has slug field for URL routing.
+
+**Tasks**:
+
+- Check if slug already exists in schema
+- Add migration if needed
+- Backfill existing projects with generated slugs
+
+**No new tables** - just ensure slug works.
+
+### Phase 2: US1 - Manage Specs (P1)
+
+**Goal**: Users can view and manage specs stored in their repository.
+
+**Implementation**:
+
+1. **VCS Adapter** (`src/lib/vcs/specs.ts`):
+   - `listSpecs(owner, repo)`: List folders in `specs/` directory
+   - `getSpecContent(owner, repo, path)`: Read file content
+   - `updateSpecContent(owner, repo, path, content, message)`: Commit file update
+   - `createSpec(owner, repo, name, content)`: Create new spec folder with initial files
+
+2. **Server Actions** (`src/actions/specs.ts`):
+   - `getProjectSpecs(projectId)`: Get specs list for project
+   - `getSpecContent(projectId, specPath)`: Get spec file content
+   - `updateSpec(projectId, specPath, content)`: Update spec file
+   - `createSpec(projectId, name)`: Create new spec
+
+3. **UI Pages**:
+   - `/projects/[slug]/specs`: Spec list with folders
+   - `/projects/[slug]/specs/[specId]`: Spec detail with markdown rendering
+   - Edit mode with form to update content
+
+### Phase 3: US2 - View PRs (P1)
+
+**Goal**: Users can see open PRs with links to preview environments.
+
+**Implementation**:
+
+1. **VCS Adapter** (`src/lib/vcs/github.ts`):
+   - `listPullRequests(owner, repo, state)`: Get PRs from GitHub
+   - Enrich with preview environment data from `pullRequestPods` table
+
+2. **Server Actions** (`src/actions/work-items.ts`):
+   - `getProjectPullRequests(projectId)`: Get PRs with preview env links
+   - `getPullRequest(projectId, number)`: Get single PR detail
+
+3. **UI Pages**:
+   - `/projects/[slug]/work`: PR list showing open PRs
+   - Each PR shows: title, author, preview URL (if available), status
+
+### Phase 4: US3 - CI Checks (P1)
+
+**Goal**: Developers can see CI check status for PRs.
+
+**Implementation**:
+
+1. **VCS Adapter** (`src/lib/vcs/github.ts`):
+   - `getCheckRuns(owner, repo, ref)`: GitHub Checks API
+   - `getCommitStatuses(owner, repo, ref)`: Commit Statuses API
+   - `normalizeStatusChecks()`: Unify both into StatusCheck type
+
+2. **Server Actions** (`src/actions/ci-checks.ts`):
+   - `getCIStatus(projectId, prNumber)`: Get unified CI status for PR
+
+3. **UI Components**:
+   - `CIStatusBadge`: Pass/fail/pending indicator
+   - `CIChecksList`: Detailed check list with links to logs
+
+4. **Integration**:
+   - Add CI status to PR detail page
+   - Add CI status summary to PR list
+
+### Phase 5: US4-6 - Polish (P2)
+
+**Goal**: Enhanced PR context, branch management, project settings.
+
+**Implementation**:
+
+1. **PR Context Display**:
+   - Show PR description (markdown rendered)
+   - Link to related issues/specs if mentioned
+   - Show commits list
+
+2. **Branch Management**:
+   - "Update Branch" action (merge main into PR)
+   - Show commits behind count
+   - Indicate merge-ready status
+
+3. **Project Settings**:
+   - View/edit project name
+   - View linked repository
+   - View team ownership
+
+## Dependencies
+
+### External APIs
+
+- **GitHub REST API**: PRs, files, checks, statuses
+- **GitHub GraphQL API**: Optional for richer PR queries
+
+### Existing Infrastructure
+
+- **VCS Provider Auth**: GitHub OAuth tokens (existing)
+- **Preview Environments**: `pullRequestPods` table (existing)
+- **Teams**: Team ownership (existing)
+
+## Caching Strategy
+
+To avoid GitHub API rate limits:
+
+1. **Short TTL Cache** (30s-60s): PR list, CI status
+2. **Longer TTL Cache** (5min): Spec file content
+3. **Invalidation**: Webhook-triggered for push/PR events
+4. **Implementation**: Next.js data cache or Redis if needed
+
+## Success Metrics
+
+From spec.md:
+
+- **SC-001**: Project setup in under 2 minutes
+- **SC-002**: PR list displays within 3 seconds
+- **SC-003**: CI status accurate, updates within 30 seconds
+- **SC-004**: Specs readable from any repo with `specs/` folder
+
+## Risk Mitigation
+
+| Risk                   | Mitigation                                  |
+| ---------------------- | ------------------------------------------- |
+| GitHub API rate limits | Caching, pagination, user's token (5000/hr) |
+| Large spec files       | Lazy loading, pagination                    |
+| Slow GitHub API        | Loading states, optimistic UI               |
+| Missing preview env    | Graceful degradation, show "not deployed"   |
+
+## MVP Checkpoint
+
+After completing Phases 1-4, validate:
+
+1. [ ] Can view specs from a project repository
+2. [ ] Can create/edit a spec file
+3. [ ] Can see open PRs with preview environment links
+4. [ ] Can see CI check status for a PR
+5. [ ] Page loads meet performance criteria (<3s)
+
+If all pass, MVP is complete. Phase 5 can be shipped incrementally.

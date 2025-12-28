@@ -1,4 +1,4 @@
-import { experimental_createMCPClient as createMCPClient } from "ai";
+import { experimental_createMCPClient as createMCPClient } from "@ai-sdk/mcp";
 import { GITHUB_CONFIG } from "@/lib/vcs-providers";
 
 /**

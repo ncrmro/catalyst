@@ -231,6 +231,54 @@ bin/kubectl get pods -A    # List all pods across namespaces
 
 **Troubleshooting:** See `.k3s-vm/AGENTS.md` for detailed troubleshooting (port conflicts, orphaned processes, SSH issues).
 
+### Kubernetes Cluster Environments
+
+Different contexts use different Kubernetes cluster providers:
+
+| Context               | Cluster Provider | Purpose                          |
+| --------------------- | ---------------- | -------------------------------- |
+| Local development     | K3s VM           | NixOS-based VM with QEMU         |
+| GitHub Actions (CI)   | Kind             | Kubernetes-in-Docker for testing |
+| GitHub Copilot agents | Kind             | Same infrastructure as CI        |
+
+**Key differences:**
+
+- **K3s VM**: Full VM with persistent state, port forwarding via QEMU, requires Nix + KVM
+- **Kind**: Ephemeral Docker containers, port exposure via extraPortMappings, requires Docker only
+
+Both environments support the same path-based ingress routing pattern (`http://localhost:8080/{namespace}/`), ensuring test parity between local development and CI.
+
+### Local Preview URL Testing
+
+Preview environments use different URL patterns in local vs production:
+
+| Environment | URL Pattern                                     |
+| ----------- | ----------------------------------------------- |
+| Local       | `http://localhost:8080/env-preview-123/`        |
+| Production  | `https://env-preview-123.preview.catalyst.dev/` |
+
+**Configuration (in `web/.env`):**
+
+- `LOCAL_PREVIEW_ROUTING=true` - Enable path-based routing
+- `INGRESS_PORT=8080` - Ingress port (default, rootless)
+
+**Validating with Playwright MCP:**
+
+AI agents can validate preview deployments using Playwright MCP tools:
+
+```typescript
+// Navigate to preview environment
+mcp__playwright__browser_navigate({ url: previewUrl });
+
+// Take snapshot to verify content
+mcp__playwright__browser_snapshot();
+
+// Wait for app to load
+mcp__playwright__browser_wait_for({ selector: "[data-testid='app-loaded']" });
+```
+
+See `specs/001-environments/research.local-url-testing.md` for detailed approaches and GitHub Actions with Kind configuration.
+
 ### Agent System (`/web/src/agents`)
 
 Periodic background tasks that run on intervals:
@@ -300,3 +348,10 @@ The application can be deployed via:
 3. **Direct Node.js**: Using `npm run build` and `npm start:production`
 
 Database migrations run automatically in Docker/Helm deployments or manually via `npm run db:migrate`.
+
+## Active Technologies
+- TypeScript 5.3 (Web), Go 1.21 (Operator) + `ingress-nginx` (Kubernetes), `@catalyst/kubernetes-client` (Web) (001-environments)
+- Kubernetes CRDs (Environment status), PostgreSQL (Web app state) (001-environments)
+
+## Recent Changes
+- 001-environments: Added TypeScript 5.3 (Web), Go 1.21 (Operator) + `ingress-nginx` (Kubernetes), `@catalyst/kubernetes-client` (Web)

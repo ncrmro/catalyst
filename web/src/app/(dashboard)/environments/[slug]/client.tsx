@@ -1,29 +1,66 @@
 "use client";
 
 import { useState } from "react";
-import { ProjectWithRelations } from "@/models/projects";
+import type { ProjectWithRelations } from "@/types/projects";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { configureProjectEnvironments } from "@/actions/environments";
+import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
 
-interface EnvironmentsPageClientProps {
+/** Result type for environment configuration actions */
+export interface EnvironmentResult {
+  success: boolean;
+  message: string;
+  environmentId?: string;
+  environmentType?: string;
+  projectId?: string;
+}
+
+export interface EnvironmentsFormProps {
   project: ProjectWithRelations;
+  /** Action callback for form submission - passed from server component */
+  onSubmit: (formData: FormData) => Promise<EnvironmentResult>;
+  /** Optional callback for wizard back navigation */
+  onBack?: () => void;
+  /** Hide the header section when used in wizard context */
+  hideHeader?: boolean;
+  /** Custom submit button text */
+  submitButtonText?: string;
+  /** Custom cancel button text */
+  cancelButtonText?: string;
 }
 
 // Client component to handle form submission and feedback
-export function EnvironmentsForm({ project }: EnvironmentsPageClientProps) {
+export function EnvironmentsForm({
+  project,
+  onSubmit,
+  onBack,
+  hideHeader = false,
+  submitButtonText = "Create Environment",
+  cancelButtonText = "Cancel",
+}: EnvironmentsFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedEnvType, setSelectedEnvType] = useState<
+    "deployment" | "development"
+  >("development");
+  const [deploymentSubType, setDeploymentSubType] = useState<
+    "production" | "staging"
+  >("production");
 
   const handleSubmit = async (formData: FormData) => {
     setIsSubmitting(true);
     setError(null);
 
     try {
-      // Submit directly through the server action
-      // We handle redirection here in the client
-      const result = await configureProjectEnvironments(formData);
+      // Add deploymentSubType to formData if deployment is selected
+      if (selectedEnvType === "deployment") {
+        formData.append("deploymentSubType", deploymentSubType);
+      }
+
+      // Submit through the action callback passed from parent
+      const result = await onSubmit(formData);
 
       if (result.success) {
         // Redirect back to project page on success
@@ -43,24 +80,27 @@ export function EnvironmentsForm({ project }: EnvironmentsPageClientProps) {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <Link
-          href={`/projects/${project.slug}`}
-          className="inline-flex items-center text-primary hover:opacity-80 mb-4"
-        >
-          ← Back to {project.name}
-        </Link>
-        <h1 className="text-3xl font-bold text-on-background mb-4">
-          Configure Environments
-        </h1>
-        <p className="text-lg text-on-surface-variant mb-6">
-          Set up deployment environments for{" "}
-          <span className="font-semibold">{project.fullName}</span>. We
-          recommend starting with a preview environment which will create pull
-          requests for your changes.
-        </p>
-      </div>
+      {/* Header Card - hidden when used in wizard context */}
+      {!hideHeader && (
+        <Card className="mb-6 p-6">
+          <Link
+            href="/projects"
+            className="inline-flex items-center text-primary hover:opacity-80 mb-4"
+          >
+            ← Back to Projects
+          </Link>
+          <div className="prose prose-sm dark:prose-invert max-w-none">
+            <h1 className="text-3xl font-bold text-on-background mb-2">
+              Create Environment
+            </h1>
+            <p className="text-on-surface-variant">
+              Start with a <strong>Development Environment</strong> to
+              experiment safely. Deployment environments require approvals and
+              access controls.
+            </p>
+          </div>
+        </Card>
+      )}
 
       {/* Error message */}
       {error && (
@@ -71,151 +111,180 @@ export function EnvironmentsForm({ project }: EnvironmentsPageClientProps) {
       )}
 
       {/* Environment Configuration Form */}
-      <div className="bg-surface border border-outline rounded-lg p-8 shadow-sm">
-        <h2 className="text-xl font-semibold text-on-surface mb-6">
-          Choose Your First Environment
-        </h2>
-
+      <Card className="p-6">
         <form action={handleSubmit}>
           <input type="hidden" name="projectId" value={project.id} />
 
-          <div className="space-y-4 mb-8">
-            {/* Development Environment */}
-            <label className="flex items-start gap-4 p-6 border-2 border-primary rounded-lg cursor-pointer bg-primary-container/20 hover:bg-primary-container/30 transition-colors">
-              <input
-                type="radio"
-                name="environmentType"
-                value="development"
-                defaultChecked
-                className="mt-2 w-4 h-4 text-primary focus:ring-primary"
-              />
-              <div className="flex-1">
-                <div className="font-semibold text-on-surface text-lg mb-2">
-                  Development Environment
-                </div>
-                <div className="text-on-surface-variant text-sm mb-3">
-                  Creates a unique, randomly named environment for development
-                  and testing. Ideal for experimenting with changes in isolation
-                  without affecting others.
-                </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="bg-success-container text-on-success-container px-2 py-1 rounded-full">
-                    ✓ Recommended
-                  </span>
-                  <span className="bg-primary-container text-on-primary-container px-2 py-1 rounded-full">
-                    🎲 Random Name
-                  </span>
-                  <span className="bg-secondary-container text-on-secondary-container px-2 py-1 rounded-full">
-                    🚀 Instant Setup
-                  </span>
+          <div className="space-y-4">
+            {/* Development Environment Option */}
+            <div
+              onClick={() => setSelectedEnvType("development")}
+              className={cn(
+                "border rounded-lg p-5 cursor-pointer transition-all",
+                selectedEnvType === "development"
+                  ? "border-primary bg-primary/5 ring-2 ring-primary"
+                  : "border-outline/50 hover:border-outline hover:bg-surface/50",
+              )}
+            >
+              <div className="flex items-start gap-4">
+                <input
+                  type="radio"
+                  name="environmentType"
+                  value="development"
+                  checked={selectedEnvType === "development"}
+                  onChange={() => setSelectedEnvType("development")}
+                  className="mt-1"
+                />
+                <div className="flex-1 prose prose-sm dark:prose-invert max-w-none">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-base font-semibold text-on-surface m-0">
+                      Development
+                    </h3>
+                    <span className="px-2 py-0.5 text-xs rounded-full bg-success-container text-on-success-container">
+                      Recommended
+                    </span>
+                  </div>
+                  <p className="text-sm text-on-surface-variant m-0">
+                    Isolated environments for testing and experimentation.
+                  </p>
                 </div>
               </div>
-            </label>
+            </div>
 
-            {/* Production Environment */}
-            <label className="flex items-start gap-4 p-6 border border-outline rounded-lg cursor-pointer hover:bg-secondary-container/20 transition-colors">
-              <input
-                type="radio"
-                name="environmentType"
-                value="production"
-                className="mt-2 w-4 h-4 text-primary focus:ring-primary"
-              />
-              <div className="flex-1">
-                <div className="font-semibold text-on-surface text-lg mb-2">
-                  Production Environment
-                </div>
-                <div className="text-on-surface-variant text-sm mb-3">
-                  Your live, customer-facing environment. Deployments are
-                  triggered manually or through automated releases when code is
-                  merged to your main branch. This environment should be
-                  configured after you have tested your deployment process with
-                  preview environments.
-                </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="bg-warning-container text-on-warning-container px-2 py-1 rounded-full">
-                    ⚠️ Set up later
-                  </span>
-                  <span className="bg-error-container text-on-error-container px-2 py-1 rounded-full">
-                    🔒 Manual Deploy
-                  </span>
-                  <span className="bg-tertiary-container text-on-tertiary-container px-2 py-1 rounded-full">
-                    📈 Live Traffic
-                  </span>
-                </div>
-              </div>
-            </label>
+            {/* Deployment Environment Option */}
+            <div
+              onClick={() => setSelectedEnvType("deployment")}
+              className={cn(
+                "border rounded-lg p-5 cursor-pointer transition-all",
+                selectedEnvType === "deployment"
+                  ? "border-primary bg-primary/5 ring-2 ring-primary"
+                  : "border-outline/50 hover:border-outline hover:bg-surface/50",
+              )}
+            >
+              <div className="flex items-start gap-4">
+                <input
+                  type="radio"
+                  name="environmentType"
+                  value="deployment"
+                  checked={selectedEnvType === "deployment"}
+                  onChange={() => setSelectedEnvType("deployment")}
+                  className="mt-1"
+                />
+                <div className="flex-1 prose prose-sm dark:prose-invert max-w-none">
+                  <h3 className="text-base font-semibold text-on-surface m-0 mb-1">
+                    Deployment
+                  </h3>
+                  <p className="text-sm text-on-surface-variant m-0">
+                    Production and staging with access controls and approvals.
+                  </p>
 
-            {/* Staging Environment */}
-            <label className="flex items-start gap-4 p-6 border border-outline rounded-lg cursor-pointer hover:bg-tertiary-container/20 transition-colors">
-              <input
-                type="radio"
-                name="environmentType"
-                value="staging"
-                className="mt-2 w-4 h-4 text-primary focus:ring-primary"
-              />
-              <div className="flex-1">
-                <div className="font-semibold text-on-surface text-lg mb-2">
-                  Staging Environment
-                </div>
-                <div className="text-on-surface-variant text-sm mb-3">
-                  A production-like environment for final testing before
-                  release. Ideal for QA testing, performance validation, and
-                  stakeholder reviews. Typically mirrors your production setup
-                  but with test data and may have different scaling
-                  configurations.
-                </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="bg-secondary-container text-on-secondary-container px-2 py-1 rounded-full">
-                    🧪 QA Testing
-                  </span>
-                  <span className="bg-tertiary-container text-on-tertiary-container px-2 py-1 rounded-full">
-                    📊 Performance Testing
-                  </span>
-                  <span className="bg-warning-container text-on-warning-container px-2 py-1 rounded-full">
-                    👥 Stakeholder Review
-                  </span>
+                  {/* Sub-selection: Production vs Staging */}
+                  {selectedEnvType === "deployment" && (
+                    <div className="mt-4 pl-4 border-l-2 border-primary/30 space-y-2">
+                      {/* Production Sub-option */}
+                      <label
+                        className={cn(
+                          "flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors",
+                          deploymentSubType === "production"
+                            ? "bg-primary/10"
+                            : "hover:bg-surface/50",
+                        )}
+                      >
+                        <input
+                          type="radio"
+                          name="deploymentSubType"
+                          value="production"
+                          checked={deploymentSubType === "production"}
+                          onChange={() => setDeploymentSubType("production")}
+                          className="mt-0.5"
+                        />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm text-on-surface">
+                              Production
+                            </span>
+                            <span className="px-1.5 py-0.5 text-xs rounded bg-error-container/20 text-error">
+                              Live
+                            </span>
+                          </div>
+                          <p className="text-xs text-on-surface-variant mt-0.5 m-0">
+                            Customer-facing with strict controls
+                          </p>
+                        </div>
+                      </label>
+
+                      {/* Staging Sub-option */}
+                      <label
+                        className={cn(
+                          "flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors",
+                          deploymentSubType === "staging"
+                            ? "bg-primary/10"
+                            : "hover:bg-surface/50",
+                        )}
+                      >
+                        <input
+                          type="radio"
+                          name="deploymentSubType"
+                          value="staging"
+                          checked={deploymentSubType === "staging"}
+                          onChange={() => setDeploymentSubType("staging")}
+                          className="mt-0.5"
+                        />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm text-on-surface">
+                              Staging
+                            </span>
+                            <span className="px-1.5 py-0.5 text-xs rounded bg-secondary-container/50 text-on-secondary-container">
+                              Pre-Production
+                            </span>
+                          </div>
+                          <p className="text-xs text-on-surface-variant mt-0.5 m-0">
+                            QA and stakeholder review
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+                  )}
                 </div>
               </div>
-            </label>
+            </div>
           </div>
 
           {/* Submit Button */}
-          <div className="flex items-center justify-between pt-6 border-t border-outline">
-            <Link
-              href={`/projects/${project.slug}`}
-              className="px-4 py-2 text-sm font-medium text-on-surface bg-surface border border-outline rounded-md hover:bg-secondary-container hover:text-on-secondary-container transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-            >
-              Cancel
-            </Link>
+          <div className="flex items-center justify-between mt-6">
+            {onBack ? (
+              <button
+                type="button"
+                onClick={onBack}
+                className="px-4 py-2 text-sm font-medium text-on-surface bg-surface border border-outline rounded-md hover:bg-secondary-container hover:text-on-secondary-container transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+              >
+                {cancelButtonText}
+              </button>
+            ) : (
+              <Link
+                href={`/projects/${project.slug}`}
+                className="px-4 py-2 text-sm font-medium text-on-surface bg-surface border border-outline rounded-md hover:bg-secondary-container hover:text-on-secondary-container transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+              >
+                {cancelButtonText}
+              </Link>
+            )}
 
             <button
               type="submit"
               disabled={isSubmitting}
-              className={`px-6 py-2 text-sm font-medium text-on-primary bg-primary border border-transparent rounded-md ${
+              className={cn(
+                "px-6 py-2 text-sm font-medium text-on-primary bg-primary border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
                 isSubmitting
                   ? "opacity-70 cursor-not-allowed"
-                  : "hover:opacity-90"
-              } focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2`}
+                  : "hover:opacity-90",
+              )}
             >
-              {isSubmitting ? "Configuring..." : "Configure Environment"}
+              {isSubmitting ? "Creating..." : submitButtonText}
             </button>
           </div>
         </form>
-      </div>
-
-      {/* Additional Information */}
-      <div className="mt-8 bg-secondary-container/10 border border-secondary rounded-lg p-6">
-        <h3 className="font-semibold text-on-surface mb-3">
-          💡 Getting Started Tip
-        </h3>
-        <p className="text-on-surface-variant text-sm">
-          We strongly recommend starting with a{" "}
-          <strong>Development Environment</strong>. This will help you
-          understand the deployment process and ensure your application works
-          correctly before setting up production environments. You can always
-          add more environments later.
-        </p>
-      </div>
+      </Card>
     </div>
   );
 }

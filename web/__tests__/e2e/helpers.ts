@@ -27,7 +27,7 @@ export async function loginWithDevPassword(page: Page, testInfo: TestInfo, role:
   await page.goto('/api/auth/signin');
   await page.getByLabel('Password').fill(password);
   await page.getByRole('button', { name: 'Sign in with Password' }).click();
-  await page.waitForURL('/');
+  await page.waitForURL('**/projects');
   
   // Return the password so it can be used for seeding
   return password;

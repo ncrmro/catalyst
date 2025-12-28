@@ -16,8 +16,8 @@ import {
   deletePreviewDeploymentOrchestrated,
   retryFailedDeployment,
   userHasAccessToPod,
-  type PreviewPodWithMetrics,
 } from "@/models/preview-environments";
+import { type PreviewPodWithMetrics } from "@/types/preview-environments";
 
 /**
  * Simple middleware to handle authentication and user context

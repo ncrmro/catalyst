@@ -1,0 +1,439 @@
+{
+  "highPriority": [
+    {
+      "id": "wi_001",
+      "itemType": "issue",
+      "title": "Production database connection pool exhaustion causing 502 errors",
+      "description": "Users are experiencing intermittent 502 errors during peak hours. Investigation shows the database connection pool is being exhausted. Need to implement connection pooling optimization and add monitoring alerts.",
+      "state": "open",
+      "status": "in_progress",
+      "category": "bug",
+      "labels": ["critical", "database", "production", "performance"],
+      "project": {
+        "id": "proj_catalyst",
+        "name": "Catalyst Platform",
+        "slug": "catalyst"
+      },
+      "repository": {
+        "name": "catalyst",
+        "fullName": "ncrmro/catalyst"
+      },
+      "externalUrl": "https://github.com/ncrmro/catalyst/issues/342",
+      "authorLogin": "ncrmro",
+      "assignees": ["ncrmro", "dbteam"],
+      "priority": {
+        "score": 95,
+        "factors": {
+          "impact": 10,
+          "effort": 6,
+          "urgency": 10,
+          "alignment": 9,
+          "risk": 9
+        },
+        "appliedRules": [
+          "CRITICAL_BUG",
+          "PRODUCTION_IMPACT",
+          "CUSTOMER_AFFECTING"
+        ]
+      },
+      "createdAt": "2025-12-20T14:23:00Z",
+      "updatedAt": "2025-12-24T09:15:00Z"
+    },
+    {
+      "id": "wi_002",
+      "itemType": "pull_request",
+      "title": "Security patch: Update dependencies with critical CVEs",
+      "description": "Addresses CVE-2025-1234 and CVE-2025-5678 in authentication middleware. Includes updated packages and regression tests.",
+      "state": "open",
+      "status": "review",
+      "category": "security",
+      "labels": ["security", "dependencies", "urgent"],
+      "project": {
+        "id": "proj_catalyst",
+        "name": "Catalyst Platform",
+        "slug": "catalyst"
+      },
+      "repository": {
+        "name": "catalyst",
+        "fullName": "ncrmro/catalyst"
+      },
+      "externalUrl": "https://github.com/ncrmro/catalyst/pull/389",
+      "authorLogin": "security-bot",
+      "assignees": ["ncrmro"],
+      "priority": {
+        "score": 92,
+        "factors": {
+          "impact": 10,
+          "effort": 4,
+          "urgency": 10,
+          "alignment": 8,
+          "risk": 10
+        },
+        "appliedRules": [
+          "SECURITY_VULNERABILITY",
+          "COMPLIANCE_REQUIREMENT",
+          "QUICK_WIN"
+        ]
+      },
+      "createdAt": "2025-12-23T10:00:00Z",
+      "updatedAt": "2025-12-24T16:30:00Z"
+    },
+    {
+      "id": "wi_003",
+      "itemType": "agent_task",
+      "title": "Implement automated scaling for preview environments",
+      "description": "Add HorizontalPodAutoscaler resources to preview environment deployments to handle variable load during testing. Include CPU and memory-based scaling triggers.",
+      "state": "open",
+      "status": "planned",
+      "category": "platform",
+      "labels": ["kubernetes", "automation", "scalability"],
+      "project": {
+        "id": "proj_catalyst",
+        "name": "Catalyst Platform",
+        "slug": "catalyst"
+      },
+      "repository": null,
+      "externalUrl": null,
+      "authorLogin": null,
+      "assignees": [],
+      "priority": {
+        "score": 88,
+        "factors": {
+          "impact": 8,
+          "effort": 7,
+          "urgency": 8,
+          "alignment": 10,
+          "risk": 6
+        },
+        "appliedRules": [
+          "PLATFORM_IMPROVEMENT",
+          "COST_OPTIMIZATION",
+          "AUTOMATION"
+        ]
+      },
+      "createdAt": "2025-12-22T08:00:00Z",
+      "updatedAt": "2025-12-22T08:00:00Z"
+    },
+    {
+      "id": "wi_004",
+      "itemType": "issue",
+      "title": "OAuth token refresh failing for GitHub App installations",
+      "description": "Several users reporting authentication failures. Logs show token refresh mechanism not properly handling GitHub App installation token expiry. This blocks all webhook processing and deployment triggers.",
+      "state": "open",
+      "status": "blocked",
+      "category": "bug",
+      "labels": ["auth", "github-app", "blocking", "integration"],
+      "project": {
+        "id": "proj_catalyst",
+        "name": "Catalyst Platform",
+        "slug": "catalyst"
+      },
+      "repository": {
+        "name": "catalyst",
+        "fullName": "ncrmro/catalyst"
+      },
+      "externalUrl": "https://github.com/ncrmro/catalyst/issues/391",
+      "authorLogin": "user-reports",
+      "assignees": ["ncrmro"],
+      "priority": {
+        "score": 90,
+        "factors": {
+          "impact": 9,
+          "effort": 7,
+          "urgency": 9,
+          "alignment": 9,
+          "risk": 8
+        },
+        "appliedRules": [
+          "BLOCKING_ISSUE",
+          "INTEGRATION_FAILURE",
+          "USER_AFFECTING"
+        ]
+      },
+      "createdAt": "2025-12-21T11:45:00Z",
+      "updatedAt": "2025-12-24T14:20:00Z"
+    }
+  ],
+  "mediumPriority": [
+    {
+      "id": "wi_005",
+      "itemType": "issue",
+      "title": "Add support for custom domain names in preview environments",
+      "description": "Feature request to allow teams to configure custom domain patterns for their preview environments instead of using the default generated URLs. Should support wildcard DNS and automatic SSL certificate provisioning.",
+      "state": "open",
+      "status": "backlog",
+      "category": "feature",
+      "labels": ["enhancement", "preview-environments", "dns", "networking"],
+      "project": {
+        "id": "proj_catalyst",
+        "name": "Catalyst Platform",
+        "slug": "catalyst"
+      },
+      "repository": {
+        "name": "catalyst",
+        "fullName": "ncrmro/catalyst"
+      },
+      "externalUrl": "https://github.com/ncrmro/catalyst/issues/367",
+      "authorLogin": "product-team",
+      "assignees": [],
+      "priority": {
+        "score": 65,
+        "factors": {
+          "impact": 7,
+          "effort": 8,
+          "urgency": 5,
+          "alignment": 8,
+          "risk": 5
+        },
+        "appliedRules": ["FEATURE_REQUEST", "CUSTOMER_REQUEST", "MEDIUM_EFFORT"]
+      },
+      "createdAt": "2025-12-15T09:30:00Z",
+      "updatedAt": "2025-12-20T16:00:00Z"
+    },
+    {
+      "id": "wi_006",
+      "itemType": "pull_request",
+      "title": "Refactor Kubernetes client to use typed resources",
+      "description": "Improves type safety by replacing generic K8s API calls with strongly-typed resource definitions. Includes migration guide and updated tests.",
+      "state": "open",
+      "status": "review",
+      "category": "refactoring",
+      "labels": ["code-quality", "kubernetes", "typescript", "technical-debt"],
+      "project": {
+        "id": "proj_catalyst",
+        "name": "Catalyst Platform",
+        "slug": "catalyst"
+      },
+      "repository": {
+        "name": "catalyst",
+        "fullName": "ncrmro/catalyst"
+      },
+      "externalUrl": "https://github.com/ncrmro/catalyst/pull/385",
+      "authorLogin": "ncrmro",
+      "assignees": ["ncrmro"],
+      "priority": {
+        "score": 62,
+        "factors": {
+          "impact": 6,
+          "effort": 7,
+          "urgency": 4,
+          "alignment": 7,
+          "risk": 4
+        },
+        "appliedRules": ["CODE_QUALITY", "TECHNICAL_DEBT", "MAINTENANCE"]
+      },
+      "createdAt": "2025-12-18T13:20:00Z",
+      "updatedAt": "2025-12-23T10:45:00Z"
+    },
+    {
+      "id": "wi_007",
+      "itemType": "agent_task",
+      "title": "Generate weekly deployment metrics report",
+      "description": "Automated task to collect and analyze deployment frequency, success rates, rollback counts, and mean time to recovery across all projects. Generates report for leadership team.",
+      "state": "open",
+      "status": "scheduled",
+      "category": "analytics",
+      "labels": ["automation", "metrics", "reporting"],
+      "project": {
+        "id": "proj_catalyst",
+        "name": "Catalyst Platform",
+        "slug": "catalyst"
+      },
+      "repository": null,
+      "externalUrl": null,
+      "authorLogin": null,
+      "assignees": [],
+      "priority": {
+        "score": 60,
+        "factors": {
+          "impact": 6,
+          "effort": 5,
+          "urgency": 5,
+          "alignment": 7,
+          "risk": 3
+        },
+        "appliedRules": ["RECURRING_TASK", "OBSERVABILITY", "LOW_RISK"]
+      },
+      "createdAt": "2025-12-19T07:00:00Z",
+      "updatedAt": "2025-12-24T07:00:00Z"
+    },
+    {
+      "id": "wi_008",
+      "itemType": "issue",
+      "title": "Preview environment logs are truncated after 1000 lines",
+      "description": "The pod logs viewer in the UI only shows the last 1000 lines, making it difficult to debug build failures in large applications. Should add pagination or streaming support.",
+      "state": "open",
+      "status": "todo",
+      "category": "bug",
+      "labels": ["ui", "logging", "preview-environments", "usability"],
+      "project": {
+        "id": "proj_catalyst",
+        "name": "Catalyst Platform",
+        "slug": "catalyst"
+      },
+      "repository": {
+        "name": "catalyst",
+        "fullName": "ncrmro/catalyst"
+      },
+      "externalUrl": "https://github.com/ncrmro/catalyst/issues/378",
+      "authorLogin": "developer-feedback",
+      "assignees": [],
+      "priority": {
+        "score": 58,
+        "factors": {
+          "impact": 6,
+          "effort": 6,
+          "urgency": 5,
+          "alignment": 6,
+          "risk": 4
+        },
+        "appliedRules": ["USABILITY_ISSUE", "DEVELOPER_EXPERIENCE", "UI_BUG"]
+      },
+      "createdAt": "2025-12-17T15:10:00Z",
+      "updatedAt": "2025-12-19T11:30:00Z"
+    }
+  ],
+  "lowPriority": [
+    {
+      "id": "wi_009",
+      "itemType": "issue",
+      "title": "Add dark mode support to dashboard UI",
+      "description": "User request for dark mode theme option in the Catalyst dashboard. Should persist preference and respect system theme settings.",
+      "state": "open",
+      "status": "backlog",
+      "category": "feature",
+      "labels": ["enhancement", "ui", "design", "accessibility"],
+      "project": {
+        "id": "proj_catalyst",
+        "name": "Catalyst Platform",
+        "slug": "catalyst"
+      },
+      "repository": {
+        "name": "catalyst",
+        "fullName": "ncrmro/catalyst"
+      },
+      "externalUrl": "https://github.com/ncrmro/catalyst/issues/301",
+      "authorLogin": "community-request",
+      "assignees": [],
+      "priority": {
+        "score": 35,
+        "factors": {
+          "impact": 4,
+          "effort": 7,
+          "urgency": 2,
+          "alignment": 5,
+          "risk": 3
+        },
+        "appliedRules": ["NICE_TO_HAVE", "COSMETIC", "LOW_URGENCY"]
+      },
+      "createdAt": "2025-11-28T10:00:00Z",
+      "updatedAt": "2025-12-10T14:00:00Z"
+    },
+    {
+      "id": "wi_010",
+      "itemType": "issue",
+      "title": "Update documentation for Helm chart configuration options",
+      "description": "The Helm chart docs in /charts/nextjs/README.md are outdated and missing several new configuration options added in recent releases. Need to document PostgreSQL subchart options and ingress configurations.",
+      "state": "open",
+      "status": "backlog",
+      "category": "docs",
+      "labels": ["documentation", "helm", "devops"],
+      "project": {
+        "id": "proj_catalyst",
+        "name": "Catalyst Platform",
+        "slug": "catalyst"
+      },
+      "repository": {
+        "name": "catalyst",
+        "fullName": "ncrmro/catalyst"
+      },
+      "externalUrl": "https://github.com/ncrmro/catalyst/issues/334",
+      "authorLogin": "docs-team",
+      "assignees": [],
+      "priority": {
+        "score": 32,
+        "factors": {
+          "impact": 4,
+          "effort": 3,
+          "urgency": 3,
+          "alignment": 5,
+          "risk": 2
+        },
+        "appliedRules": ["DOCUMENTATION", "QUICK_WIN", "LOW_PRIORITY"]
+      },
+      "createdAt": "2025-12-05T16:20:00Z",
+      "updatedAt": "2025-12-12T09:00:00Z"
+    },
+    {
+      "id": "wi_011",
+      "itemType": "pull_request",
+      "title": "Add example project templates to repository",
+      "description": "Provides starter templates for common use cases: Next.js SPA, API-only backend, full-stack with PostgreSQL. Includes README and deployment instructions for each.",
+      "state": "open",
+      "status": "draft",
+      "category": "docs",
+      "labels": ["examples", "documentation", "onboarding"],
+      "project": {
+        "id": "proj_catalyst",
+        "name": "Catalyst Platform",
+        "slug": "catalyst"
+      },
+      "repository": {
+        "name": "catalyst",
+        "fullName": "ncrmro/catalyst"
+      },
+      "externalUrl": "https://github.com/ncrmro/catalyst/pull/356",
+      "authorLogin": "contributor",
+      "assignees": [],
+      "priority": {
+        "score": 38,
+        "factors": {
+          "impact": 5,
+          "effort": 6,
+          "urgency": 2,
+          "alignment": 6,
+          "risk": 2
+        },
+        "appliedRules": [
+          "DOCUMENTATION",
+          "COMMUNITY_CONTRIBUTION",
+          "ONBOARDING"
+        ]
+      },
+      "createdAt": "2025-12-08T11:30:00Z",
+      "updatedAt": "2025-12-15T10:15:00Z"
+    },
+    {
+      "id": "wi_012",
+      "itemType": "agent_task",
+      "title": "Cleanup stale preview environments older than 30 days",
+      "description": "Scheduled task to identify and remove preview environments from closed or merged PRs that are older than 30 days. Frees up cluster resources and maintains database hygiene.",
+      "state": "open",
+      "status": "scheduled",
+      "category": "maintenance",
+      "labels": ["automation", "cleanup", "resource-management"],
+      "project": {
+        "id": "proj_catalyst",
+        "name": "Catalyst Platform",
+        "slug": "catalyst"
+      },
+      "repository": null,
+      "externalUrl": null,
+      "authorLogin": null,
+      "assignees": [],
+      "priority": {
+        "score": 40,
+        "factors": {
+          "impact": 5,
+          "effort": 4,
+          "urgency": 3,
+          "alignment": 6,
+          "risk": 2
+        },
+        "appliedRules": ["MAINTENANCE", "RECURRING_TASK", "COST_OPTIMIZATION"]
+      },
+      "createdAt": "2025-12-01T00:00:00Z",
+      "updatedAt": "2025-12-24T00:00:00Z"
+    }
+  ]
+}
