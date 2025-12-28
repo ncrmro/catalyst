@@ -1,5 +1,30 @@
 import { test, expect } from "./fixtures/k8s-fixture";
 
+// Type for Environment CR from Kubernetes API
+interface EnvironmentCR {
+  metadata: {
+    name: string;
+    namespace: string;
+  };
+  spec: {
+    projectRef: { name: string };
+    type: string;
+    source: {
+      commitSha: string;
+      branch: string;
+      prNumber?: number;
+    };
+  };
+  status?: {
+    phase?: string;
+    url?: string;
+  };
+}
+
+interface EnvironmentListResponse {
+  items: EnvironmentCR[];
+}
+
 test.describe("Local URL Testing for Environments", () => {
   test.skip(
     "should access environment via path-based local URL",
@@ -17,14 +42,14 @@ test.describe("Local URL Testing for Environments", () => {
       const ingressPort = process.env.INGRESS_PORT || "8080";
 
       // List all environment CRs in the default namespace
-      const environmentsResponse = await k8s.customApi.listNamespacedCustomObject(
+      const environmentsResponse = (await k8s.customApi.listNamespacedCustomObject(
         "catalyst.catalyst.dev",
         "v1alpha1",
         "default",
         "environments",
-      );
+      )) as EnvironmentListResponse;
 
-      const environments = (environmentsResponse as any).items;
+      const environments = environmentsResponse.items;
 
       // Skip if no environments exist
       if (!environments || environments.length === 0) {
@@ -35,7 +60,7 @@ test.describe("Local URL Testing for Environments", () => {
 
       // Find a ready environment with a URL
       const readyEnv = environments.find(
-        (env: any) =>
+        (env) =>
           env.status?.phase === "Ready" && env.status?.url?.includes("/"),
       );
 
@@ -45,7 +70,7 @@ test.describe("Local URL Testing for Environments", () => {
         return;
       }
 
-      const envUrl = readyEnv.status.url;
+      const envUrl = readyEnv.status.url!;
       console.log(`Testing environment URL: ${envUrl}`);
 
       // Verify URL format for local path-based routing
@@ -76,14 +101,14 @@ test.describe("Local URL Testing for Environments", () => {
     // by the operator, regardless of whether the app is deployed
 
     // List all environment CRs in the default namespace
-    const environmentsResponse = await k8s.customApi.listNamespacedCustomObject(
+    const environmentsResponse = (await k8s.customApi.listNamespacedCustomObject(
       "catalyst.catalyst.dev",
       "v1alpha1",
       "default",
       "environments",
-    );
+    )) as EnvironmentListResponse;
 
-    const environments = (environmentsResponse as any).items;
+    const environments = environmentsResponse.items;
 
     // Skip if no environments exist
     if (!environments || environments.length === 0) {
