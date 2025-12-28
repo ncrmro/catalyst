@@ -6,8 +6,8 @@ import {
   createManualPreview,
   getUserRepositories,
   getLatestImageForRepo,
-  type SelectRepo,
 } from "@/actions/preview-environments";
+import { type SelectRepo } from "@/types/preview-environments";
 
 interface CreatePreviewCardProps {
   onClose: () => void;

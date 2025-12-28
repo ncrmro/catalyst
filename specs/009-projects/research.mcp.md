@@ -1,0 +1,166 @@
+# MCP & Agent Research: Projects Management
+
+**Status**: Deferred / Research
+**Context**: This document contains the Agent/MCP related requirements, design, and tasks that have been moved out of the main project scope for initial implementation.
+
+## Core Principle: Agentic-First Design
+
+**Rule**: All features MUST be designed to be accessible and usable by AI agents via the MCP (Model Context Protocol) server. Human interfaces are secondary to programmatic interfaces.
+
+## AI Agents
+
+Projects leverage three types of AI agents:
+
+### Platform Agent
+Handles platform-related work proactively to ensure excellent developer experience (DX):
+- Test maintenance (fixing flaky tests, updating snapshots)
+- Storybook component documentation
+- Package updates and dependency management
+- CI/CD pipeline improvements
+- Deployment debugging
+- Convention enforcement (linting, formatting, patterns)
+
+Platform work is batched and documented, allowing developers to review and approve in bulk rather than addressing issues one-by-one.
+
+### Project Agent
+Reviews the current user's projects to prioritize work and ensure tasks remain small and parallelizable:
+- Surfaces issues, PRs, and agent tasks ready for review
+- Recommends which work to tackle next based on priority and dependencies
+- Breaks down large tasks into independently workable pieces
+- Suggests patterns for parallel development
+
+### QA Agent
+Runs quality assurance workflows:
+- Executes Playwright smoke tests against real ingresses (preview environments)
+- Reviews and writes E2E tests
+- Reports test results and coverage
+
+## Deferred User Stories
+
+### User Story 3 - Platform Agent Handles Maintenance (Priority: P2)
+A developer wants platform maintenance work (tests, packages, CI) handled automatically so they can focus on feature development.
+
+**Acceptance Scenarios**:
+1. **Given** a project with flaky tests, **When** Platform Agent detects test failures, **Then** it creates a PR with test fixes and documents the changes
+2. **Given** outdated dependencies exist, **When** Platform Agent runs, **Then** it creates a batched PR updating dependencies with changelog summary
+3. **Given** Platform Agent completed work, **When** the user reviews the dashboard, **Then** they see a summary of completed platform tasks with easy approval options
+
+### User Story 4 - Project Agent Prioritizes Work (Priority: P2)
+A developer wants intelligent recommendations on what to work on next, with large tasks broken into parallelizable pieces.
+
+**Acceptance Scenarios**:
+1. **Given** a project with multiple open issues, **When** the user asks for work recommendations, **Then** Project Agent returns a prioritized list with reasoning
+2. **Given** a large issue exists, **When** Project Agent analyzes it, **Then** it suggests how to break it into smaller, parallelizable tasks
+3. **Given** a spec file exists in the repository, **When** Project Agent prioritizes, **Then** spec context influences the recommendations
+
+### User Story 5 - QA Agent Runs Smoke Tests (Priority: P3)
+A user wants automated smoke tests run against preview environments to catch issues before review.
+
+**Acceptance Scenarios**:
+1. **Given** a PR with a preview environment, **When** Project Agent requests QA testing, **Then** QA Agent runs Playwright tests against the preview URL
+2. **Given** smoke tests complete, **When** results are available, **Then** a summary is posted to the PR as a comment
+3. **Given** smoke tests fail, **When** viewing the dashboard, **Then** the failure is highlighted with logs and screenshots
+
+## Deferred Requirements
+
+- **FR-004**: System MUST allow enabling/disabling of Platform Agent, Project Agent, and QA Agent per project
+- **FR-004a**: System MUST provide configurable approval rules per project for agent-generated work (e.g., auto-approve low-risk changes, require approval for dependencies, require approval for all changes)
+- **FR-007**: Platform Agent MUST create batched PRs for maintenance work with documentation
+- **FR-008**: Project Agent MUST provide prioritized work recommendations with reasoning
+- **FR-009**: Project Agent MUST suggest task breakdown for large issues into parallelizable pieces
+- **FR-010**: QA Agent MUST execute Playwright tests against preview environment URLs
+
+## Deferred Success Criteria
+
+- **SC-003**: Platform Agent reduces developer time spent on maintenance by 50% (measured via time tracking or surveys)
+- **SC-005**: Project Agent recommendations align with user's chosen priorities 80% of the time
+
+## Deferred Data Model
+
+### ProjectAgent
+*Configuration for AI agents enabled on a project.*
+- `id`: UUID (PK)
+- `projectId`: UUID (FK to projects)
+- `type`: Enum (`platform`, `project`, `qa`)
+- `enabled`: Boolean
+- `config`: JSONB (custom settings like retry count, approved paths)
+- `lastRunAt`: Timestamp
+- `status`: Enum (`idle`, `running`, `failed`)
+
+### ProjectAgentTask
+*Tasks generated by agents.*
+- `id`: UUID (PK)
+- `agentId`: UUID (FK to projectAgents)
+- `title`: Text
+- `description`: Text
+- `status`: Enum (`pending`, `in_progress`, `completed`, `failed`)
+- `result`: JSONB
+
+### ProjectAgentApprovalPolicy
+*Approval rules for agent actions.*
+- `id`: UUID (PK)
+- `projectId`: UUID (FK to projects)
+- `agentType`: Enum (`platform`, `project`, `qa`)
+- `actionType`: Text
+- `requireApproval`: Boolean
+- `autoApproveConditions`: JSONB
+
+## Deferred Tasks (From original tasks.md)
+
+### Phase 6: User Story 3 - Platform Agent Handles Maintenance
+- [ ] T085 [P] [US3] Unit test for agent task creation in web/__tests__/unit/models/project-agents.test.ts
+- [ ] T086 [P] [US3] Unit test for agent execution in web/__tests__/unit/agents/platform-agent.test.ts
+- [ ] T087 [P] [US3] Integration test for configureProjectAgent action in web/__tests__/integration/actions/project-agents.test.ts
+- [ ] T088 [US3] Implement configureAgent model function in web/src/models/project-agents.ts
+- [ ] T089 [US3] Implement getProjectAgents model function in web/src/models/project-agents.ts
+- [ ] T090 [US3] Implement createAgentTask model function in web/src/models/project-agents.ts
+- [ ] T091 [US3] Implement executeAgentTask model function in web/src/models/project-agents.ts
+- [ ] T092 [US3] Create Platform Agent implementation in web/src/agents/platform-agent.ts
+- [ ] T093 [US3] Create configureProjectAgent server action in web/src/actions/project-agents.ts
+- [ ] T094 [US3] Create getProjectAgents server action in web/src/actions/project-agents.ts
+- [ ] T095 [US3] Create getAgentTasks server action in web/src/actions/project-agents.ts
+- [ ] T096 [US3] Create agent configuration page in web/src/app/projects/[slug]/settings/agents/page.tsx
+- [ ] T097 [US3] Add approval rules section to Agent Configuration page
+- [ ] T098 [US3] Add MCP tool configure_agent in web/src/app/api/mcp/route.ts
+- [ ] T099 [US3] Implement agent approval policy model in web/src/models/project-agents.ts
+- [ ] T100 [US3] Create getAgentApprovalPolicies server action in web/src/actions/project-agents.ts
+- [ ] T101 [US3] Create createAgentApprovalPolicy server action in web/src/actions/project-agents.ts
+
+### Phase 7: User Story 4 - Project Agent Prioritizes Work
+- [ ] T102 [P] [US4] Unit test for Project Agent recommendations in web/__tests__/unit/agents/project-agent.test.ts
+- [ ] T103 [P] [US4] Unit test for task breakdown logic in web/__tests__/unit/agents/project-agent.test.ts
+- [ ] T104 [US4] Create Project Agent implementation in web/src/agents/project-agent.ts
+- [ ] T105 [US4] Implement getWorkRecommendations function in web/src/agents/project-agent.ts
+- [ ] T106 [US4] Implement suggestTaskBreakdown function in web/src/agents/project-agent.ts
+- [ ] T107 [US4] Integrate Project Agent with prioritization rules in web/src/agents/project-agent.ts
+- [ ] T108 [US4] Add recommendations endpoint to dashboard actions in web/src/actions/dashboard.ts
+- [ ] T109 [US4] Add recommendations display to dashboard in web/src/app/dashboard/_components/RecommendationsPanel.tsx
+
+### Phase 8: User Story 5 - QA Agent Runs Smoke Tests
+- [ ] T110 [P] [US5] Unit test for QA Agent test execution in web/__tests__/unit/agents/qa-agent.test.ts
+- [ ] T111 [P] [US5] Unit test for test result posting in web/__tests__/unit/agents/qa-agent.test.ts
+- [ ] T112 [US5] Create QA Agent implementation in web/src/agents/qa-agent.ts
+- [ ] T113 [US5] Implement runSmokeTests function in web/src/agents/qa-agent.ts
+- [ ] T114 [US5] Implement postTestResults function in web/src/agents/qa-agent.ts
+- [ ] T115 [US5] Integrate QA Agent with preview environment webhooks in web/src/app/api/github/webhook/route.ts
+- [ ] T116 [US5] Add QA results display to dashboard in web/src/app/dashboard/_components/QAResultsSection.tsx
+
+### Other Agent Tasks
+- [ ] T002 Create projectAgents table schema in web/src/db/schema.ts
+- [ ] T003 [P] Create projectAgentTasks table schema in web/src/db/schema.ts
+- [ ] T008 [P] Create projectAgentApprovalPolicies table schema in web/src/db/schema.ts
+- [ ] T015 [P] Create test factory for project agents in web/__tests__/factories/project-agent.ts
+- [ ] T035 [US1] Add MCP tool create_project in web/src/app/api/mcp/route.ts
+- [ ] T036 [US1] Add MCP tool list_projects in web/src/app/api/mcp/route.ts
+- [ ] T037 [US1] Add MCP tool get_project in web/src/app/api/mcp/route.ts
+- [ ] T038 [US1] Add MCP tool update_project in web/src/app/api/mcp/route.ts
+- [ ] T039 [US1] Add MCP tool archive_project in web/src/app/api/mcp/route.ts
+- [ ] T056 [US2] Add MCP tool get_prioritized_work in web/src/app/api/mcp/route.ts
+- [ ] T078 [US7] Add "Debug with Agent" action button in web/src/app/dashboard/_components/ci/EnvironmentCIPanel.tsx
+- [ ] T079 [US7] Pass environment/PR context to agent chat in web/src/actions/chat.ts
+- [ ] T080 [US7] Implement agent dispatch for CI failure analysis in web/src/agents/project-agent.ts
+- [ ] T128 [US6] Add MCP tool list_project_specs in web/src/app/api/mcp/route.ts
+- [ ] T129 [US6] Add MCP tool sync_project_specs in web/src/app/api/mcp/route.ts
+- [ ] T134 Add structured logging for agent operations in web/src/lib/logging.ts
+- [ ] T135 Add rate limiting for agent executions in web/src/models/project-agents.ts
+- [ ] T136 Add cost tracking for agent tasks in web/src/models/project-agents.ts
