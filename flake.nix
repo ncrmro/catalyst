@@ -13,7 +13,16 @@
         (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
 
       devShells = forAllSystems (system:
-        let pkgs = nixpkgs.legacyPackages.${system};
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+
+          # Workaround for playwright-mcp permission issue
+          # See: https://github.com/NixOS/nixpkgs/issues/443704
+          playwright-mcp-wrapped =
+            pkgs.writeShellScriptBin "mcp-server-playwright" ''
+              export PWMCP_PROFILES_DIR_FOR_TEST="$PWD/.playwright-mcp"
+              exec ${pkgs.playwright-mcp}/bin/mcp-server-playwright "$@"
+            '';
         in {
           default = pkgs.mkShell {
             name = "catalyst-shell";
@@ -41,6 +50,7 @@
 
               # Testing
               playwright-driver.browsers
+              playwright-mcp-wrapped
             ];
 
             shellHook = ''
