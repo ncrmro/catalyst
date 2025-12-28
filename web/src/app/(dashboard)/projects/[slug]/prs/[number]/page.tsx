@@ -1,8 +1,11 @@
 import { fetchProjectBySlug, getPullRequest } from "@/actions/projects";
+import { getCIStatus } from "@/actions/ci-checks";
 import { GlassCard } from "@tetrastack/react-glass-components";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import Link from "next/link";
+import { CIStatusBadge } from "@/components/ci/CIStatusBadge";
+import { CIChecksList } from "@/components/ci/CIChecksList";
 
 interface PRPageProps {
   params: Promise<{
@@ -53,6 +56,9 @@ export default async function PRPage({ params }: PRPageProps) {
   if (!pr) {
     notFound();
   }
+
+  // Fetch CI status
+  const ciStatus = await getCIStatus(project.id, prNumber);
 
   return (
     <div className="space-y-6">
@@ -254,14 +260,40 @@ export default async function PRPage({ params }: PRPageProps) {
         </div>
       </GlassCard>
 
-      {/* Placeholder for CI Checks - will be added in Phase 4 */}
+      {/* CI Checks */}
       <GlassCard>
-        <h3 className="text-lg font-semibold text-on-surface mb-4">
-          CI Checks
-        </h3>
-        <p className="text-sm text-on-surface-variant">
-          CI check status will be displayed here (Phase 4)
-        </p>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-on-surface">CI Checks</h3>
+          {ciStatus && (
+            <CIStatusBadge state={ciStatus.overall} />
+          )}
+        </div>
+        {ciStatus ? (
+          <>
+            {ciStatus.totalChecks > 0 && (
+              <div className="flex items-center gap-4 text-sm text-on-surface-variant mb-4">
+                <span>
+                  {ciStatus.passingChecks} passing
+                </span>
+                {ciStatus.failingChecks > 0 && (
+                  <span className="text-error">
+                    {ciStatus.failingChecks} failing
+                  </span>
+                )}
+                {ciStatus.pendingChecks > 0 && (
+                  <span className="text-primary">
+                    {ciStatus.pendingChecks} pending
+                  </span>
+                )}
+              </div>
+            )}
+            <CIChecksList checks={ciStatus.checks} />
+          </>
+        ) : (
+          <p className="text-sm text-on-surface-variant">
+            Unable to fetch CI check status
+          </p>
+        )}
       </GlassCard>
     </div>
   );
