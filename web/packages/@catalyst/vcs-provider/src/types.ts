@@ -118,6 +118,38 @@ export interface WebhookEvent {
   sender: string;
 }
 
+// CI/CD types
+export type CICheckState = "passing" | "failing" | "pending" | "running" | "skipped" | "cancelled";
+export type CICheckSource = "github-actions" | "cloudflare" | "vercel" | "catalyst" | "external";
+
+export interface CICheck {
+  id: string;
+  name: string;
+  state: CICheckState;
+  url?: string;
+  description?: string;
+  context?: string;
+  startedAt?: Date;
+  completedAt?: Date;
+  duration?: number; // seconds
+  source: CICheckSource;
+}
+
+export interface CIStatusSummary {
+  overall: CICheckState;
+  checks: CICheck[];
+  totalChecks: number;
+  passingChecks: number;
+  failingChecks: number;
+  pendingChecks: number;
+}
+
+// Branch types
+export interface Branch {
+  name: string;
+  sha: string;
+}
+
 // VCS Provider Interface
 export interface VCSProvider {
   // Identity
@@ -156,6 +188,25 @@ export interface VCSProvider {
     path: string,
     ref?: string,
   ): Promise<DirectoryEntry[]>;
+  
+  // Git Operations
+  createBranch(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+    name: string,
+    fromBranch?: string
+  ): Promise<Branch>;
+  
+  updateFile(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+    path: string,
+    content: string,
+    message: string,
+    branch: string
+  ): Promise<FileContent>;
 
   // Pull/Merge Requests
   listPullRequests(
@@ -204,6 +255,14 @@ export interface VCSProvider {
     repo: string,
     commentId: number,
   ): Promise<void>;
+
+  // CI/CD
+  getCIStatus(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+    prNumber: number,
+  ): Promise<CIStatusSummary | null>;
 
   // Issues
   listIssues(

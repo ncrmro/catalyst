@@ -7,6 +7,40 @@
 import { App } from "@octokit/app";
 import { Octokit } from "@octokit/rest";
 
+export interface EnrichedPullRequest {
+  id: number;
+  title: string;
+  number: number;
+  author: string;
+  author_avatar: string;
+  repository: string;
+  url: string;
+  created_at: string;
+  updated_at: string;
+  comments_count: number;
+  priority: "high" | "medium" | "low";
+  status: "draft" | "ready" | "changes_requested";
+  body?: string; // Add PR body/description
+}
+
+export interface EnrichedIssue {
+  id: number;
+  title: string;
+  number: number;
+  repository: string;
+  url: string;
+  created_at: string;
+  updated_at: string;
+  labels: string[];
+  priority: "high" | "medium" | "low";
+  effort_estimate: "small" | "medium" | "large";
+  type: "bug" | "feature" | "improvement" | "idea";
+  state: "open" | "closed";
+}
+
+
+
+
 // Check if we're in NextJS build phase - don't validate env vars during build
 const isNextJsBuild = process.env.NEXT_PHASE === "phase-production-build";
 
@@ -168,34 +202,370 @@ export async function getUserOctokit(userId: string): Promise<Octokit> {
 }
 
 // Import PullRequest and Issue types - these are internal types for this module
-interface PullRequest {
-  id: number;
-  title: string;
-  number: number;
-  author: string;
-  author_avatar: string;
-  repository: string;
-  url: string;
-  created_at: string;
-  updated_at: string;
-  comments_count: number;
-  priority: "high" | "medium" | "low";
-  status: "draft" | "ready" | "changes_requested";
+// interface PullRequest {
+//   id: number;
+//   title: string;
+//   number: number;
+//   author: string;
+//   author_avatar: string;
+//   repository: string;
+//   url: string;
+//   created_at: string;
+//   updated_at: string;
+//   comments_count: number;
+//   priority: "high" | "medium" | "low";
+//   status: "draft" | "ready" | "changes_requested";
+// }
+
+// interface Issue {
+//   id: number;
+//   title: string;
+//   number: number;
+//   repository: string;
+//   url: string;
+//   created_at: string;
+//   updated_at: string;
+//   labels: string[];
+//   priority: "high" | "medium" | "low";
+//   effort_estimate: "small" | "medium" | "large";
+//   type: "bug" | "feature" | "improvement" | "idea";
+//   state: "open" | "closed";
+// }
+
+import type { CIStatusSummary, CICheck, CICheckState, CICheckSource } from "../../types";
+
+/**
+ * Fetch CI status for a pull request
+ */
+export async function fetchCIStatus(
+  userId: string,
+  owner: string,
+  repo: string,
+  prNumber: number,
+): Promise<CIStatusSummary | null> {
+  try {
+    const octokit = await getUserOctokit(userId);
+
+    // Get PR to get the head SHA
+    const { data: pr } = await octokit.rest.pulls.get({
+      owner,
+      repo,
+      pull_number: prNumber,
+    });
+
+    const headSha = pr.head.sha;
+
+    // Fetch both check runs and commit statuses in parallel
+    const [checkRunsResponse, statusesResponse] = await Promise.all([
+      octokit.rest.checks.listForRef({
+        owner,
+        repo,
+        ref: headSha,
+      }).catch((error) => {
+        console.warn("Could not fetch check runs:", error);
+        return null;
+      }),
+      octokit.rest.repos.getCombinedStatusForRef({
+        owner,
+        repo,
+        ref: headSha,
+      }).catch((error) => {
+        console.warn("Could not fetch commit statuses:", error);
+        return null;
+      }),
+    ]);
+
+    const checks: CICheck[] = [];
+
+    // Process check runs (newer GitHub Checks API)
+    if (checkRunsResponse) {
+      for (const checkRun of checkRunsResponse.data.check_runs) {
+        checks.push(normalizeCheckRun(checkRun));
+      }
+    }
+
+    // Process commit statuses (older Status API)
+    if (statusesResponse) {
+      for (const status of statusesResponse.data.statuses) {
+        checks.push(normalizeCommitStatus(status));
+      }
+    }
+
+    // Calculate summary
+    const passingChecks = checks.filter((c) => c.state === "passing").length;
+    const failingChecks = checks.filter((c) => c.state === "failing").length;
+    const pendingChecks = checks.filter((c) => c.state === "pending").length;
+
+    // Determine overall state
+    let overall: CICheckState = "passing";
+    if (failingChecks > 0) {
+      overall = "failing";
+    } else if (pendingChecks > 0) {
+      overall = "pending";
+    }
+
+    return {
+      overall,
+      checks,
+      totalChecks: checks.length,
+      passingChecks,
+      failingChecks,
+      pendingChecks,
+    };
+  } catch (error) {
+    console.error(`Error fetching CI status for PR ${prNumber}:`, error);
+    return null;
+  }
 }
 
-interface Issue {
+/**
+ * Normalize a GitHub Check Run to CICheck format
+ */
+function normalizeCheckRun(checkRun: {
   id: number;
-  title: string;
-  number: number;
-  repository: string;
-  url: string;
-  created_at: string;
-  updated_at: string;
-  labels: string[];
-  priority: "high" | "medium" | "low";
-  effort_estimate: "small" | "medium" | "large";
-  type: "bug" | "feature" | "improvement" | "idea";
-  state: "open" | "closed";
+  name: string;
+  status: string;
+  conclusion: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  html_url: string | null;
+  details_url: string | null;
+  output: { title: string | null } | null;
+  app: { slug?: string } | null;
+}): CICheck {
+  // Map GitHub check run conclusion and status to our state
+  let state: CICheckState = "pending";
+  if (checkRun.status === "completed") {
+    switch (checkRun.conclusion) {
+      case "success":
+        state = "passing";
+        break;
+      case "failure":
+        state = "failing";
+        break;
+      case "cancelled":
+      case "timed_out":
+        state = "cancelled";
+        break;
+      case "skipped":
+      case "neutral":
+        state = "skipped";
+        break;
+      default:
+        // action_required, stale
+        state = "failing";
+    }
+  } else if (checkRun.status === "queued" || checkRun.status === "in_progress") {
+    state = "pending";
+  }
+
+  // Determine source from check run name or app
+  let source: CICheckSource = "external";
+  const name = checkRun.name.toLowerCase();
+  const appSlug = checkRun.app?.slug?.toLowerCase() || "";
+  
+  if (name.includes("github") || appSlug.includes("github")) {
+    source = "github-actions";
+  } else if (name.includes("cloudflare") || appSlug.includes("cloudflare")) {
+    source = "cloudflare";
+  } else if (name.includes("vercel") || appSlug.includes("vercel")) {
+    source = "vercel";
+  } else if (name.includes("catalyst") || appSlug.includes("catalyst")) {
+    source = "catalyst";
+  }
+
+  const startedAt = checkRun.started_at ? new Date(checkRun.started_at) : undefined;
+  const completedAt = checkRun.completed_at ? new Date(checkRun.completed_at) : undefined;
+  const duration = startedAt && completedAt
+    ? Math.floor((completedAt.getTime() - startedAt.getTime()) / 1000)
+    : undefined;
+
+  return {
+    id: String(checkRun.id),
+    name: checkRun.name,
+    state,
+    url: checkRun.html_url || checkRun.details_url || undefined,
+    description: checkRun.output?.title || undefined,
+    context: checkRun.name,
+    startedAt,
+    completedAt,
+    duration,
+    source,
+  };
+}
+
+/**
+ * Normalize a GitHub Commit Status to CICheck format
+ */
+function normalizeCommitStatus(status: {
+  id: number;
+  context: string;
+  state: string;
+  description: string | null;
+  target_url: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}): CICheck {
+  // Map GitHub status state to our state
+  let state: CICheckState;
+  switch (status.state) {
+    case "success":
+      state = "passing";
+      break;
+    case "failure":
+    case "error":
+      state = "failing";
+      break;
+    case "pending":
+      state = "pending";
+      break;
+    default:
+      state = "pending";
+  }
+
+  // Determine source from context
+  let source: CICheckSource = "external";
+  const context = status.context.toLowerCase();
+  
+  if (context.includes("github") || context.includes("actions")) {
+    source = "github-actions";
+  } else if (context.includes("cloudflare")) {
+    source = "cloudflare";
+  } else if (context.includes("vercel")) {
+    source = "vercel";
+  } else if (context.includes("catalyst")) {
+    source = "catalyst";
+  }
+
+  return {
+    id: String(status.id),
+    name: status.context,
+    state,
+    url: status.target_url || undefined,
+    description: status.description || undefined,
+    context: status.context,
+    startedAt: status.created_at ? new Date(status.created_at) : undefined,
+    completedAt: status.updated_at ? new Date(status.updated_at) : undefined,
+    source,
+  };
+}
+
+/**
+ * Core function to fetch pull requests from specific repositories
+ * @param userId User ID for authentication
+ * @param repositories Array of repository full names (e.g., 'owner/repo')
+ * @returns Array of pull requests with metadata
+ */
+export async function fetchRealPullRequests(
+  userId: string,
+  repositories: string[],
+): Promise<EnrichedPullRequest[]> {
+  try {
+    const octokit = await getUserOctokit(userId);
+
+    const allPullRequests: EnrichedPullRequest[] = [];
+    const addedPrIds = new Set<number>();
+    
+    // Deduplicate repositories
+    const uniqueRepos = [...new Set(repositories)];
+
+    for (const repoFullName of uniqueRepos) {
+      try {
+        const [owner, repoName] = repoFullName.split("/");
+        if (!owner || !repoName) {
+          console.warn(`Invalid repository name format: ${repoFullName}`);
+          continue;
+        }
+
+        const { data: prs } = await octokit.rest.pulls.list({
+          owner,
+          repo: repoName,
+          state: "open",
+          per_page: 100,
+          sort: "updated",
+          direction: "desc",
+        });
+
+        for (const pr of prs) {
+          // Skip if we already added this PR
+          if (addedPrIds.has(pr.id)) {
+            continue;
+          }
+          addedPrIds.add(pr.id);
+
+          // Determine priority based on labels (simple heuristic)
+          const labels = pr.labels.map((label) =>
+            typeof label === "string" ? label : label.name || "",
+          );
+          let priority: "high" | "medium" | "low" = "medium";
+          if (
+            labels.some(
+              (label) =>
+                label.toLowerCase().includes("urgent") ||
+                label.toLowerCase().includes("critical"),
+            )
+          ) {
+            priority = "high";
+          } else if (
+            labels.some(
+              (label) =>
+                label.toLowerCase().includes("minor") ||
+                label.toLowerCase().includes("low"),
+            )
+          ) {
+            priority = "low";
+          }
+
+          // Determine status based on review state and draft status
+          let status: "draft" | "ready" | "changes_requested" = "ready";
+          if (pr.draft) {
+            status = "draft";
+          } else {
+            // Check for requested changes in reviews (this is a simplified check)
+            try {
+              const { data: reviews } = await octokit.rest.pulls.listReviews({
+                owner,
+                repo: repoName,
+                pull_number: pr.number,
+              });
+
+              if (
+                reviews.some((review) => review.state === "CHANGES_REQUESTED")
+              ) {
+                status = "changes_requested";
+              }
+            } catch (error) {
+              console.warn(`Could not fetch reviews for PR ${pr.number}:`, error);
+            }
+          }
+
+          allPullRequests.push({
+            id: pr.id,
+            title: pr.title,
+            number: pr.number,
+            author: pr.user?.login || "unknown",
+            author_avatar: pr.user?.avatar_url || "",
+            repository: repoName,
+            url: pr.html_url,
+            created_at: pr.created_at,
+            updated_at: pr.updated_at,
+            comments_count: 0, // Comments count would need separate API calls for accurate count
+            priority,
+            status,
+          });
+        }
+      } catch (error) {
+        console.warn(
+          `Could not fetch pull requests for repository ${repoFullName}:`,
+          error,
+        );
+      }
+    }
+    return allPullRequests;
+  } catch (error) {
+    console.error("Error fetching real pull requests:", error);
+    return [];
+  }
 }
 
 /**
@@ -270,7 +640,7 @@ export async function determinePRStatus(
 export async function fetchPullRequestsFromRepos(
   octokit: Octokit,
   repositories: string[],
-): Promise<PullRequest[]> {
+): Promise<EnrichedPullRequest[]> {
   console.log(`Fetching PRs from: ${repositories.join(", ")}`);
 
   // Test authentication by getting user info
@@ -285,7 +655,7 @@ export async function fetchPullRequestsFromRepos(
     return [];
   }
 
-  const allPullRequests: PullRequest[] = [];
+  const allPullRequests: EnrichedPullRequest[] = [];
 
   // Fetch pull requests from each specified repository
   for (const repoFullName of repositories) {
@@ -377,10 +747,10 @@ export async function fetchPullRequestsFromRepos(
 export async function fetchIssuesFromRepos(
   octokit: Octokit,
   repositories: string[],
-): Promise<Issue[]> {
+): Promise<EnrichedIssue[]> {
   console.log(`Fetching issues from: ${repositories.join(", ")}`);
 
-  const allIssues: Issue[] = [];
+  const allIssues: EnrichedIssue[] = [];
 
   // Fetch issues from each specified repository
   for (const repoFullName of repositories) {
@@ -515,6 +885,248 @@ export async function fetchIssuesFromRepos(
   );
 }
 
+
+/**
+ * Core function to fetch issues from specific repositories
+ * @param userId User ID for authentication
+ * @param repositories Array of repository names in format 'owner/repo'
+ * @returns Array of issues with metadata
+ */
+export async function fetchRealIssues(
+  userId: string,
+  repositories: string[],
+): Promise<EnrichedIssue[]> {
+  try {
+    const octokit = await getUserOctokit(userId);
+
+    const allIssues: EnrichedIssue[] = [];
+    const addedIssueIds = new Set<number>();
+    
+    // Deduplicate repositories
+    const uniqueRepos = [...new Set(repositories)];
+
+    for (const repoFullName of uniqueRepos) {
+      try {
+        const [owner, repoName] = repoFullName.split("/");
+        if (!owner || !repoName) {
+          console.warn(`Invalid repository name format: ${repoFullName}`);
+          continue;
+        }
+
+        const { data: issues } = await octokit.rest.issues.listForRepo({
+          owner,
+          repo: repoName,
+          state: "open",
+          per_page: 100,
+          sort: "updated",
+          direction: "desc",
+          // Only get issues, not pull requests
+          filter: "all",
+        });
+
+        for (const issue of issues) {
+          // Skip pull requests (they show up in issues API)
+          if (issue.pull_request) {
+            continue;
+          }
+          
+          // Skip if we already added this issue
+          if (addedIssueIds.has(issue.id)) {
+            continue;
+          }
+          addedIssueIds.add(issue.id);
+
+          const labels = issue.labels.map((label) =>
+            typeof label === "string" ? label : label.name || "",
+          );
+
+          // Determine priority based on labels
+          let priority: "high" | "medium" | "low" = "medium";
+          if (
+            labels.some(
+              (label) =>
+                label.toLowerCase().includes("urgent") ||
+                label.toLowerCase().includes("critical") ||
+                label.toLowerCase().includes("high"),
+            )
+          ) {
+            priority = "high";
+          } else if (
+            labels.some(
+              (label) =>
+                label.toLowerCase().includes("minor") ||
+                label.toLowerCase().includes("low"),
+            )
+          ) {
+            priority = "low";
+          }
+
+          // Determine effort estimate based on labels
+          let effort_estimate: "small" | "medium" | "large" = "medium";
+          if (
+            labels.some(
+              (label) =>
+                label.toLowerCase().includes("small") ||
+                label.toLowerCase().includes("quick"),
+            )
+          ) {
+            effort_estimate = "small";
+          } else if (
+            labels.some(
+              (label) =>
+                label.toLowerCase().includes("large") ||
+                label.toLowerCase().includes("epic"),
+            )
+          ) {
+            effort_estimate = "large";
+          }
+
+          // Determine type based on labels
+          let type: "bug" | "feature" | "improvement" | "idea" = "improvement";
+          if (
+            labels.some(
+              (label) =>
+                label.toLowerCase().includes("bug") ||
+                label.toLowerCase().includes("defect"),
+            )
+          ) {
+            type = "bug";
+          } else if (
+            labels.some(
+              (label) =>
+                label.toLowerCase().includes("feature") ||
+                label.toLowerCase().includes("enhancement"),
+            )
+          ) {
+            type = "feature";
+          } else if (
+            labels.some(
+              (label) =>
+                label.toLowerCase().includes("idea") ||
+                label.toLowerCase().includes("proposal"),
+            )
+          ) {
+            type = "idea";
+          }
+
+          allIssues.push({
+            id: issue.id,
+            title: issue.title,
+            number: issue.number,
+            repository: repoName,
+            url: issue.html_url,
+            created_at: issue.created_at,
+            updated_at: issue.updated_at,
+            labels,
+            priority,
+            effort_estimate,
+            type,
+            state: issue.state as "open" | "closed",
+          });
+        }
+      } catch (error) {
+        console.warn(
+          `Could not fetch issues for repository ${repoFullName}:`,
+          error,
+        );
+      }
+    }
+    return allIssues;
+  } catch (error) {
+    console.error("Error fetching real issues:", error);
+    return [];
+  }
+}
+
+
+/**
+ * Fetch a single pull request from GitHub API by its number and repository
+ * @param userId User ID for authentication
+ * @param owner Repository owner
+ * @param repoName Repository name
+ * @param prNumber Pull Request number
+ * @returns PullRequest object or null if not found/error
+ */
+export async function fetchPullRequestById(
+  userId: string,
+  owner: string,
+  repoName: string,
+  prNumber: number,
+): Promise<EnrichedPullRequest | null> {
+  try {
+    const octokit = await getUserOctokit(userId);
+
+    // Fetch PR from GitHub
+    const { data: pr } = await octokit.rest.pulls.get({
+      owner,
+      repo: repoName,
+      pull_number: prNumber,
+    });
+
+    // Fetch reviews to determine status
+    let status: "draft" | "ready" | "changes_requested" = "ready";
+    if (pr.draft) {
+      status = "draft";
+    } else {
+      try {
+        const { data: reviews } = await octokit.rest.pulls.listReviews({
+          owner,
+          repo: repoName,
+          pull_number: prNumber,
+        });
+
+        if (reviews.some((review) => review.state === "CHANGES_REQUESTED")) {
+          status = "changes_requested";
+        }
+      } catch (error) {
+        console.warn(`Could not fetch reviews for PR ${prNumber}:`, error);
+      }
+    }
+
+    // Determine priority
+    const labels = pr.labels.map((label) =>
+      typeof label === "string" ? label : label.name || "",
+    );
+    let priority: "high" | "medium" | "low" = "medium";
+    if (
+      labels.some(
+        (label) =>
+          label.toLowerCase().includes("urgent") ||
+          label.toLowerCase().includes("critical"),
+      )
+    ) {
+      priority = "high";
+    } else if (
+      labels.some(
+        (label) =>
+          label.toLowerCase().includes("minor") ||
+          label.toLowerCase().includes("low"),
+      )
+    ) {
+      priority = "low";
+    }
+
+    return {
+      id: pr.id,
+      title: pr.title,
+      number: pr.number,
+      author: pr.user?.login || "unknown",
+      author_avatar: pr.user?.avatar_url || "",
+      repository: repoName,
+      url: pr.html_url,
+      created_at: pr.created_at,
+      updated_at: pr.updated_at,
+      comments_count: pr.comments,
+      priority,
+      status,
+      body: pr.body || undefined,
+    };
+  } catch (error) {
+    console.error(`Error fetching PR ${prNumber}:`, error);
+    return null;
+  }
+}
+
 /**
  * Helper to identify GitHub token-related errors
  * @param error The error to check
@@ -542,7 +1154,7 @@ export function isGitHubTokenError(error: unknown): boolean {
  */
 export async function fetchUserRepositoryPullRequests(
   octokit: Octokit,
-): Promise<PullRequest[]> {
+): Promise<EnrichedPullRequest[]> {
   console.log("Fetching PRs from all user repositories...");
 
   // Test authentication by getting user info
@@ -565,7 +1177,7 @@ export async function fetchUserRepositoryPullRequests(
       affiliation: "owner,collaborator",
     });
 
-    const allPullRequests: PullRequest[] = [];
+    const allPullRequests: EnrichedPullRequest[] = [];
 
     console.log(`Found ${repos.length} repositories to check for PRs`);
 
