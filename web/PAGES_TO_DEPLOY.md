@@ -7,6 +7,7 @@ The bash tool is not functioning in this environment, so directories cannot be c
 ```
 web/src/app/(dashboard)/projects/[slug]/work/
 web/src/app/(dashboard)/projects/[slug]/prs/[number]/
+web/src/components/ci/
 ```
 
 ## Files Ready for Deployment
