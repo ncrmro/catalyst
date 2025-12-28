@@ -130,7 +130,7 @@ function normalizeCheckRun(checkRun: {
   html_url: string | null;
   details_url: string | null;
   output: { title: string | null } | null;
-  app: { slug: string } | null;
+  app: { slug?: string } | null;
 }): CICheck {
   // Map GitHub check run conclusion and status to our state
   let state: CICheckState = "pending";

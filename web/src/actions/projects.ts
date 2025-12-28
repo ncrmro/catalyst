@@ -118,6 +118,7 @@ export async function fetchProjectPullRequests(
  */
 async function enrichPullRequestsWithPreviewEnvs(
   prs: PullRequest[],
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   repositories: { id: number; name: string; full_name: string; url: string }[],
 ): Promise<PullRequest[]> {
   // Fetch all preview environments for these repositories
