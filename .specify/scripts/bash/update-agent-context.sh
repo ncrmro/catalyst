@@ -583,7 +583,7 @@ update_specific_agent() {
             update_agent_file "$CLAUDE_FILE" "Claude Code"
             ;;
         gemini)
-            update_agent_file "$GEMINI_FILE" "Gemini CLI"
+            update_agent_file "$AGENTS_FILE" "Gemini CLI"
             ;;
         copilot)
             update_agent_file "$COPILOT_FILE" "GitHub Copilot"

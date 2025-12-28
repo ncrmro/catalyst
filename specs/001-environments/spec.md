@@ -61,7 +61,7 @@ Development environments are interactive workspaces for humans and agents. They 
 **Core Capabilities:**
 
 - **Shell Access**: SSH or exec into containers for interactive development
-- **Real Public URLs**: Traffic proxied through Cloudflare (or similar) to the environment
+- **Real Public & Local URLs**: Traffic proxied through Cloudflare (for public access) or NGINX path-based routing (for local development) to the environment
 - **Namespace Resource Control**: Agents have full access to create, modify, and delete Kubernetes resources within their namespace—databases, caches, sidecars, or any infrastructure needed for development
 - **Agent Workspace**: Agents can work autonomously—coding, running tests, inspecting results. Enables [spec-driven development](https://github.com/github/spec-kit/blob/main/spec-driven.md) workflows with real-world validation
 - **Browser Testing**: From inside the environment, agents can use Playwright to test the real proxied URL, seeing exactly what users would see
@@ -128,6 +128,9 @@ Development environments receive real public URLs through proxy infrastructure:
 - TLS termination handled at the proxy layer
 - DNS automatically configured for each environment
 - Agents inside the environment can fetch their own public URL to test with Playwright
+
+**[FR-ENV-002] Local Development URL Testing**:
+For local development where public DNS is not available or desired, the system supports path-based routing (e.g., `http://localhost:8080/namespace-name/`). This ensures agents and developers can verify functionality using the port and path without external dependencies.
 
 ### User Interfaces
 

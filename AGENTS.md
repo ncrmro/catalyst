@@ -348,3 +348,10 @@ The application can be deployed via:
 3. **Direct Node.js**: Using `npm run build` and `npm start:production`
 
 Database migrations run automatically in Docker/Helm deployments or manually via `npm run db:migrate`.
+
+## Active Technologies
+- TypeScript 5.3 (Web), Go 1.21 (Operator) + `ingress-nginx` (Kubernetes), `@catalyst/kubernetes-client` (Web) (001-environments)
+- Kubernetes CRDs (Environment status), PostgreSQL (Web app state) (001-environments)
+
+## Recent Changes
+- 001-environments: Added TypeScript 5.3 (Web), Go 1.21 (Operator) + `ingress-nginx` (Kubernetes), `@catalyst/kubernetes-client` (Web)
