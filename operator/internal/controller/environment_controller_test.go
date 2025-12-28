@@ -148,6 +148,16 @@ var _ = Describe("Environment Controller", func() {
 
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "default-policy", Namespace: targetNsName}, policy)).To(Succeed())
 
+			// 2a. Verify Ingress Created
+			ingress := &networkingv1.Ingress{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: "app", Namespace: targetNsName}, ingress)
+			}, time.Second*10, time.Millisecond*250).Should(Succeed())
+
+			// Verify ingress has correct configuration (local mode by default in tests)
+			Expect(ingress.Spec.IngressClassName).NotTo(BeNil())
+			Expect(*ingress.Spec.IngressClassName).To(Equal("nginx"))
+
 			// 3. Verify Workspace Pod Created
 			// Pod name format: workspace-<project>-<commit[:7]>
 			podName := "workspace-my-project-abc1234"
@@ -188,6 +198,11 @@ var _ = Describe("Environment Controller", func() {
 			// 7. Verify Status Ready
 			Expect(k8sClient.Get(ctx, typeNamespacedName, env)).To(Succeed())
 			Expect(env.Status.Phase).To(Equal("Ready"))
+
+			// 8. Verify URL is populated in status
+			// In test environment, LOCAL_PREVIEW_ROUTING would be set, so URL should be path-based
+			Expect(env.Status.URL).NotTo(BeEmpty())
+			// The URL format depends on environment variables, but it should be present
 		})
 	})
 })
