@@ -5,5 +5,27 @@ metadata:
     app.kubernetes.io/name: operator
     app.kubernetes.io/managed-by: kustomize
   name: environment-sample
+  namespace: default
 spec:
-  # TODO(user): Add fields here
+  projectRef:
+    name: my-project
+  type: development
+  source:
+    commitSha: abc1234567890
+    branch: main
+    prNumber: 123
+  config:
+    envVars:
+      - name: NODE_ENV
+        value: development
+      - name: LOG_LEVEL
+        value: debug
+# Example status (populated by operator):
+# status:
+#   phase: Ready
+#   url: http://localhost:8080/my-project-environment-sample/
+#   conditions:
+#     - type: Ready
+#       status: "True"
+#       lastTransitionTime: "2025-12-28T08:00:00Z"
+

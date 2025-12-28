@@ -75,9 +75,55 @@ func desiredService(env *catalystv1alpha1.Environment, namespace string) *corev1
 	}
 }
 
-func desiredIngress(env *catalystv1alpha1.Environment, namespace string) *networkingv1.Ingress {
-	// Host format: pr-123-org-repo.preview.catalyst.dev
-	// For now: <env-name>.preview.catalyst.dev
+// desiredIngress creates an Ingress resource for the environment.
+// When isLocal is true, it uses path-based routing (e.g., /namespace-name/).
+// When isLocal is false, it uses hostname-based routing with TLS (production mode).
+func desiredIngress(env *catalystv1alpha1.Environment, namespace string, isLocal bool) *networkingv1.Ingress {
+	if isLocal {
+		// Path-based routing for local development
+		// Pattern: /namespace-name(/|$)(.*)
+		// The rewrite-target annotation strips the namespace prefix before forwarding
+		pathType := networkingv1.PathTypeImplementationSpecific
+		path := fmt.Sprintf("/%s(/|$)(.*)", namespace)
+
+		return &networkingv1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "app",
+				Namespace: namespace,
+				Annotations: map[string]string{
+					"nginx.ingress.kubernetes.io/rewrite-target": "/$2",
+				},
+			},
+			Spec: networkingv1.IngressSpec{
+				IngressClassName: ptr("nginx"),
+				Rules: []networkingv1.IngressRule{
+					{
+						IngressRuleValue: networkingv1.IngressRuleValue{
+							HTTP: &networkingv1.HTTPIngressRuleValue{
+								Paths: []networkingv1.HTTPIngressPath{
+									{
+										Path:     path,
+										PathType: &pathType,
+										Backend: networkingv1.IngressBackend{
+											Service: &networkingv1.IngressServiceBackend{
+												Name: "app",
+												Port: networkingv1.ServiceBackendPort{
+													Number: 80,
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+
+	// Production mode: hostname-based routing with TLS
+	// Host format: <env-name>.preview.catalyst.dev
 	host := fmt.Sprintf("%s.preview.catalyst.dev", env.Name)
 	pathType := networkingv1.PathTypePrefix
 
@@ -122,6 +168,23 @@ func desiredIngress(env *catalystv1alpha1.Environment, namespace string) *networ
 			},
 		},
 	}
+}
+
+// generateURL creates the public URL for the environment based on the deployment mode.
+// When isLocal is true, it generates a path-based URL (e.g., http://localhost:8080/namespace/).
+// When isLocal is false, it generates a hostname-based URL (e.g., https://env-name.preview.catalyst.dev/).
+func generateURL(env *catalystv1alpha1.Environment, namespace string, isLocal bool, ingressPort string) string {
+	if isLocal {
+		// Path-based URL for local development
+		// Default ingress port is 8080 if not specified
+		if ingressPort == "" {
+			ingressPort = "8080"
+		}
+		return fmt.Sprintf("http://localhost:%s/%s/", ingressPort, namespace)
+	}
+
+	// Production hostname-based URL with HTTPS
+	return fmt.Sprintf("https://%s.preview.catalyst.dev/", env.Name)
 }
 
 func toCoreEnvVars(vars []catalystv1alpha1.EnvVar) []corev1.EnvVar {

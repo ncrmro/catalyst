@@ -19,9 +19,11 @@ package controller
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -130,7 +132,36 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	// 3. Workspace Pod Management
+	// 3. Ingress Management
+	// Determine if we're in local mode (path-based routing) or production mode (hostname-based routing)
+	isLocal := os.Getenv("LOCAL_PREVIEW_ROUTING") == "true"
+	ingressPort := os.Getenv("INGRESS_PORT")
+
+	ingress := desiredIngress(env, targetNamespace, isLocal)
+	existingIngress := &networkingv1.Ingress{}
+	err = r.Get(ctx, client.ObjectKey{Name: "app", Namespace: targetNamespace}, existingIngress)
+
+	if err != nil && apierrors.IsNotFound(err) {
+		// Ingress doesn't exist, create it
+		log.Info("Creating Ingress", "namespace", targetNamespace, "isLocal", isLocal)
+		if err := r.Create(ctx, ingress); err != nil {
+			return ctrl.Result{}, err
+		}
+	} else if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// Generate and update the URL in status
+	publicURL := generateURL(env, targetNamespace, isLocal, ingressPort)
+	if env.Status.URL != publicURL {
+		env.Status.URL = publicURL
+		log.Info("Updating Environment URL", "url", publicURL)
+		if err := r.Status().Update(ctx, env); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	// 4. Workspace Pod Management
 
 	// Wait for default service account to be ready
 	sa := &corev1.ServiceAccount{}
@@ -170,9 +201,10 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// Check Pod Status
 	if workspacePod.Status.Phase == corev1.PodRunning {
 		// Pod is running and ready for exec
+		// Note: Keep the URL that was set from the Ingress
 		if env.Status.Phase != "Ready" {
 			env.Status.Phase = "Ready"
-			env.Status.URL = "" // No URL for workspace pods, accessed via exec
+			// Don't overwrite URL - it was set from Ingress creation above
 			if err := r.Status().Update(ctx, env); err != nil {
 				return ctrl.Result{}, err
 			}
