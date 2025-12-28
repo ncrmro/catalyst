@@ -33,6 +33,10 @@ export interface PullRequest {
   comments_count: number;
   priority: 'high' | 'medium' | 'low';
   status: 'draft' | 'ready' | 'changes_requested';
+  // Preview environment fields
+  previewEnvironmentId?: string;
+  previewUrl?: string;
+  previewStatus?: 'pending' | 'deploying' | 'running' | 'failed' | 'deleting';
 }
 
 export interface Issue {
