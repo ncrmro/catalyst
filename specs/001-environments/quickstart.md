@@ -1,85 +1,48 @@
-To test the **Preview Environments** specified in `@specs/001-environments/` using the local K3s VM, follow this procedure.
+# Quickstart: Local Environment URLs
 
-The testing strategy relies on `bin/k3s-vm` to provide the isolated Kubernetes infrastructure and a combination of **automated integration tests** (via Vitest) and **manual spike scripts** to verify the deployment logic.
+How to access and test development environments locally using path-based routing.
 
-### 1. Infrastructure Setup
+## Prerequisites
 
-First, ensure your local K3s VM is running. This provides the isolated Kubernetes cluster required for creating namespaces and deployments.
+- Local K3s VM running (`bin/k3s-vm`)
+- Catalyst Operator running (deployed via `bin/dev` or similar)
 
-```bash
-# Build and start the VM (if not already running)
-bin/k3s-vm setup
+## Usage
 
-# Verify it's ready (should show 'Ready' nodes)
-bin/kubectl get nodes
-```
-*Note: This automatically updates `web/.kube/config` and `web/.env` with the correct credentials.*
+### 1. Create a Development Environment
 
-### 2. Automated Integration Tests
-
-The most direct way to test the specification logic (User Stories 1, 3, & 4) is via the integration tests located in `web/__tests__/integration/`.
-
-Navigate to the `web` directory and run the relevant tests:
+Triggers automatically on PR open, or manually:
 
 ```bash
-cd web
-
-# Run all integration tests (includes preview environments, namespaces, and PR pods)
-npm run test:integration
-
-# OR run specific test suites related to the spec:
-
-# Test Preview Environment Orchestration (Deploy, Redeploy, Cleanup)
-npx vitest run __tests__/integration/k8s-preview-deployment.test.ts
-
-# Test Namespace Isolation (FR-001)
-npx vitest run __tests__/integration/k8s-namespaces.test.ts
-
-# Test Underlying PR Pod Infrastructure
-npm run test:integration:prpod
+# Example: Create an environment via kubectl (if not using web UI)
+kubectl apply -f examples/environment.yaml
 ```
 
-### 3. Manual Verification (Spikes)
+### 2. Access the Environment
 
-For a full end-to-end verification of the deployment workflow (simulating a "User Story 1" event without a real GitHub webhook), use the provided spikes.
+Once the environment is `Ready`, you can access it via `localhost:8080`.
 
-**Method A: Full Helm Deployment Simulation**
-This spike simulates a PR pod building an image and deploying it via Helm to a preview namespace.
+**Format**: `http://localhost:8080/{namespace}/`
 
-```bash
-cd spikes/1757044045_pr_pod_helm_deployment/
+**Example**:
+If your environment namespace is `env-preview-123`:
+> [http://localhost:8080/env-preview-123/](http://localhost:8080/env-preview-123/)
 
-# Deploy a simulated PR environment
-./deploy-pr-with-registry.sh
+### 3. Verify with Playwright
+
+Agents and tests can verify the deployment using the local URL:
+
+```typescript
+// tests/e2e/preview.spec.ts
+test('preview environment loads', async ({ page }) => {
+  const url = process.env.PREVIEW_URL || 'http://localhost:8080/env-preview-123/';
+  await page.goto(url);
+  await expect(page.getByText('Welcome')).toBeVisible();
+});
 ```
-*Effect: This creates a namespace `catalyst-web-pr-000`, builds a docker image, pushes it to GHCR, and deploys it using Helm.*
 
-**Method B: Local PR Pod Test**
-This tests the lower-level "Pull Request Pod" capability (cloning & building).
+## Troubleshooting
 
-```bash
-cd spikes/1756920599_local_pr_pod_testing/
-./test-local-pr.sh
-```
-
-### 4. Operational & UI Testing
-
-To test the **UI components** (User Stories 2 & 5) and **Webhook Integration**:
-
-1.  **Start the App**:
-    ```bash
-    cd web
-    npm run dev
-    ```
-2.  **Simulate Webhooks**: Since the app is running locally, you can use a tool like Postman or curl to send a simulated GitHub `pull_request` event payload to `http://localhost:3000/api/github/webhook`.
-3.  **View Results**: Open `http://localhost:3000/preview-environments` to see the deployment status and logs.
-
-### Summary of Test Coverage
-
-| Component | Method | Covers User Story |
-| :--- | :--- | :--- |
-| **K8s Infrastructure** | `bin/k3s-vm setup` | (Prerequisite) |
-| **Deployment Logic** | `k8s-preview-deployment.test.ts` | US1, US3, US4 |
-| **Namespace Isolation** | `k8s-namespaces.test.ts` | US1 (FR-001) |
-| **Docker Build/Push** | `k8s-pull-request-pod-docker-build.test.ts` | US1 (Backend) |
-| **Full Workflow** | `spikes/1757044045_pr_pod_helm_deployment/` | US1 (End-to-End) |
+- **404 Not Found**: Ensure the trailing slash is included: `/env-preview-123/`.
+- **Connection Refused**: Ensure the K3s VM is running and port 8080 is forwarded.
+- **503 Service Unavailable**: The application pod might still be starting. Check `kubectl get pods -n env-preview-123`.
