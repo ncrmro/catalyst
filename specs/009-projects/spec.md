@@ -31,7 +31,8 @@ Software development teams need visibility into their work and a streamlined pat
 - **Connecting repos to preview environments**: Each PR gets a live preview environment
 - **Showing CI/check status**: See build status, tests, and external checks in one place
 - **File-based project management**: Specs, plans, and tasks live in the repository as files (spec-kit patterns)
-- Delineate between feature and platform work 
+- **Delineate between feature and platform work**: Distinguish feature work (feat/fix/style) from platform work (chore/ci/build) to organize tasks effectively
+
 ## What
 
 ### Project Definition
@@ -51,13 +52,35 @@ A Project represents a software project that Catalyst manages. Projects are asso
 - **CI Checks**: Fetched from GitHub Checks API and Commit Statuses API
 - **Prioritization**: Deferred to future phase (v2)
 
-### Work Items = Pull Requests
+### Work Items = Pull Requests + Active Branches
 
-The current work view shows open PRs for project repositories:
+The current work view shows open PRs and active branches for project repositories, categorized by work type:
 
+**Feature Tasks** (non-chore work):
+
+- Open PRs without "chore" pattern in title, branch name, or commit prefix
+- Active branches (created this week with recent commits) without "chore" pattern
+- Semantic prefixes: `feat/`, `fix/`, `style/`, `refactor/`, `test/`, `docs/`
+
+**Platform Tasks** (chore/infrastructure work):
+
+- Open PRs with "chore" pattern in title, branch name, or commit prefix
+- Active branches with "chore" pattern
+- Semantic prefixes: `chore/`, `ci/`, `build/`
+
+**Categorization Rules**:
+
+- Check PR title, head branch name, AND last commit message for patterns
+- Pattern matching: `^chore[:/(]`, `^ci[:/(]`, `^build[:/(]`, `chore/`, `^chore-`
+- Branches shown only if no open PR exists for that branch
+- Branches must have commits within last 7 days to be considered "active"
+
+**Visual Organization**:
+
+- Feature Tasks and Platform Tasks displayed as separate sections
+- Within each section: PRs grouped separately from branches
 - Each PR links to its preview environment (if deployed)
 - CI check status displayed (passing/failing/pending)
-- PR description and context visible
 - Branch management actions (update, squash) available
 
 ### Spec-Driven Development (File-Based)
@@ -159,6 +182,24 @@ A user wants to add a new software project to Catalyst, connecting it to their G
 
 ---
 
+### User Story 7 - View Categorized Work Items (Priority: P1)
+
+A developer wants to see their work organized by type - feature work vs platform/infrastructure work.
+
+**Why this priority**: Distinguishing feature work from chore/platform work helps prioritize and understand current team focus.
+
+**Independent Test**: View project page, see PRs and branches categorized into Feature Tasks and Platform Tasks sections.
+
+**Acceptance Scenarios**:
+
+1. **Given** a project with open PRs, **When** viewing the project page, **Then** PRs are categorized into Feature Tasks (non-chore) and Platform Tasks (chore) sections
+2. **Given** a PR has "chore" in title OR branch name OR last commit message, **When** categorizing, **Then** it appears in Platform Tasks
+3. **Given** active branches with recent commits (7 days), **When** no open PR exists for the branch, **Then** the branch appears in the appropriate task section
+4. **Given** a branch named `chore/update-deps`, **When** categorizing, **Then** it appears in Platform Tasks
+5. **Given** Feature Tasks section, **When** viewing it, **Then** PRs and branches are displayed in separate sub-sections
+
+---
+
 ## Key Entities
 
 ### StatusCheck (API Type, not DB)
@@ -179,6 +220,31 @@ Representation of a spec file from the repository:
 - `files`: List of files in spec folder (spec.md, plan.md, tasks.md, etc.)
 - `lastModified`: From VCS
 
+### WorkItem (API Type, not DB)
+
+Discriminated union representing a work item (PR or branch):
+
+**WorkItemPR**:
+
+- `kind`: "pr"
+- `id`, `number`, `title`, `author`, `authorAvatar`
+- `repository`, `url`, `headBranch`
+- `status`: "draft" | "ready" | "changes_requested"
+- `updatedAt`
+- `category`: "feature" | "platform"
+
+**WorkItemBranch**:
+
+- `kind`: "branch"
+- `id`, `name`, `repository`, `url`
+- `lastCommitMessage`, `lastCommitAuthor`, `lastCommitDate`
+- `category`: "feature" | "platform"
+
+### WorkCategory (Enum)
+
+- `feature`: Non-chore work (feat, fix, style, refactor, test, docs)
+- `platform`: Infrastructure/maintenance work (chore, ci, build)
+
 ## Requirements
 
 ### Functional Requirements
@@ -190,6 +256,11 @@ Representation of a spec file from the repository:
 - **FR-005**: System MUST read spec files from repository's `specs/` folder via VCS API
 - **FR-006**: System MUST support creating/editing specs by committing to the repository
 - **FR-007**: System MUST provide a project slug for URL-friendly navigation (format: DNS-1123 label)
+- **FR-008**: System MUST categorize PRs as feature or platform based on title, branch name, and commit prefix patterns
+- **FR-009**: System MUST display open PRs in Feature Tasks (non-chore) and Platform Tasks (chore) sections
+- **FR-010**: System MUST fetch and display active branches without open PRs that have recent commits (within 7 days)
+- **FR-011**: System MUST categorize branches as feature or platform based on branch name and last commit message patterns
+- **FR-012**: System MUST display PRs and branches in separate sub-sections within Feature and Platform Task sections
 
 ### Non-Requirements (Deferred to v2)
 

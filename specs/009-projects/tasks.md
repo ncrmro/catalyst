@@ -158,28 +158,111 @@
 
 ---
 
+## Phase 6: US7 - Categorized Work Items (Priority: P1)
+
+**Goal**: Display PRs and branches categorized into Feature Tasks and Platform Tasks.
+
+**Independent Test**: View project page, see PRs/branches in Feature and Platform sections.
+
+### Categorization Utility
+
+- [ ] T045 [P] [US7] Create work categorization utility in web/src/lib/work-categorization.ts
+  - `categorizeByText(text: string): WorkCategory`
+  - `categorizePR(pr: { title, headBranch }): WorkCategory`
+  - `categorizeBranch(branch: { name, lastCommitMessage? }): WorkCategory`
+  - Platform patterns: `^chore[:/(]`, `^ci[:/(]`, `^build[:/(]`, `chore/`, `^chore-`
+
+### VCS Adapter - Branch Listing
+
+- [ ] T046 [US7] Add Branch types to VCS provider (packages/@catalyst/vcs-provider/src/types.ts)
+  - `Branch`: name, sha, htmlUrl
+  - `BranchWithCommit`: extends Branch with lastCommitDate, lastCommitMessage, lastCommitAuthor
+- [ ] T047 [US7] Implement `fetchRecentBranches(octokit, owner, repo, sinceDays)` in GitHub client
+  - Fetch branches via `octokit.rest.repos.listBranches()`
+  - Fetch commit info for each branch
+  - Filter to branches with commits in last N days
+- [ ] T048 [US7] Export branch functions from VCS provider index
+
+### Work Item Types
+
+- [ ] T049 [P] [US7] Create WorkItem types in web/src/components/tasks/types.ts
+  - `WorkItemPR`: kind, id, number, title, author, authorAvatar, repository, url, status, updatedAt, category
+  - `WorkItemBranch`: kind, id, name, repository, url, lastCommitMessage, lastCommitAuthor, lastCommitDate, category
+  - `WorkItem = WorkItemPR | WorkItemBranch`
+
+### Server Action
+
+- [ ] T050 [US7] Create `fetchProjectWorkItems(projectSlug)` action in web/src/actions/work-items.ts
+  - Fetch open PRs from project repos
+  - Fetch branches with recent commits (7 days)
+  - Filter branches that have open PRs
+  - Categorize and return: `{ featurePRs, featureBranches, platformPRs, platformBranches }`
+
+### UI Components
+
+- [ ] T051 [P] [US7] Create PRItemRow component in web/src/components/tasks/PRItemRow.tsx
+  - Git PR icon, #{number} {title}
+  - Author avatar, repo name
+  - Status pill (draft/ready/changes_requested)
+- [ ] T052 [P] [US7] Create BranchItemRow component in web/src/components/tasks/BranchItemRow.tsx
+  - Git Branch icon
+  - Branch name (monospace)
+  - Last commit message, author, relative date
+- [ ] T053 [US7] Create WorkItemsSection component in web/src/components/tasks/WorkItemsSection.tsx
+  - Props: title, type: 'feature' | 'platform', prs, branches, tasksLink
+  - Sub-sections: "Pull Requests" and "Active Branches"
+  - Empty states for each sub-section
+
+### Page Integration
+
+- [ ] T054 [US7] Update project page.tsx to call fetchProjectWorkItems(slug)
+- [ ] T055 [US7] Update project-page-content.tsx to use WorkItemsSection instead of TasksSection
+  - Remove mock taskFixtures
+  - Accept workItems prop
+  - Render Feature Tasks and Platform Tasks with real data
+
+### Mock Data
+
+- [ ] T056 [P] [US7] Add mock branches to web/src/mocks/github-data.yaml
+  - Mix of chore/ and feat/ prefixes
+  - Ensure mock PRs have headBranch populated
+
+### Tests
+
+- [ ] T057 [P] [US7] Unit tests for work-categorization.ts functions
+- [ ] T058 [P] [US7] Component tests for PRItemRow and BranchItemRow
+- [ ] T059 [US7] E2E test verifying correct categorization in Feature vs Platform sections
+
+**Checkpoint**: Work items categorized and displayed correctly.
+
+---
+
 ## Summary
 
-| Phase | Tasks     | User Story        | Priority | Done | Remaining |
-| ----- | --------- | ----------------- | -------- | ---- | --------- |
-| 1     | T001-T004 | Setup             | -        | 2    | 2         |
-| 2     | T005-T014 | US1: Manage Specs | P1       | 8    | 2         |
-| 3     | T015-T024 | US2: View PRs     | P1       | 3    | 7         |
-| 4     | T025-T034 | US3: CI Checks    | P1       | 0    | 10        |
-| 5     | T035-T044 | US4-6: Polish     | P2       | 2    | 8         |
+| Phase | Tasks     | User Story            | Priority | Done | Remaining |
+| ----- | --------- | --------------------- | -------- | ---- | --------- |
+| 1     | T001-T004 | Setup                 | -        | 2    | 2         |
+| 2     | T005-T014 | US1: Manage Specs     | P1       | 8    | 2         |
+| 3     | T015-T024 | US2: View PRs         | P1       | 3    | 7         |
+| 4     | T025-T034 | US3: CI Checks        | P1       | 0    | 10        |
+| 5     | T035-T044 | US4-6: Polish         | P2       | 2    | 8         |
+| 6     | T045-T059 | US7: Categorized Work | P1       | 0    | 15        |
 
-**Total Tasks**: 44
-**Completed**: 15 (34%)
-**Remaining for MVP (Phases 1-4)**: 21 tasks
+**Total Tasks**: 59
+**Completed**: 15 (25%)
+**Remaining for MVP (Phases 1-4, 6)**: 36 tasks
 
 ---
 
 ## Next Priority Tasks
 
-1. **T020-T022**: Replace mock tasks with real PRs on project page (high impact)
-2. **T019**: Link PRs to preview environments
-3. **T025-T032**: Add CI check status display
-4. **T008, T011-T012**: Add spec editing capability
+1. **T045**: Create work categorization utility (foundation for Phase 6)
+2. **T046-T048**: Add branch listing to VCS provider
+3. **T049-T050**: Create WorkItem types and server action
+4. **T051-T055**: Create UI components and integrate with project page
+5. **T020-T022**: Replace mock tasks with real PRs on project page (high impact)
+6. **T019**: Link PRs to preview environments
+7. **T025-T032**: Add CI check status display
 
 ---
 
