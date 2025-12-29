@@ -93,15 +93,68 @@ _Goal: Ensure the feature is well-documented and easy to use._
 - T007 depends on T005 and T006 (tests need implementation first)
 - T013 depends on T006 (operator must populate URL for E2E to pass)
 
+---
+
+## Phase 5: Self-Deployment & Deployment Modes [FR-ENV-003/004/005]
+
+_Goal: Enable Catalyst to deploy itself within local K3s with both production and development modes._
+
+### Phase 5a: Database & Types
+
+- [ ] T017 [P] Create `web/src/types/deployment.ts` with Zod schemas for DeploymentConfig
+- [ ] T018 [P] Extend `web/src/db/schema.ts` with `deploymentConfig` JSONB column on `projectEnvironments`
+- [ ] T019 Generate and apply database migration
+
+### Phase 5b: CRD Extension (Gradual)
+
+- [ ] T020 Add `DeploymentMode` field to `operator/api/v1alpha1/environment_types.go`
+- [ ] T021 Run `make generate && make manifests` to regenerate CRDs
+
+### Phase 5c: Operator Deployment Modes
+
+- [ ] T022 Create `operator/internal/controller/development_deploy.go` with hardcoded templates:
+  - PVCs for node_modules and .next cache
+  - PostgreSQL deployment + service + PVC
+  - App deployment with hostPath, init containers, hot-reload
+  - Service and Ingress
+- [ ] T023 Create `operator/internal/controller/production_deploy.go`:
+  - PostgreSQL stack (shared with development)
+  - App deployment from manifest pattern
+  - Service and Ingress
+- [ ] T024 Modify `environment_controller.go` to branch by `spec.deploymentMode`
+- [ ] T025 Add unit tests for development and production mode reconciliation
+
+### Phase 5d: Seeding Integration
+
+- [ ] T026 [P] Create `web/src/lib/seed-self-deploy.ts` with Catalyst fixture data
+- [ ] T027 [P] Create `web/src/lib/env-vars.ts` to port `get_web_env_vars()` from bin/k3s-vm
+- [ ] T028 Wire `SEED_SELF_DEPLOY=true` flag in `web/src/lib/seed.ts`
+- [ ] T029 Update `web/.env.example` to document `SEED_SELF_DEPLOY` flag
+
+### Phase 5e: UI Wiring
+
+- [ ] T030 Wire `deployment-config-form.tsx` to accept and pass deploymentConfig to server action
+- [ ] T031 Modify `createProjectEnvironment` action to store deploymentConfig in DB and CR
+
+### Phase 5f: Testing
+
+- [ ] T032 Add integration test for self-deployment seeding flow
+- [ ] T033 Add E2E test: `SEED_SELF_DEPLOY=true npm run seed` creates deployable environments
+
+---
+
 ## Summary
 
-| Phase                | Total  | Complete | Remaining |
-| -------------------- | ------ | -------- | --------- |
-| Phase 0 (Foundation) | 10     | 10       | 0         |
-| Phase 1 (Setup)      | 2      | 0        | 2         |
-| Phase 2 (Operator)   | 7      | 3        | 4         |
-| Phase 3 (Web UI)     | 4      | 3        | 1         |
-| Phase 4 (Polish)     | 3      | 0        | 3         |
-| **Total**            | **26** | **16**   | **10**    |
+| Phase                     | Total  | Complete | Remaining |
+| ------------------------- | ------ | -------- | --------- |
+| Phase 0 (Foundation)      | 10     | 10       | 0         |
+| Phase 1 (Setup)           | 2      | 0        | 2         |
+| Phase 2 (Operator)        | 7      | 3        | 4         |
+| Phase 3 (Web UI)          | 4      | 3        | 1         |
+| Phase 4 (Polish)          | 3      | 0        | 3         |
+| Phase 5 (Self-Deployment) | 17     | 0        | 17        |
+| **Total**                 | **43** | **16**   | **27**    |
 
-**Critical Path**: T005 → T006 → T007 → T013
+**Critical Path (Local URL)**: T005 → T006 → T007 → T013
+
+**Critical Path (Self-Deploy)**: T017/T018 → T020 → T022/T023 → T024 → T026/T028 → T032

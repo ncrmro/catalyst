@@ -23,7 +23,7 @@ The Operator must now distinguish between 'managed' deployments (where it create
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
 - [x] **Agentic-First Design**: Local URLs are deterministic and machine-accessible (localhost:port/path).
 - [x] **Fast Feedback Loops**: Enables testing without full internet round-trip or DNS propagation.
@@ -65,5 +65,118 @@ web/
 > **Fill ONLY if Constitution Check has violations that must be justified**
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| N/A       |            |                                     |
+| --------- | ---------- | ------------------------------------ |
+| N/A       |            |                                      |
+
+---
+
+## [FR-ENV-003/004/005] Self-Deployment & Deployment Modes
+
+### Summary
+
+Enable Catalyst to deploy itself within the local K3s environment with both production and development modes, controlled by the `SEED_SELF_DEPLOY=true` environment flag.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  ENV FLAG: SEED_SELF_DEPLOY=true                            │
+└─────────────────────────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────┐
+│  SEEDING SCRIPT (web/src/lib/seed.ts)                       │
+│  1. Create Catalyst project in DB                           │
+│  2. Create environment records with deploymentConfig        │
+│  3. Create Environment CRs via k8s-operator.ts              │
+└─────────────────────────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────┐
+│  KUBERNETES OPERATOR (operator/)                            │
+│  1. Watch Environment CRs in "default" namespace            │
+│  2. Branch reconciliation by spec.deploymentMode            │
+│  3. Create namespace with resources per mode:               │
+│     - "production": Deployment + Service + Ingress          │
+│     - "development": PVCs + Init containers + Hot-reload    │
+└─────────────────────────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────┐
+│  TARGET NAMESPACES                                          │
+│  catalyst-production/  - Production deployment              │
+│  catalyst-dev-local/   - Development with hot-reload        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### CRD Extension (Gradual Approach)
+
+Add `DeploymentMode` field only for MVP. Store detailed config in DB as JSONB. Operator reads mode and applies hardcoded templates.
+
+```go
+// operator/api/v1alpha1/environment_types.go
+type EnvironmentSpec struct {
+    // ... existing fields ...
+
+    // DeploymentMode: "production" | "development" | "workspace" (default)
+    // +optional
+    DeploymentMode string `json:"deploymentMode,omitempty"`
+}
+```
+
+### Database Schema Extension
+
+Add `deploymentConfig` JSONB column to `projectEnvironments` table for storing detailed deployment configuration:
+
+```typescript
+// web/src/db/schema.ts
+deploymentConfig: jsonb("deployment_config").$type<DeploymentConfig>();
+```
+
+### Operator Reconciliation Branching
+
+```go
+// operator/internal/controller/environment_controller.go
+switch env.Spec.DeploymentMode {
+case "development":
+    return r.reconcileDevelopment(ctx, env, targetNamespace)
+case "production":
+    return r.reconcileProduction(ctx, env, targetNamespace)
+default:
+    return r.reconcileWorkspace(ctx, env, targetNamespace)
+}
+```
+
+### Development Mode Resources (Hardcoded Templates)
+
+Based on `.k3s-vm/manifests/base.json`:
+
+```go
+// operator/internal/controller/development_deploy.go
+const (
+    BaseImage       = "node:22"
+    HostPath        = "/code"
+    WorkDir         = "/code/web"
+    PostgresImage   = "postgres:16"
+)
+```
+
+Creates:
+
+1. PVCs: `{namespace}-node-modules` (2Gi), `{namespace}-next-cache` (1Gi)
+2. PostgreSQL: Deployment + Service + PVC
+3. App Deployment: hostPath, init containers (npm-install, db-migrate), hot-reload
+4. Service and Ingress
+
+### Seeding Integration
+
+```typescript
+// web/src/lib/seed.ts
+if (process.env.SEED_SELF_DEPLOY === "true") {
+  await seedCatalystSelfDeploy(teamId);
+}
+```
+
+### Environment Variable Injection
+
+Port `get_web_env_vars()` from `bin/k3s-vm` to TypeScript for consistent env var injection into operator-created pods.

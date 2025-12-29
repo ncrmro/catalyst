@@ -58,6 +58,11 @@ export interface EnvironmentConfig {
 export type EnvironmentType = "development" | "deployment";
 
 /**
+ * Deployment mode specifies how the operator deploys the environment
+ */
+export type DeploymentMode = "production" | "development" | "workspace";
+
+/**
  * Environment lifecycle phase
  */
 export type EnvironmentPhase =
@@ -75,6 +80,8 @@ export interface EnvironmentSpec {
   projectRef: ProjectReference;
   /** Type of environment */
   type: EnvironmentType;
+  /** Deployment mode: "production", "development", or "workspace" (default) */
+  deploymentMode?: DeploymentMode;
   /** Source configuration */
   source: EnvironmentSource;
   /** Configuration overrides */

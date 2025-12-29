@@ -1,10 +1,15 @@
 export type EnvironmentType = "deployment" | "development";
 
+// DeploymentMode specifies how the operator deploys the environment
+export type DeploymentMode = "production" | "development" | "workspace";
+
 export interface EnvironmentCRSpec {
   projectRef: {
     name: string;
   };
   type: EnvironmentType;
+  // DeploymentMode: "production" | "development" | "workspace" (default)
+  deploymentMode?: DeploymentMode;
   source: {
     commitSha: string;
     branch: string;
