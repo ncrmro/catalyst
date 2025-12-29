@@ -65,7 +65,7 @@ function loadMockDataFromYaml(): GitHubMockData {
     } as GitHubMockData & { pull_requests: PullRequest[] };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error("❌ YAML validation failed:", error.errors);
+      console.error("❌ YAML validation failed:", error.issues);
       console.error(
         "Please check github-data.yaml matches the expected schema",
       );
@@ -369,7 +369,7 @@ export function validateGitHubRepo(repo: unknown): GitHubRepo {
   } catch (error) {
     if (error instanceof z.ZodError) {
       throw new Error(
-        `Invalid GitHub repository data: ${error.errors.map((e) => e.message).join(", ")}`,
+        `Invalid GitHub repository data: ${error.issues.map((e) => e.message).join(", ")}`,
       );
     }
     throw error;

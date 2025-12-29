@@ -101,7 +101,7 @@ export function validateNamespace(namespace: string): {
   const result = namespaceSchema.safeParse(namespace);
   return result.success
     ? { valid: true }
-    : { valid: false, error: result.error.errors[0]?.message };
+    : { valid: false, error: result.error.issues[0]?.message };
 }
 
 /**
@@ -114,7 +114,7 @@ export function validateCommitSha(sha: string): {
   const result = commitShaSchema.safeParse(sha);
   return result.success
     ? { valid: true }
-    : { valid: false, error: result.error.errors[0]?.message };
+    : { valid: false, error: result.error.issues[0]?.message };
 }
 
 /**
@@ -127,7 +127,7 @@ export function validatePublicUrl(url: string): {
   const result = publicUrlSchema.safeParse(url);
   return result.success
     ? { valid: true }
-    : { valid: false, error: result.error.errors[0]?.message };
+    : { valid: false, error: result.error.issues[0]?.message };
 }
 
 export interface ResourceAllocation {
@@ -162,4 +162,3 @@ export interface PreviewEnvironmentConfig {
   namespace: string;
   publicUrl: string;
 }
-
