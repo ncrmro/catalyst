@@ -52,6 +52,18 @@ export default async function PlatformPage({ params }: PlatformPageProps) {
     (env) => env.spec.type === "development",
   );
 
+  // Determine domain display based on environment
+  const isLocalDev = process.env.NODE_ENV === "development";
+  const ingressPort = process.env.INGRESS_PORT || "8080";
+  const previewDomain = process.env.PREVIEW_DOMAIN || "preview.catalyst.dev";
+
+  const domainDisplay = isLocalDev
+    ? `http://localhost:${ingressPort}/<env-name>/`
+    : `*.<env-name>.${previewDomain}`;
+
+  const domainLabel = isLocalDev ? "Local Path" : "Domain";
+  const domainStatus = isLocalDev ? "Path-based" : "Auto-assigned";
+
   return (
     <>
       {/* Platform Overview */}
@@ -237,13 +249,13 @@ export default async function PlatformPage({ params }: PlatformPageProps) {
 
           <div className="flex items-center justify-between p-4 bg-surface-container rounded-lg">
             <div>
-              <h3 className="font-medium text-on-surface">Domain</h3>
-              <p className="text-sm text-on-surface-variant">
-                *.{sanitizedProjectName}.catalyst.dev
+              <h3 className="font-medium text-on-surface">{domainLabel}</h3>
+              <p className="text-sm text-on-surface-variant font-mono">
+                {domainDisplay}
               </p>
             </div>
             <span className="px-2 py-1 text-xs rounded-full bg-secondary-container text-on-secondary-container">
-              Auto-assigned
+              {domainStatus}
             </span>
           </div>
         </div>
