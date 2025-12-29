@@ -25,20 +25,19 @@ interface EnvironmentListResponse {
   items: EnvironmentCR[];
 }
 
+// Test suite for path-based local URL testing
+// Only runs when LOCAL_PREVIEW_ROUTING=true
 test.describe("Local URL Testing for Environments", () => {
-  test.skip("should access environment via path-based local URL", async ({
+  // Skip entire suite if not in local preview routing mode
+  test.skip(
+    () => process.env.LOCAL_PREVIEW_ROUTING !== "true",
+    "Requires LOCAL_PREVIEW_ROUTING=true",
+  );
+
+  test("should access environment via path-based local URL", async ({
     page,
     k8s,
   }) => {
-    // This test verifies that environments are accessible via path-based routing
-    // in local development mode (LOCAL_PREVIEW_ROUTING=true)
-
-    // Skip if not in local preview routing mode
-    if (process.env.LOCAL_PREVIEW_ROUTING !== "true") {
-      test.skip();
-      return;
-    }
-
     // Get ingress port from environment (default 8080)
     const ingressPort = process.env.INGRESS_PORT || "8080";
 
@@ -53,25 +52,19 @@ test.describe("Local URL Testing for Environments", () => {
 
     const environments = environmentsResponse.items;
 
-    // Skip if no environments exist
-    if (!environments || environments.length === 0) {
-      console.log("No environments found, skipping test");
-      test.skip();
-      return;
-    }
+    // Assert environments exist - this test requires pre-created environments
+    expect(environments.length).toBeGreaterThan(0);
 
     // Find a ready environment with a URL
     const readyEnv = environments.find(
       (env) => env.status?.phase === "Ready" && env.status?.url?.includes("/"),
     );
 
-    if (!readyEnv) {
-      console.log("No ready environment with path-based URL found");
-      test.skip();
-      return;
-    }
+    // Assert we have a ready environment
+    expect(readyEnv).toBeDefined();
+    expect(readyEnv!.status!.url).toBeDefined();
 
-    const envUrl = readyEnv.status!.url!;
+    const envUrl = readyEnv!.status!.url!;
     console.log(`Testing environment URL: ${envUrl}`);
 
     // Verify URL format for local path-based routing
@@ -79,27 +72,19 @@ test.describe("Local URL Testing for Environments", () => {
 
     // Attempt to navigate to the environment URL
     // Note: This may fail if the application isn't actually deployed
-    // This is more of an integration test that the URL is accessible
-    try {
-      await page.goto(envUrl, { waitUntil: "domcontentloaded", timeout: 5000 });
+    await page.goto(envUrl, { waitUntil: "domcontentloaded", timeout: 5000 });
 
-      // Verify the page loaded (basic check - depends on app)
-      // We don't assert on specific content as it depends on what's deployed
-      expect(page.url()).toContain(envUrl);
+    // Verify the page loaded (basic check - depends on app)
+    expect(page.url()).toContain(envUrl);
 
-      console.log(`✓ Environment accessible at ${envUrl}`);
-    } catch (error) {
-      // Log but don't fail - the app might not be deployed yet
-      console.log(
-        `Note: Could not access ${envUrl} - environment may not have app deployed yet`,
-      );
-    }
+    console.log(`✓ Environment accessible at ${envUrl}`);
   });
+});
 
+// Test suite for verifying Environment CR status has URL
+// Runs in both local and production modes
+test.describe("Environment CR URL Verification", () => {
   test("should verify environment CR has URL in status", async ({ k8s }) => {
-    // This test verifies that Environment CRs have their status.url populated
-    // by the operator, regardless of whether the app is deployed
-
     // List all environment CRs in the default namespace
     const environmentsResponse =
       (await k8s.customApi.listNamespacedCustomObject({
@@ -111,12 +96,12 @@ test.describe("Local URL Testing for Environments", () => {
 
     const environments = environmentsResponse.items;
 
-    // Skip if no environments exist
-    if (!environments || environments.length === 0) {
-      console.log("No environments found, creating will be tested elsewhere");
-      test.skip();
-      return;
-    }
+    // This test requires environments to exist
+    // If none exist, we should skip (using test annotations, not runtime branching)
+    expect(
+      environments.length,
+      "No environments found - ensure environments are created before running this test",
+    ).toBeGreaterThan(0);
 
     // Check each environment
     for (const env of environments) {

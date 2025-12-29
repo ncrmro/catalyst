@@ -1,5 +1,5 @@
-import { Page, Locator, expect } from '@playwright/test';
-import { BasePage } from './base-page';
+import { Page, Locator, expect } from "@playwright/test";
+import { BasePage } from "./base-page";
 
 /**
  * Page Object Model for the Projects page and Project details
@@ -11,34 +11,51 @@ export class ProjectsPage extends BasePage {
   readonly pageDescription: Locator;
   readonly projectCards: Locator;
   readonly noProjectsMessage: Locator;
-  
+
   // Project details page elements
-  readonly environmentsSection: Locator;
-  readonly specsSection: Locator;
-  readonly addEnvironmentLink: Locator;
-  readonly noEnvironmentsMessage: Locator;
-  
+  readonly featureTasksSection: Locator;
+  readonly platformTasksSection: Locator;
+  readonly agentChatSection: Locator;
+  readonly projectBreadcrumb: Locator;
+
   constructor(page: Page) {
     super(page);
-    
+
     // Initialize projects list page elements
-    this.pageTitle = page.getByRole('heading', { name: 'Projects', level: 1 });
-    this.pageDescription = page.getByText('Manage your deployment projects and environments');
-    this.projectCards = page.locator('[data-testid^="project-card-"]');
-    this.noProjectsMessage = page.getByText('No projects found');
-    
+    // The page uses breadcrumbs in a nav element (displays uppercase via CSS)
+    this.pageTitle = page.getByRole("navigation").getByText("Projects");
+    // Use the Create Project link as secondary verification
+    this.pageDescription = page.getByRole("link", { name: "Create Project" });
+    // Project cards are links to individual projects
+    this.projectCards = page.locator(
+      'a[href^="/projects/"]:not([href="/projects/create"])',
+    );
+    this.noProjectsMessage = page.getByText("No projects found");
+
     // Initialize project details page elements
-    this.environmentsSection = page.locator('h2:has-text("Environments")').locator('..');
-    this.specsSection = page.locator('h2:has-text("Specs")').locator('..');
-    this.addEnvironmentLink = page.getByRole('link', { name: 'Add Environment' });
-    this.noEnvironmentsMessage = page.locator('text=No deployment environments'); // matches part of the text
+    this.featureTasksSection = page.getByRole("heading", {
+      name: "Feature Tasks",
+      level: 2,
+    });
+    this.platformTasksSection = page.getByRole("heading", {
+      name: "Platform Tasks",
+      level: 2,
+    });
+    this.agentChatSection = page.getByRole("heading", {
+      name: "Agent Chat",
+      level: 2,
+    });
+    // Breadcrumb link back to Projects in the project details navigation
+    this.projectBreadcrumb = page
+      .getByRole("navigation")
+      .getByRole("link", { name: "Projects" });
   }
 
   /**
    * Navigate directly to the projects list page
    */
   async goto() {
-    await this.page.goto('/projects');
+    await this.page.goto("/projects");
     await this.verifyProjectsListPageLoaded();
   }
 
@@ -65,10 +82,16 @@ export class ProjectsPage extends BasePage {
   async expectProjectsToExist() {
     const count = await this.projectCards.count();
     const noProjectsVisible = await this.noProjectsMessage.isVisible();
-    
-    expect(count, 'At least one project should be available for testing').toBeGreaterThan(0);
-    expect(noProjectsVisible, '"No projects found" message should not be visible').toBe(false);
-    
+
+    expect(
+      count,
+      "At least one project should be available for testing",
+    ).toBeGreaterThan(0);
+    expect(
+      noProjectsVisible,
+      '"No projects found" message should not be visible',
+    ).toBe(false);
+
     return count > 0;
   }
 
@@ -78,10 +101,10 @@ export class ProjectsPage extends BasePage {
    */
   async verifyProjectCard(index = 0) {
     const projectCard = this.projectCards.nth(index);
-    
+
     await expect(projectCard).toBeVisible();
-    await expect(projectCard.locator('h3')).toBeVisible(); // Project name
-    await expect(projectCard.locator('img')).toBeVisible(); // Avatar
+    await expect(projectCard.locator("h3")).toBeVisible(); // Project name
+    await expect(projectCard.locator("img")).toBeVisible(); // Avatar
   }
 
   /**
@@ -97,26 +120,18 @@ export class ProjectsPage extends BasePage {
    * Verify that the project details page has loaded correctly
    */
   async verifyProjectDetailsPageLoaded() {
-    await expect(this.environmentsSection).toBeVisible();
-    await expect(this.specsSection).toBeVisible();
+    await expect(this.featureTasksSection).toBeVisible();
+    await expect(this.agentChatSection).toBeVisible();
   }
 
   /**
    * Navigate back to the projects list page from a project details page
    */
   async navigateBackToProjects() {
-    await this.page.getByRole('link', { name: 'Projects' }).click();
+    await this.projectBreadcrumb.click();
     await this.verifyProjectsListPageLoaded();
   }
 
-  /**
-   * Check if the project has environments configured
-   * @returns {Promise<boolean>} True if environments exist, false otherwise
-   */
-  async hasEnvironments(): Promise<boolean> {
-    return await this.addEnvironmentLink.isVisible();
-  }
-  
   /**
    * Checks if the current state is the empty projects state
    * @returns {Promise<boolean>} True if we're in the empty projects state

@@ -42,6 +42,27 @@ web/
 │   └── stories/             # Root stories (imports @tetrastack/react-glass stories)
 ```
 
+## E2E Testing with Playwright
+
+Playwright and its browsers are installed via the Nix flake. When running tests in the Nix development environment, browsers are already available - no need to run `npx playwright install`.
+
+### Running E2E Tests
+
+```bash
+npm run test:e2e              # Run all E2E tests
+npm run test:e2e -- --ui      # Run with Playwright UI
+npm run test:e2e -- <file>    # Run specific test file
+```
+
+### E2E Test Guidelines
+
+See `__tests__/e2e/README.md` for detailed patterns. Key principles:
+
+- **No branching logic**: Never use if/else/switch/ternary in test files
+- **Use fixtures**: All tests should use appropriate fixtures (`projects-fixture`, `k8s-fixture`, etc.)
+- **Page Object Models**: Navigation through page objects, not direct selectors
+- **No `networkidle`**: Use specific element visibility checks instead
+
 ## Commit Guidelines
 
 Always use semantic commits. If available, include the spec, issue, or pull request number as part of the commit subject.
