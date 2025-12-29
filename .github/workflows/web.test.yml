@@ -176,7 +176,7 @@ jobs:
         run: |
           kubectl patch environment ci-test-env -n default \
             --type=merge --subresource=status \
-            -p '{"status":{"phase":"Ready","url":"https://test-project-ci-test-env.preview.catalyst.dev/"}}'
+            -p '{"status":{"phase":"Ready","url":"http://test-project-ci-test-env.localhost:8080/"}}'
           echo "Environment status patched to Ready"
 
       - name: Install dependencies

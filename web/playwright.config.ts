@@ -54,7 +54,8 @@ export default defineConfig({
     // Note: E2E tests should never use the full MOCKED=1 flag, only specific mocked modes
     // This allows testing against real database while mocking only GitHub API calls
     // GITHUB_REPOS_MODE=mocked enables GitHub repository and pull request mocking
-    command: `GITHUB_REPOS_MODE=mocked node_modules/.bin/next dev --port ${webPort}`,
+    // KUBECONFIG_PRIMARY is passed through for K8s integration tests
+    command: `GITHUB_REPOS_MODE=mocked ${process.env.KUBECONFIG_PRIMARY ? `KUBECONFIG_PRIMARY=${process.env.KUBECONFIG_PRIMARY}` : ""} node_modules/.bin/next dev --port ${webPort}`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
   },
