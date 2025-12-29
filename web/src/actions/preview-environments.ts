@@ -28,13 +28,8 @@ import {
 } from "@/db/schema";
 import { eq, inArray, desc } from "drizzle-orm";
 import type {
-  SelectPullRequestPod,
-  SelectPullRequest,
   SelectRepo,
   PreviewPodWithMetrics,
-  PodResourceUsage,
-  PodStatus,
-  ResourceAllocation,
   PreviewPodWithRelations,
   ActionResult,
 } from "@/types/preview-environments";
