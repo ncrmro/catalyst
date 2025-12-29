@@ -148,10 +148,44 @@ jobs:
           echo "KUBECONFIG_PRIMARY=$KUBECONFIG_PRIMARY" >> $GITHUB_ENV
           echo "Kubeconfig exported for E2E tests"
 
+      - name: Install Environment CRD
+        run: |
+          kubectl apply -f ../operator/config/crd/bases/catalyst.catalyst.dev_environments.yaml
+          echo "Environment CRD installed"
+
+      - name: Create test Environment CR
+        run: |
+          cat <<EOF | kubectl apply -f -
+          apiVersion: catalyst.catalyst.dev/v1alpha1
+          kind: Environment
+          metadata:
+            name: ci-test-env
+            namespace: default
+          spec:
+            projectRef:
+              name: test-project
+            type: development
+            deploymentMode: development
+            source:
+              commitSha: abc123
+              branch: main
+          EOF
+          echo "Test Environment CR created"
+
+      - name: Patch Environment status to Ready
+        run: |
+          kubectl patch environment ci-test-env -n default \
+            --type=merge --subresource=status \
+            -p '{"status":{"phase":"Ready","url":"https://test-project-ci-test-env.preview.catalyst.dev/"}}'
+          echo "Environment status patched to Ready"
+
       - name: Install dependencies
         run: npm ci
 
       - run: npm run db:migrate
+
+      - name: Seed database
+        run: npm run seed
 
       - name: Run Playwright tests
         run: npm run test:e2e
