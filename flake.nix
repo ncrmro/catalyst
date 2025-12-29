@@ -61,6 +61,9 @@
               export PLAYWRIGHT_BROWSERS_PATH=${pkgs.playwright-driver.browsers}
               export PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true
 
+              # Enable local preview routing (localhost URLs) for Operator and Web
+              export LOCAL_PREVIEW_ROUTING=true
+
               # DOCUMENTATION: Turbopack Compatibility
               # Next.js (Turbopack) may panic if it encounters the .direnv directory due to unresolved symlinks.
               # Ensure 'web/.direnv/' is added to 'web/.gitignore' to prevent this.

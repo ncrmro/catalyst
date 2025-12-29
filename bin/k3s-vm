@@ -510,6 +510,17 @@ def generate_manifest_content(deploy_apps: bool = False) -> str:
             if name in ["web", "operator"]:
                 continue
 
+        if doc.get("kind") == "Deployment" and doc.get("metadata", {}).get("name") == "operator":
+            spec = doc.get("spec", {}).get("template", {}).get("spec", {})
+            for container in spec.get("containers", []):
+                if container.get("name") == "operator":
+                    existing_env = container.get("env", [])
+                    new_env = [
+                        {"name": "LOCAL_PREVIEW_ROUTING", "value": "true"},
+                        {"name": "INGRESS_PORT", "value": str(get_ingress_port())}
+                    ]
+                    container["env"] = existing_env + new_env
+
         if doc.get("kind") == "Deployment" and doc.get("metadata", {}).get("name") == "web":
             spec = doc.get("spec", {}).get("template", {}).get("spec", {})
 
