@@ -5,6 +5,10 @@ test.describe("Project Creation Wizard", () => {
     page,
     projectsPage,
   }) => {
+    // Generate unique slug to avoid conflicts with existing projects
+    const uniqueSuffix = Date.now().toString().slice(-6);
+    const uniqueSlug = `catalyst-test-${uniqueSuffix}`;
+
     // Navigate to projects page
     await projectsPage.goto();
 
@@ -54,13 +58,17 @@ test.describe("Project Creation Wizard", () => {
     const slugInput = page.locator('input[name="slug"]');
     await expect(slugInput).toHaveValue("catalyst");
 
+    // Change slug to unique value to avoid conflicts
+    await slugInput.clear();
+    await slugInput.fill(uniqueSlug);
+
     // Submit the form
     const createButton = page.getByRole("button", { name: /create project/i });
     await expect(createButton).toBeEnabled();
     await createButton.click();
 
     // Verify redirect to project home page
-    await expect(page).toHaveURL(/\/projects\/catalyst$/);
+    await expect(page).toHaveURL(new RegExp(`/projects/${uniqueSlug}$`));
   });
 
   test("should navigate back from step 2 to step 1", async ({

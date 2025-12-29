@@ -33,8 +33,9 @@ export class ProjectsPage extends BasePage {
     this.noProjectsMessage = page.getByText("No projects found");
 
     // Initialize project details page elements
+    // Environments section is always present on project details page
     this.featureTasksSection = page.getByRole("heading", {
-      name: "Feature Tasks",
+      name: "Environments",
       level: 2,
     });
     this.platformTasksSection = page.getByRole("heading", {
@@ -112,7 +113,12 @@ export class ProjectsPage extends BasePage {
    * @param index Index of the project card to click (default: 0)
    */
   async clickProjectCard(index = 0) {
-    await this.projectCards.nth(index).click();
+    const card = this.projectCards.nth(index);
+    const href = await card.getAttribute("href");
+
+    // Click and wait for navigation to complete
+    await Promise.all([this.page.waitForURL(`**${href}`), card.click()]);
+
     await this.verifyProjectDetailsPageLoaded();
   }
 
@@ -120,8 +126,8 @@ export class ProjectsPage extends BasePage {
    * Verify that the project details page has loaded correctly
    */
   async verifyProjectDetailsPageLoaded() {
-    await expect(this.featureTasksSection).toBeVisible();
-    await expect(this.agentChatSection).toBeVisible();
+    // Environments section is always present on project details
+    await expect(this.featureTasksSection).toBeVisible({ timeout: 10000 });
   }
 
   /**

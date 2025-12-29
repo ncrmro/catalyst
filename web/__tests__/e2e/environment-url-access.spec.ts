@@ -57,7 +57,7 @@ test.describe("Local URL Testing for Environments", () => {
 
     // Find a ready environment with a URL
     const readyEnv = environments.find(
-      (env) => env.status?.phase === "Ready" && env.status?.url?.includes("/"),
+      (env) => env.status?.phase === "Ready" && env.status?.url,
     );
 
     // Assert we have a ready environment
@@ -67,8 +67,11 @@ test.describe("Local URL Testing for Environments", () => {
     const envUrl = readyEnv!.status!.url!;
     console.log(`Testing environment URL: ${envUrl}`);
 
-    // Verify URL format for local path-based routing
-    expect(envUrl).toMatch(new RegExp(`^http://localhost:${ingressPort}/`));
+    // Verify URL format for local hostname-based routing
+    // Local mode uses hostname-based routing: http://{project}-{env}.localhost:{port}/
+    expect(envUrl).toMatch(
+      new RegExp(`^http://.*\\.localhost:${ingressPort}/`),
+    );
 
     // Attempt to navigate to the environment URL
     // Note: This may fail if the application isn't actually deployed
@@ -119,10 +122,11 @@ test.describe("Environment CR URL Verification", () => {
         // Verify URL format based on LOCAL_PREVIEW_ROUTING
         if (process.env.LOCAL_PREVIEW_ROUTING === "true") {
           const ingressPort = process.env.INGRESS_PORT || "8080";
+          // Local mode uses hostname-based routing: http://{project}-{env}.localhost:{port}/
           expect(env.status.url).toMatch(
-            new RegExp(`^http://localhost:${ingressPort}/`),
+            new RegExp(`^http://.*\\.localhost:${ingressPort}/`),
           );
-          console.log(`  URL uses path-based routing (local mode)`);
+          console.log(`  URL uses hostname-based routing (local mode)`);
         } else {
           // Production mode - hostname-based with HTTPS
           expect(env.status.url).toMatch(
