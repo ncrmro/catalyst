@@ -50,6 +50,8 @@ export interface EnvVar {
 export interface EnvironmentConfig {
   /** Environment variables to inject */
   envVars?: EnvVar[];
+  /** Container image to deploy (e.g., "ghcr.io/ncrmro/catalyst:latest") */
+  image?: string;
 }
 
 /**

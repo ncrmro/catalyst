@@ -2,12 +2,12 @@
 
 **Context**: Testing preview environment URLs in local K3s development
 
-Preview environments generate public URLs for browser testing. In production, these use hostname-based routing (e.g., `https://env-preview-123.preview.catalyst.dev`). In local development, URLs require special handling since wildcard DNS doesn't resolve by default.
+Preview environments generate public URLs for browser testing. In production, these use hostname-based routing (e.g., `https://env-preview-123.preview.catalyst.dev`). In local development, we also use hostname-based routing via `*.localhost` subdomains which modern browsers automatically resolve to `127.0.0.1`.
 
 ## Local vs Production Architecture
 
 ```
-Production (hostname-based routing):
+Production (hostname-based routing with TLS):
 ┌─────────────────────────────────────────────────────────────┐
 │  https://env-preview-123.preview.catalyst.dev               │
 │                            │                                │
@@ -17,18 +17,18 @@ Production (hostname-based routing):
 │  Ingress Controller → routes by Host header → Service       │
 └─────────────────────────────────────────────────────────────┘
 
-Local Development (path-based routing):
+Local Development (hostname-based routing via *.localhost):
 ┌─────────────────────────────────────────────────────────────┐
-│  http://localhost:8080/env-preview-123/                       │
+│  http://env-preview-123.localhost:8080/                     │
 │                            │                                │
-│              No DNS needed (localhost)                      │
+│     Browser auto-resolves *.localhost to 127.0.0.1          │
 │                            │                                │
 │                            ▼                                │
-│  Ingress Controller → routes by path prefix → Service       │
+│  Ingress Controller → routes by Host header → Service       │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Key difference**: Local development uses path-based routing to avoid DNS configuration requirements while still using the same NGINX ingress controller as production.
+**Key insight**: Both local and production use the same hostname-based routing pattern. The only difference is the domain suffix (`.localhost` vs `.preview.catalyst.dev`) and TLS configuration.
 
 ## Overview
 
@@ -39,64 +39,63 @@ The challenge:
 - Local development needs a rootless, offline-capable solution
 - Solutions must work for both manual browser testing and Playwright automation
 
-## Approach 1: Path-Based Routing (Recommended for Local Dev)
+## Approach 1: Hostname-Based Routing via `*.localhost` (Recommended)
 
-**Rootless, offline, uses real NGINX ingress** - the recommended approach for local development.
+**Rootless, offline, production-parity** - the recommended approach for local development.
 
 ### How It Works
 
-Instead of routing by hostname, the local K3s VM uses path prefixes:
+Local development uses the same hostname-based routing as production, with `*.localhost` subdomains:
 
 | Environment | Production URL                                  | Local URL                                |
 | ----------- | ----------------------------------------------- | ---------------------------------------- |
-| PR #123     | `https://env-preview-123.preview.catalyst.dev/` | `http://localhost:8080/env-preview-123/` |
-| PR #456     | `https://env-preview-456.preview.catalyst.dev/` | `http://localhost:8080/env-preview-456/` |
+| PR #123     | `https://env-preview-123.preview.catalyst.dev/` | `http://env-preview-123.localhost:8080/` |
+| PR #456     | `https://env-preview-456.preview.catalyst.dev/` | `http://env-preview-456.localhost:8080/` |
 
-NGINX ingress rewrites the path prefix before forwarding to the service, so the application sees requests at `/` regardless of environment.
+Modern browsers (Chrome, Firefox, Safari, Edge) automatically resolve `*.localhost` to `127.0.0.1`, so no DNS configuration or hosts file modifications are needed.
 
 ### Setup
 
-Path-based routing is the default for local development. No configuration needed.
+Hostname-based routing is the default for local development. No configuration needed.
 
 ```bash
 # Start K3s VM (ingress is pre-configured)
 bin/k3s-vm
 
 # Preview environments are accessible at:
-# http://localhost:8080/env-preview-{namespace}/
+# http://{namespace}.localhost:8080/
 ```
 
 ### Ingress Configuration
 
-The operator creates path-based ingress resources for local dev:
+The operator creates hostname-based ingress resources for local dev:
 
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: preview-env-preview-123
+  name: app
   namespace: env-preview-123
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
   ingressClassName: nginx
   rules:
-    - http:
+    - host: env-preview-123.localhost
+      http:
         paths:
-          - path: /env-preview-123(/|$)(.*)
-            pathType: ImplementationSpecific
+          - path: /
+            pathType: Prefix
             backend:
               service:
                 name: app
                 port:
-                  number: 3000
+                  number: 80
 ```
 
 ### Playwright Testing
 
 ```typescript
 // Local development URL
-const previewUrl = "http://localhost:8080/env-preview-123/";
+const previewUrl = "http://env-preview-123.localhost:8080/";
 
 const browser = await chromium.launch();
 const page = await browser.newPage();
@@ -108,31 +107,41 @@ await browser.close();
 
 ### Trade-offs
 
-| Pros                                 | Cons                               |
-| ------------------------------------ | ---------------------------------- |
-| Rootless - no sudo/admin required    | URLs differ from production        |
-| Works completely offline             | Path prefix visible in URL         |
-| Uses real NGINX ingress              | Applications must handle base path |
-| Multiple environments simultaneously |                                    |
-| Zero configuration                   |                                    |
+| Pros                                 | Cons                                           |
+| ------------------------------------ | ---------------------------------------------- |
+| Rootless - no sudo/admin required    | Very old browsers may not support \*.localhost |
+| Works completely offline             | Port must be included in URL                   |
+| Uses real NGINX ingress              |                                                |
+| Production-parity URL structure      |                                                |
+| Multiple environments simultaneously |                                                |
+| Zero configuration                   |                                                |
+| No basePath/redirect issues          |                                                |
 
 **Best for:** Default local development, CI pipelines, rootless environments.
 
-### Why URLs Differ from Production
+### Why This Approach
 
-Production uses hostname-based routing because:
+Both local and production use hostname-based routing:
 
-- Real DNS with wildcard certificates
-- Clean URLs without path prefixes
-- Standard web application behavior
+- **Production**: Real DNS resolves `*.preview.catalyst.dev` with TLS
+- **Local**: Browser auto-resolves `*.localhost` to 127.0.0.1
 
-Local development uses path-based routing because:
+This means:
 
-- No DNS configuration required (rootless)
-- Works offline without external services
-- Simple port forwarding from VM to host
+- Applications work identically in both environments
+- No `basePath` configuration needed
+- Redirects work correctly (e.g., `redirect("/projects")` stays on same host)
+- Same routing pattern as production
 
-The routing mechanism (NGINX ingress) is identical - only the routing key differs (hostname vs path).
+### Previous Approach: Path-Based Routing (Deprecated)
+
+Path-based routing (`http://localhost:8080/namespace/`) was initially considered but rejected because:
+
+1. **Framework compatibility issues**: Next.js and similar frameworks don't automatically handle sub-path deployments
+2. **Redirect problems**: Hardcoded redirects like `redirect("/projects")` lose the path prefix
+3. **basePath configuration**: Would require modifying application code or build configuration
+
+The hostname-based approach using `*.localhost` provides the same benefits (rootless, offline) without these drawbacks.
 
 ---
 
@@ -357,8 +366,8 @@ curl http://localhost:30000
 
 ### Developer Workflow
 
-1. **Default local development**: Use path-based routing (Approach 1) - rootless, offline, zero-config
-2. **Testing hostname routing**: Use nip.io (Approach 2) when you need production-like URLs
+1. **Default local development**: Use hostname-based `*.localhost` routing (Approach 1) - rootless, offline, zero-config, production-parity
+2. **External testing**: Use nip.io (Approach 2) when you need externally accessible URLs
 3. **Stakeholder demos**: Use Cloudflare Tunnel (Approach 5) for shareable public URLs
 
 ### Agent Testing with Playwright
@@ -366,10 +375,10 @@ curl http://localhost:30000
 Agents running inside development environments can test preview URLs:
 
 ```typescript
-// Local development URL (path-based)
-const previewUrl = process.env.PREVIEW_URL; // e.g., http://localhost:8080/env-preview-123/
+// Local development URL (hostname-based via *.localhost)
+const previewUrl = process.env.PREVIEW_URL; // e.g., http://env-preview-123.localhost:8080/
 
-// Production URL (hostname-based)
+// Production URL (hostname-based with TLS)
 // const previewUrl = process.env.PREVIEW_URL; // e.g., https://env-preview-123.preview.catalyst.dev/
 
 // Agent tests the URL
@@ -386,32 +395,32 @@ await browser.close();
 
 The local K3s VM forwards ports to the host:
 
-| Port  | Service                      |
-| ----- | ---------------------------- |
-| 8080  | NGINX Ingress (path routing) |
-| 6443  | Kubernetes API               |
-| 30000 | Web application (NodePort)   |
-| 30432 | PostgreSQL (NodePort)        |
+| Port  | Service                          |
+| ----- | -------------------------------- |
+| 8080  | NGINX Ingress (hostname routing) |
+| 6443  | Kubernetes API                   |
+| 30000 | Web application (NodePort)       |
+| 30432 | PostgreSQL (NodePort)            |
 
 With NGINX ingress deployed in K3s:
 
-- **Path-based routing** works out of the box via port 8080
-- **Hostname-based routing** requires DNS configuration (nip.io, dnsmasq, etc.)
+- **Hostname-based routing via `*.localhost`** works out of the box via port 8080
+- **External hostname routing** requires DNS configuration (nip.io, dnsmasq, etc.)
 
 ## Summary
 
 | Approach          | Config Effort | Offline | Rootless | Multi-PR | Recommended For               |
 | ----------------- | ------------- | ------- | -------- | -------- | ----------------------------- |
-| **Path-based**    | None          | Yes     | Yes      | Yes      | **Default local development** |
-| nip.io            | None          | No      | Yes      | Yes      | Online dev with hostname URLs |
-| Hosts file        | Per-PR        | Yes     | No       | Manual   | Single PR, CI pipelines       |
+| **`*.localhost`** | None          | Yes     | Yes      | Yes      | **Default local development** |
+| nip.io            | None          | No      | Yes      | Yes      | External access needed        |
+| Hosts file        | Per-PR        | Yes     | No       | Manual   | Single PR, legacy browsers    |
 | dnsmasq           | One-time      | Yes     | No       | Yes      | Power users, team standards   |
 | Cloudflare Tunnel | One-time      | No      | Yes      | Yes      | Demos, external access        |
 | NodePort direct   | None          | Yes     | Yes      | No       | Quick smoke tests             |
 
 ## GitHub Actions with Kind
 
-The project uses Kind (Kubernetes in Docker) for CI testing. Path-based routing works with Kind using the same pattern as local K3s VM development.
+The project uses Kind (Kubernetes in Docker) for CI testing. Hostname-based routing via `*.localhost` works with Kind using the same pattern as local K3s VM development.
 
 ### Kind Cluster Setup
 
@@ -438,7 +447,7 @@ Add ingress-nginx installation after cluster creation:
       --timeout=90s
 ```
 
-### Exposing Ingress for Path-Based Routing
+### Exposing Ingress for Hostname-Based Routing
 
 Kind requires special configuration for ingress. Create a Kind config with port mappings:
 
@@ -477,7 +486,7 @@ Use in workflow:
     kubectl create namespace env-preview-123
     kubectl apply -f preview-deployment.yaml -n env-preview-123
 
-- name: Create path-based Ingress
+- name: Create hostname-based Ingress
   run: |
     kubectl apply -f - <<EOF
     apiVersion: networking.k8s.io/v1
@@ -485,15 +494,14 @@ Use in workflow:
     metadata:
       name: preview-ingress
       namespace: env-preview-123
-      annotations:
-        nginx.ingress.kubernetes.io/rewrite-target: /\$2
     spec:
       ingressClassName: nginx
       rules:
-        - http:
+        - host: env-preview-123.localhost
+          http:
             paths:
-              - path: /env-preview-123(/|$)(.*)
-                pathType: ImplementationSpecific
+              - path: /
+                pathType: Prefix
                 backend:
                   service:
                     name: app
@@ -504,7 +512,7 @@ Use in workflow:
 - name: Test with Playwright
   run: npx playwright test
   env:
-    PREVIEW_URL: "http://localhost:8080/env-preview-123/"
+    PREVIEW_URL: "http://env-preview-123.localhost:8080/"
     LOCAL_PREVIEW_ROUTING: "true"
     INGRESS_PORT: "8080"
 ```
@@ -516,6 +524,7 @@ Use in workflow:
 | Ingress install | Helm (automatic) | kubectl apply          |
 | Port exposure   | QEMU forwarding  | Kind extraPortMappings |
 | Requirements    | Nix + KVM        | Docker only            |
+| Routing pattern | `*.localhost`    | `*.localhost`          |
 | Best for        | Local dev        | GitHub Actions         |
 
 See `web/docs/kind-cluster-testing.md` for more details on the existing Kind setup.

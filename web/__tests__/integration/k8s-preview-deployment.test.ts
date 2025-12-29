@@ -70,9 +70,31 @@ describe("Preview Deployment Integration", () => {
       expect(result).toMatch(/^pr-a+-1$/);
     });
 
-    it("should generate public URLs", () => {
+    it("should generate public URLs for production mode", () => {
+      // Save and clear LOCAL_PREVIEW_ROUTING to test production mode
+      const originalValue = process.env.LOCAL_PREVIEW_ROUTING;
+      delete process.env.LOCAL_PREVIEW_ROUTING;
+
       const url = generatePublicUrl("pr-my-app-42", "preview.example.com");
       expect(url).toBe("https://pr-my-app-42.preview.example.com");
+
+      // Restore original value
+      process.env.LOCAL_PREVIEW_ROUTING = originalValue;
+    });
+
+    it("should generate public URLs for local mode", () => {
+      // Save original and set LOCAL_PREVIEW_ROUTING
+      const originalValue = process.env.LOCAL_PREVIEW_ROUTING;
+      const originalPort = process.env.INGRESS_PORT;
+      process.env.LOCAL_PREVIEW_ROUTING = "true";
+      process.env.INGRESS_PORT = "8080";
+
+      const url = generatePublicUrl("pr-my-app-42", "preview.example.com");
+      expect(url).toBe("http://pr-my-app-42.localhost:8080/");
+
+      // Restore original values
+      process.env.LOCAL_PREVIEW_ROUTING = originalValue;
+      process.env.INGRESS_PORT = originalPort;
     });
 
     it("should generate image tags", () => {

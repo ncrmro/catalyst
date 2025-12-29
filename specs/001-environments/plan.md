@@ -5,9 +5,9 @@
 
 ## Summary
 
-Implement local URL testing for development environments using path-based routing (`localhost:8080/namespace/`) alongside the existing Cloudflare proxy integration. This ensures agents and developers can access and test preview environments in offline, rootless local setups without public DNS dependencies.
+Implement local URL testing for development environments using hostname-based routing via `*.localhost` (e.g., `http://namespace.localhost:8080/`) alongside the existing Cloudflare proxy integration. This ensures agents and developers can access and test preview environments in offline, rootless local setups without public DNS dependencies. Modern browsers automatically resolve `*.localhost` to `127.0.0.1`, maintaining parity with production hostname-based routing patterns.
 
-The Operator must now distinguish between 'managed' deployments (where it creates Deployment/Service) and 'helm' deployments (where it only creates Ingress for routing). This ensures Ingress policies (like local path-based routing) are applied regardless of how the app is deployed.
+The Operator must now distinguish between 'managed' deployments (where it creates Deployment/Service) and 'helm' deployments (where it only creates Ingress for routing). This ensures Ingress policies (like local hostname-based routing) are applied regardless of how the app is deployed.
 
 ## Technical Context
 

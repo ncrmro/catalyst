@@ -6,6 +6,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -17,8 +18,22 @@ import (
 // - Deploy Application (Helm/Manifest)
 // - Create Ingress with TLS
 
+// getImageForDeployment returns the container image to deploy.
+// Priority: spec.config.image > fallback to cluster registry with commit SHA.
+func getImageForDeployment(env *catalystv1alpha1.Environment) string {
+	// If image is explicitly set in config, use it
+	if env.Spec.Config.Image != "" {
+		return env.Spec.Config.Image
+	}
+
+	// Fallback to cluster registry for development/workspace modes
+	projectName := env.Spec.ProjectRef.Name
+	commitSha := env.Spec.Source.CommitSha
+	return fmt.Sprintf("%s/%s:%s", registryHost, projectName, commitSha)
+}
+
 func desiredDeployment(env *catalystv1alpha1.Environment, namespace string) *appsv1.Deployment {
-	imageTag := fmt.Sprintf("%s/%s:%s", registryHost, env.Spec.ProjectRef.Name, env.Spec.Source.CommitSha)
+	imageTag := getImageForDeployment(env)
 	name := "app" // Standard name within the isolated namespace
 
 	replicas := int32(1)
@@ -49,6 +64,16 @@ func desiredDeployment(env *catalystv1alpha1.Environment, namespace string) *app
 								{ContainerPort: 3000},
 							},
 							Env: toCoreEnvVars(env.Spec.Config.EnvVars),
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("128Mi"),
+								},
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("500m"),
+									corev1.ResourceMemory: resource.MustParse("512Mi"),
+								},
+							},
 						},
 					},
 				},
@@ -76,33 +101,31 @@ func desiredService(env *catalystv1alpha1.Environment, namespace string) *corev1
 }
 
 // desiredIngress creates an Ingress resource for the environment.
-// When isLocal is true, it uses path-based routing (e.g., /namespace-name/).
+// When isLocal is true, it uses hostname-based routing with *.localhost (e.g., namespace.localhost:8080).
 // When isLocal is false, it uses hostname-based routing with TLS (production mode).
 func desiredIngress(env *catalystv1alpha1.Environment, namespace string, isLocal bool) *networkingv1.Ingress {
 	if isLocal {
-		// Path-based routing for local development
-		// Pattern: /namespace-name(/|$)(.*)
-		// The rewrite-target annotation strips the namespace prefix before forwarding
-		pathType := networkingv1.PathTypeImplementationSpecific
-		path := fmt.Sprintf("/%s(/|$)(.*)", namespace)
+		// Hostname-based routing for local development
+		// Pattern: namespace.localhost (e.g., catalyst-catalyst-dev.localhost:8080)
+		// Modern browsers resolve *.localhost to 127.0.0.1
+		host := fmt.Sprintf("%s.localhost", namespace)
+		pathType := networkingv1.PathTypePrefix
 
 		return &networkingv1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "app",
 				Namespace: namespace,
-				Annotations: map[string]string{
-					"nginx.ingress.kubernetes.io/rewrite-target": "/$2",
-				},
 			},
 			Spec: networkingv1.IngressSpec{
 				IngressClassName: ptr("nginx"),
 				Rules: []networkingv1.IngressRule{
 					{
+						Host: host,
 						IngressRuleValue: networkingv1.IngressRuleValue{
 							HTTP: &networkingv1.HTTPIngressRuleValue{
 								Paths: []networkingv1.HTTPIngressPath{
 									{
-										Path:     path,
+										Path:     "/",
 										PathType: &pathType,
 										Backend: networkingv1.IngressBackend{
 											Service: &networkingv1.IngressServiceBackend{
@@ -171,16 +194,16 @@ func desiredIngress(env *catalystv1alpha1.Environment, namespace string, isLocal
 }
 
 // generateURL creates the public URL for the environment based on the deployment mode.
-// When isLocal is true, it generates a path-based URL (e.g., http://localhost:8080/namespace/).
-// When isLocal is false, it generates a hostname-based URL (e.g., https://env-name.preview.catalyst.dev/).
+// When isLocal is true, it generates a hostname-based URL (e.g., http://namespace.localhost:8080/).
+// When isLocal is false, it generates a hostname-based URL with HTTPS (e.g., https://env-name.preview.catalyst.dev/).
 func generateURL(env *catalystv1alpha1.Environment, namespace string, isLocal bool, ingressPort string) string {
 	if isLocal {
-		// Path-based URL for local development
+		// Hostname-based URL for local development
 		// Default ingress port is 8080 if not specified
 		if ingressPort == "" {
 			ingressPort = "8080"
 		}
-		return fmt.Sprintf("http://localhost:%s/%s/", ingressPort, namespace)
+		return fmt.Sprintf("http://%s.localhost:%s/", namespace, ingressPort)
 	}
 
 	// Production hostname-based URL with HTTPS

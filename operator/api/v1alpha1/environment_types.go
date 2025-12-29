@@ -65,6 +65,11 @@ type EnvironmentConfig struct {
 	// EnvVars to inject into the deployment
 	// +optional
 	EnvVars []EnvVar `json:"envVars,omitempty"`
+
+	// Image is the container image to deploy (e.g., "ghcr.io/ncrmro/catalyst:latest")
+	// If not specified, defaults to cluster registry with commit SHA
+	// +optional
+	Image string `json:"image,omitempty"`
 }
 
 type EnvVar struct {

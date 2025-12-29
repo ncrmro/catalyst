@@ -30,33 +30,33 @@ _Goal: Prepare the codebase for local URL testing changes._
 
 ## Phase 2: Foundational (Operator & CRD)
 
-_Goal: Update the Operator to generate path-based Ingress resources and report URLs in the CRD status. This is the core backend implementation._
+_Goal: Update the Operator to generate hostname-based Ingress resources (using `*.localhost` for local dev) and report URLs in the CRD status. This is the core backend implementation._
 
 **Current Gap**: The `desiredIngress()` function exists but:
 
 1. Only generates production hostname-based routing (e.g., `env-name.preview.catalyst.dev`)
 2. Is never called from the reconciliation loop
-3. Does not support path-based routing for local development
+3. ~~Does not support path-based routing for local development~~ (RESOLVED: Now uses hostname-based `*.localhost` routing)
 
 **Independent Test**:
 
 - Apply an Environment CR in a local K3s cluster.
-- Verify `kubectl get ingress` shows `rewrite-target` annotation and correct path.
-- Verify `kubectl get environment` shows `status.url` populated.
+- Verify `kubectl get ingress` shows hostname-based routing with `*.localhost` host.
+- Verify `kubectl get environment` shows `status.url` populated with `http://namespace.localhost:8080/`.
 
 - [x] T003 Environment CRD `status` already includes `URL` field (note: uses `URL` not `LocalURL`)
 - [x] T004 CRD YAMLs generated in `operator/config/crd/bases/`
-- [ ] T005 Implement `deploy.go` updates for path-based routing:
+- [x] T005 Implement `deploy.go` updates for hostname-based local routing:
   1. Add `isLocal` parameter to `desiredIngress()` function
-  2. When `isLocal=true`: use path-based routing with `rewrite-target` annotation
-  3. When `isLocal=false`: use existing hostname-based routing
+  2. When `isLocal=true`: use hostname-based routing with `*.localhost` (e.g., `namespace.localhost`)
+  3. When `isLocal=false`: use existing hostname-based routing with TLS (e.g., `env.preview.catalyst.dev`)
 - [ ] T006 Update `Reconcile` loop in `operator/internal/controller/environment_controller.go`:
   1. **Call `desiredIngress()`** - currently not called!
   2. Detect local mode (env var or Project CR config)
   3. Create/update Ingress resource
   4. Populate `status.URL` with the generated URL
-- [ ] T007 Add unit tests for Ingress generation verifying:
-  - Path-based routing with `rewrite-target` annotation (local mode)
+- [x] T007 Add unit tests for Ingress generation verifying:
+  - Hostname-based routing with `*.localhost` (local mode)
   - Hostname-based routing with TLS (production mode)
 - [x] T008 CRD manifests already auto-generated
 - [ ] T009 Update `operator/config/samples/catalyst_v1alpha1_environment.yaml` to include example status
@@ -72,7 +72,7 @@ _Goal: Ensure the Web application correctly consumes and displays the `status.ur
 - Run the web app with a local K3s cluster.
 - Open an Environment details page.
 - Verify the "Local URL" is displayed and clickable.
-- Verify the link opens `http://localhost:8080/{namespace}/` and routes correctly.
+- Verify the link opens `http://{namespace}.localhost:8080/` and routes correctly.
 
 - [x] T010 `EnvironmentCR` type includes `status?.url` in `web/src/types/crd.ts`
 - [x] T011 Environment components display URL: `EnvironmentHeader`, `EnvironmentRow`, `EnvironmentDetailView`

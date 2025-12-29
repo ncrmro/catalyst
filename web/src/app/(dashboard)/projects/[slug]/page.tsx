@@ -33,6 +33,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   return (
     <ProjectPageContent
       project={{
+        id: project.id,
         slug: project.slug,
         name: project.name,
         fullName: project.fullName,

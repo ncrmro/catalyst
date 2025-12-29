@@ -12,16 +12,15 @@ The `status` field will be updated to include the local URL when applicable.
 ```go
 type EnvironmentStatus struct {
     // Existing fields...
-    
-    // Public URL for the environment (e.g., https://env-123.preview.catalyst.dev)
+
+    // Public URL for the environment
+    // Production: https://env-123.preview.catalyst.dev
+    // Local dev: http://env-123.localhost:8080/
     URL string `json:"url,omitempty"`
-    
-    // Local URL for development (e.g., http://localhost:8080/env-123/)
-    // This is populated when the operator detects it's running in local/dev mode
-    // or when the Ingress is configured for path-based routing.
-    LocalURL string `json:"localUrl,omitempty"`
 }
 ```
+
+Note: The same `URL` field is used for both production (hostname-based with TLS) and local development (hostname-based via `*.localhost`). The operator generates the appropriate URL format based on the `isLocal` configuration.
 
 ## Database Schema (Drizzle)
 
@@ -31,4 +30,4 @@ No changes anticipated for the core database schema, as this is primarily a runt
 
 ### Environment
 
-- **localUrl**: (String, Optional) The path-based URL for accessing the environment in local development.
+- **url**: (String, Optional) The URL for accessing the environment. In local development, uses hostname-based routing via `*.localhost` (e.g., `http://namespace.localhost:8080/`). In production, uses TLS hostname routing (e.g., `https://namespace.preview.catalyst.dev/`).

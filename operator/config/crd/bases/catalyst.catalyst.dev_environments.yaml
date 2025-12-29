@@ -55,6 +55,11 @@ spec:
                       - value
                       type: object
                     type: array
+                  image:
+                    description: |-
+                      Image is the container image to deploy (e.g., "ghcr.io/ncrmro/catalyst:latest")
+                      If not specified, defaults to cluster registry with commit SHA
+                    type: string
                 type: object
               deploymentMode:
                 description: |-

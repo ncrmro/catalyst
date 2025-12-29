@@ -16,7 +16,8 @@ import {
 } from "@catalyst/kubernetes-client";
 import type { DeploymentConfig } from "@/types/deployment";
 
-const CATALYST_SYSTEM_NAMESPACE = "catalyst-system";
+// Use 'default' namespace since Environment CRs are watched there
+const CATALYST_SYSTEM_NAMESPACE = "default";
 
 /**
  * Default deployment configuration for Catalyst self-deployment
@@ -168,84 +169,106 @@ async function ensureEnvironmentRecords(projectId: string, repoId: string) {
 }
 
 /**
- * Create Kubernetes Environment CRs for development and production modes
+ * Create Kubernetes Environment CRs for development and production modes.
+ * Includes retry logic for transient K8s connection issues.
  */
-async function createEnvironmentCRs() {
-  try {
-    const envClient = await createEnvironmentClient(
-      undefined,
-      CATALYST_SYSTEM_NAMESPACE,
-    );
+async function createEnvironmentCRs(): Promise<{
+  success: boolean;
+  error?: unknown;
+}> {
+  const maxRetries = 3;
+  const retryDelayMs = 2000;
 
-    // Development environment CR
-    const devEnvInput: EnvironmentInput = {
-      apiVersion: "catalyst.catalyst.dev/v1alpha1",
-      kind: "Environment",
-      metadata: {
-        name: "catalyst-dev",
-        namespace: CATALYST_SYSTEM_NAMESPACE,
+  // Development environment CR
+  const devEnvInput: EnvironmentInput = {
+    apiVersion: "catalyst.catalyst.dev/v1alpha1",
+    kind: "Environment",
+    metadata: {
+      name: "catalyst-dev",
+      namespace: CATALYST_SYSTEM_NAMESPACE,
+    },
+    spec: {
+      projectRef: {
+        name: "catalyst",
       },
-      spec: {
-        projectRef: {
-          name: "catalyst",
-        },
-        type: "development",
-        deploymentMode: "development",
-        source: {
-          commitSha: "HEAD",
-          branch: "main",
-        },
-        config: {
-          envVars: [
-            { name: "NODE_ENV", value: "development" },
-            { name: "SEED_SELF_DEPLOY", value: "true" },
-          ],
-        },
+      type: "development",
+      deploymentMode: "development",
+      source: {
+        commitSha: "HEAD",
+        branch: "main",
       },
-    };
-
-    // Production environment CR
-    const prodEnvInput: EnvironmentInput = {
-      apiVersion: "catalyst.catalyst.dev/v1alpha1",
-      kind: "Environment",
-      metadata: {
-        name: "catalyst-prod",
-        namespace: CATALYST_SYSTEM_NAMESPACE,
+      config: {
+        envVars: [
+          { name: "NODE_ENV", value: "development" },
+          { name: "SEED_SELF_DEPLOY", value: "true" },
+        ],
       },
-      spec: {
-        projectRef: {
-          name: "catalyst",
-        },
-        type: "deployment",
-        deploymentMode: "production",
-        source: {
-          commitSha: "HEAD",
-          branch: "main",
-        },
-        config: {
-          envVars: [{ name: "NODE_ENV", value: "production" }],
-        },
+    },
+  };
+
+  // Production environment CR
+  const prodEnvInput: EnvironmentInput = {
+    apiVersion: "catalyst.catalyst.dev/v1alpha1",
+    kind: "Environment",
+    metadata: {
+      name: "catalyst-prod",
+      namespace: CATALYST_SYSTEM_NAMESPACE,
+    },
+    spec: {
+      projectRef: {
+        name: "catalyst",
       },
-    };
+      type: "deployment",
+      deploymentMode: "production",
+      source: {
+        commitSha: "HEAD",
+        branch: "main",
+      },
+      config: {
+        envVars: [{ name: "NODE_ENV", value: "production" }],
+        // Production uses pre-built image from GHCR
+        image: "ghcr.io/ncrmro/catalyst:latest",
+      },
+    },
+  };
 
-    // Apply both environments (idempotent)
-    console.log("Creating/updating development Environment CR...");
-    await envClient.apply(devEnvInput);
-    console.log("Development Environment CR applied successfully");
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const envClient = await createEnvironmentClient(
+        undefined,
+        CATALYST_SYSTEM_NAMESPACE,
+      );
 
-    console.log("Creating/updating production Environment CR...");
-    await envClient.apply(prodEnvInput);
-    console.log("Production Environment CR applied successfully");
+      // Apply both environments (idempotent)
+      console.log(
+        `Creating/updating Environment CRs (attempt ${attempt}/${maxRetries})...`,
+      );
 
-    return { success: true };
-  } catch (error) {
-    // If Kubernetes is not available, log warning but don't fail
-    console.warn(
-      "Could not create Environment CRs (Kubernetes may not be available):",
-      error instanceof Error ? error.message : String(error),
-    );
-    return { success: false, error };
+      await envClient.apply(devEnvInput);
+      console.log("Development Environment CR applied successfully");
+
+      await envClient.apply(prodEnvInput);
+      console.log("Production Environment CR applied successfully");
+
+      return { success: true };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.warn(`Attempt ${attempt}/${maxRetries} failed: ${errorMsg}`);
+
+      if (attempt < maxRetries) {
+        console.log(`Retrying in ${retryDelayMs}ms...`);
+        await new Promise((r) => setTimeout(r, retryDelayMs));
+      } else {
+        console.error(
+          "Could not create Environment CRs after all retries:",
+          errorMsg,
+        );
+        return { success: false, error };
+      }
+    }
   }
+
+  return { success: false };
 }
 
 /**
@@ -292,9 +315,19 @@ export async function seedSelfDeploy(teamId: string) {
     // 4. Create Kubernetes Environment CRs
     const k8sResult = await createEnvironmentCRs();
 
+    if (!k8sResult.success) {
+      console.error("❌ Failed to create Kubernetes Environment CRs");
+      console.error(
+        "   Environments will not appear in the UI until CRs are created.",
+      );
+      console.error("   Ensure K3s is running and the operator is healthy.");
+    }
+
     return {
-      success: true,
-      message: "Catalyst self-deployment seeded successfully",
+      success: k8sResult.success,
+      message: k8sResult.success
+        ? "Catalyst self-deployment seeded successfully"
+        : "Catalyst seeded but K8s Environment CRs failed to create",
       data: {
         projectId: project.id,
         projectName: project.name,
