@@ -1,8 +1,7 @@
-"use client";
-
-import { useRouter } from "next/navigation";
-import { use } from "react";
-import { SetupWizard, WizardData } from "./setup-wizard";
+import { notFound } from "next/navigation";
+import { db, projects } from "@/db";
+import { eq } from "drizzle-orm";
+import { ProjectConfigForm } from "./project-config-form";
 
 interface ConfigurePageProps {
   params: Promise<{
@@ -10,29 +9,28 @@ interface ConfigurePageProps {
   }>;
 }
 
-export default function ConfigurePage({ params }: ConfigurePageProps) {
-  const { slug } = use(params);
-  const router = useRouter();
+export default async function ConfigurePage({ params }: ConfigurePageProps) {
+  const { slug } = await params;
 
-  const handleComplete = (data: WizardData) => {
-    console.log("Wizard completed:", data);
-    // TODO: Save configuration and create environment
-    router.push(`/projects/${slug}`);
-  };
+  const [project] = await db
+    .select({
+      id: projects.id,
+      projectConfig: projects.projectConfig,
+    })
+    .from(projects)
+    .where(eq(projects.slug, slug))
+    .limit(1);
 
-  const handleCancel = () => {
-    router.push(`/projects/${slug}`);
-  };
+  if (!project) {
+    notFound();
+  }
 
   return (
-    <SetupWizard
-      project={{
-        slug,
-        name: slug,
-        fullName: slug,
-      }}
-      onComplete={handleComplete}
-      onCancel={handleCancel}
-    />
+    <div className="container mx-auto py-8">
+      <ProjectConfigForm
+        projectId={project.id}
+        initialConfig={project.projectConfig}
+      />
+    </div>
   );
 }

@@ -14,6 +14,7 @@ import { relations } from "drizzle-orm";
 import type { AdapterAccountType } from "@auth/core/adapters";
 import type { ReportData } from "@/types/reports";
 import type { DeploymentConfig } from "@/types/deployment";
+import type { ProjectConfig } from "@/types/project-config";
 
 export const users = pgTable("user", {
   id: text("id")
@@ -245,6 +246,8 @@ export const projects = pgTable(
     previewEnvironmentsCount: integer("preview_environments_count")
       .notNull()
       .default(0),
+    /** Project-level configuration (Zod v4 ProjectConfig) */
+    projectConfig: jsonb("project_config").$type<ProjectConfig>(),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },

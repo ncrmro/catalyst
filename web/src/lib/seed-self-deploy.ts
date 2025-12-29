@@ -15,9 +15,44 @@ import {
   type EnvironmentInput,
 } from "@catalyst/kubernetes-client";
 import type { DeploymentConfig } from "@/types/deployment";
+import type { ProjectConfig } from "@/types/project-config";
 
 // Use 'default' namespace since Environment CRs are watched there
 const CATALYST_SYSTEM_NAMESPACE = "default";
+
+/**
+ * Default project configuration for Catalyst self-deployment
+ */
+const CATALYST_PROJECT_CONFIG: ProjectConfig = {
+  version: "v1",
+  defaultImage: {
+    registry: { url: "ghcr.io/ncrmro" },
+    build: {
+      method: "dockerfile",
+      dockerfilePath: "Dockerfile",
+      context: ".",
+    },
+    tag: {
+      pattern: "{project}:{sha}",
+    },
+  },
+  defaultManagedServices: {
+    postgres: { enabled: true, version: "16", storageSize: "1Gi", database: "catalyst" },
+    redis: { enabled: false, version: "7", storageSize: "256Mi" },
+  },
+  defaultResources: {
+    requests: { cpu: "250m", memory: "256Mi" },
+    limits: { cpu: "1", memory: "1Gi" },
+    replicas: 1,
+  },
+  development: {
+    resources: {
+      requests: { cpu: "100m", memory: "128Mi" },
+      limits: { cpu: "500m", memory: "512Mi" },
+      replicas: 1,
+    }
+  }
+};
 
 /**
  * Default deployment configuration for Catalyst self-deployment
@@ -92,6 +127,7 @@ async function ensureCatalystProject(teamId: string) {
       ownerType: "User",
       ownerAvatarUrl: "https://avatars.githubusercontent.com/u/8276365?v=4",
       teamId,
+      projectConfig: CATALYST_PROJECT_CONFIG,
     })
     .returning();
 
