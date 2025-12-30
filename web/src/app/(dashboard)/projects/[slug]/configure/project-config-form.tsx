@@ -2,9 +2,12 @@
 
 import { useReducer, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card } from "@/components/ui/card";
 import { updateProjectConfig } from "@/actions/project-config";
-import type { ProjectConfig, ResourceConfig, ManagedServicesConfig } from "@/types/project-config";
+import type {
+  ProjectConfig,
+  ResourceConfig,
+  ManagedServicesConfig,
+} from "@/types/project-config";
 import { ImageConfigForm } from "./image-config-form";
 import { ResourcesConfigForm } from "./resources-config-form";
 import { ManagedServicesForm } from "./managed-services-form";
@@ -29,17 +32,18 @@ function configReducer(state: ProjectConfig, action: Action): ProjectConfig {
     case "UPDATE_MANAGED_SERVICES":
       return {
         ...state,
-        defaultManagedServices: { 
-          ...(state.defaultManagedServices || DEFAULT_CONFIG.defaultManagedServices!), 
-          ...action.payload 
+        defaultManagedServices: {
+          ...(state.defaultManagedServices ||
+            DEFAULT_CONFIG.defaultManagedServices!),
+          ...action.payload,
         },
       };
     case "UPDATE_RESOURCES":
       return {
         ...state,
-        defaultResources: { 
-          ...(state.defaultResources || DEFAULT_CONFIG.defaultResources!), 
-          ...action.payload 
+        defaultResources: {
+          ...(state.defaultResources || DEFAULT_CONFIG.defaultResources!),
+          ...action.payload,
         },
       };
     default:
@@ -61,7 +65,12 @@ const DEFAULT_CONFIG: ProjectConfig = {
     },
   },
   defaultManagedServices: {
-    postgres: { enabled: false, version: "16", storageSize: "1Gi", database: "app" },
+    postgres: {
+      enabled: false,
+      version: "16",
+      storageSize: "1Gi",
+      database: "app",
+    },
     redis: { enabled: false, version: "7", storageSize: "256Mi" },
   },
   defaultResources: {
@@ -76,9 +85,15 @@ interface ProjectConfigFormProps {
   initialConfig?: ProjectConfig | null;
 }
 
-export function ProjectConfigForm({ projectId, initialConfig }: ProjectConfigFormProps) {
+export function ProjectConfigForm({
+  projectId,
+  initialConfig,
+}: ProjectConfigFormProps) {
   const router = useRouter();
-  const [state, dispatch] = useReducer(configReducer, initialConfig || DEFAULT_CONFIG);
+  const [state, dispatch] = useReducer(
+    configReducer,
+    initialConfig || DEFAULT_CONFIG,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -94,7 +109,7 @@ export function ProjectConfigForm({ projectId, initialConfig }: ProjectConfigFor
         return;
       }
       router.refresh();
-    } catch (err) {
+    } catch {
       setError("An unexpected error occurred");
     } finally {
       setIsSubmitting(false);
@@ -113,20 +128,20 @@ export function ProjectConfigForm({ projectId, initialConfig }: ProjectConfigFor
           </p>
         </div>
         <div className="flex gap-4">
-            <button
-              type="button"
-              className="px-4 py-2 text-sm font-medium text-on-surface bg-surface border border-outline rounded-md hover:bg-secondary-container transition-colors"
-              onClick={() => router.back()}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="px-4 py-2 text-sm font-medium text-on-primary bg-primary rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
-            >
-              {isSubmitting ? "Saving..." : "Save Changes"}
-            </button>
+          <button
+            type="button"
+            className="px-4 py-2 text-sm font-medium text-on-surface bg-surface border border-outline rounded-md hover:bg-secondary-container transition-colors"
+            onClick={() => router.back()}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className="px-4 py-2 text-sm font-medium text-on-primary bg-primary rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            {isSubmitting ? "Saving..." : "Save Changes"}
+          </button>
         </div>
       </div>
 
@@ -139,17 +154,26 @@ export function ProjectConfigForm({ projectId, initialConfig }: ProjectConfigFor
       <form onSubmit={handleSubmit} className="space-y-8">
         <ImageConfigForm
           config={state.defaultImage}
-          onChange={(updates) => dispatch({ type: "UPDATE_IMAGE", payload: updates })}
+          onChange={(updates) =>
+            dispatch({ type: "UPDATE_IMAGE", payload: updates })
+          }
         />
 
         <ResourcesConfigForm
           config={state.defaultResources || DEFAULT_CONFIG.defaultResources!}
-          onChange={(updates) => dispatch({ type: "UPDATE_RESOURCES", payload: updates })}
+          onChange={(updates) =>
+            dispatch({ type: "UPDATE_RESOURCES", payload: updates })
+          }
         />
 
         <ManagedServicesForm
-          config={state.defaultManagedServices || DEFAULT_CONFIG.defaultManagedServices!}
-          onChange={(updates) => dispatch({ type: "UPDATE_MANAGED_SERVICES", payload: updates })}
+          config={
+            state.defaultManagedServices ||
+            DEFAULT_CONFIG.defaultManagedServices!
+          }
+          onChange={(updates) =>
+            dispatch({ type: "UPDATE_MANAGED_SERVICES", payload: updates })
+          }
         />
       </form>
     </div>

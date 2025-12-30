@@ -9,11 +9,16 @@ interface ManagedServicesFormProps {
   onChange: (updates: Partial<ManagedServicesConfig>) => void;
 }
 
-export function ManagedServicesForm({ config, onChange }: ManagedServicesFormProps) {
+export function ManagedServicesForm({
+  config,
+  onChange,
+}: ManagedServicesFormProps) {
   const toggleService = (service: "postgres" | "redis", enabled: boolean) => {
-    const currentServiceConfig = config[service] || (service === "postgres" 
-      ? { version: "16", storageSize: "1Gi", database: "app", enabled: false }
-      : { version: "7", storageSize: "256Mi", enabled: false });
+    const currentServiceConfig =
+      config[service] ||
+      (service === "postgres"
+        ? { version: "16", storageSize: "1Gi", database: "app", enabled: false }
+        : { version: "7", storageSize: "256Mi", enabled: false });
 
     onChange({
       [service]: {
@@ -23,37 +28,53 @@ export function ManagedServicesForm({ config, onChange }: ManagedServicesFormPro
     });
   };
 
-  const updateServiceConfig = (service: "postgres" | "redis", key: string, value: string) => {
+  const updateServiceConfig = (
+    service: "postgres" | "redis",
+    key: string,
+    value: string,
+  ) => {
     if (!config[service]) return;
-    
+
     onChange({
       [service]: {
         ...config[service]!,
         [key]: value,
-      } as any,
+      },
     });
   };
 
   return (
     <Card className="p-6 space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-on-surface mb-1">Managed Services</h2>
+        <h2 className="text-xl font-semibold text-on-surface mb-1">
+          Managed Services
+        </h2>
         <p className="text-sm text-on-surface-variant">
-          Enable and configure managed databases and caches for your application.
+          Enable and configure managed databases and caches for your
+          application.
         </p>
       </div>
 
       <div className="space-y-4">
         {/* Postgres */}
-        <div className={cn("rounded-lg border p-4", config.postgres?.enabled ? "border-primary/50 bg-primary/5" : "border-input")}>
+        <div
+          className={cn(
+            "rounded-lg border p-4",
+            config.postgres?.enabled
+              ? "border-primary/50 bg-primary/5"
+              : "border-input",
+          )}
+        >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-on-surface">PostgreSQL</span>
-              <span className="text-xs bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded">Database</span>
+              <span className="text-xs bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded">
+                Database
+              </span>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 className="sr-only peer"
                 checked={config.postgres?.enabled || false}
                 onChange={(e) => toggleService("postgres", e.target.checked)}
@@ -65,30 +86,46 @@ export function ManagedServicesForm({ config, onChange }: ManagedServicesFormPro
           {config.postgres?.enabled && (
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="grid gap-2">
-                <label className="text-xs font-medium text-muted-foreground">Version</label>
+                <label className="text-xs font-medium text-muted-foreground">
+                  Version
+                </label>
                 <input
                   type="text"
                   className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
                   value={config.postgres.version}
-                  onChange={(e) => updateServiceConfig("postgres", "version", e.target.value)}
+                  onChange={(e) =>
+                    updateServiceConfig("postgres", "version", e.target.value)
+                  }
                 />
               </div>
               <div className="grid gap-2">
-                <label className="text-xs font-medium text-muted-foreground">Storage</label>
+                <label className="text-xs font-medium text-muted-foreground">
+                  Storage
+                </label>
                 <input
                   type="text"
                   className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
                   value={config.postgres.storageSize}
-                  onChange={(e) => updateServiceConfig("postgres", "storageSize", e.target.value)}
+                  onChange={(e) =>
+                    updateServiceConfig(
+                      "postgres",
+                      "storageSize",
+                      e.target.value,
+                    )
+                  }
                 />
               </div>
               <div className="grid gap-2">
-                <label className="text-xs font-medium text-muted-foreground">Database Name</label>
+                <label className="text-xs font-medium text-muted-foreground">
+                  Database Name
+                </label>
                 <input
                   type="text"
                   className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
                   value={config.postgres.database}
-                  onChange={(e) => updateServiceConfig("postgres", "database", e.target.value)}
+                  onChange={(e) =>
+                    updateServiceConfig("postgres", "database", e.target.value)
+                  }
                 />
               </div>
             </div>
@@ -96,15 +133,24 @@ export function ManagedServicesForm({ config, onChange }: ManagedServicesFormPro
         </div>
 
         {/* Redis */}
-        <div className={cn("rounded-lg border p-4", config.redis?.enabled ? "border-primary/50 bg-primary/5" : "border-input")}>
+        <div
+          className={cn(
+            "rounded-lg border p-4",
+            config.redis?.enabled
+              ? "border-primary/50 bg-primary/5"
+              : "border-input",
+          )}
+        >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-on-surface">Redis</span>
-              <span className="text-xs bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded">Cache</span>
+              <span className="text-xs bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded">
+                Cache
+              </span>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 className="sr-only peer"
                 checked={config.redis?.enabled || false}
                 onChange={(e) => toggleService("redis", e.target.checked)}
@@ -116,21 +162,29 @@ export function ManagedServicesForm({ config, onChange }: ManagedServicesFormPro
           {config.redis?.enabled && (
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
-                <label className="text-xs font-medium text-muted-foreground">Version</label>
+                <label className="text-xs font-medium text-muted-foreground">
+                  Version
+                </label>
                 <input
                   type="text"
                   className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
                   value={config.redis.version}
-                  onChange={(e) => updateServiceConfig("redis", "version", e.target.value)}
+                  onChange={(e) =>
+                    updateServiceConfig("redis", "version", e.target.value)
+                  }
                 />
               </div>
               <div className="grid gap-2">
-                <label className="text-xs font-medium text-muted-foreground">Storage</label>
+                <label className="text-xs font-medium text-muted-foreground">
+                  Storage
+                </label>
                 <input
                   type="text"
                   className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
                   value={config.redis.storageSize}
-                  onChange={(e) => updateServiceConfig("redis", "storageSize", e.target.value)}
+                  onChange={(e) =>
+                    updateServiceConfig("redis", "storageSize", e.target.value)
+                  }
                 />
               </div>
             </div>
