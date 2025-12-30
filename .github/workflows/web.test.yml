@@ -169,15 +169,8 @@ jobs:
         run: |
           # Install NGINX Ingress Controller for Kind
           kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
-          # Wait for deployment to be available first
-          kubectl wait --namespace ingress-nginx \
-            --for=condition=available deployment/ingress-nginx-controller \
-            --timeout=120s
-          # Then wait for the pod to be ready
-          kubectl wait --namespace ingress-nginx \
-            --for=condition=ready pod \
-            --selector=app.kubernetes.io/component=controller \
-            --timeout=120s
+          # Use rollout status which properly waits for pods to be ready
+          kubectl rollout status deployment/ingress-nginx-controller -n ingress-nginx --timeout=120s
           echo "NGINX Ingress Controller installed and ready"
 
       - name: Install Environment CRD
