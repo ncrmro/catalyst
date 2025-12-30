@@ -64,6 +64,15 @@ test.describe("Local URL Testing for Environments", () => {
     expect(readyEnv).toBeDefined();
     expect(readyEnv!.status!.url).toBeDefined();
 
+    // Sanity check: Log Environment CR details before browser navigation
+    console.log(
+      `Sanity check: Validating Environment CR ${readyEnv!.metadata.name}`,
+    );
+    console.log(`  - Phase: ${readyEnv!.status?.phase}`);
+    console.log(`  - URL: ${readyEnv!.status?.url}`);
+    console.log(`  - Namespace: ${readyEnv!.metadata.namespace}`);
+    console.log(`  - Project: ${readyEnv!.spec.projectRef.name}`);
+
     const envUrl = readyEnv!.status!.url!;
     console.log(`Testing environment URL: ${envUrl}`);
 
