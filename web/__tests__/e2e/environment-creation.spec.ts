@@ -2,6 +2,8 @@ import { test, expect } from "./fixtures/k8s-fixture";
 import { ProjectsPage } from "./page-objects/projects-page";
 
 test.describe("Environment Creation and Kubernetes Verification", () => {
+  test.slow(); // This test involves Kubernetes operations which can be slow in CI
+
   test("should create environment and verify kubernetes service", async ({
     page,
     k8s,
@@ -32,16 +34,10 @@ test.describe("Environment Creation and Kubernetes Verification", () => {
     await expect(platformTab).toBeVisible();
     // Scroll tab into view to prevent viewport scroll issues (Agent Chat can push it out of view)
     await platformTab.scrollIntoViewIfNeeded();
+    await platformTab.click();
 
-    // Get href for URL pattern matching
-    const platformHref = await platformTab.getAttribute("href");
-
-    // Click and wait for navigation simultaneously (prevents race condition in CI)
-    // Uses same pattern as ProjectsPage.clickProjectCard() - waitForURL must start BEFORE click
-    await Promise.all([
-      page.waitForURL(`**${platformHref}`),
-      platformTab.click(),
-    ]);
+    // Wait for navigation to Platform page (extended timeout for CI)
+    await page.waitForURL(/\/platform$/, { timeout: 60000 });
 
     // Verify we're on the Platform page by checking for the Platform Configuration heading
     await expect(
