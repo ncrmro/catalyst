@@ -38,9 +38,15 @@ export async function upsertPullRequest(data: CreatePullRequestData) {
     // Convert arrays to JSON strings for database storage
     const dbData: InsertPullRequest = {
       ...validatedData,
-      labels: validatedData.labels ? JSON.stringify(validatedData.labels) : null,
-      assignees: validatedData.assignees ? JSON.stringify(validatedData.assignees) : null,
-      reviewers: validatedData.reviewers ? JSON.stringify(validatedData.reviewers) : null,
+      labels: validatedData.labels
+        ? JSON.stringify(validatedData.labels)
+        : null,
+      assignees: validatedData.assignees
+        ? JSON.stringify(validatedData.assignees)
+        : null,
+      reviewers: validatedData.reviewers
+        ? JSON.stringify(validatedData.reviewers)
+        : null,
     };
 
     // Use model to upsert PR
@@ -56,7 +62,7 @@ export async function upsertPullRequest(data: CreatePullRequestData) {
     if (error instanceof z.ZodError) {
       return {
         success: false,
-        error: `Validation error: ${error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ")}`,
+        error: `Validation error: ${error.issues.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ")}`,
       };
     }
     return {

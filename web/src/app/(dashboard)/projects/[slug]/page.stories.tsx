@@ -19,6 +19,7 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   args: {
     project: {
+      id: "project-1",
       slug: "catalyst",
       name: "Catalyst",
       fullName: "ncrmro/catalyst",
@@ -32,6 +33,7 @@ export const Default: Story = {
 export const MezeProject: Story = {
   args: {
     project: {
+      id: "project-2",
       slug: "meze",
       name: "Meze",
       fullName: "ncrmro/meze",
@@ -45,6 +47,7 @@ export const MezeProject: Story = {
 export const NewProject: Story = {
   args: {
     project: {
+      id: "project-3",
       slug: "new-project",
       name: "New Project",
       fullName: "org/new-project",

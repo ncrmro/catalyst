@@ -30,33 +30,33 @@ _Goal: Prepare the codebase for local URL testing changes._
 
 ## Phase 2: Foundational (Operator & CRD)
 
-_Goal: Update the Operator to generate path-based Ingress resources and report URLs in the CRD status. This is the core backend implementation._
+_Goal: Update the Operator to generate hostname-based Ingress resources (using `*.localhost` for local dev) and report URLs in the CRD status. This is the core backend implementation._
 
 **Current Gap**: The `desiredIngress()` function exists but:
 
 1. Only generates production hostname-based routing (e.g., `env-name.preview.catalyst.dev`)
 2. Is never called from the reconciliation loop
-3. Does not support path-based routing for local development
+3. ~~Does not support path-based routing for local development~~ (RESOLVED: Now uses hostname-based `*.localhost` routing)
 
 **Independent Test**:
 
 - Apply an Environment CR in a local K3s cluster.
-- Verify `kubectl get ingress` shows `rewrite-target` annotation and correct path.
-- Verify `kubectl get environment` shows `status.url` populated.
+- Verify `kubectl get ingress` shows hostname-based routing with `*.localhost` host.
+- Verify `kubectl get environment` shows `status.url` populated with `http://namespace.localhost:8080/`.
 
 - [x] T003 Environment CRD `status` already includes `URL` field (note: uses `URL` not `LocalURL`)
 - [x] T004 CRD YAMLs generated in `operator/config/crd/bases/`
-- [ ] T005 Implement `deploy.go` updates for path-based routing:
+- [x] T005 Implement `deploy.go` updates for hostname-based local routing:
   1. Add `isLocal` parameter to `desiredIngress()` function
-  2. When `isLocal=true`: use path-based routing with `rewrite-target` annotation
-  3. When `isLocal=false`: use existing hostname-based routing
+  2. When `isLocal=true`: use hostname-based routing with `*.localhost` (e.g., `namespace.localhost`)
+  3. When `isLocal=false`: use existing hostname-based routing with TLS (e.g., `env.preview.catalyst.dev`)
 - [ ] T006 Update `Reconcile` loop in `operator/internal/controller/environment_controller.go`:
   1. **Call `desiredIngress()`** - currently not called!
   2. Detect local mode (env var or Project CR config)
   3. Create/update Ingress resource
   4. Populate `status.URL` with the generated URL
-- [ ] T007 Add unit tests for Ingress generation verifying:
-  - Path-based routing with `rewrite-target` annotation (local mode)
+- [x] T007 Add unit tests for Ingress generation verifying:
+  - Hostname-based routing with `*.localhost` (local mode)
   - Hostname-based routing with TLS (production mode)
 - [x] T008 CRD manifests already auto-generated
 - [ ] T009 Update `operator/config/samples/catalyst_v1alpha1_environment.yaml` to include example status
@@ -72,7 +72,7 @@ _Goal: Ensure the Web application correctly consumes and displays the `status.ur
 - Run the web app with a local K3s cluster.
 - Open an Environment details page.
 - Verify the "Local URL" is displayed and clickable.
-- Verify the link opens `http://localhost:8080/{namespace}/` and routes correctly.
+- Verify the link opens `http://{namespace}.localhost:8080/` and routes correctly.
 
 - [x] T010 `EnvironmentCR` type includes `status?.url` in `web/src/types/crd.ts`
 - [x] T011 Environment components display URL: `EnvironmentHeader`, `EnvironmentRow`, `EnvironmentDetailView`
@@ -93,15 +93,68 @@ _Goal: Ensure the feature is well-documented and easy to use._
 - T007 depends on T005 and T006 (tests need implementation first)
 - T013 depends on T006 (operator must populate URL for E2E to pass)
 
+---
+
+## Phase 5: Self-Deployment & Deployment Modes [FR-ENV-003/004/005]
+
+_Goal: Enable Catalyst to deploy itself within local K3s with both production and development modes._
+
+### Phase 5a: Database & Types
+
+- [ ] T017 [P] Create `web/src/types/deployment.ts` with Zod schemas for DeploymentConfig
+- [ ] T018 [P] Extend `web/src/db/schema.ts` with `deploymentConfig` JSONB column on `projectEnvironments`
+- [ ] T019 Generate and apply database migration
+
+### Phase 5b: CRD Extension (Gradual)
+
+- [ ] T020 Add `DeploymentMode` field to `operator/api/v1alpha1/environment_types.go`
+- [ ] T021 Run `make generate && make manifests` to regenerate CRDs
+
+### Phase 5c: Operator Deployment Modes
+
+- [ ] T022 Create `operator/internal/controller/development_deploy.go` with hardcoded templates:
+  - PVCs for node_modules and .next cache
+  - PostgreSQL deployment + service + PVC
+  - App deployment with hostPath, init containers, hot-reload
+  - Service and Ingress
+- [ ] T023 Create `operator/internal/controller/production_deploy.go`:
+  - PostgreSQL stack (shared with development)
+  - App deployment from manifest pattern
+  - Service and Ingress
+- [ ] T024 Modify `environment_controller.go` to branch by `spec.deploymentMode`
+- [ ] T025 Add unit tests for development and production mode reconciliation
+
+### Phase 5d: Seeding Integration
+
+- [ ] T026 [P] Create `web/src/lib/seed-self-deploy.ts` with Catalyst fixture data
+- [ ] T027 [P] Create `web/src/lib/env-vars.ts` to port `get_web_env_vars()` from bin/k3s-vm
+- [ ] T028 Wire `SEED_SELF_DEPLOY=true` flag in `web/src/lib/seed.ts`
+- [ ] T029 Update `web/.env.example` to document `SEED_SELF_DEPLOY` flag
+
+### Phase 5e: UI Wiring
+
+- [ ] T030 Wire `deployment-config-form.tsx` to accept and pass deploymentConfig to server action
+- [ ] T031 Modify `createProjectEnvironment` action to store deploymentConfig in DB and CR
+
+### Phase 5f: Testing
+
+- [ ] T032 Add integration test for self-deployment seeding flow
+- [ ] T033 Add E2E test: `SEED_SELF_DEPLOY=true npm run seed` creates deployable environments
+
+---
+
 ## Summary
 
-| Phase                | Total  | Complete | Remaining |
-| -------------------- | ------ | -------- | --------- |
-| Phase 0 (Foundation) | 10     | 10       | 0         |
-| Phase 1 (Setup)      | 2      | 0        | 2         |
-| Phase 2 (Operator)   | 7      | 3        | 4         |
-| Phase 3 (Web UI)     | 4      | 3        | 1         |
-| Phase 4 (Polish)     | 3      | 0        | 3         |
-| **Total**            | **26** | **16**   | **10**    |
+| Phase                     | Total  | Complete | Remaining |
+| ------------------------- | ------ | -------- | --------- |
+| Phase 0 (Foundation)      | 10     | 10       | 0         |
+| Phase 1 (Setup)           | 2      | 0        | 2         |
+| Phase 2 (Operator)        | 7      | 3        | 4         |
+| Phase 3 (Web UI)          | 4      | 3        | 1         |
+| Phase 4 (Polish)          | 3      | 0        | 3         |
+| Phase 5 (Self-Deployment) | 17     | 0        | 17        |
+| **Total**                 | **43** | **16**   | **27**    |
 
-**Critical Path**: T005 → T006 → T007 → T013
+**Critical Path (Local URL)**: T005 → T006 → T007 → T013
+
+**Critical Path (Self-Deploy)**: T017/T018 → T020 → T022/T023 → T024 → T026/T028 → T032

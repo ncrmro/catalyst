@@ -51,6 +51,9 @@ export const Archived: Story = {
  * All status variations displayed together.
  */
 export const AllStatuses: Story = {
+  args: {
+    status: "active",
+  },
   render: () => (
     <div className="flex gap-4">
       <ProjectStatusBadge status="active" />

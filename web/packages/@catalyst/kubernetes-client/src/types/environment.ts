@@ -50,12 +50,19 @@ export interface EnvVar {
 export interface EnvironmentConfig {
   /** Environment variables to inject */
   envVars?: EnvVar[];
+  /** Container image to deploy (e.g., "ghcr.io/ncrmro/catalyst:latest") */
+  image?: string;
 }
 
 /**
  * Environment type
  */
 export type EnvironmentType = "development" | "deployment";
+
+/**
+ * Deployment mode specifies how the operator deploys the environment
+ */
+export type DeploymentMode = "production" | "development" | "workspace";
 
 /**
  * Environment lifecycle phase
@@ -75,6 +82,8 @@ export interface EnvironmentSpec {
   projectRef: ProjectReference;
   /** Type of environment */
   type: EnvironmentType;
+  /** Deployment mode: "production", "development", or "workspace" (default) */
+  deploymentMode?: DeploymentMode;
   /** Source configuration */
   source: EnvironmentSource;
   /** Configuration overrides */

@@ -29,6 +29,14 @@ type EnvironmentSpec struct {
 	// Type of environment (development, deployment)
 	Type string `json:"type"`
 
+	// DeploymentMode specifies how the operator should deploy this environment.
+	// Valid values: "production", "development", "workspace" (default).
+	// - "production": Static deployment from manifest pattern
+	// - "development": Hot-reload with volume mounts and init containers
+	// - "workspace": Simple workspace pod (default, existing behavior)
+	// +optional
+	DeploymentMode string `json:"deploymentMode,omitempty"`
+
 	// Source configuration for this specific environment
 	Source EnvironmentSource `json:"source"`
 
@@ -57,6 +65,11 @@ type EnvironmentConfig struct {
 	// EnvVars to inject into the deployment
 	// +optional
 	EnvVars []EnvVar `json:"envVars,omitempty"`
+
+	// Image is the container image to deploy (e.g., "ghcr.io/ncrmro/catalyst:latest")
+	// If not specified, defaults to cluster registry with commit SHA
+	// +optional
+	Image string `json:"image,omitempty"`
 }
 
 type EnvVar struct {

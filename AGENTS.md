@@ -2,74 +2,58 @@
 
 This file provides guidance to AI coding agents when working with code in this repository.
 
+## Philosophy & Vision
+
+We aim to clearly delineate **Platform Engineering** from **Feature Development**. Our goal is to keep users focused on shipping features without getting distracted by "sidequests" like managing deployments, infrastructure, or configuring developer tooling. By automating setup and configuration, we create a **"pit of success"** for the user.
+
+**Core Principles:**
+
+*   **Platform vs. Feature Delineation**:
+    *   **Platform Work Litmus Test**: Commits should almost always be `chore` or `docs`. Descriptions must explain *why* this chore impacts feature development. We aim to cherry-pick these changes and open separate PRs to keep them isolated.
+    *   **Feature Work**: Commits use `feat`, `fix`, `style`, `test` and are used in release logic. Subjects should usually reference a spec.
+*   **Spec-Driven Development**: We promote keeping documentation, specifications, and declarative configuration in order, setting things up automatically as much as possible.
+*   **Rapid Iteration**: We facilitate quick feature development through small, concise Pull Requests, utilizing tools like feature flags and semantic commit messages to ensure easy reviews.
+*   **Agentic Future**:
+    *   **Platform & Project Agents**: Will eventually assist users in both infrastructure management and code iteration.
+    *   **Development Environments**: Agents run in isolated Kubernetes namespaces with full access.
+    *   **Deep Introspection**: Agents leverage a comprehensive toolset including Playwright MCP for UI inspection and Grafana MCP for system observability (Prometheus/Loki/Alertmanager). This allows agents to not only debug code but also investigate performance issues and alert triggers across the full deployment spectrum.
+*   **Flexible Deployment**: The platform supports self-hosted or managed SaaS models, connecting to either our clusters or the user's.
+
+## Observability
+
+**Guiding Context**: While full implementation is ongoing, the platform is designed to provide agents with deep visibility into system health and behavior.
+
+*   **Stack**: The platform supports deploying a full observability stack (Prometheus, Loki, Alertmanager, Alloy) via the Prometheus Operator and Helm charts.
+*   **Isolation**: Teams or projects can manage their own isolated observability stack if required.
+*   **Agent Integration**: 
+    *   **Grafana MCP**: Enables agents to query metrics (Prometheus) and logs (Loki) and inspect alerts (Alertmanager).
+    *   **Use Cases**: Agents can autonomously review Alertmanager alerts, correlate them with logs/metrics, and debug complex infrastructure or application issues.
+
+## Spec Driven Development
+
+We use a specification-first approach to define features through user stories and functional requirements. For detailed guidance on our specification process, see [specs/AGENTS.md](specs/AGENTS.md).
+
+### Active Specifications
+
+- **[001-environments](specs/001-environments/)**: Manages deployment (production/staging) and isolated development environments with preview URLs.
+- **[003-vcs-providers](specs/003-vcs-providers/)**: Integrates version control systems (GitHub) for authentication, team sync, and PR orchestration.
+- **[006-cli-codeing-agents-harness](specs/006-cli-codeing-agents-harness/)**: Provides an environment for running and managing CLI-based coding agents.
+- **[007-user-agent-interfaces](specs/007-user-agent-interfaces/)**: Defines the interaction patterns across Web, TUI, MCP, and ChatOps.
+- **[009-projects](specs/009-projects/)**: Groups repositories into projects to enable centralized CI, release management, and spec-driven workflows.
+
 ## Component-Specific Guidance
 
 For detailed guidance on specific components, see their AGENTS.md files:
 
 - `operator/AGENTS.md` - Kubernetes operator (Go, declarative infrastructure)
 - `.k3s-vm/AGENTS.md` - Local K3s VM management and troubleshooting
-- `web/AGENTS.md` - Web application specifics
-
-## README Documentation
-
-**IMPORTANT**: When working in any directory below, always read the corresponding README.md for architecture patterns, best practices, and domain-specific guidance.
-
-```
-web/
-├── __tests__/README.md           # Testing architecture (unit, integration, e2e, agents)
-│   ├── e2e/README.md             # E2E testing patterns with Playwright
-│   └── factories/README.md       # Test data factory patterns
-├── src/
-│   ├── actions/README.md         # Actions layer (boundary between React and backend)
-│   ├── db/README.md              # Database layer (schemas, migrations, patterns)
-│   └── models/README.md          # Models layer (complex queries, business logic)
-```
-
-## Spikes
-
-When user requests a spike always read spikes/README.md for how to create and implement a new spike. Spikes follow the naming pattern `TIMESTAMP_SPIKE_NAME` where TIMESTAMP is Unix timestamp.
+- `web/AGENTS.md` - Web application specifics (Next.js, Database, Preview Environments)
 
 ## Development Commands
 
 ### Web Application (in `/web` directory)
 
-**Development:**
-
-```bash
-npm run dev           # Start development server
-npm run build         # Build for production
-npm start             # Start production server
-```
-
-**Testing:**
-
-```bash
-npm test              # Run all tests
-npm run test:unit     # Unit tests only
-npm run test:integration  # Integration tests only
-npm run test:components   # Component tests only
-npm run test:e2e      # E2E tests with Playwright
-npm run test:watch    # Run tests in watch mode
-npm run test:coverage # Run tests with coverage
-```
-
-**Code Quality:**
-
-```bash
-npm run lint          # Run linter
-npm run typecheck     # Type checking with TypeScript
-```
-
-**Database (Drizzle ORM):**
-
-```bash
-npm run db:generate   # Generate migrations from schema changes
-npm run db:migrate    # Apply migrations to database
-npm run db:push       # Push schema changes directly (dev only)
-npm run db:studio     # Open Drizzle Studio GUI
-npm run seed          # Seed database with test data
-npm run seed:projects # Seed specific projects (catalyst/meze)
-```
+For detailed NPM scripts (linting, testing, database), see `web/AGENTS.md`.
 
 **Docker/Make Commands (from `/web`):**
 
@@ -88,109 +72,14 @@ make ci-docker        # Run CI tests in Docker
 
 ### Core Components
 
-**Catalyst Platform**: A development platform for faster shipping with opinionated deployments, CI/CD pipelines, and boilerplates. Integrates with Git repositories to create preview environments for pull requests.
+**Catalyst Platform**: A development platform for faster shipping with opinionated deployments, CI/CD pipelines, and boilerplates. 
+
+- **Deployment Environments**: Supports Production and Staging environments with automated reconciliation.
+- **Preview Environments**: Integrates with Git repositories to create isolated, full-stack preview environments for every pull request, accessible via unique URLs.
 
 **Kubernetes Operator (`/operator`)**: Go-based Kubernetes operator that implements declarative infrastructure management. The web app creates `Environment` Custom Resources, and the operator reconciles them into actual Kubernetes resources. See `operator/AGENTS.md` for detailed guidance.
 
-**Web Application (`/web`)**: Next.js 15 application with:
-
-- **Authentication**: NextAuth.js with GitHub OAuth and optional team-based access control
-- **Database**: PostgreSQL with Drizzle ORM, schema defined in `src/db/schema.ts`
-- **GitHub Integration**: GitHub App for webhook handling and repository interaction
-- **Kubernetes Integration**: Client for managing namespaces, pods, and deployments
-- **MCP Server**: Model Context Protocol server at `/api/mcp` for AI agent interactions
-
-**Key Database Tables**:
-
-- `users`, `accounts`, `sessions`: Authentication and user management
-- `teams`, `teamsMemberships`: Team-based access control
-- `repos`, `projects`, `projectEnvironments`: Repository and deployment management
-- `pullRequests`, `pullRequestPods`: PR preview environments
-- `clusters`, `kubeconfigs`: Kubernetes cluster management
-- `githubUserTokens`, `githubAppTokens`: GitHub authentication tokens
-- `reports`: Generated reports from periodic agents
-
-### GitHub App Integration
-
-The application supports both GitHub App and Personal Access Token (PAT) authentication:
-
-- **GitHub App**: For organization-wide access, webhook handling, and automated workflows
-- **PAT**: For simpler personal use cases
-- Token encryption using AES-256-GCM for secure storage
-- Automatic token refresh for GitHub App installations
-
-### Kubernetes Integration
-
-- Supports multiple clusters via kubeconfig management
-- Creates namespaces for project environments
-- Deploys pull request preview pods
-- Helm chart support in `/charts` directory:
-  - `nextjs`: Deploy Next.js applications with optional PostgreSQL
-  - `singleton`: Cluster-wide services (cert-manager, ingress-nginx, docker-registry)
-
-### Preview Environments
-
-The application automatically creates isolated preview environments for pull requests in configured repositories.
-
-**How it Works:**
-
-1. **GitHub Webhook** (`/api/github/webhook`): Receives PR events (opened, synchronize, reopened, closed)
-2. **Deployment Orchestration** (`src/models/preview-environments.ts`):
-   - Creates database record in `pullRequestPods` table (idempotent)
-   - Generates DNS-safe namespace (`pr-{repo}-{number}`)
-   - Deploys to Kubernetes using Helm or direct K8s API
-   - Waits for deployment to become ready (with timeout)
-   - Posts public URL to PR as GitHub comment
-3. **Status Tracking**: Database tracks deployment lifecycle (pending → deploying → running/failed)
-4. **Cleanup**: PR close events trigger namespace deletion and database cleanup
-
-**Key Files:**
-
-- **Database Schema**: `src/db/schema.ts` - `pullRequestPods` table
-- **Models Layer**: `src/models/preview-environments.ts` - Core business logic
-  - `createPreviewDeployment()`: Main orchestration function
-  - `deletePreviewDeploymentOrchestrated()`: Cleanup
-  - `retryFailedDeployment()`: Manual retry
-  - `listActivePreviewPodsWithMetrics()`: Query with resource usage
-- **Actions Layer**: `src/actions/preview-environments.ts` - React Server Actions
-  - `getPreviewEnvironments()`: List for UI
-  - `getPreviewEnvironment()`: Details for UI
-  - `getPodLogs()`: Container logs
-  - `deletePreviewEnvironment()`: Manual cleanup
-  - `retryDeployment()`: Manual retry
-- **Webhook Handler**: `src/app/api/github/webhook/route.ts` - PR event handling
-- **UI Pages**:
-  - `/preview-environments`: List all active environments
-  - `/preview-environments/[id]`: Environment details and logs
-- **MCP Tools** (`/api/mcp`): AI agent integration
-  - `list_preview_environments`
-  - `get_preview_environment`
-  - `get_preview_logs`
-  - `delete_preview_environment`
-  - `retry_preview_deployment`
-
-**Architecture Pattern:**
-
-The preview environments feature follows the layered architecture:
-
-- **Webhook → Models → K8s/GitHub**: Deployment orchestration
-- **Actions ← Models ← UI**: Data access for frontend
-- **MCP ← Actions ← Models**: AI agent access
-
-**Security Features:**
-
-- NetworkPolicy isolation (ingress from nginx, egress to DNS/registry only)
-- Resource quotas (500m CPU, 512Mi memory per environment)
-- Namespace-level isolation
-- Team-based access control
-
-**Logging:**
-
-Structured logging throughout deployment lifecycle using `src/lib/logging.ts`:
-
-- deployment-initiated, pod-record-created, deployment-started
-- build-job-completed/failed, k8s-deployment-created/failed
-- deployment-completed, deletion-completed, retry-completed
+**Web Application (`/web`)**: Next.js 15 application. For technical details on the database, GitHub integration, and preview environment orchestration, see `web/AGENTS.md`.
 
 ### Local K3s Development VM
 
@@ -248,68 +137,38 @@ Different contexts use different Kubernetes cluster providers:
 
 Both environments support the same path-based ingress routing pattern (`http://localhost:8080/{namespace}/`), ensuring test parity between local development and CI.
 
-### Local Preview URL Testing
+# User Story Happy Paths
 
-Preview environments use different URL patterns in local vs production:
+### 1. Setting up a Project
 
-| Environment | URL Pattern                                     |
-| ----------- | ----------------------------------------------- |
-| Local       | `http://localhost:8080/env-preview-123/`        |
-| Production  | `https://env-preview-123.preview.catalyst.dev/` |
+**Why:** To establish a workspace that groups multiple Git repositories. This foundation enables:
+- **CI/CD Integration**: Running automated tests and pipelines.
+- **Deployment Management**: Releasing new code to various environments.
+- **Repository Access**: Reading and writing to repositories for specs, documentation, and configuration-as-code.
+- **Visibility**: Viewing branches, pull requests, and development activity across the project.
 
-**Configuration (in `web/.env`):**
+**Flow:**
+1. **Create Project**: User defines a project name and associates it with a team.
+2. **Link Repositories**: User selects primary and secondary Git repositories to link to the project.
+3. **Outcome**: A centralized dashboard showing project activity, ready for configuration.
 
-- `LOCAL_PREVIEW_ROUTING=true` - Enable path-based routing
-- `INGRESS_PORT=8080` - Ingress port (default, rootless)
+### 2. Setting up a Project Configuration
 
-**Validating with Playwright MCP:**
+**Why:** To define how the application is built and run, enabling the creation of **Deployment Environments** (Production, Staging) and **Development Environments** (cloud-based workspaces). This configuration ensures consistent deployments across all stages.
 
-AI agents can validate preview deployments using Playwright MCP tools:
-
-```typescript
-// Navigate to preview environment
-mcp__playwright__browser_navigate({ url: previewUrl });
-
-// Take snapshot to verify content
-mcp__playwright__browser_snapshot();
-
-// Wait for app to load
-mcp__playwright__browser_wait_for({ selector: "[data-testid='app-loaded']" });
-```
-
-See `specs/001-environments/research.local-url-testing.md` for detailed approaches and GitHub Actions with Kind configuration.
-
-### Agent System (`/web/src/agents`)
-
-Periodic background tasks that run on intervals:
-
-- Report generation for projects
-- Cleanup of stale resources
-- Monitoring and alerting
-
-### MCP (Model Context Protocol) Integration
-
-The application exposes an MCP server that allows AI agents to:
-
-- List and manage projects
-- Deploy applications
-- Access cluster information
-- Interact with pull request environments
-
-## Environment Variables
-
-Required for production:
-
-- `DATABASE_URL`: PostgreSQL connection string
-- `NEXTAUTH_URL`: Application URL for authentication
-- `NEXTAUTH_SECRET`: Secret for session encryption
-- `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`: GitHub OAuth credentials
-
-Optional:
-
-- `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`: For GitHub App functionality
-- `GITHUB_WEBHOOK_SECRET`: For validating webhook payloads
-- `ENCRYPTION_KEY`: For encrypting stored tokens (auto-generated if not set)
+**Flow:**
+1. **Access Configuration**: Navigate to `/projects/[slug]/configure`.
+2. **Image & Registry**:
+   - Enter the **Registry URL** (e.g., `ghcr.io/my-org`).
+   - Select a **Build Method** (`Dockerfile`, `Buildpack`, or `Prebuilt`).
+   - Configure build details like Dockerfile path and context.
+3. **Compute Resources**:
+   - Set **Default Resources** (CPU/Memory requests and limits).
+   - Configure **Default Replicas**.
+4. **Managed Services**:
+   - Toggle and configure services like **PostgreSQL** or **Redis**.
+5. **Save Changes**: Persist the configuration to the project.
+6. **Inheritance**: Environments automatically use these project defaults for deployments.
 
 ## Testing Strategy
 
@@ -319,35 +178,6 @@ Optional:
 - **E2E Tests**: Full user workflows with Playwright
 
 Tests use mocked GitHub API responses in development/test mode via `GITHUB_REPOS_MODE=mocked`.
-
-## Mock vs Real Data Modes
-
-The application supports two development modes:
-
-### Mocked Mode (Default for `make up`)
-
-- Environment: `GITHUB_REPOS_MODE=mocked` and `MOCKED=1`
-- GitHub API responses come from `src/mocks/github-data.yaml`
-- Database seeding creates only users (no projects)
-- Projects/repos data comes from YAML mock data
-- Best for: Development, testing, offline work
-
-### Real Mode (`make up-real`)
-
-- Environment: Normal GitHub API integration
-- Database seeding creates users with projects
-- All data comes from actual GitHub API calls
-- Best for: Testing GitHub integration, production-like testing
-
-## Deployment
-
-The application can be deployed via:
-
-1. **Docker Compose**: For local development and testing
-2. **Helm Charts**: For Kubernetes deployments
-3. **Direct Node.js**: Using `npm run build` and `npm start:production`
-
-Database migrations run automatically in Docker/Helm deployments or manually via `npm run db:migrate`.
 
 ## Active Technologies
 - TypeScript 5.3 (Web), Go 1.21 (Operator) + `ingress-nginx` (Kubernetes), `@catalyst/kubernetes-client` (Web) (001-environments)

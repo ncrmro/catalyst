@@ -136,10 +136,27 @@ jobs:
 
       - run: cp .env.example .env
 
-      - name: Create Kind cluster
+      - name: Create Kind cluster with ingress port mapping
         run: |
-          # TODO we need to rename this to be consistant across envirnments but that will also involve updating the e2e tests that look for cluster name/namespace.
-          kind create cluster --name preview-cluster --wait 60s
+          # Create Kind cluster with port mappings for ingress controller
+          # Maps container port 80 to host port 8080 for localhost access
+          cat <<EOF | kind create cluster --name preview-cluster --config=-
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+            - role: control-plane
+              kubeadmConfigPatches:
+                - |
+                  kind: InitConfiguration
+                  nodeRegistration:
+                    kubeletExtraArgs:
+                      node-labels: "ingress-ready=true"
+              extraPortMappings:
+                - containerPort: 80
+                  hostPort: 8080
+                  protocol: TCP
+          EOF
+          echo "Kind cluster created with ingress port mapping (80 -> 8080)"
 
       - name: Export kubeconfig for E2E tests
         run: |
@@ -148,15 +165,95 @@ jobs:
           echo "KUBECONFIG_PRIMARY=$KUBECONFIG_PRIMARY" >> $GITHUB_ENV
           echo "Kubeconfig exported for E2E tests"
 
+      - name: Install NGINX Ingress Controller
+        run: |
+          # Install NGINX Ingress Controller for Kind
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+          # Use rollout status which properly waits for pods to be ready
+          kubectl rollout status deployment/ingress-nginx-controller -n ingress-nginx --timeout=120s
+          echo "NGINX Ingress Controller installed and ready"
+
+      - name: Install Environment CRD
+        run: |
+          kubectl apply -f ../operator/config/crd/bases/catalyst.catalyst.dev_environments.yaml
+          echo "Environment CRD installed"
+
+      - name: Deploy test application
+        run: |
+          # Deploy a lightweight nginx server as test application
+          kubectl create deployment ci-test-app --image=nginx:alpine -n default
+          kubectl expose deployment ci-test-app --port=80 --target-port=80 -n default
+          kubectl wait --for=condition=available deployment/ci-test-app -n default --timeout=60s
+          echo "Test application deployed"
+
+      - name: Create test ingress
+        run: |
+          # Create ingress for test application with hostname-based routing
+          cat <<EOF | kubectl apply -f -
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: ci-test-env-ingress
+            namespace: default
+          spec:
+            ingressClassName: nginx
+            rules:
+              - host: test-project-ci-test-env.localhost
+                http:
+                  paths:
+                    - path: /
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: ci-test-app
+                          port:
+                            number: 80
+          EOF
+          # Wait for ingress to be processed
+          sleep 5
+          kubectl get ingress -n default
+          echo "Test ingress created"
+
+      - name: Create test Environment CR
+        run: |
+          cat <<EOF | kubectl apply -f -
+          apiVersion: catalyst.catalyst.dev/v1alpha1
+          kind: Environment
+          metadata:
+            name: ci-test-env
+            namespace: default
+          spec:
+            projectRef:
+              name: test-project
+            type: development
+            deploymentMode: development
+            source:
+              commitSha: abc123
+              branch: main
+          EOF
+          echo "Test Environment CR created"
+
+      - name: Patch Environment status to Ready
+        run: |
+          kubectl patch environment ci-test-env -n default \
+            --type=merge --subresource=status \
+            -p '{"status":{"phase":"Ready","url":"http://test-project-ci-test-env.localhost:8080/"}}'
+          echo "Environment status patched to Ready"
+
       - name: Install dependencies
         run: npm ci
 
       - run: npm run db:migrate
 
+      - name: Seed database
+        run: npm run seed
+
       - name: Run Playwright tests
         run: npm run test:e2e
         env:
           KUBECONFIG_PRIMARY: ${{ env.KUBECONFIG_PRIMARY }}
+          LOCAL_PREVIEW_ROUTING: "true"
+          INGRESS_PORT: "8080"
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4

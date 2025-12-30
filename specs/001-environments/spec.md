@@ -61,7 +61,7 @@ Development environments are interactive workspaces for humans and agents. They 
 **Core Capabilities:**
 
 - **Shell Access**: SSH or exec into containers for interactive development
-- **Real Public & Local URLs**: Traffic proxied through Cloudflare (for public access) or NGINX path-based routing (for local development) to the environment
+- **Real Public & Local URLs**: Traffic proxied through Cloudflare (for public access) or NGINX hostname-based routing via `*.localhost` (for local development) to the environment
 - **Namespace Resource Control**: Agents have full access to create, modify, and delete Kubernetes resources within their namespace—databases, caches, sidecars, or any infrastructure needed for development
 - **Agent Workspace**: Agents can work autonomously—coding, running tests, inspecting results. Enables [spec-driven development](https://github.com/github/spec-kit/blob/main/spec-driven.md) workflows with real-world validation
 - **Browser Testing**: From inside the environment, agents can use Playwright to test the real proxied URL, seeing exactly what users would see
@@ -130,7 +130,27 @@ Development environments receive real public URLs through proxy infrastructure:
 - Agents inside the environment can fetch their own public URL to test with Playwright
 
 **[FR-ENV-002] Local Development URL Testing**:
-For local development where public DNS is not available or desired, the system supports path-based routing (e.g., `http://localhost:8080/namespace-name/`). This ensures agents and developers can verify functionality using the port and path without external dependencies.
+For local development where public DNS is not available or desired, the system supports hostname-based routing using `*.localhost` (e.g., `http://namespace-name.localhost:8080/`). Modern browsers automatically resolve `*.localhost` to `127.0.0.1`, enabling hostname-based routing without DNS configuration or hosts file modifications. This approach maintains parity with production routing patterns while working fully offline.
+
+**[FR-ENV-003] Self-Deployment via Environment Flag**:
+When `SEED_SELF_DEPLOY=true` is set, the seeding script creates Catalyst itself as a fixture project with both production and development environments. This enables end-to-end testing of deployment and development workflows within the local K3s environment.
+
+**[FR-ENV-004] Production Deployment Mode**:
+The operator supports a "production" deployment mode that creates a static deployment from the existing manifest pattern (similar to `.k3s-vm/manifests/base.json`). Production deployments include:
+
+- Deployment with built container image
+- Service for internal routing
+- Ingress for external access
+- Optional PostgreSQL sidecar
+
+**[FR-ENV-005] Development Deployment Mode**:
+The operator supports a "development" deployment mode that creates a hot-reload development environment. Development deployments include:
+
+- hostPath volume mount for live code changes (`/code`)
+- Init containers for `npm install` and database migrations
+- PVCs for node_modules and .next cache persistence
+- `WATCHPACK_POLLING=true` for file system watching in VMs
+- PostgreSQL sidecar for database
 
 ### User Interfaces
 

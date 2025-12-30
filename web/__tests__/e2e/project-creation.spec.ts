@@ -5,6 +5,10 @@ test.describe("Project Creation Wizard", () => {
     page,
     projectsPage,
   }) => {
+    // Generate unique slug to avoid conflicts with existing projects
+    const uniqueSuffix = Date.now().toString().slice(-6);
+    const uniqueSlug = `catalyst-test-${uniqueSuffix}`;
+
     // Navigate to projects page
     await projectsPage.goto();
 
@@ -14,6 +18,9 @@ test.describe("Project Creation Wizard", () => {
     });
     await expect(createProjectButton).toBeVisible();
     await createProjectButton.click();
+
+    // Wait for navigation to create page to complete
+    await page.waitForURL(/\/projects\/create$/);
 
     // Step 1: Verify we're on the repository selection step
     await expect(page.getByText("Select Repositories")).toBeVisible();
@@ -54,13 +61,17 @@ test.describe("Project Creation Wizard", () => {
     const slugInput = page.locator('input[name="slug"]');
     await expect(slugInput).toHaveValue("catalyst");
 
+    // Change slug to unique value to avoid conflicts
+    await slugInput.clear();
+    await slugInput.fill(uniqueSlug);
+
     // Submit the form
     const createButton = page.getByRole("button", { name: /create project/i });
     await expect(createButton).toBeEnabled();
     await createButton.click();
 
     // Verify redirect to project home page
-    await expect(page).toHaveURL(/\/projects\/catalyst$/);
+    await expect(page).toHaveURL(new RegExp(`/projects/${uniqueSlug}$`));
   });
 
   test("should navigate back from step 2 to step 1", async ({
@@ -72,6 +83,9 @@ test.describe("Project Creation Wizard", () => {
 
     // Click "Create Project" button
     await page.getByRole("link", { name: "Create Project" }).click();
+
+    // Wait for navigation to create page to complete
+    await page.waitForURL(/\/projects\/create$/);
 
     // Step 1: Add a repo
     const dropdown = page.getByTestId("repo-dropdown");
@@ -105,6 +119,9 @@ test.describe("Project Creation Wizard", () => {
     // Click "Create Project" button
     await page.getByRole("link", { name: "Create Project" }).click();
 
+    // Wait for navigation to create page to complete
+    await page.waitForURL(/\/projects\/create$/);
+
     // Step 1: Open dropdown and select manual entry
     const dropdown = page.getByTestId("repo-dropdown");
     await dropdown.click();
@@ -136,6 +153,9 @@ test.describe("Project Creation Wizard", () => {
 
     // Click "Create Project" button
     await page.getByRole("link", { name: "Create Project" }).click();
+
+    // Wait for navigation to create page to complete
+    await page.waitForURL(/\/projects\/create$/);
 
     // Add first repo - catalyst
     let dropdown = page.getByTestId("repo-dropdown");
@@ -178,6 +198,9 @@ test.describe("Project Creation Wizard", () => {
 
     // Click "Create Project" button
     await page.getByRole("link", { name: "Create Project" }).click();
+
+    // Wait for navigation to create page to complete
+    await page.waitForURL(/\/projects\/create$/);
 
     // Verify we're on step 1
     await expect(page.getByText("Select Repositories")).toBeVisible();

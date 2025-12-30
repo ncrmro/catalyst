@@ -1,0 +1,462 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://catalyst.dev/schemas/project-config.json",
+  "title": "ProjectConfig",
+  "description": "Project-level configuration for deployment and development environments",
+  "type": "object",
+  "required": ["version", "defaultImage"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "v1",
+      "description": "Schema version for migrations"
+    },
+    "defaultImage": {
+      "type": "object",
+      "required": ["registry", "tag"],
+      "properties": {
+        "registry": {
+          "type": "object",
+          "required": ["url"],
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "Registry URL (e.g., ghcr.io/ncrmro, docker.io/myorg)"
+            },
+            "authSecretName": {
+              "type": "string",
+              "description": "Auth secret name in cluster (optional)"
+            }
+          }
+        },
+        "build": {
+          "type": "object",
+          "required": ["method"],
+          "properties": {
+            "method": {
+              "type": "string",
+              "enum": ["dockerfile", "buildpack", "prebuilt"],
+              "description": "Build method"
+            },
+            "dockerfilePath": {
+              "type": "string",
+              "default": "Dockerfile",
+              "description": "Dockerfile path (relative to repo root)"
+            },
+            "context": {
+              "type": "string",
+              "default": ".",
+              "description": "Build context directory"
+            },
+            "buildArgs": {
+              "type": "object",
+              "additionalProperties": { "type": "string" },
+              "description": "Build arguments"
+            },
+            "target": {
+              "type": "string",
+              "description": "Target stage for multi-stage builds"
+            }
+          }
+        },
+        "tag": {
+          "type": "object",
+          "properties": {
+            "pattern": {
+              "type": "string",
+              "default": "{project}:{sha}",
+              "description": "Pattern with variables: {project}, {branch}, {sha}, {env}, {timestamp}"
+            },
+            "envOverrides": {
+              "type": "object",
+              "additionalProperties": { "type": "string" },
+              "description": "Override tag for specific environments"
+            }
+          }
+        }
+      },
+      "description": "Default image configuration for all environments"
+    },
+    "defaultManagedServices": {
+      "type": "object",
+      "properties": {
+        "postgres": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "version": { "type": "string", "default": "16" },
+            "storageSize": { "type": "string", "default": "1Gi" },
+            "database": {
+              "type": "string",
+              "default": "app",
+              "description": "Database name"
+            }
+          }
+        },
+        "redis": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "version": { "type": "string", "default": "7" },
+            "storageSize": { "type": "string", "default": "256Mi" }
+          }
+        }
+      },
+      "description": "Default managed services"
+    },
+    "defaultResources": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "object",
+          "properties": {
+            "cpu": { "type": "string", "default": "100m" },
+            "memory": { "type": "string", "default": "128Mi" }
+          }
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "cpu": { "type": "string", "default": "100m" },
+            "memory": { "type": "string", "default": "128Mi" }
+          }
+        },
+        "replicas": { "type": "integer", "minimum": 1, "default": 1 }
+      },
+      "description": "Default resource configuration"
+    },
+    "deployment": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "object",
+          "properties": {
+            "registry": {
+              "type": "object",
+              "properties": {
+                "url": { "type": "string" },
+                "authSecretName": { "type": "string" }
+              }
+            },
+            "build": {
+              "type": "object",
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "enum": ["dockerfile", "buildpack", "prebuilt"]
+                },
+                "dockerfilePath": { "type": "string" },
+                "context": { "type": "string" },
+                "buildArgs": {
+                  "type": "object",
+                  "additionalProperties": { "type": "string" }
+                },
+                "target": { "type": "string" }
+              }
+            },
+            "tag": {
+              "type": "object",
+              "properties": {
+                "pattern": { "type": "string" },
+                "envOverrides": {
+                  "type": "object",
+                  "additionalProperties": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "resources": {
+          "type": "object",
+          "properties": {
+            "requests": {
+              "type": "object",
+              "properties": {
+                "cpu": { "type": "string" },
+                "memory": { "type": "string" }
+              }
+            },
+            "limits": {
+              "type": "object",
+              "properties": {
+                "cpu": { "type": "string" },
+                "memory": { "type": "string" }
+              }
+            },
+            "replicas": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "managedServices": {
+          "type": "object",
+          "properties": {
+            "postgres": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "version": { "type": "string" },
+                "storageSize": { "type": "string" },
+                "database": { "type": "string" }
+              }
+            },
+            "redis": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "version": { "type": "string" },
+                "storageSize": { "type": "string" }
+              }
+            }
+          }
+        },
+        "envVars": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "source"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "source": {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["value", "secret", "configMap"]
+                  },
+                  "value": { "type": "string" },
+                  "secretName": { "type": "string" },
+                  "configMapName": { "type": "string" },
+                  "key": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "description": "Deployment environment type config (production, staging)"
+    },
+    "development": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "object",
+          "properties": {
+            "registry": {
+              "type": "object",
+              "properties": {
+                "url": { "type": "string" },
+                "authSecretName": { "type": "string" }
+              }
+            },
+            "build": {
+              "type": "object",
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "enum": ["dockerfile", "buildpack", "prebuilt"]
+                },
+                "dockerfilePath": { "type": "string" },
+                "context": { "type": "string" },
+                "buildArgs": {
+                  "type": "object",
+                  "additionalProperties": { "type": "string" }
+                },
+                "target": { "type": "string" }
+              }
+            },
+            "tag": {
+              "type": "object",
+              "properties": {
+                "pattern": { "type": "string" },
+                "envOverrides": {
+                  "type": "object",
+                  "additionalProperties": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "resources": {
+          "type": "object",
+          "properties": {
+            "requests": {
+              "type": "object",
+              "properties": {
+                "cpu": { "type": "string" },
+                "memory": { "type": "string" }
+              }
+            },
+            "limits": {
+              "type": "object",
+              "properties": {
+                "cpu": { "type": "string" },
+                "memory": { "type": "string" }
+              }
+            },
+            "replicas": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "managedServices": {
+          "type": "object",
+          "properties": {
+            "postgres": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "version": { "type": "string" },
+                "storageSize": { "type": "string" },
+                "database": { "type": "string" }
+              }
+            },
+            "redis": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "version": { "type": "string" },
+                "storageSize": { "type": "string" }
+              }
+            }
+          }
+        },
+        "envVars": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "source"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "source": {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["value", "secret", "configMap"]
+                  },
+                  "value": { "type": "string" },
+                  "secretName": { "type": "string" },
+                  "configMapName": { "type": "string" },
+                  "key": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "description": "Development environment type config"
+    },
+    "environmentOverrides": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "image": {
+            "type": "object",
+            "properties": {
+              "registry": {
+                "type": "object",
+                "properties": {
+                  "url": { "type": "string" },
+                  "authSecretName": { "type": "string" }
+                }
+              },
+              "build": {
+                "type": "object",
+                "properties": {
+                  "method": {
+                    "type": "string",
+                    "enum": ["dockerfile", "buildpack", "prebuilt"]
+                  },
+                  "dockerfilePath": { "type": "string" },
+                  "context": { "type": "string" },
+                  "buildArgs": {
+                    "type": "object",
+                    "additionalProperties": { "type": "string" }
+                  },
+                  "target": { "type": "string" }
+                }
+              },
+              "tag": {
+                "type": "object",
+                "properties": {
+                  "pattern": { "type": "string" },
+                  "envOverrides": {
+                    "type": "object",
+                    "additionalProperties": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "resources": {
+            "type": "object",
+            "properties": {
+              "requests": {
+                "type": "object",
+                "properties": {
+                  "cpu": { "type": "string" },
+                  "memory": { "type": "string" }
+                }
+              },
+              "limits": {
+                "type": "object",
+                "properties": {
+                  "cpu": { "type": "string" },
+                  "memory": { "type": "string" }
+                }
+              },
+              "replicas": { "type": "integer", "minimum": 1 }
+            }
+          },
+          "managedServices": {
+            "type": "object",
+            "properties": {
+              "postgres": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "version": { "type": "string" },
+                  "storageSize": { "type": "string" },
+                  "database": { "type": "string" }
+                }
+              },
+              "redis": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "version": { "type": "string" },
+                  "storageSize": { "type": "string" }
+                }
+              }
+            }
+          },
+          "envVars": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "source"],
+              "properties": {
+                "name": { "type": "string", "minLength": 1 },
+                "source": {
+                  "type": "object",
+                  "required": ["type"],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["value", "secret", "configMap"]
+                    },
+                    "value": { "type": "string" },
+                    "secretName": { "type": "string" },
+                    "configMapName": { "type": "string" },
+                    "key": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "description": "Per-environment overrides by name (e.g., staging, prod-us-east)"
+    }
+  }
+}

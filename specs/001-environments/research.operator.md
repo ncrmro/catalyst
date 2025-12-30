@@ -69,7 +69,9 @@ status:
   phase: Ready
 
   # Public URL for accessing the environment
-  url: http://localhost:8080/my-project-staging/
+  # Local: http://my-project-staging.localhost:8080/
+  # Production: https://my-project-staging.preview.catalyst.dev/
+  url: http://my-project-staging.localhost:8080/
 
   # Kubernetes conditions for detailed status
   conditions:
@@ -84,7 +86,7 @@ status:
     - type: IngressReady
       status: "True"
       reason: Configured
-      message: Ingress configured with path-based routing
+      message: Ingress configured with hostname-based routing
 ```
 
 ## Go Type Definitions
@@ -161,32 +163,32 @@ Create Deployment (spec.deployment.image)
     ↓
 Create Service (ClusterIP, port 80)
     ↓
-Create Ingress (path-based routing)
+Create Ingress (hostname-based routing via *.localhost)
     ↓
 Wait for Deployment Ready
     ↓
-Update Status: phase=Ready, url=http://localhost:8080/{namespace}/
+Update Status: phase=Ready, url=http://{namespace}.localhost:8080/
 ```
 
 ## Ingress Configuration
 
-Path-based routing for local development and CI:
+Hostname-based routing for local development (via `*.localhost`) and production:
 
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: app-ingress
+  name: app
   namespace: my-project-staging
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
   ingressClassName: nginx
   rules:
-    - http:
+    - host: my-project-staging.localhost # Local dev
+      # host: my-project-staging.preview.catalyst.dev  # Production
+      http:
         paths:
-          - path: /my-project-staging(/|$)(.*)
-            pathType: ImplementationSpecific
+          - path: /
+            pathType: Prefix
             backend:
               service:
                 name: app
@@ -194,15 +196,17 @@ spec:
                   number: 80
 ```
 
+Modern browsers automatically resolve `*.localhost` to `127.0.0.1`, providing production-parity routing without DNS configuration.
+
 ## URL Generation
 
 | Context    | URL Pattern                                 |
 | ---------- | ------------------------------------------- |
-| Local      | `http://localhost:8080/{namespace}/`        |
-| CI (Kind)  | `http://localhost:8080/{namespace}/`        |
+| Local      | `http://{namespace}.localhost:8080/`        |
+| CI (Kind)  | `http://{namespace}.localhost:8080/`        |
 | Production | `https://{namespace}.preview.catalyst.dev/` |
 
-Environment variable `LOCAL_PREVIEW_ROUTING=true` enables path-based routing.
+Environment variable `LOCAL_PREVIEW_ROUTING=true` enables `*.localhost` hostname routing instead of production TLS routing.
 
 ## Status Conditions
 

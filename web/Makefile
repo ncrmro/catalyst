@@ -36,6 +36,16 @@ up: ## Start the K3s VM (hybrid mode) and run local Next.js dev server
 		"PORT=$${WEB_PORT:-3000} npm run dev" \
 		"until [ -f kubeconfig.yaml ]; do sleep 1; done; export KUBECONFIG=$$(pwd)/kubeconfig.yaml; nix develop .. --command make -C ../operator run"
 
+up-self-deploy: ## Start K3s VM with self-deployment mode (creates Environment CRs)
+	@echo "Installing Node.js dependencies..."
+	npm install
+
+	@echo "Starting K3s VM, Operator, and Next.js dev server with SEED_SELF_DEPLOY=true..."
+	npx concurrently --kill-others-on-fail -n "infra,web,operator" -c "blue,magenta,cyan" \
+		"rm -f kubeconfig.yaml && ../bin/k3s-vm && npm run db:migrate && SEED_SELF_DEPLOY=true npm run seed" \
+		"PORT=$${WEB_PORT:-3000} npm run dev" \
+		"until [ -f kubeconfig.yaml ]; do sleep 1; done; export KUBECONFIG=$$(pwd)/kubeconfig.yaml; SEED_SELF_DEPLOY=true nix develop .. --command make -C ../operator run"
+
 up-real: ## Start the K3s VM (hybrid mode) and run local Next.js dev server with real GitHub integration
 	@echo "Starting K3s VM in Hybrid Mode..."
 	@../bin/k3s-vm

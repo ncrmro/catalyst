@@ -19,9 +19,11 @@ package controller
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -52,6 +54,7 @@ type EnvironmentReconciler struct {
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=resourcequotas,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 
 func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
@@ -130,13 +133,153 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	// 3. Workspace Pod Management
+	// 3. Ingress Management
+	// Determine if we're in local mode (path-based routing) or production mode (hostname-based routing)
+	isLocal := os.Getenv("LOCAL_PREVIEW_ROUTING") == "true"
+	ingressPort := os.Getenv("INGRESS_PORT")
+
+	ingress := desiredIngress(env, targetNamespace, isLocal)
+	existingIngress := &networkingv1.Ingress{}
+	err = r.Get(ctx, client.ObjectKey{Name: "app", Namespace: targetNamespace}, existingIngress)
+
+	if err != nil && apierrors.IsNotFound(err) {
+		// Ingress doesn't exist, create it
+		log.Info("Creating Ingress", "namespace", targetNamespace, "isLocal", isLocal)
+		if err := r.Create(ctx, ingress); err != nil {
+			return ctrl.Result{}, err
+		}
+	} else if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// Generate and update the URL in status
+	publicURL := generateURL(env, targetNamespace, isLocal, ingressPort)
+	if env.Status.URL != publicURL {
+		env.Status.URL = publicURL
+		log.Info("Updating Environment URL", "url", publicURL)
+		if err := r.Status().Update(ctx, env); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	// 4. Deployment Mode Branching
+	// Determine deployment mode: "development", "production", or "workspace" (default)
+	deploymentMode := env.Spec.DeploymentMode
+	if deploymentMode == "" {
+		deploymentMode = "workspace" // Default to workspace mode
+	}
+
+	log.Info("Reconciling deployment mode", "mode", deploymentMode, "namespace", targetNamespace)
+
+	switch deploymentMode {
+	case "development":
+		return r.reconcileDevelopmentModeWithStatus(ctx, env, targetNamespace, isLocal, ingressPort)
+
+	case "production":
+		return r.reconcileProductionModeWithStatus(ctx, env, targetNamespace, isLocal, ingressPort)
+
+	default: // "workspace" or any unrecognized value defaults to workspace
+		return r.reconcileWorkspaceMode(ctx, env, targetNamespace)
+	}
+}
+
+// reconcileDevelopmentModeWithStatus handles development mode deployment with status updates
+func (r *EnvironmentReconciler) reconcileDevelopmentModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, ingressPort string) (ctrl.Result, error) {
+	log := logf.FromContext(ctx)
+
+	// Wait for default service account
+	sa := &corev1.ServiceAccount{}
+	if err := r.Get(ctx, client.ObjectKey{Name: "default", Namespace: namespace}, sa); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("Waiting for default ServiceAccount", "namespace", namespace)
+			return ctrl.Result{RequeueAfter: time.Second}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	// Set provisioning status
+	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" {
+		env.Status.Phase = "Provisioning"
+		if err := r.Status().Update(ctx, env); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	// Run development mode reconciliation
+	ready, err := r.ReconcileDevelopmentMode(ctx, env, namespace)
+	if err != nil {
+		env.Status.Phase = "Failed"
+		_ = r.Status().Update(ctx, env)
+		return ctrl.Result{}, err
+	}
+
+	if ready {
+		if env.Status.Phase != "Ready" {
+			env.Status.Phase = "Ready"
+			if err := r.Status().Update(ctx, env); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
+	}
+
+	// Not ready yet, requeue
+	return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+}
+
+// reconcileProductionModeWithStatus handles production mode deployment with status updates
+func (r *EnvironmentReconciler) reconcileProductionModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, ingressPort string) (ctrl.Result, error) {
+	log := logf.FromContext(ctx)
+
+	// Wait for default service account
+	sa := &corev1.ServiceAccount{}
+	if err := r.Get(ctx, client.ObjectKey{Name: "default", Namespace: namespace}, sa); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("Waiting for default ServiceAccount", "namespace", namespace)
+			return ctrl.Result{RequeueAfter: time.Second}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	// Set provisioning status
+	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" {
+		env.Status.Phase = "Provisioning"
+		if err := r.Status().Update(ctx, env); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	// Run production mode reconciliation
+	ready, err := r.ReconcileProductionMode(ctx, env, namespace, isLocal)
+	if err != nil {
+		env.Status.Phase = "Failed"
+		_ = r.Status().Update(ctx, env)
+		return ctrl.Result{}, err
+	}
+
+	if ready {
+		if env.Status.Phase != "Ready" {
+			env.Status.Phase = "Ready"
+			if err := r.Status().Update(ctx, env); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
+	}
+
+	// Not ready yet, requeue
+	return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+}
+
+// reconcileWorkspaceMode handles workspace mode (original behavior)
+func (r *EnvironmentReconciler) reconcileWorkspaceMode(ctx context.Context, env *catalystv1alpha1.Environment, namespace string) (ctrl.Result, error) {
+	log := logf.FromContext(ctx)
 
 	// Wait for default service account to be ready
 	sa := &corev1.ServiceAccount{}
-	if err := r.Get(ctx, client.ObjectKey{Name: "default", Namespace: targetNamespace}, sa); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Name: "default", Namespace: namespace}, sa); err != nil {
 		if apierrors.IsNotFound(err) {
-			log.Info("Waiting for default ServiceAccount", "namespace", targetNamespace)
+			log.Info("Waiting for default ServiceAccount", "namespace", namespace)
 			return ctrl.Result{RequeueAfter: time.Second}, nil
 		}
 		return ctrl.Result{}, err
@@ -145,12 +288,12 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// Create a workspace pod that runs indefinitely for exec access from UI
 	podName := workspacePodName(env)
 	workspacePod := &corev1.Pod{}
-	err = r.Get(ctx, client.ObjectKey{Name: podName, Namespace: targetNamespace}, workspacePod)
+	err := r.Get(ctx, client.ObjectKey{Name: podName, Namespace: namespace}, workspacePod)
 
 	if err != nil && apierrors.IsNotFound(err) {
 		// Pod doesn't exist, create it
 		log.Info("Creating Workspace Pod", "pod", podName)
-		workspacePod = desiredWorkspacePod(env, targetNamespace)
+		workspacePod = desiredWorkspacePod(env, namespace)
 
 		// Note: Pod is in different namespace, cannot set owner ref.
 		// It will be garbage collected when the Namespace is deleted.
@@ -170,9 +313,10 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// Check Pod Status
 	if workspacePod.Status.Phase == corev1.PodRunning {
 		// Pod is running and ready for exec
+		// Note: Keep the URL that was set from the Ingress
 		if env.Status.Phase != "Ready" {
 			env.Status.Phase = "Ready"
-			env.Status.URL = "" // No URL for workspace pods, accessed via exec
+			// Don't overwrite URL - it was set from Ingress creation above
 			if err := r.Status().Update(ctx, env); err != nil {
 				return ctrl.Result{}, err
 			}

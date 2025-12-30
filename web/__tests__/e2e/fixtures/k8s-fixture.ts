@@ -4,9 +4,10 @@ import { loginAndSeedForE2E } from "../helpers";
 import {
   getClusterConfig,
   getCoreV1Api,
+  getCustomObjectsApi,
   KubeConfig,
 } from "../../../src/lib/k8s-client";
-import { CoreV1Api } from "@kubernetes/client-node";
+import { CoreV1Api, CustomObjectsApi } from "@kubernetes/client-node";
 
 /**
  * Interface for the Kubernetes client fixture
@@ -14,6 +15,7 @@ import { CoreV1Api } from "@kubernetes/client-node";
 interface K8sFixture {
   kc: KubeConfig;
   coreApi: CoreV1Api;
+  customApi: CustomObjectsApi;
 }
 
 /**
@@ -41,16 +43,19 @@ export const test = base.extend<{
       );
     }
 
-    // Get CoreV1Api class
-    const CoreV1Api = await getCoreV1Api();
+    // Get API classes
+    const CoreV1ApiClass = await getCoreV1Api();
+    const CustomObjectsApiClass = await getCustomObjectsApi();
 
-    // Create CoreV1Api client with the KubeConfig
-    const coreApi = kc.makeApiClient(CoreV1Api);
+    // Create API clients with the KubeConfig
+    const coreApi = kc.makeApiClient(CoreV1ApiClass);
+    const customApi = kc.makeApiClient(CustomObjectsApiClass);
 
     // Create the fixture object
     const k8sFixture: K8sFixture = {
       kc,
       coreApi,
+      customApi,
     };
 
     // Provide the k8s fixture to the test

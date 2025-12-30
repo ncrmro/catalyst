@@ -13,6 +13,7 @@ import { eq, and } from "drizzle-orm";
 import { TestInfo } from "@playwright/test";
 import { getMockProjects, getMockReposData } from "@/mocks/github";
 import { generateSlug } from "@/lib/slug";
+import { seedSelfDeploy } from "@/lib/seed-self-deploy";
 
 /**
  * Get user details from a dev password used in authentication
@@ -763,6 +764,9 @@ export async function seedDefaultUsers() {
   const isMockedMode =
     process.env.GITHUB_REPOS_MODE === "mocked" || process.env.MOCKED === "1";
 
+  // Check if self-deploy mode is enabled
+  const isSelfDeployMode = process.env.SEED_SELF_DEPLOY === "true";
+
   // Create regular user
   results.push(
     await seedUser({
@@ -782,6 +786,29 @@ export async function seedDefaultUsers() {
       createProjects: false, // We'll handle projects separately for mocked mode
     }),
   );
+
+  // If self-deploy mode is enabled, create Catalyst self-deployment environments
+  if (isSelfDeployMode) {
+    console.log(
+      "🚀 Self-deploy mode enabled, seeding Catalyst environments...",
+    );
+    for (const result of results) {
+      if (result.success && result.data?.teamId) {
+        const selfDeployResult = await seedSelfDeploy(result.data.teamId);
+        results.push(selfDeployResult);
+        if (selfDeployResult.success) {
+          console.log(`✅ Self-deploy seeded for team: ${result.data.teamId}`);
+        } else {
+          console.warn(`⚠️ Self-deploy failed for team: ${result.data.teamId}`);
+        }
+      }
+    }
+    return {
+      success: results.every((r) => r.success),
+      message: "Default users and Catalyst self-deployment seeded",
+      results,
+    };
+  }
 
   // If we're in mocked mode, seed the YAML mock data into the database
   if (isMockedMode) {
@@ -808,10 +835,4 @@ export async function seedDefaultUsers() {
       results,
     };
   }
-
-  return {
-    success: results.every((r) => r.success),
-    message: "Default users seeded",
-    results,
-  };
 }

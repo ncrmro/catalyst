@@ -1,6 +1,7 @@
 import { Task, ASSIGNEES } from "@/components/tasks/types";
 import { TasksSection } from "@/components/tasks/TasksSection";
 import { AgentChat } from "@/components/chat/AgentChat";
+import { EnvironmentsSection } from "./environments-section";
 
 // Mock task fixtures - uses actual project slugs: "catalyst" and "meze"
 // Tasks are grouped by spec for display
@@ -260,17 +261,9 @@ const taskFixtures: Task[] = [
   },
 ];
 
-interface GettingStartedTask {
-  id: string;
-  title: string;
-  description: string;
-  href: string;
-  isComplete: boolean;
-  icon: "environment" | "spec" | "repo";
-}
-
 interface ProjectPageContentProps {
   project: {
+    id: string;
     slug: string;
     name: string;
     fullName: string;
@@ -280,6 +273,9 @@ interface ProjectPageContentProps {
 export function ProjectPageContent({ project }: ProjectPageContentProps) {
   return (
     <>
+      {/* Environments Section */}
+      <EnvironmentsSection projectId={project.id} projectSlug={project.slug} />
+
       {/* Feature Tasks Section */}
       <TasksSection
         tasks={taskFixtures}
