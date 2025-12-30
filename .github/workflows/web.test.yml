@@ -169,7 +169,11 @@ jobs:
         run: |
           # Install NGINX Ingress Controller for Kind
           kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
-          # Wait for ingress controller to be ready
+          # Wait for deployment to be available first
+          kubectl wait --namespace ingress-nginx \
+            --for=condition=available deployment/ingress-nginx-controller \
+            --timeout=120s
+          # Then wait for the pod to be ready
           kubectl wait --namespace ingress-nginx \
             --for=condition=ready pod \
             --selector=app.kubernetes.io/component=controller \
