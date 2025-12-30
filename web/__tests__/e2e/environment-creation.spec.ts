@@ -31,6 +31,9 @@ test.describe("Environment Creation and Kubernetes Verification", () => {
     await expect(platformTab).toBeVisible();
     await platformTab.click();
 
+    // Wait for navigation to Platform page to complete
+    await page.waitForURL(/\/platform$/);
+
     // Verify we're on the Platform page by checking for the Platform Configuration heading
     await expect(
       page.getByRole("heading", { name: "Platform Configuration" }),
