@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
     "@tetrastack/backend",
     "@tetrastack/react-glass-components",
     "@tetrastack/react-agent-chat",
+    "@tetrastack/react-markdown",
     "@catalyst/kubernetes-client",
   ],
   images: {
