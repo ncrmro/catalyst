@@ -146,13 +146,20 @@ export async function listEnvironmentCRs(
   const client = config.makeApiClient(CustomObjectsApi);
 
   try {
-    const res = await client.listNamespacedCustomObject({
+    // Add timeout wrapper to prevent hanging SSR in CI
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Kubernetes API timeout")), 5000)
+    );
+    
+    const apiPromise = client.listNamespacedCustomObject({
       group: GROUP,
       version: VERSION,
       namespace,
       plural: PLURAL,
       labelSelector,
     });
+
+    const res = await Promise.race([apiPromise, timeoutPromise]);
     // Response is returned directly, not wrapped in { body: ... }
     const list = res as { items?: EnvironmentCR[] };
     return list.items || [];
