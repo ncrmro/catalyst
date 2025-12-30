@@ -5,9 +5,6 @@ test.describe("Project Creation Wizard", () => {
     page,
     projectsPage,
   }) => {
-    // DEBUG: Capture browser console output
-    page.on("console", (msg) => console.log(`[BROWSER] ${msg.text()}`));
-
     // Generate unique slug to avoid conflicts with existing projects
     const uniqueSuffix = Date.now().toString().slice(-6);
     const uniqueSlug = `catalyst-test-${uniqueSuffix}`;
