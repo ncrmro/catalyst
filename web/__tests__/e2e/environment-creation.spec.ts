@@ -32,10 +32,16 @@ test.describe("Environment Creation and Kubernetes Verification", () => {
     await expect(platformTab).toBeVisible();
     // Scroll tab into view to prevent viewport scroll issues (Agent Chat can push it out of view)
     await platformTab.scrollIntoViewIfNeeded();
-    await platformTab.click();
 
-    // Wait for navigation to Platform page to complete
-    await page.waitForURL(/\/platform$/);
+    // Get href for URL pattern matching
+    const platformHref = await platformTab.getAttribute("href");
+
+    // Click and wait for navigation simultaneously (prevents race condition in CI)
+    // Uses same pattern as ProjectsPage.clickProjectCard() - waitForURL must start BEFORE click
+    await Promise.all([
+      page.waitForURL(`**${platformHref}`),
+      platformTab.click(),
+    ]);
 
     // Verify we're on the Platform page by checking for the Platform Configuration heading
     await expect(
