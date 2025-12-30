@@ -926,7 +926,7 @@ export function CreateProjectWizard({
                 onChange={(e) => handleSlugChange(e.target.value)}
                 placeholder="my-awesome-project"
                 required
-                pattern="[a-z0-9-]+"
+                pattern="[a-z0-9\-]+"
                 className="w-full px-3 py-2 border border-outline/50 rounded-lg bg-surface text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono text-sm"
               />
               <p className="mt-1 text-xs text-on-surface-variant">
