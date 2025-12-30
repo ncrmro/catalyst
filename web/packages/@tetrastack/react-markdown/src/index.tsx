@@ -1,7 +1,7 @@
 import { MDXRemote, type MDXRemoteProps } from "next-mdx-remote/rsc";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
-import type { ComponentPropsWithoutRef, ReactNode } from "react";
+import React, { type ComponentPropsWithoutRef, type ReactNode } from "react";
 
 /**
  * Markdown Renderer Component
@@ -15,7 +15,7 @@ export interface MarkdownRendererProps {
   className?: string;
 }
 
-type HTMLProps<T extends keyof JSX.IntrinsicElements> =
+type HTMLProps<T extends keyof React.JSX.IntrinsicElements> =
   ComponentPropsWithoutRef<T>;
 
 const components: MDXRemoteProps["components"] = {
