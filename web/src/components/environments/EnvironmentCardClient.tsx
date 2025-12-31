@@ -13,8 +13,7 @@ import {
 } from "./EnvironmentStatusBadge";
 import { EnvironmentPodsList } from "./EnvironmentPodsList";
 import { AgentChat } from "@/components/chat/AgentChat";
-import type { EnvironmentData } from "@/actions/preview-environments";
-import { DEFAULT_DEV_IMAGE } from "@/schemas/project-config";
+import type { EnvironmentData } from "@/models/preview-environments";
 
 type TabValue = "pods" | "chat" | "logs" | "metrics";
 
@@ -51,18 +50,18 @@ export function EnvironmentCardClient({
 }: EnvironmentCardClientProps) {
   const [environment, setEnvironment] =
     useState<EnvironmentData>(initialEnvironment);
-  const [expanded, setExpanded] = useState(defaultExpanded);
+  const [expanded, setExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState<TabValue>("pods");
 
   // Check if this is a pending environment that needs configuration
   const needsConfiguration = isNew && environment.status === "pending";
 
-  // SSE connection for real-time status updates
+  // Poll Environment CR status directly from K8s (MVP - no DB)
   useEffect(() => {
-    // Skip SSE for new pending environments (no actual deployment yet)
-    // and for terminal states
+    // Skip polling for terminal states only
+    // For MVP, we always poll pending/deploying environments since the operator
+    // starts immediately (no configuration required)
     if (
-      needsConfiguration ||
       environment.status === "running" ||
       environment.status === "failed" ||
       environment.status === "deleting"
@@ -70,48 +69,50 @@ export function EnvironmentCardClient({
       return;
     }
 
-    const eventSource = new EventSource(
-      `/api/preview-environments/${environment.id}/stream`,
-    );
+    let isMounted = true;
+    const pollInterval = 3000; // 3 seconds
 
-    eventSource.onmessage = (event) => {
+    const pollStatus = async () => {
+      if (!isMounted) return;
+
       try {
-        const data = JSON.parse(event.data);
+        const response = await fetch(
+          `/api/environments/${environment.namespace}/status`,
+        );
 
-        if (data.type === "status") {
+        if (!response.ok) {
+          console.warn("Failed to fetch environment status:", response.status);
+          return;
+        }
+
+        const data = await response.json();
+
+        if (!isMounted) return;
+
+        // Update status if changed
+        if (data.status !== environment.status) {
           setEnvironment((prev) => ({
             ...prev,
-            status: data.data.status,
+            status: data.status,
+            publicUrl: data.url || prev.publicUrl,
           }));
-        } else if (data.type === "ready") {
-          setEnvironment((prev) => ({
-            ...prev,
-            status: "running",
-            publicUrl: data.data.publicUrl,
-          }));
-          eventSource.close();
-        } else if (data.type === "error") {
-          setEnvironment((prev) => ({
-            ...prev,
-            status: "failed",
-            errorMessage: data.data.message,
-          }));
-          eventSource.close();
         }
       } catch (error) {
-        console.error("Failed to parse SSE event:", error);
+        console.error("Failed to poll environment status:", error);
       }
     };
 
-    eventSource.onerror = () => {
-      // Reconnection is handled automatically by EventSource
-      console.warn("SSE connection error, will retry...");
-    };
+    // Initial poll
+    pollStatus();
+
+    // Set up interval polling
+    const intervalId = setInterval(pollStatus, pollInterval);
 
     return () => {
-      eventSource.close();
+      isMounted = false;
+      clearInterval(intervalId);
     };
-  }, [environment.id, environment.status]);
+  }, [environment.namespace, environment.status, needsConfiguration]);
 
   const handleToggle = useCallback(() => {
     setExpanded((prev) => !prev);
@@ -126,7 +127,9 @@ export function EnvironmentCardClient({
       case "pods":
         return <EnvironmentPodsList namespace={environment.namespace} />;
       case "chat":
-        return <AgentChat projectSlug={projectSlug} className="min-h-[300px]" />;
+        return (
+          <AgentChat projectSlug={projectSlug} className="min-h-[300px]" />
+        );
       case "logs":
         return <ComingSoonPlaceholder feature="Logs" />;
       case "metrics":
@@ -216,20 +219,19 @@ export function EnvironmentCardClient({
     return null;
   };
 
-  // Subtitle shows configuration guidance when needed
-  const subtitle = needsConfiguration
-    ? `No configuration found. Will use ${DEFAULT_DEV_IMAGE} as default image.`
-    : environment.namespace;
-
   return (
     <GlassEntityCard
       title="Environment"
-      subtitle={subtitle}
       metadata={
-        <EnvironmentStatusBadge
-          status={environment.status as EnvironmentStatus}
-          size="sm"
-        />
+        <div className="flex items-center gap-3">
+          <span className="text-on-surface-variant font-mono text-sm">
+            {environment.namespace}
+          </span>
+          <EnvironmentStatusBadge
+            status={environment.status as EnvironmentStatus}
+            size="sm"
+          />
+        </div>
       }
       expandable
       expanded={expanded}

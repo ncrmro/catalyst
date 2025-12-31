@@ -313,8 +313,8 @@ export async function createManualPreview(params: {
   return { success: true, data: result };
 }
 
-// Re-export EnvironmentData type from models
-export type { EnvironmentData };
+// Note: EnvironmentData type should be imported from @/models/preview-environments
+// Server action modules cannot export types
 
 /**
  * Find or create a preview environment for a pull request.

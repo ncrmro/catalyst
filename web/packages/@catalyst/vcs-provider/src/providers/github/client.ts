@@ -40,9 +40,6 @@ export interface EnrichedIssue {
   state: "open" | "closed";
 }
 
-
-
-
 // Check if we're in NextJS build phase - don't validate env vars during build
 const isNextJsBuild = process.env.NEXT_PHASE === "phase-production-build";
 
@@ -170,6 +167,40 @@ export async function getInstallationOctokit(installationId: number) {
 }
 
 /**
+ * Get an Octokit instance for comment operations with PAT fallback.
+ *
+ * Priority:
+ * 1. PAT if available (for local development)
+ * 2. Installation Octokit if installationId provided
+ * 3. Error if neither available
+ *
+ * @param installationId - Optional GitHub App installation ID
+ * @returns Authenticated Octokit instance
+ */
+export async function getOctokitForComments(installationId?: number) {
+  // Check if PAT is allowed in current environment
+  const isPATAllowed =
+    process.env.NODE_ENV !== "production" || GITHUB_CONFIG.ALLOW_PAT_FALLBACK;
+
+  // First priority: Use PAT if allowed and available
+  if (isPATAllowed && GITHUB_CONFIG.PAT) {
+    return new Octokit({
+      auth: GITHUB_CONFIG.PAT,
+    });
+  }
+
+  // Second priority: Use installation Octokit if installationId provided
+  if (installationId) {
+    return getInstallationOctokit(installationId);
+  }
+
+  // No authentication available
+  throw new Error(
+    "No GitHub authentication available for comments. Set GITHUB_PAT for local development or provide installationId.",
+  );
+}
+
+/**
  * Get an Octokit instance with authentication fallback and session management
  * Priority: PAT (if allowed) → GitHub App User Token (with auto-refresh) → Error
  * @param userId User ID for GitHub App token refresh
@@ -234,7 +265,12 @@ export async function getUserOctokit(userId: string): Promise<Octokit> {
 //   state: "open" | "closed";
 // }
 
-import type { CIStatusSummary, CICheck, CICheckState, CICheckSource } from "../../types";
+import type {
+  CIStatusSummary,
+  CICheck,
+  CICheckState,
+  CICheckSource,
+} from "../../types";
 
 /**
  * Fetch CI status for a pull request
@@ -259,22 +295,26 @@ export async function fetchCIStatus(
 
     // Fetch both check runs and commit statuses in parallel
     const [checkRunsResponse, statusesResponse] = await Promise.all([
-      octokit.rest.checks.listForRef({
-        owner,
-        repo,
-        ref: headSha,
-      }).catch((error) => {
-        console.warn("Could not fetch check runs:", error);
-        return null;
-      }),
-      octokit.rest.repos.getCombinedStatusForRef({
-        owner,
-        repo,
-        ref: headSha,
-      }).catch((error) => {
-        console.warn("Could not fetch commit statuses:", error);
-        return null;
-      }),
+      octokit.rest.checks
+        .listForRef({
+          owner,
+          repo,
+          ref: headSha,
+        })
+        .catch((error) => {
+          console.warn("Could not fetch check runs:", error);
+          return null;
+        }),
+      octokit.rest.repos
+        .getCombinedStatusForRef({
+          owner,
+          repo,
+          ref: headSha,
+        })
+        .catch((error) => {
+          console.warn("Could not fetch commit statuses:", error);
+          return null;
+        }),
     ]);
 
     const checks: CICheck[] = [];
@@ -357,7 +397,10 @@ function normalizeCheckRun(checkRun: {
         // action_required, stale
         state = "failing";
     }
-  } else if (checkRun.status === "queued" || checkRun.status === "in_progress") {
+  } else if (
+    checkRun.status === "queued" ||
+    checkRun.status === "in_progress"
+  ) {
     state = "pending";
   }
 
@@ -365,7 +408,7 @@ function normalizeCheckRun(checkRun: {
   let source: CICheckSource = "external";
   const name = checkRun.name.toLowerCase();
   const appSlug = checkRun.app?.slug?.toLowerCase() || "";
-  
+
   if (name.includes("github") || appSlug.includes("github")) {
     source = "github-actions";
   } else if (name.includes("cloudflare") || appSlug.includes("cloudflare")) {
@@ -376,11 +419,16 @@ function normalizeCheckRun(checkRun: {
     source = "catalyst";
   }
 
-  const startedAt = checkRun.started_at ? new Date(checkRun.started_at) : undefined;
-  const completedAt = checkRun.completed_at ? new Date(checkRun.completed_at) : undefined;
-  const duration = startedAt && completedAt
-    ? Math.floor((completedAt.getTime() - startedAt.getTime()) / 1000)
+  const startedAt = checkRun.started_at
+    ? new Date(checkRun.started_at)
     : undefined;
+  const completedAt = checkRun.completed_at
+    ? new Date(checkRun.completed_at)
+    : undefined;
+  const duration =
+    startedAt && completedAt
+      ? Math.floor((completedAt.getTime() - startedAt.getTime()) / 1000)
+      : undefined;
 
   return {
     id: String(checkRun.id),
@@ -428,7 +476,7 @@ function normalizeCommitStatus(status: {
   // Determine source from context
   let source: CICheckSource = "external";
   const context = status.context.toLowerCase();
-  
+
   if (context.includes("github") || context.includes("actions")) {
     source = "github-actions";
   } else if (context.includes("cloudflare")) {
@@ -467,7 +515,7 @@ export async function fetchPullRequests(
 
     const allPullRequests: EnrichedPullRequest[] = [];
     const addedPrIds = new Set<number>();
-    
+
     // Deduplicate repositories
     const uniqueRepos = [...new Set(repositories)];
 
@@ -522,8 +570,7 @@ export async function fetchPullRequests(
           let status: "draft" | "ready" | "changes_requested" = "ready";
           if (pr.draft) {
             status = "draft";
-          }
-          else {
+          } else {
             // Check for requested changes in reviews (this is a simplified check)
             try {
               const { data: reviews } = await octokit.rest.pulls.listReviews({
@@ -538,7 +585,10 @@ export async function fetchPullRequests(
                 status = "changes_requested";
               }
             } catch (error) {
-              console.warn(`Could not fetch reviews for PR ${pr.number}:`, error);
+              console.warn(
+                `Could not fetch reviews for PR ${pr.number}:`,
+                error,
+              );
             }
           }
 
@@ -888,7 +938,6 @@ export async function fetchIssuesFromRepos(
   );
 }
 
-
 /**
  * Core function to fetch issues from specific repositories
  * @param userId User ID for authentication
@@ -904,7 +953,7 @@ export async function fetchIssues(
 
     const allIssues: EnrichedIssue[] = [];
     const addedIssueIds = new Set<number>();
-    
+
     // Deduplicate repositories
     const uniqueRepos = [...new Set(repositories)];
 
@@ -932,7 +981,7 @@ export async function fetchIssues(
           if (issue.pull_request) {
             continue;
           }
-          
+
           // Skip if we already added this issue
           if (addedIssueIds.has(issue.id)) {
             continue;
@@ -1040,7 +1089,6 @@ export async function fetchIssues(
     return [];
   }
 }
-
 
 /**
  * Fetch a single pull request from GitHub API by its number and repository

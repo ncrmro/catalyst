@@ -596,7 +596,8 @@ export interface CreatePreviewDeploymentParams {
   commitSha: string;
   repoFullName: string;
   imageUri: string;
-  installationId: number;
+  /** Optional: If not provided, GitHub comments will be skipped */
+  installationId?: number;
   owner: string;
   repoName: string;
   /** Optional build job name to wait for before deploying */
@@ -723,15 +724,26 @@ export async function createPreviewDeployment(
   const podId = `preview-${prNumber}-${commitSha.slice(0, 7)}`;
 
   // Step 2: Post initial GitHub comment (pending status)
-  await upsertDeploymentComment({
-    installationId,
-    owner,
-    repo: repoName,
-    prNumber,
-    status: "pending",
-    commitSha,
-    namespace: targetNamespace,
-  });
+  // Uses PAT in local development, falls back to installationId in production
+  // Note: GitHub comment posting is non-blocking - errors are logged but don't fail the deployment
+  try {
+    await upsertDeploymentComment({
+      installationId, // Optional - uses PAT if not provided (local dev)
+      owner,
+      repo: repoName,
+      prNumber,
+      status: "pending",
+      commitSha,
+      namespace: targetNamespace,
+    });
+  } catch (error) {
+    // Log but don't fail - GitHub comment is nice-to-have, not critical
+    previewLogger.warn("Failed to post GitHub comment (non-blocking)", {
+      prNumber,
+      installationId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 
   // Step 3: Create Environment CR
   // TODO: Re-enable DB status updates when caching layer is implemented
@@ -1528,25 +1540,20 @@ export async function findOrCreateEnvironment(
   //   }
   // }
 
-  // Get the user's GitHub installation ID
+  // Get the user's GitHub installation ID (optional for MVP)
+  // If not available, we'll skip GitHub comment posting but still create K8s resources
   const userToken = await db.query.githubUserTokens.findFirst({
     where: eq(githubUserTokens.userId, userId),
   });
 
-  if (!userToken?.installationId) {
-    return {
-      success: false,
-      error: `GitHub App not installed for user. Please install the GitHub App.`,
-    };
+  let installationId: number | undefined;
+  if (userToken?.installationId) {
+    const parsed = parseInt(userToken.installationId, 10);
+    if (!isNaN(parsed)) {
+      installationId = parsed;
+    }
   }
-
-  const installationId = parseInt(userToken.installationId, 10);
-  if (isNaN(installationId)) {
-    return {
-      success: false,
-      error: `Invalid installation ID for user`,
-    };
-  }
+  // Note: If installationId is undefined, GitHub comments will be skipped
 
   // TODO: Re-enable PR record creation when DB caching is implemented
   // let prRecord = existingPr;
@@ -1597,13 +1604,17 @@ export async function findOrCreateEnvironment(
   }
 
   // Return the newly created environment
-  const namespace = generateNamespace(repoFullName, prNumber);
+  // Use the actual target namespace that the operator creates: {projectRef.name}-preview-{prNumber}
+  // This matches the format: {projectRef.name}-{crName} where crName is "preview-{prNumber}"
+  const [, repoNameOnly] = repoFullName.split("/");
+  const targetNamespace = `${repoNameOnly}-preview-${prNumber}`;
+
   return {
     success: true,
     data: {
       environment: {
         id: deploymentResult.podId || `pending-${projectId}-${prNumber}`,
-        namespace,
+        namespace: targetNamespace,
         status: "pending" as const,
         publicUrl: deploymentResult.publicUrl,
         branch,

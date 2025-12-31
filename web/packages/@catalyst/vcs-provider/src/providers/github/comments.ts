@@ -8,7 +8,7 @@
  * models/preview-environments.ts which orchestrates calls to these functions.
  */
 
-import { getInstallationOctokit } from "./client";
+import { getOctokitForComments } from "./client";
 
 // Pod status type for deployment comments
 export type PodStatus =
@@ -22,7 +22,8 @@ export type PodStatus =
 const DEPLOYMENT_COMMENT_MARKER = "<!-- catalyst-preview-deployment -->";
 
 export interface DeploymentCommentParams {
-  installationId: number;
+  /** Optional: If not provided, uses PAT for local development */
+  installationId?: number;
   owner: string;
   repo: string;
   prNumber: number;
@@ -160,13 +161,13 @@ This preview environment is being deleted. This usually happens when the PR is c
  * @returns Comment ID if found, null otherwise
  */
 async function findExistingDeploymentComment(
-  installationId: number,
+  installationId: number | undefined,
   owner: string,
   repo: string,
   prNumber: number,
 ): Promise<number | null> {
   try {
-    const octokit = await getInstallationOctokit(installationId);
+    const octokit = await getOctokitForComments(installationId);
 
     // Fetch all comments on the PR using request() API
     const { data: comments } = await octokit.request(
@@ -217,7 +218,7 @@ export async function upsertDeploymentComment(
   } = params;
 
   try {
-    const octokit = await getInstallationOctokit(installationId);
+    const octokit = await getOctokitForComments(installationId);
 
     // Format the comment body
     const body = formatDeploymentComment({
@@ -284,7 +285,7 @@ export async function upsertDeploymentComment(
  * @returns Result of the operation
  */
 export async function deleteDeploymentComment(
-  installationId: number,
+  installationId: number | undefined,
   owner: string,
   repo: string,
   prNumber: number,
@@ -302,7 +303,7 @@ export async function deleteDeploymentComment(
       return { success: true };
     }
 
-    const octokit = await getInstallationOctokit(installationId);
+    const octokit = await getOctokitForComments(installationId);
 
     await octokit.request(
       "DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}",
