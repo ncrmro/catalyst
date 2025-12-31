@@ -51,10 +51,12 @@ web/
 The web application uses a monorepo structure with several internal packages located in the `packages/` directory. These are grouped by scope:
 
 #### `@catalyst` Scope
+
 - **`kubernetes-client`**: Abstractions for interacting with Kubernetes clusters, managing Environment CRs, and pod orchestration.
 - **`vcs-provider`**: Interfaces and implementations for version control system integrations (GitHub, etc.). This package handles repository discovery, branch management, and Pull Request interaction across different providers.
 
 #### `@tetrastack` Scope
+
 - **`backend`**: Shared backend utilities, common Zod schemas, and database helper functions.
 - **`react-agent-chat`**: UI components and logic for the agentic chat interface.
 - **`react-glass-components`**: Base "Glass" themed design system components.
@@ -72,7 +74,7 @@ The web application uses a monorepo structure with several internal packages loc
 - `githubUserTokens`, `githubAppTokens`: GitHub authentication tokens
 - `reports`: Generated reports from periodic agents
 
-**Project Configuration**: 
+**Project Configuration**:
 The platform uses a JSON Schema-driven configuration system to define how projects are built and deployed. JSON Schema is the source of truth (`web/src/schemas/project-config/project-config.schema.json`), and Zod schemas are generated at runtime for validation using the `asJsonSchema` utility. This configuration is stored in the `projects.project_config` JSONB column and inherited by environments.
 
 ## Integrations
@@ -91,11 +93,13 @@ The application supports both GitHub App and Personal Access Token (PAT) authent
 The application supports two development modes:
 
 #### Mocked Mode (Default for `make up`)
+
 - **Environment**: `GITHUB_REPOS_MODE=mocked` and `MOCKED=1`
 - **Behavior**: GitHub API responses are served from YAML mocks. Database seeding creates only users.
 - **Best for**: Offline development, UI work, and testing core logic without API rate limits.
 
 #### Real Mode (`make up-real`)
+
 - **Environment**: Connected to live GitHub API.
 - **Behavior**: All data comes from actual GitHub calls. Database seeding creates users with real projects.
 - **Best for**: Testing end-to-end GitHub integration and webhook flows.
@@ -229,15 +233,35 @@ Optional:
 
 ## Development Workflow
 
-**IMPORTANT**: Prefer using the high-level `make` commands in the root `AGENTS.md` for starting the full stack. The commands below are for granular control during active feature development.
+**Primary Command**: Use `make up` from the `/web` directory to start the full development environment:
+
+```bash
+cd web
+make up               # Starts K3s VM, Next.js dev server, and Operator
+```
+
+This runs three concurrent processes:
+
+- **INFRA**: K3s VM, database migrations, and seeding
+- **WEB**: Next.js development server
+- **OPERATOR**: Kubernetes operator for Environment CRs
+
+**Logs**: All process output is saved to `./logs/` directory:
+
+- `logs/infra.log` - K3s VM and database setup
+- `logs/web.log` - Next.js dev server output
+- `logs/operator.log` - Operator reconciliation logs
+
+**IMPORTANT**: Never run `npm run build` during development - it breaks the Next.js dev server hot reload.
 
 ### NPM Scripts
+
+The commands below are for granular control during active feature development.
 
 **Development:**
 
 ```bash
-npm run dev           # Start development server
-npm run build         # Build for production
+npm run dev           # Start development server (use make up instead)
 npm start             # Start production server
 ```
 
