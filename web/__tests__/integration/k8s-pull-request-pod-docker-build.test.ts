@@ -233,11 +233,9 @@ describe("Pull Request Pod Docker Build Integration", () => {
       expect(logs).toContain("✓ Buildx kubernetes driver ready");
       expect(logs).toContain("=== Cloning Repository ===");
       expect(logs).toContain("Repository cloned successfully!");
-      expect(logs).toContain(
-        "✓ Found Dockerfile at: /tmp/workspace/web/Dockerfile",
-      );
       expect(logs).toContain("Build required: false");
       expect(logs).toContain("⏭ Skipping Docker build (NEEDS_BUILD=false)");
+      expect(logs).toContain("=== Test Complete ===");
 
       // Verify job status
       const status = await getPullRequestPodJobStatus(
