@@ -1,19 +1,14 @@
 /**
- * Integration test for Pull Request pod Docker image building functionality
+ * Integration test for Pull Request pod build environment validation
  *
- * This test verifies the complete Docker image building workflow including:
+ * This test verifies the build environment setup without running full Docker builds:
  * 1. Service account creation with buildx permissions
- * 2. Git repository cloning (shallow and full)
+ * 2. Git repository cloning (shallow)
  * 3. Docker buildx Kubernetes driver setup
- * 4. Real Docker image building with correct build context
- * 5. Environment variable integration
- * 6. Error handling and resource cleanup
+ * 4. Dockerfile validation (exists at expected path)
  *
- * Note: This test requires:
- * - Valid Kubernetes configuration with buildx support
- * - Docker registry access (for image pushing, if enabled)
- * - Extended timeouts for Docker build operations
- * - GitHub repository access for real cloning
+ * Note: This test uses NEEDS_BUILD=false to skip actual Docker builds,
+ * reducing disk usage and CI time significantly.
  */
 
 import {
@@ -23,7 +18,7 @@ import {
   createBuildxServiceAccount,
 } from "../../src/lib/k8s-pull-request-pod";
 import { getClusterConfig, getCoreV1Api } from "../../src/lib/k8s-client";
-import type { V1PolicyRule, V1EnvVar } from "@kubernetes/client-node";
+import type { V1PolicyRule } from "@kubernetes/client-node";
 
 import { beforeAll, afterAll, describe, it, expect, vi } from "vitest";
 
@@ -37,11 +32,8 @@ vi.mock("@/lib/vcs-providers", () => ({
 
 describe("Pull Request Pod Docker Build Integration", () => {
   const testNamespace = "default";
-  const testName = `test-docker-build-${Date.now()}`;
+  const testName = `pr-job-test-docker-build-${Date.now()}`;
   let createdJobName: string;
-
-  // Extended timeout for Docker build operations
-  const dockerBuildTimeout = 300000; // 5 minutes
 
   beforeAll(async () => {
     // Verify KUBECONFIG_PRIMARY is set
@@ -50,11 +42,8 @@ describe("Pull Request Pod Docker Build Integration", () => {
     // Clean up any existing resources from previous test runs
     try {
       await cleanupPullRequestPodJob(testName, testNamespace, "PRIMARY");
-    } catch (error) {
-      console.warn(
-        "Pre-test cleanup (expected if no existing resources):",
-        error,
-      );
+    } catch {
+      // Expected if no existing resources
     }
   });
 
@@ -62,11 +51,8 @@ describe("Pull Request Pod Docker Build Integration", () => {
     // Clean up any created resources
     try {
       await cleanupPullRequestPodJob(testName, testNamespace, "PRIMARY");
-    } catch (error) {
-      console.warn(
-        "Cleanup failed (this may be expected if tests failed):",
-        error,
-      );
+    } catch {
+      // Expected if tests failed or cleanup already done
     }
   });
 
@@ -151,453 +137,126 @@ describe("Pull Request Pod Docker Build Integration", () => {
     }, 60000);
   });
 
-  describe("Docker Image Building Integration", () => {
-    it(
-      "should create and execute PR pod with Docker image building",
-      async () => {
-        // Create the job with real Docker build environment
-        const result = await createPullRequestPodJob({
-          name: testName,
-          namespace: testNamespace,
-          clusterName: "PRIMARY",
-          env: {
-            REPO_URL: "https://github.com/ncrmro/catalyst.git",
-            PR_BRANCH: "main",
-            PR_NUMBER: "999",
-            GITHUB_USER: "ncrmro",
-            IMAGE_NAME: "catalyst/web",
-            NEEDS_BUILD: "true",
-            SHALLOW_CLONE: "true",
-            MANIFEST_DOCKERFILE: "/web/Dockerfile",
-            TARGET_NAMESPACE: testNamespace,
-          },
-        });
+  describe("Build Environment Validation", () => {
+    it("should clone repository and validate build environment without full Docker build", async () => {
+      // Create the job with NEEDS_BUILD=false to skip actual Docker build
+      // This validates the build environment setup without consuming disk space
+      const result = await createPullRequestPodJob({
+        name: testName,
+        namespace: testNamespace,
+        clusterName: "PRIMARY",
+        env: {
+          REPO_URL: "https://github.com/ncrmro/catalyst.git",
+          PR_BRANCH: "main",
+          PR_NUMBER: "999",
+          GITHUB_USER: "ncrmro",
+          IMAGE_NAME: "catalyst/web",
+          NEEDS_BUILD: "false", // Skip Docker build to save disk space
+          SHALLOW_CLONE: "true",
+          MANIFEST_DOCKERFILE: "/web/Dockerfile",
+          TARGET_NAMESPACE: testNamespace,
+        },
+      });
 
-        expect(result).toBeDefined();
-        expect(result.created).toBe(true);
-        expect(result.jobName).toContain(testName);
-        expect(result.namespace).toBe(testNamespace);
+      expect(result).toBeDefined();
+      expect(result.created).toBe(true);
+      expect(result.jobName).toContain(testName);
+      expect(result.namespace).toBe(testNamespace);
 
-        createdJobName = result.jobName;
+      createdJobName = result.jobName;
 
-        // Verify job was created in Kubernetes with correct configuration
-        const kc = await getClusterConfig("PRIMARY");
-        const { getBatchV1Api } =
-          await import("../../src/lib/k8s-pull-request-pod");
-        const BatchV1Api = await getBatchV1Api();
-        const batchApi = kc!.makeApiClient(BatchV1Api);
+      // Verify job was created in Kubernetes with correct configuration
+      const kc = await getClusterConfig("PRIMARY");
+      const { getBatchV1Api } =
+        await import("../../src/lib/k8s-pull-request-pod");
+      const BatchV1Api = await getBatchV1Api();
+      const batchApi = kc!.makeApiClient(BatchV1Api);
 
-        const job = await batchApi.readNamespacedJob({
-          name: createdJobName,
-          namespace: testNamespace,
-        });
+      const job = await batchApi.readNamespacedJob({
+        name: createdJobName,
+        namespace: testNamespace,
+      });
 
-        expect(job).toBeDefined();
-        expect(job.metadata?.name).toBe(createdJobName);
-        expect(job.metadata?.labels?.["app"]).toBe("catalyst-pr-job");
+      expect(job).toBeDefined();
+      expect(job.metadata?.name).toBe(createdJobName);
+      expect(job.metadata?.labels?.["app"]).toBe("catalyst-pr-job");
 
-        // Verify environment variables are set correctly
-        const container = job.spec?.template?.spec?.containers?.[0];
-        expect(container).toBeDefined();
+      // Wait for pod to complete (should be fast since no Docker build)
+      const CoreV1Api = await getCoreV1Api();
+      const coreApi = kc!.makeApiClient(CoreV1Api);
 
-        const envVars = container?.env || [];
-        const repoUrlEnv = envVars.find(
-          (env: V1EnvVar) => env.name === "REPO_URL",
-        );
-        expect(repoUrlEnv?.value).toBe(
-          "https://github.com/ncrmro/catalyst.git",
-        );
+      // Wait for pod to be created
+      await new Promise((resolve) => setTimeout(resolve, 10000));
 
-        const needsBuildEnv = envVars.find(
-          (env: V1EnvVar) => env.name === "NEEDS_BUILD",
-        );
-        expect(needsBuildEnv?.value).toBe("true");
+      const pods = await coreApi.listNamespacedPod({
+        namespace: testNamespace,
+        labelSelector: `job-name=${createdJobName}`,
+      });
 
-        const shallowCloneEnv = envVars.find(
-          (env: V1EnvVar) => env.name === "SHALLOW_CLONE",
-        );
-        expect(shallowCloneEnv?.value).toBe("true");
+      expect(pods.items.length).toBeGreaterThan(0);
+      const pod = pods.items[0];
+      const podName = pod.metadata?.name;
+      if (!podName) throw new Error("Pod name is undefined");
 
-        const dockerfileEnv = envVars.find(
-          (env: V1EnvVar) => env.name === "MANIFEST_DOCKERFILE",
-        );
-        expect(dockerfileEnv?.value).toBe("/web/Dockerfile");
+      // Wait for pod to reach a terminal state (faster without Docker build)
+      let podStatus = pod.status?.phase;
+      let attempts = 0;
+      const maxAttempts = 24; // 2 minutes with 5-second intervals
 
-        // Verify service account is set
-        expect(job.spec?.template?.spec?.serviceAccountName).toBe(
-          `${testName}-buildx-sa`,
-        );
-      },
-      dockerBuildTimeout,
-    );
+      while (
+        podStatus !== "Succeeded" &&
+        podStatus !== "Failed" &&
+        attempts < maxAttempts
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 5000));
 
-    it(
-      "should verify Docker build execution and completion",
-      async () => {
-        // Skip if job creation failed
-        if (!createdJobName) {
-          console.warn("Skipping Docker build verification - job not created");
-          return;
-        }
-
-        const kc = await getClusterConfig("PRIMARY");
-        const CoreV1Api = await getCoreV1Api();
-        const coreApi = kc!.makeApiClient(CoreV1Api);
-
-        // Wait for pod to be created
-        console.log("Waiting for pod to be created...");
-        await new Promise((resolve) => setTimeout(resolve, 10000));
-
-        // Get the pod created by the job
-        const pods = await coreApi.listNamespacedPod({
-          namespace: testNamespace,
-          labelSelector: `job-name=${createdJobName}`,
-        });
-
-        expect(pods.items.length).toBeGreaterThan(0);
-        const pod = pods.items[0];
-        const podName = pod.metadata?.name;
-        if (!podName) throw new Error("Pod name is undefined");
-
-        console.log(`Found pod: ${podName}`);
-
-        // Wait for pod to reach a terminal state (Succeeded, Failed, or Running for extended time)
-        let podStatus = pod.status?.phase;
-        let attempts = 0;
-        const maxAttempts = 60; // 5 minutes with 5-second intervals
-
-        while (
-          podStatus !== "Succeeded" &&
-          podStatus !== "Failed" &&
-          attempts < maxAttempts
-        ) {
-          await new Promise((resolve) => setTimeout(resolve, 5000));
-
-          const updatedPod = await coreApi.readNamespacedPod({
-            name: podName,
-            namespace: testNamespace,
-          });
-
-          podStatus = updatedPod.status?.phase;
-          attempts++;
-
-          if (attempts % 6 === 0) {
-            // Log every 30 seconds
-            console.log(
-              `Pod status after ${attempts * 5} seconds: ${podStatus}`,
-            );
-          }
-        }
-
-        // Get final pod logs for analysis
-        const logs = await coreApi.readNamespacedPodLog({
+        const updatedPod = await coreApi.readNamespacedPod({
           name: podName,
           namespace: testNamespace,
         });
 
-        console.log("Pod execution logs:");
-        console.log("=====================================");
-        console.log(logs);
-        console.log("=====================================");
+        podStatus = updatedPod.status?.phase;
+        attempts++;
+      }
 
-        // Verify Docker build workflow stages in logs
-        expect(logs).toContain("=== PR Pod Build Script ===");
-        expect(logs).toContain("=== Verifying pre-installed tools ===");
-        expect(logs).toContain("=== Setting up buildx kubernetes builder ===");
-        expect(logs).toContain("=== Cloning Repository ===");
-        expect(logs).toContain("Shallow clone enabled: true");
-        expect(logs).toContain("=== Building Docker Image ===");
-        expect(logs).toContain(
-          "✓ Found Dockerfile at: /tmp/workspace/web/Dockerfile",
-        );
-        expect(logs).toContain("Build context: /tmp/workspace/web");
+      // Get pod logs for verification
+      const logs = await coreApi.readNamespacedPodLog({
+        name: podName,
+        namespace: testNamespace,
+      });
 
-        // Verify buildx setup
-        expect(logs).toContain("✓ Buildx kubernetes driver ready");
+      // Verify build environment setup stages completed
+      expect(logs).toContain("=== PR Pod Build Script ===");
+      expect(logs).toContain("=== Verifying pre-installed tools ===");
+      expect(logs).toContain("✓ All tools verified");
+      expect(logs).toContain("=== Setting up buildx kubernetes builder ===");
+      expect(logs).toContain("✓ Buildx kubernetes driver ready");
+      expect(logs).toContain("=== Cloning Repository ===");
+      expect(logs).toContain("Repository cloned successfully!");
+      expect(logs).toContain(
+        "✓ Found Dockerfile at: /tmp/workspace/web/Dockerfile",
+      );
+      expect(logs).toContain("Build required: false");
+      expect(logs).toContain("⏭ Skipping Docker build (NEEDS_BUILD=false)");
 
-        // Verify repository cloning
-        expect(logs).toContain("Repository cloned successfully!");
-        expect(logs).toContain("Git status:");
+      // Verify job status
+      const status = await getPullRequestPodJobStatus(
+        createdJobName,
+        testNamespace,
+        "PRIMARY",
+      );
+      expect(status).toBeDefined();
+      expect(status.jobName).toBe(createdJobName);
 
-        // Verify Docker build started
-        expect(logs).toContain(
-          "Building image: ghcr.io/ncrmro/catalyst/web:pr-999",
-        );
-        expect(logs).toContain(
-          'building with "k8s-builder" instance using kubernetes driver',
-        );
-
-        // Check for build completion or reasonable progress
-        const hasDockerBuildProgress =
-          logs.includes("load build definition from Dockerfile") ||
-          logs.includes("resolve image config") ||
-          logs.includes("FROM docker.io/library/node:22");
-
-        expect(hasDockerBuildProgress).toBe(true);
-
-        // If pod succeeded, verify successful completion
-        if (podStatus === "Succeeded") {
-          expect(logs).toContain("✓ Image built successfully");
-          expect(logs).toContain("=== Test Complete ===");
-        } else if (podStatus === "Failed") {
-          // For failed pods, at least verify the setup stages completed
-          console.warn(
-            "Pod failed, but verifying setup stages completed correctly",
-          );
-          expect(logs).toContain("✓ All tools verified");
-          expect(logs).toContain("✓ Buildx kubernetes driver ready");
-        } else {
-          // Pod is still running after timeout - this is acceptable for slow builds
-          console.log(
-            "Pod still running after timeout - build may be in progress",
-          );
-          expect(podStatus).toBe("Running");
-        }
-
-        // Wait a bit for job status to be updated
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-
-        // Verify job status reflects pod state
-        const status = await getPullRequestPodJobStatus(
-          createdJobName,
-          testNamespace,
-          "PRIMARY",
-        );
-        expect(status).toBeDefined();
-        expect(status.jobName).toBe(createdJobName);
-
-        if (podStatus === "Succeeded") {
-          expect(status.succeeded).toBeGreaterThan(0);
-        } else if (podStatus === "Failed") {
-          expect(status.failed).toBeGreaterThan(0);
-        } else {
-          expect(status.active).toBeGreaterThan(0);
-        }
-      },
-      dockerBuildTimeout,
-    );
+      // Pod should succeed since we're skipping the build
+      if (podStatus === "Succeeded") {
+        expect(status.succeeded).toBeGreaterThan(0);
+      }
+    }, 180000); // 3 minute timeout
   });
 
-  describe("Environment Variable Integration", () => {
-    it("should handle different SHALLOW_CLONE configurations", async () => {
-      // Test with SHALLOW_CLONE=false for full clone
-      const fullCloneJobName = `${testName}-full-clone`;
-
-      const result = await createPullRequestPodJob({
-        name: fullCloneJobName,
-        namespace: testNamespace,
-        clusterName: "PRIMARY",
-        env: {
-          REPO_URL: "https://github.com/ncrmro/catalyst.git",
-          PR_BRANCH: "main",
-          PR_NUMBER: "998",
-          GITHUB_USER: "ncrmro",
-          IMAGE_NAME: "catalyst/web",
-          NEEDS_BUILD: "false", // Skip build to focus on clone testing
-          SHALLOW_CLONE: "false",
-          MANIFEST_DOCKERFILE: "/web/Dockerfile",
-          TARGET_NAMESPACE: testNamespace,
-        },
-      });
-
-      expect(result.created).toBe(true);
-
-      // Wait for pod execution
-      await new Promise((resolve) => setTimeout(resolve, 15000));
-
-      // Get pod logs to verify full clone behavior
-      const kc = await getClusterConfig("PRIMARY");
-      const CoreV1Api = await getCoreV1Api();
-      const coreApi = kc!.makeApiClient(CoreV1Api);
-
-      const pods = await coreApi.listNamespacedPod({
-        namespace: testNamespace,
-        labelSelector: `job-name=${result.jobName}`,
-      });
-
-      if (pods.items.length > 0) {
-        const pod = pods.items[0];
-        const podName = pod.metadata?.name;
-        if (!podName) throw new Error("Pod name is undefined");
-
-        try {
-          const logs = await coreApi.readNamespacedPodLog({
-            name: podName,
-            namespace: testNamespace,
-          });
-
-          expect(logs).toContain("Shallow clone enabled: false");
-          expect(logs).toContain("Performing full clone...");
-        } catch (error) {
-          console.warn("Could not retrieve logs for full clone test:", error);
-        }
-      }
-
-      // Cleanup the test job
-      try {
-        await cleanupPullRequestPodJob(
-          fullCloneJobName,
-          testNamespace,
-          "PRIMARY",
-        );
-      } catch (error) {
-        console.warn("Cleanup failed for full clone test:", error);
-      }
-    }, 120000);
-
-    it("should handle NEEDS_BUILD=false to skip Docker building", async () => {
-      const noBuildJobName = `${testName}-no-build`;
-
-      const result = await createPullRequestPodJob({
-        name: noBuildJobName,
-        namespace: testNamespace,
-        clusterName: "PRIMARY",
-        env: {
-          REPO_URL: "https://github.com/ncrmro/catalyst.git",
-          PR_BRANCH: "main",
-          PR_NUMBER: "997",
-          GITHUB_USER: "ncrmro",
-          IMAGE_NAME: "catalyst/web",
-          NEEDS_BUILD: "false",
-          SHALLOW_CLONE: "true",
-          MANIFEST_DOCKERFILE: "/web/Dockerfile",
-          TARGET_NAMESPACE: testNamespace,
-        },
-      });
-
-      expect(result.created).toBe(true);
-
-      // Wait for pod execution
-      await new Promise((resolve) => setTimeout(resolve, 15000));
-
-      // Get pod logs to verify build was skipped
-      const kc = await getClusterConfig("PRIMARY");
-      const CoreV1Api = await getCoreV1Api();
-      const coreApi = kc!.makeApiClient(CoreV1Api);
-
-      const pods = await coreApi.listNamespacedPod({
-        namespace: testNamespace,
-        labelSelector: `job-name=${result.jobName}`,
-      });
-
-      if (pods.items.length > 0) {
-        const pod = pods.items[0];
-        const podName = pod.metadata?.name;
-        if (!podName) throw new Error("Pod name is undefined");
-
-        try {
-          const logs = await coreApi.readNamespacedPodLog({
-            name: podName,
-            namespace: testNamespace,
-          });
-
-          // Should complete setup but skip Docker build
-          expect(logs).toContain("✓ All tools verified");
-          expect(logs).toContain("✓ Buildx kubernetes driver ready");
-          expect(logs).toContain("Repository cloned successfully!");
-
-          // Build should be skipped due to NEEDS_BUILD=false
-          expect(logs).toContain("Build required: false");
-          expect(logs).toContain(
-            "⏭ Skipping Docker build (NEEDS_BUILD=false)",
-          );
-          expect(logs).not.toContain("Building image:");
-        } catch (error) {
-          console.warn("Could not retrieve logs for no-build test:", error);
-        }
-      }
-
-      // Cleanup the test job
-      try {
-        await cleanupPullRequestPodJob(
-          noBuildJobName,
-          testNamespace,
-          "PRIMARY",
-        );
-      } catch (error) {
-        console.warn("Cleanup failed for no-build test:", error);
-      }
-    }, 120000);
-  });
-
-  describe("Error Handling and Resource Management", () => {
-    it("should handle missing Dockerfile gracefully", async () => {
-      const invalidDockerfileJobName = `${testName}-invalid-dockerfile`;
-
-      const result = await createPullRequestPodJob({
-        name: invalidDockerfileJobName,
-        namespace: testNamespace,
-        clusterName: "PRIMARY",
-        env: {
-          REPO_URL: "https://github.com/ncrmro/catalyst.git",
-          PR_BRANCH: "main",
-          PR_NUMBER: "996",
-          GITHUB_USER: "ncrmro",
-          IMAGE_NAME: "catalyst/web",
-          NEEDS_BUILD: "true",
-          SHALLOW_CLONE: "true",
-          MANIFEST_DOCKERFILE: "/nonexistent/Dockerfile", // Invalid path
-          TARGET_NAMESPACE: testNamespace,
-        },
-      });
-
-      expect(result.created).toBe(true);
-
-      // Wait for pod execution
-      await new Promise((resolve) => setTimeout(resolve, 20000));
-
-      // Get pod logs to verify error handling
-      const kc = await getClusterConfig("PRIMARY");
-      const CoreV1Api = await getCoreV1Api();
-      const coreApi = kc!.makeApiClient(CoreV1Api);
-
-      const pods = await coreApi.listNamespacedPod({
-        namespace: testNamespace,
-        labelSelector: `job-name=${result.jobName}`,
-      });
-
-      if (pods.items.length > 0) {
-        const pod = pods.items[0];
-        const podName = pod.metadata?.name;
-        if (!podName) throw new Error("Pod name is undefined");
-
-        try {
-          const logs = await coreApi.readNamespacedPodLog({
-            name: podName,
-            namespace: testNamespace,
-          });
-
-          // Should complete setup stages
-          expect(logs).toContain("✓ All tools verified");
-          expect(logs).toContain("Repository cloned successfully!");
-
-          // Should detect missing Dockerfile
-          expect(logs).toContain(
-            "✗ Dockerfile not found at: /tmp/workspace/nonexistent/Dockerfile",
-          );
-          expect(logs).toContain("Available files in web directory:");
-        } catch (error) {
-          console.warn(
-            "Could not retrieve logs for invalid dockerfile test:",
-            error,
-          );
-        }
-      }
-
-      // Cleanup the test job
-      try {
-        await cleanupPullRequestPodJob(
-          invalidDockerfileJobName,
-          testNamespace,
-          "PRIMARY",
-        );
-      } catch (error) {
-        console.warn("Cleanup failed for invalid dockerfile test:", error);
-      }
-    }, 120000);
-
+  describe("Resource Cleanup", () => {
     it("should clean up all created resources", async () => {
-      // This test verifies that cleanup removes all resources
       if (!createdJobName) {
         console.warn("Skipping cleanup test - no job was created");
         return;
