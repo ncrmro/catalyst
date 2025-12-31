@@ -50,11 +50,11 @@ _Goal: Update the Operator to generate hostname-based Ingress resources (using `
   1. Add `isLocal` parameter to `desiredIngress()` function
   2. When `isLocal=true`: use hostname-based routing with `*.localhost` (e.g., `namespace.localhost`)
   3. When `isLocal=false`: use existing hostname-based routing with TLS (e.g., `env.preview.catalyst.dev`)
-- [ ] T006 Update `Reconcile` loop in `operator/internal/controller/environment_controller.go`:
-  1. **Call `desiredIngress()`** - currently not called!
-  2. Detect local mode (env var or Project CR config)
-  3. Create/update Ingress resource
-  4. Populate `status.URL` with the generated URL
+- [x] T006 Update `Reconcile` loop in `operator/internal/controller/environment_controller.go`:
+  1. **Call `desiredIngress()`** - implemented at line 141
+  2. Detect local mode via `LOCAL_PREVIEW_ROUTING` env var (line 138)
+  3. Create/update Ingress resource (lines 142-153)
+  4. Populate `status.URL` with generated URL (lines 155-163)
 - [x] T007 Add unit tests for Ingress generation verifying:
   - Hostname-based routing with `*.localhost` (local mode)
   - Hostname-based routing with TLS (production mode)
@@ -156,6 +156,15 @@ _Goal: Enable environment creation using K8s and GitHub API as source of truth, 
 - [x] T036 Simplify `findOrCreateEnvironment` to skip DB lookups in `web/src/models/preview-environments.ts` (lines 1478-1551)
 - [x] T037 Fix type error: change `repo.installationId` to use user token lookup
 - [x] T038 Make `pullRequestId` optional in `CreatePreviewDeploymentParams` interface
+- [x] T039b Remove invalid type re-export from `web/src/actions/preview-environments.ts` (Server Actions can only export async functions)
+- [x] T039c Update `EnvironmentCardClient.tsx` to import `EnvironmentData` from `@/models/preview-environments`
+- [x] T039d Make `installationId` optional in `CreatePreviewDeploymentParams` interface
+- [x] T039e Make GitHub comment posting non-blocking in `createPreviewDeployment` (catch errors, log, continue)
+- [x] T039f Add `getOctokitForComments()` helper in VCS provider with PAT fallback for local development
+- [x] T039g Update GitHub comments module to use PAT when available (local dev) before requiring installationId
+- [x] T039h Fix 409 Conflict handling in `createEnvironmentCR` - now properly detects "already exists" from multiple error formats
+- [x] T039i Create `/api/environments/[namespace]/status` endpoint to poll K8s CR directly (no DB required)
+- [x] T039j Update EnvironmentCardClient to poll K8s status instead of using DB-based SSE endpoint
 
 ### Future Tasks (Re-enable DB Caching)
 
@@ -178,12 +187,12 @@ _Goal: Enable environment creation using K8s and GitHub API as source of truth, 
 | ------------------------- | ------ | -------- | --------- |
 | Phase 0 (Foundation)      | 10     | 10       | 0         |
 | Phase 1 (Setup)           | 2      | 0        | 2         |
-| Phase 2 (Operator)        | 7      | 3        | 4         |
+| Phase 2 (Operator)        | 7      | 4        | 3         |
 | Phase 3 (Web UI)          | 4      | 3        | 1         |
 | Phase 4 (Polish)          | 3      | 0        | 3         |
 | Phase 5 (Self-Deployment) | 17     | 0        | 17        |
-| Phase 6 (MVP No DB Sync)  | 12     | 5        | 7         |
-| **Total**                 | **55** | **21**   | **34**    |
+| Phase 6 (MVP No DB Sync)  | 21     | 14       | 7         |
+| **Total**                 | **64** | **31**   | **33**    |
 
 **Critical Path (Local URL)**: T005 → T006 → T007 → T013
 

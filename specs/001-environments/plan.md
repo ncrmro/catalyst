@@ -206,8 +206,30 @@ For MVP, database sync is disabled in preview environment creation. The system u
 **Changes:**
 
 - `pullRequestId` made optional in `CreatePreviewDeploymentParams`
-- Installation ID fetched from user's GitHub token instead of repo record
+- `installationId` made optional - uses PAT fallback for local development
+- GitHub comment posting is non-blocking (errors logged, deployment continues)
 - Temporary podId generated for logging: `preview-${prNumber}-${commitSha.slice(0, 7)}`
+
+### GitHub Authentication Fallback
+
+The VCS provider now supports PAT fallback for GitHub API operations:
+
+```typescript
+// In @catalyst/vcs-provider/src/providers/github/client.ts
+export async function getOctokitForComments(installationId?: number) {
+  // 1. Use PAT if available (local development)
+  if (isPATAllowed && GITHUB_CONFIG.PAT) {
+    return new Octokit({ auth: GITHUB_CONFIG.PAT });
+  }
+  // 2. Fall back to installation octokit
+  if (installationId) {
+    return getInstallationOctokit(installationId);
+  }
+  throw new Error("No GitHub authentication available");
+}
+```
+
+This ensures local development works without GitHub App installation, using `GITHUB_PAT` or `GITHUB_TOKEN` environment variables.
 
 ### Future Work
 
