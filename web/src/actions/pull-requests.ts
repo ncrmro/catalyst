@@ -13,11 +13,12 @@ import {
   refreshTokenIfNeeded,
   invalidateTokens,
   getUserOctokit,
-  fetchPullRequestsFromRepos as coreFetchPullRequestsFromRepos,
+  fetchPullRequests, // Changed from fetchRealPullRequests
   fetchUserRepositoryPullRequests,
   isGitHubTokenError,
   GITHUB_CONFIG,
 } from "@/lib/vcs-providers";
+
 
 /**
  * GitHub provider - fetches real pull requests from GitHub API using GitHub App tokens or PAT
@@ -175,9 +176,8 @@ export async function fetchPullRequestsFromRepos(
     throw new Error("No authenticated user found");
   }
 
-  // Get authenticated Octokit instance with session management
-  const octokit = await getUserOctokit(session.user.id);
+  const userId = session.user.id;
 
   // Call core function with authenticated instance
-  return await coreFetchPullRequestsFromRepos(octokit, repositories);
+  return await fetchPullRequests(userId, repositories);
 }

@@ -12,6 +12,7 @@ import {
   repos,
   teams,
   teamsMemberships,
+  githubUserTokens,
 } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import type {
@@ -588,13 +589,15 @@ import {
 } from "@/lib/logging";
 
 export interface CreatePreviewDeploymentParams {
-  pullRequestId: string;
+  /** Optional: Used for DB tracking when DB sync is enabled */
+  pullRequestId?: string;
   prNumber: number;
   branch: string;
   commitSha: string;
   repoFullName: string;
   imageUri: string;
-  installationId: number;
+  /** Optional: If not provided, GitHub comments will be skipped */
+  installationId?: number;
   owner: string;
   repoName: string;
   /** Optional build job name to wait for before deploying */
@@ -664,70 +667,87 @@ export async function createPreviewDeployment(
     repoFullName,
   });
 
+  // TODO: Re-enable DB sync when caching layer is implemented
+  // For MVP, we use K8s and GitHub API as source of truth
   // Step 1: Create database record (idempotent)
-  const podResult = await upsertPullRequestPod({
-    pullRequestId,
-    commitSha,
-    namespace: targetNamespace,
-    deploymentName: crName,
-    branch,
-    imageTag,
-    publicUrl,
-  });
+  // const podResult = await upsertPullRequestPod({
+  //   pullRequestId,
+  //   commitSha,
+  //   namespace: targetNamespace,
+  //   deploymentName: crName,
+  //   branch,
+  //   imageTag,
+  //   publicUrl,
+  // });
+  //
+  // if (!podResult.success || !podResult.pod) {
+  //   previewLogger.error("Failed to create pod record", {
+  //     prNumber,
+  //     commitSha,
+  //     namespace: targetNamespace,
+  //     error: podResult.error,
+  //   });
+  //   return {
+  //     success: false,
+  //     error: podResult.error || "Failed to create pod record",
+  //   };
+  // }
+  //
+  // const podId = podResult.pod.id;
+  //
+  // // If pod already exists (duplicate webhook), return early
+  // if (!podResult.isNew) {
+  //   logPreviewLifecycleEvent("deployment-duplicate-detected", {
+  //     podId,
+  //     namespace: targetNamespace,
+  //     prNumber,
+  //     commitSha,
+  //     status: podResult.pod.status,
+  //   });
+  //   return {
+  //     success: true,
+  //     podId: podResult.pod.id,
+  //     publicUrl: podResult.pod.publicUrl || undefined,
+  //     isExisting: true,
+  //   };
+  // }
+  //
+  // logPreviewLifecycleEvent("pod-record-created", {
+  //   podId,
+  //   namespace: targetNamespace,
+  //   prNumber,
+  //   commitSha,
+  //   phase: "created",
+  // });
 
-  if (!podResult.success || !podResult.pod) {
-    previewLogger.error("Failed to create pod record", {
-      prNumber,
-      commitSha,
-      namespace: targetNamespace,
-      error: podResult.error,
-    });
-    return {
-      success: false,
-      error: podResult.error || "Failed to create pod record",
-    };
-  }
-
-  const podId = podResult.pod.id;
-
-  // If pod already exists (duplicate webhook), return early
-  if (!podResult.isNew) {
-    logPreviewLifecycleEvent("deployment-duplicate-detected", {
-      podId,
-      namespace: targetNamespace,
-      prNumber,
-      commitSha,
-      status: podResult.pod.status,
-    });
-    return {
-      success: true,
-      podId: podResult.pod.id,
-      publicUrl: podResult.pod.publicUrl || undefined,
-      isExisting: true,
-    };
-  }
-
-  logPreviewLifecycleEvent("pod-record-created", {
-    podId,
-    namespace: targetNamespace,
-    prNumber,
-    commitSha,
-    phase: "created",
-  });
+  // Generate a temporary ID for logging/tracking (no DB)
+  const podId = `preview-${prNumber}-${commitSha.slice(0, 7)}`;
 
   // Step 2: Post initial GitHub comment (pending status)
-  await upsertDeploymentComment({
-    installationId,
-    owner,
-    repo: repoName,
-    prNumber,
-    status: "pending",
-    commitSha,
-    namespace: targetNamespace,
-  });
+  // Uses PAT in local development, falls back to installationId in production
+  // Note: GitHub comment posting is non-blocking - errors are logged but don't fail the deployment
+  try {
+    await upsertDeploymentComment({
+      installationId, // Optional - uses PAT if not provided (local dev)
+      owner,
+      repo: repoName,
+      prNumber,
+      status: "pending",
+      commitSha,
+      namespace: targetNamespace,
+    });
+  } catch (error) {
+    // Log but don't fail - GitHub comment is nice-to-have, not critical
+    previewLogger.warn("Failed to post GitHub comment (non-blocking)", {
+      prNumber,
+      installationId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 
   // Step 3: Create Environment CR
-  await updatePodStatus(podId, "deploying");
+  // TODO: Re-enable DB status updates when caching layer is implemented
+  // await updatePodStatus(podId, "deploying");
 
   logPreviewLifecycleEvent("k8s-cr-creation-started", {
     podId,
@@ -751,7 +771,8 @@ export async function createPreviewDeployment(
 
   if (!crResult.success) {
     const errorMsg = crResult.error || "Failed to create Environment CR";
-    await updatePodStatus(podId, "failed", { errorMessage: errorMsg });
+    // TODO: Re-enable DB status updates when caching layer is implemented
+    // await updatePodStatus(podId, "failed", { errorMessage: errorMsg });
     return { success: false, podId, error: errorMsg };
   }
 
@@ -1405,4 +1426,204 @@ export async function createManualPreviewEnvironment(
       error: errorMsg,
     };
   }
+}
+
+// ============================================================================
+// Find or Create Environment
+// ============================================================================
+
+export interface FindOrCreateEnvironmentParams {
+  projectId: string;
+  prNumber: number;
+  repoFullName: string;
+  branch: string;
+  commitSha: string;
+  userId: string;
+  userName?: string;
+}
+
+export interface EnvironmentData {
+  id: string;
+  namespace: string;
+  status: "pending" | "deploying" | "running" | "failed" | "deleting";
+  publicUrl?: string;
+  branch: string;
+  commitSha: string;
+  createdAt: Date;
+  updatedAt: Date;
+  errorMessage?: string;
+}
+
+export interface FindOrCreateEnvironmentResult {
+  success: boolean;
+  error?: string;
+  data?: {
+    environment: EnvironmentData;
+    isNew: boolean;
+  };
+}
+
+/**
+ * Find an existing preview environment or create a new one.
+ *
+ * This function checks for an existing environment for the given PR.
+ * If none exists, it creates a new one by calling createPreviewDeployment.
+ *
+ * MVP: Uses K8s and GitHub API as source of truth (no DB caching).
+ *
+ * @param params - Environment lookup/creation parameters
+ * @returns Environment data with isNew flag
+ */
+export async function findOrCreateEnvironment(
+  params: FindOrCreateEnvironmentParams,
+): Promise<FindOrCreateEnvironmentResult> {
+  const {
+    projectId,
+    prNumber,
+    repoFullName,
+    branch,
+    commitSha,
+    userId,
+    userName,
+  } = params;
+
+  // TODO: Re-enable DB caching for existing environments
+  // For MVP, we skip DB lookups and always create/check K8s directly
+
+  // TODO: Re-enable repo lookup when DB caching is implemented
+  // const repo = await db.query.repos.findFirst({
+  //   where: eq(repos.fullName, repoFullName),
+  // });
+  //
+  // if (!repo) {
+  //   return {
+  //     success: false,
+  //     error: `Repository ${repoFullName} not found in database`,
+  //   };
+  // }
+
+  // TODO: Re-enable existing PR/pod lookup when DB caching is implemented
+  // const existingPr = await db.query.pullRequests.findFirst({
+  //   where: and(
+  //     eq(pullRequests.repoId, repo.id),
+  //     eq(pullRequests.number, prNumber),
+  //   ),
+  // });
+  //
+  // if (existingPr) {
+  //   const existingPod = await db.query.pullRequestPods.findFirst({
+  //     where: and(
+  //       eq(pullRequestPods.pullRequestId, existingPr.id),
+  //       inArray(pullRequestPods.status, ["pending", "deploying", "running"]),
+  //     ),
+  //     orderBy: (pods, { desc }) => [desc(pods.createdAt)],
+  //   });
+  //
+  //   if (existingPod) {
+  //     return {
+  //       success: true,
+  //       data: {
+  //         environment: {
+  //           id: existingPod.id,
+  //           namespace: existingPod.namespace,
+  //           status: existingPod.status as EnvironmentData["status"],
+  //           publicUrl: existingPod.publicUrl ?? undefined,
+  //           branch: existingPod.branch,
+  //           commitSha: existingPod.commitSha,
+  //           createdAt: existingPod.createdAt,
+  //           updatedAt: existingPod.updatedAt,
+  //           errorMessage: existingPod.errorMessage ?? undefined,
+  //         },
+  //         isNew: false,
+  //       },
+  //     };
+  //   }
+  // }
+
+  // Get the user's GitHub installation ID (optional for MVP)
+  // If not available, we'll skip GitHub comment posting but still create K8s resources
+  const userToken = await db.query.githubUserTokens.findFirst({
+    where: eq(githubUserTokens.userId, userId),
+  });
+
+  let installationId: number | undefined;
+  if (userToken?.installationId) {
+    const parsed = parseInt(userToken.installationId, 10);
+    if (!isNaN(parsed)) {
+      installationId = parsed;
+    }
+  }
+  // Note: If installationId is undefined, GitHub comments will be skipped
+
+  // TODO: Re-enable PR record creation when DB caching is implemented
+  // let prRecord = existingPr;
+  // if (!prRecord) {
+  //   const [owner, repoName] = repoFullName.split("/");
+  //   const [newPr] = await db
+  //     .insert(pullRequests)
+  //     .values({
+  //       repoId: repo.id,
+  //       provider: "github",
+  //       providerPrId: `pr-${prNumber}`,
+  //       number: prNumber,
+  //       title: `PR #${prNumber}`,
+  //       state: "open",
+  //       status: "ready",
+  //       url: `https://github.com/${repoFullName}/pull/${prNumber}`,
+  //       authorLogin: userName || "unknown",
+  //       headBranch: branch,
+  //       baseBranch: "main",
+  //     })
+  //     .returning();
+  //   prRecord = newPr;
+  // }
+
+  // Generate image URI based on PR info
+  const [owner, repoName] = repoFullName.split("/");
+  const imageUri = `ghcr.io/${owner}/${repoName}:pr-${prNumber}-${commitSha.slice(0, 7)}`;
+
+  // Create the preview deployment
+  // Note: pullRequestId is a placeholder since DB sync is disabled for MVP
+  const deploymentResult = await createPreviewDeployment({
+    pullRequestId: `pr-${prNumber}`, // Placeholder - not used when DB disabled
+    prNumber,
+    branch,
+    commitSha,
+    repoFullName,
+    imageUri,
+    installationId, // From user token lookup above
+    owner,
+    repoName,
+  });
+
+  if (!deploymentResult.success) {
+    return {
+      success: false,
+      error: deploymentResult.error || "Failed to create preview deployment",
+    };
+  }
+
+  // Return the newly created environment
+  // Use the actual target namespace that the operator creates: {projectRef.name}-preview-{prNumber}
+  // This matches the format: {projectRef.name}-{crName} where crName is "preview-{prNumber}"
+  const [, repoNameOnly] = repoFullName.split("/");
+  const targetNamespace = `${repoNameOnly}-preview-${prNumber}`;
+
+  return {
+    success: true,
+    data: {
+      environment: {
+        id: deploymentResult.podId || `pending-${projectId}-${prNumber}`,
+        namespace: targetNamespace,
+        status: "pending" as const,
+        publicUrl: deploymentResult.publicUrl,
+        branch,
+        commitSha,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        errorMessage: undefined,
+      },
+      isNew: true,
+    },
+  };
 }

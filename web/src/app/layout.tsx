@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "@tetrastack/react-markdown/styles.css";
 import { ApplicationLayout } from "@tetrastack/react-glass-components";
 import { AppNav } from "@/components/app-shell-nav";
 

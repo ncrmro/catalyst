@@ -33,9 +33,9 @@ export class ProjectsPage extends BasePage {
     this.noProjectsMessage = page.getByText("No projects found");
 
     // Initialize project details page elements
-    // Environments section is always present on project details page
+    // Feature Tasks section is always present on project details page
     this.featureTasksSection = page.getByRole("heading", {
-      name: "Environments",
+      name: "Feature Tasks",
       level: 2,
     });
     this.platformTasksSection = page.getByRole("heading", {
@@ -126,7 +126,7 @@ export class ProjectsPage extends BasePage {
    * Verify that the project details page has loaded correctly
    */
   async verifyProjectDetailsPageLoaded() {
-    // Environments section is always present on project details
+    // Feature Tasks section is always present on project details
     await expect(this.featureTasksSection).toBeVisible({ timeout: 10000 });
   }
 

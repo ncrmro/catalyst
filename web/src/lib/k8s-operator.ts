@@ -94,16 +94,38 @@ export async function createEnvironmentCR(
     });
     return { success: true };
   } catch (error: unknown) {
+    // The K8s client can throw errors with different structures:
+    // - HttpError: { statusCode: number, body: string, message: string }
+    // - Or: { response: { statusCode: number } }
     const err = error as {
+      statusCode?: number;
       response?: { statusCode?: number };
+      body?: string;
       message?: string;
     };
-    if (err.response?.statusCode === 409) {
-      // Already exists, try update (PATCH)
-      // For idempotency, we might want to patch spec
-      // TODO: Implement patch if needed, or return success if it exists
+
+    const statusCode = err.statusCode ?? err.response?.statusCode;
+
+    // Check for 409 Conflict (already exists)
+    if (statusCode === 409) {
+      // Already exists - this is fine for idempotency
+      // Return success with isExisting flag
       return { success: true, isExisting: true };
     }
+
+    // Also check body for AlreadyExists reason (fallback)
+    if (err.body?.includes('"reason":"AlreadyExists"')) {
+      return { success: true, isExisting: true };
+    }
+
+    // Check message content for "HTTP-Code: 409" pattern
+    if (
+      typeof err.message === "string" &&
+      err.message.includes("HTTP-Code: 409")
+    ) {
+      return { success: true, isExisting: true };
+    }
+
     console.error("Failed to create Environment CR:", error);
     return { success: false, error: err.message || "Unknown error" };
   }
@@ -148,9 +170,9 @@ export async function listEnvironmentCRs(
   try {
     // Add timeout wrapper to prevent hanging SSR in CI
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Kubernetes API timeout")), 5000)
+      setTimeout(() => reject(new Error("Kubernetes API timeout")), 5000),
     );
-    
+
     const apiPromise = client.listNamespacedCustomObject({
       group: GROUP,
       version: VERSION,

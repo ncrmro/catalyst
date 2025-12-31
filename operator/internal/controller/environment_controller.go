@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -41,6 +43,33 @@ const environmentFinalizer = "catalyst.dev/finalizer"
 type EnvironmentReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+}
+
+// sanitizeLabelValue sanitizes a string for use as a Kubernetes label value.
+// K8s labels must:
+// - Be 63 characters or less
+// - Consist of alphanumeric characters, '-', '_' or '.'
+// - Start and end with an alphanumeric character
+func sanitizeLabelValue(s string) string {
+	// Replace common separators with dashes
+	s = strings.ReplaceAll(s, "/", "-")
+	s = strings.ReplaceAll(s, ":", "-")
+
+	// Remove any characters that aren't alphanumeric, '-', '_', or '.'
+	reg := regexp.MustCompile(`[^a-zA-Z0-9\-_.]`)
+	s = reg.ReplaceAllString(s, "")
+
+	// Trim leading/trailing non-alphanumeric characters
+	s = strings.Trim(s, "-_.")
+
+	// Truncate to 63 characters
+	if len(s) > 63 {
+		s = s[:63]
+		// Ensure it ends with alphanumeric after truncation
+		s = strings.TrimRight(s, "-_.")
+	}
+
+	return s
 }
 
 // +kubebuilder:rbac:groups=catalyst.catalyst.dev,resources=environments,verbs=get;list;watch;create;update;patch;delete
@@ -107,9 +136,9 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 				Name: targetNamespace,
 				Labels: map[string]string{
 					"catalyst.dev/team":        "catalyst", // TODO: Get from Project or Env
-					"catalyst.dev/project":     env.Spec.ProjectRef.Name,
-					"catalyst.dev/environment": env.Name,
-					"catalyst.dev/branch":      env.Spec.Source.Branch,
+					"catalyst.dev/project":     sanitizeLabelValue(env.Spec.ProjectRef.Name),
+					"catalyst.dev/environment": sanitizeLabelValue(env.Name),
+					"catalyst.dev/branch":      sanitizeLabelValue(env.Spec.Source.Branch),
 				},
 			},
 		}

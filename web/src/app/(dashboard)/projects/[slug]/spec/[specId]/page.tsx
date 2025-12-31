@@ -4,7 +4,7 @@ import { GlassCard } from "@tetrastack/react-glass-components";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import Link from "next/link";
-import { MarkdownRenderer } from "@/components/markdown-renderer";
+import { MarkdownRenderer } from "@tetrastack/react-markdown";
 
 interface SpecPageProps {
   params: Promise<{

@@ -1,12 +1,14 @@
-'use client';
+"use client";
 
-import { useRef, useEffect, type ReactNode } from 'react';
+import { useRef, useEffect, type ReactNode } from "react";
 
 export interface MessageListProps {
   /** Message elements to render */
   children: ReactNode;
   /** Whether to auto-scroll to bottom on new messages */
   autoScroll?: boolean;
+  /** Whether to scroll into view on initial mount (default: false) */
+  scrollOnMount?: boolean;
   /** Container className */
   className?: string;
 }
@@ -31,6 +33,7 @@ export interface MessageListProps {
 export function MessageList({
   children,
   autoScroll = true,
+  scrollOnMount = false,
   className,
 }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -49,16 +52,19 @@ export function MessageList({
       isNearBottomRef.current = distanceFromBottom < 100;
     };
 
-    container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
+    container.addEventListener("scroll", handleScroll);
+    return () => container.removeEventListener("scroll", handleScroll);
   }, []);
 
   // Auto-scroll when children change (new messages)
+  // Only scroll if both autoScroll AND scrollOnMount are enabled
   useEffect(() => {
+    if (!scrollOnMount) return; // Disable all scrolling when scrollOnMount is false
+
     if (autoScroll && isNearBottomRef.current && bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+      bottomRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [children, autoScroll]);
+  }, [children, autoScroll, scrollOnMount]);
 
   return (
     <div

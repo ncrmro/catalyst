@@ -1,7 +1,7 @@
 'use server';
 
 import { auth } from "@/auth";
-import { getUserOctokit, fetchIssuesFromRepos as coreFetchIssuesFromRepos } from "@/lib/vcs-providers";
+import { fetchIssues } from "@/lib/vcs-providers";
 import type { Issue } from "@/types/reports";
 
 /**
@@ -15,10 +15,9 @@ export async function fetchIssuesFromRepos(repositories: string[]): Promise<Issu
     throw new Error('No authenticated user found');
   }
 
-  // Get authenticated Octokit instance with session management
-  const octokit = await getUserOctokit(session.user.id);
+  const userId = session.user.id;
   
   // Call core function with authenticated instance
-  return await coreFetchIssuesFromRepos(octokit, repositories);
+  return (await fetchIssues(userId, repositories)) as unknown as Issue[];
 }
 

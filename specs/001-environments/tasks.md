@@ -50,11 +50,11 @@ _Goal: Update the Operator to generate hostname-based Ingress resources (using `
   1. Add `isLocal` parameter to `desiredIngress()` function
   2. When `isLocal=true`: use hostname-based routing with `*.localhost` (e.g., `namespace.localhost`)
   3. When `isLocal=false`: use existing hostname-based routing with TLS (e.g., `env.preview.catalyst.dev`)
-- [ ] T006 Update `Reconcile` loop in `operator/internal/controller/environment_controller.go`:
-  1. **Call `desiredIngress()`** - currently not called!
-  2. Detect local mode (env var or Project CR config)
-  3. Create/update Ingress resource
-  4. Populate `status.URL` with the generated URL
+- [x] T006 Update `Reconcile` loop in `operator/internal/controller/environment_controller.go`:
+  1. **Call `desiredIngress()`** - implemented at line 141
+  2. Detect local mode via `LOCAL_PREVIEW_ROUTING` env var (line 138)
+  3. Create/update Ingress resource (lines 142-153)
+  4. Populate `status.URL` with generated URL (lines 155-163)
 - [x] T007 Add unit tests for Ingress generation verifying:
   - Hostname-based routing with `*.localhost` (local mode)
   - Hostname-based routing with TLS (production mode)
@@ -143,17 +143,56 @@ _Goal: Enable Catalyst to deploy itself within local K3s with both production an
 
 ---
 
+## Phase 6: MVP Preview Environments (No DB Sync)
+
+_Goal: Enable environment creation using K8s and GitHub API as source of truth, bypassing database sync for MVP._
+
+**Context**: For MVP, database sync is disabled. The system uses Kubernetes API as source of truth for environment status and GitHub API for PR data/authentication.
+
+### Completed Tasks
+
+- [x] T034 [P] Comment out `upsertPullRequestPod` DB call in `web/src/models/preview-environments.ts` (line 669)
+- [x] T035 [P] Comment out `updatePodStatus` calls in `web/src/models/preview-environments.ts` (lines 737, 762)
+- [x] T036 Simplify `findOrCreateEnvironment` to skip DB lookups in `web/src/models/preview-environments.ts` (lines 1478-1551)
+- [x] T037 Fix type error: change `repo.installationId` to use user token lookup
+- [x] T038 Make `pullRequestId` optional in `CreatePreviewDeploymentParams` interface
+- [x] T039b Remove invalid type re-export from `web/src/actions/preview-environments.ts` (Server Actions can only export async functions)
+- [x] T039c Update `EnvironmentCardClient.tsx` to import `EnvironmentData` from `@/models/preview-environments`
+- [x] T039d Make `installationId` optional in `CreatePreviewDeploymentParams` interface
+- [x] T039e Make GitHub comment posting non-blocking in `createPreviewDeployment` (catch errors, log, continue)
+- [x] T039f Add `getOctokitForComments()` helper in VCS provider with PAT fallback for local development
+- [x] T039g Update GitHub comments module to use PAT when available (local dev) before requiring installationId
+- [x] T039h Fix 409 Conflict handling in `createEnvironmentCR` - now properly detects "already exists" from multiple error formats
+- [x] T039i Create `/api/environments/[namespace]/status` endpoint to poll K8s CR directly (no DB required)
+- [x] T039j Update EnvironmentCardClient to poll K8s status instead of using DB-based SSE endpoint
+
+### Future Tasks (Re-enable DB Caching)
+
+- [ ] T039 Re-enable DB sync in `createPreviewDeployment` (see TODO at line 669)
+- [ ] T040 Re-enable DB status updates (see TODOs at lines 737, 762)
+- [ ] T041 Re-enable DB caching in `findOrCreateEnvironment` (see TODOs at lines 1478-1551)
+- [ ] T042 Add database indices for environment lookup performance
+
+### Future Tasks (VCS Provider Abstraction)
+
+- [ ] T043 [P] Move GitHub-specific `installationId` lookup to `@catalyst/vcs-provider` package
+- [ ] T044 [P] Create provider-agnostic environment creation interface
+- [ ] T045 Add support for multiple VCS providers (GitLab, Bitbucket)
+
+---
+
 ## Summary
 
 | Phase                     | Total  | Complete | Remaining |
 | ------------------------- | ------ | -------- | --------- |
 | Phase 0 (Foundation)      | 10     | 10       | 0         |
 | Phase 1 (Setup)           | 2      | 0        | 2         |
-| Phase 2 (Operator)        | 7      | 3        | 4         |
+| Phase 2 (Operator)        | 7      | 4        | 3         |
 | Phase 3 (Web UI)          | 4      | 3        | 1         |
 | Phase 4 (Polish)          | 3      | 0        | 3         |
 | Phase 5 (Self-Deployment) | 17     | 0        | 17        |
-| **Total**                 | **43** | **16**   | **27**    |
+| Phase 6 (MVP No DB Sync)  | 21     | 14       | 7         |
+| **Total**                 | **64** | **31**   | **33**    |
 
 **Critical Path (Local URL)**: T005 → T006 → T007 → T013
 

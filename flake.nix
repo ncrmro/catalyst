@@ -14,7 +14,10 @@
 
       devShells = forAllSystems (system:
         let
-          pkgs = nixpkgs.legacyPackages.${system};
+          pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
+          };
 
           # Workaround for playwright-mcp permission issue
           # See: https://github.com/NixOS/nixpkgs/issues/443704
@@ -51,6 +54,10 @@
               # Testing
               playwright-driver.browsers
               playwright-mcp-wrapped
+
+              # CLI Agents
+              claude-code
+              gemini-cli
             ];
 
             shellHook = ''

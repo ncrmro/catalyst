@@ -33,6 +33,13 @@ export interface PullRequest {
   comments_count: number;
   priority: 'high' | 'medium' | 'low';
   status: 'draft' | 'ready' | 'changes_requested';
+  // Preview environment fields
+  previewEnvironmentId?: string;
+  previewUrl?: string;
+  previewStatus?: 'pending' | 'deploying' | 'running' | 'failed' | 'deleting';
+  body?: string; // PR description
+  headBranch?: string; // Source branch name
+  headSha?: string; // Head commit SHA
 }
 
 export interface Issue {

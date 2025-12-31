@@ -180,3 +180,57 @@ if (process.env.SEED_SELF_DEPLOY === "true") {
 ### Environment Variable Injection
 
 Port `get_web_env_vars()` from `bin/k3s-vm` to TypeScript for consistent env var injection into operator-created pods.
+
+---
+
+## [MVP] Preview Environments Without DB Sync
+
+### Summary
+
+For MVP, database sync is disabled in preview environment creation. The system uses Kubernetes API as source of truth for environment status and GitHub API (via VCS provider) for PR data and authentication.
+
+### Rationale
+
+1. **Simplicity**: Avoids complex DB sync logic during initial development
+2. **Source of Truth**: K8s already tracks environment state via Environment CRs
+3. **VCS Provider**: GitHub API provides PR data directly without caching
+
+### Implementation
+
+**Commented out in `web/src/models/preview-environments.ts`:**
+
+- `upsertPullRequestPod` call (line 669)
+- `updatePodStatus` calls (lines 737, 762)
+- Repo/PR/pod DB lookups in `findOrCreateEnvironment` (lines 1478-1551)
+
+**Changes:**
+
+- `pullRequestId` made optional in `CreatePreviewDeploymentParams`
+- `installationId` made optional - uses PAT fallback for local development
+- GitHub comment posting is non-blocking (errors logged, deployment continues)
+- Temporary podId generated for logging: `preview-${prNumber}-${commitSha.slice(0, 7)}`
+
+### GitHub Authentication Fallback
+
+The VCS provider now supports PAT fallback for GitHub API operations:
+
+```typescript
+// In @catalyst/vcs-provider/src/providers/github/client.ts
+export async function getOctokitForComments(installationId?: number) {
+  // 1. Use PAT if available (local development)
+  if (isPATAllowed && GITHUB_CONFIG.PAT) {
+    return new Octokit({ auth: GITHUB_CONFIG.PAT });
+  }
+  // 2. Fall back to installation octokit
+  if (installationId) {
+    return getInstallationOctokit(installationId);
+  }
+  throw new Error("No GitHub authentication available");
+}
+```
+
+This ensures local development works without GitHub App installation, using `GITHUB_PAT` or `GITHUB_TOKEN` environment variables.
+
+### Future Work
+
+All DB operations have TODOs for re-enablement when caching layer is implemented. See Phase 6 in tasks.md.
