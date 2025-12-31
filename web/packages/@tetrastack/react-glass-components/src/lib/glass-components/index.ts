@@ -55,3 +55,13 @@ export type {
   ApplicationLayoutNavProps,
   ApplicationLayoutNavOption,
 } from './ApplicationLayoutNav';
+
+export {
+  GlassEntityCard,
+  EntityCardTabSelector,
+} from './GlassEntityCard';
+export type {
+  GlassEntityCardProps,
+  EntityCardTab,
+  EntityCardTabSelectorProps,
+} from './GlassEntityCard';

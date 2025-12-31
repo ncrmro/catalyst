@@ -8,6 +8,13 @@
 import { z } from "zod";
 
 // ============================================================================
+// Constants
+// ============================================================================
+
+/** Default development image used when no project configuration exists */
+export const DEFAULT_DEV_IMAGE = "nixos/nix";
+
+// ============================================================================
 // Zod Schemas (source of truth)
 // ============================================================================
 
@@ -126,6 +133,10 @@ export const EnvironmentTypeConfigSchema = z.object({
   resources: ResourceConfigSchema.optional(),
   managedServices: ManagedServicesConfigSchema.optional(),
   envVars: z.array(EnvVarSchema).optional(),
+  startCommand: z
+    .string()
+    .optional()
+    .describe("Command to start the application (e.g., 'npm run dev')"),
 });
 
 /** Main project configuration */

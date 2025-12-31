@@ -38,6 +38,8 @@ export interface PullRequest {
   previewUrl?: string;
   previewStatus?: 'pending' | 'deploying' | 'running' | 'failed' | 'deleting';
   body?: string; // PR description
+  headBranch?: string; // Source branch name
+  headSha?: string; // Head commit SHA
 }
 
 export interface Issue {

@@ -180,3 +180,35 @@ if (process.env.SEED_SELF_DEPLOY === "true") {
 ### Environment Variable Injection
 
 Port `get_web_env_vars()` from `bin/k3s-vm` to TypeScript for consistent env var injection into operator-created pods.
+
+---
+
+## [MVP] Preview Environments Without DB Sync
+
+### Summary
+
+For MVP, database sync is disabled in preview environment creation. The system uses Kubernetes API as source of truth for environment status and GitHub API (via VCS provider) for PR data and authentication.
+
+### Rationale
+
+1. **Simplicity**: Avoids complex DB sync logic during initial development
+2. **Source of Truth**: K8s already tracks environment state via Environment CRs
+3. **VCS Provider**: GitHub API provides PR data directly without caching
+
+### Implementation
+
+**Commented out in `web/src/models/preview-environments.ts`:**
+
+- `upsertPullRequestPod` call (line 669)
+- `updatePodStatus` calls (lines 737, 762)
+- Repo/PR/pod DB lookups in `findOrCreateEnvironment` (lines 1478-1551)
+
+**Changes:**
+
+- `pullRequestId` made optional in `CreatePreviewDeploymentParams`
+- Installation ID fetched from user's GitHub token instead of repo record
+- Temporary podId generated for logging: `preview-${prNumber}-${commitSha.slice(0, 7)}`
+
+### Future Work
+
+All DB operations have TODOs for re-enablement when caching layer is implemented. See Phase 6 in tasks.md.

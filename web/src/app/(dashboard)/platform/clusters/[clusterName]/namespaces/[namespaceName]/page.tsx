@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getClusters } from "@/actions/clusters";
 import { getNamespaces } from "@/actions/namespaces";
-import { getPodsInNamespace, PodInfo } from "@/actions/pods";
+import { listPodsInNamespace, type PodInfo } from "@/lib/k8s-pods";
 import Link from "next/link";
 
 interface PodCardProps {
@@ -164,7 +164,7 @@ export default async function NamespaceDetailPage({ params }: PageProps) {
   let error: string | null = null;
 
   try {
-    pods = await getPodsInNamespace(decodedNamespaceName, decodedClusterName);
+    pods = await listPodsInNamespace(decodedNamespaceName, decodedClusterName);
   } catch (err) {
     console.error("Failed to load pods:", err);
     error = err instanceof Error ? err.message : "Unknown error occurred";

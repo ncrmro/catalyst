@@ -143,6 +143,35 @@ _Goal: Enable Catalyst to deploy itself within local K3s with both production an
 
 ---
 
+## Phase 6: MVP Preview Environments (No DB Sync)
+
+_Goal: Enable environment creation using K8s and GitHub API as source of truth, bypassing database sync for MVP._
+
+**Context**: For MVP, database sync is disabled. The system uses Kubernetes API as source of truth for environment status and GitHub API for PR data/authentication.
+
+### Completed Tasks
+
+- [x] T034 [P] Comment out `upsertPullRequestPod` DB call in `web/src/models/preview-environments.ts` (line 669)
+- [x] T035 [P] Comment out `updatePodStatus` calls in `web/src/models/preview-environments.ts` (lines 737, 762)
+- [x] T036 Simplify `findOrCreateEnvironment` to skip DB lookups in `web/src/models/preview-environments.ts` (lines 1478-1551)
+- [x] T037 Fix type error: change `repo.installationId` to use user token lookup
+- [x] T038 Make `pullRequestId` optional in `CreatePreviewDeploymentParams` interface
+
+### Future Tasks (Re-enable DB Caching)
+
+- [ ] T039 Re-enable DB sync in `createPreviewDeployment` (see TODO at line 669)
+- [ ] T040 Re-enable DB status updates (see TODOs at lines 737, 762)
+- [ ] T041 Re-enable DB caching in `findOrCreateEnvironment` (see TODOs at lines 1478-1551)
+- [ ] T042 Add database indices for environment lookup performance
+
+### Future Tasks (VCS Provider Abstraction)
+
+- [ ] T043 [P] Move GitHub-specific `installationId` lookup to `@catalyst/vcs-provider` package
+- [ ] T044 [P] Create provider-agnostic environment creation interface
+- [ ] T045 Add support for multiple VCS providers (GitLab, Bitbucket)
+
+---
+
 ## Summary
 
 | Phase                     | Total  | Complete | Remaining |
@@ -153,7 +182,8 @@ _Goal: Enable Catalyst to deploy itself within local K3s with both production an
 | Phase 3 (Web UI)          | 4      | 3        | 1         |
 | Phase 4 (Polish)          | 3      | 0        | 3         |
 | Phase 5 (Self-Deployment) | 17     | 0        | 17        |
-| **Total**                 | **43** | **16**   | **27**    |
+| Phase 6 (MVP No DB Sync)  | 12     | 5        | 7         |
+| **Total**                 | **55** | **21**   | **34**    |
 
 **Critical Path (Local URL)**: T005 → T006 → T007 → T013
 

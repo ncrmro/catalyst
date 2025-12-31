@@ -21,6 +21,8 @@ export interface EnrichedPullRequest {
   priority: "high" | "medium" | "low";
   status: "draft" | "ready" | "changes_requested";
   body?: string; // Add PR body/description
+  headBranch?: string; // Source branch name
+  headSha?: string; // Head commit SHA
 }
 
 export interface EnrichedIssue {
@@ -1121,6 +1123,8 @@ export async function fetchPullRequestById(
       priority,
       status,
       body: pr.body || undefined,
+      headBranch: pr.head?.ref,
+      headSha: pr.head?.sha,
     };
   } catch (error) {
     console.error(`Error fetching PR ${prNumber}:`, error);

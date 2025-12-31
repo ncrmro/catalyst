@@ -17,11 +17,14 @@ import {
   deletePreviewDeploymentOrchestrated,
   retryFailedDeployment,
   createManualPreviewEnvironment,
+  findOrCreateEnvironment as findOrCreateEnvironmentModel,
   type CreateManualPreviewResult,
+  type EnvironmentData,
 } from "@/models/preview-environments";
 import { db } from "@/db";
 import {
   repos,
+  projects,
   teamsMemberships,
   pullRequestPods,
   pullRequests,
@@ -308,4 +311,67 @@ export async function createManualPreview(params: {
   }
 
   return { success: true, data: result };
+}
+
+// Re-export EnvironmentData type from models
+export type { EnvironmentData };
+
+/**
+ * Find or create a preview environment for a pull request.
+ *
+ * Handles authentication and authorization, then delegates to models layer.
+ *
+ * @param params - Project and PR information
+ * @returns Environment data with isNew flag
+ */
+export async function findOrCreateEnvironment(params: {
+  projectId: string;
+  prNumber: number;
+  repoFullName: string;
+  branch: string;
+  commitSha: string;
+}): Promise<
+  ActionResult<{
+    environment: EnvironmentData;
+    isNew: boolean;
+  }>
+> {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return { success: false, error: "Not authenticated" };
+  }
+
+  const { projectId, prNumber, repoFullName, branch, commitSha } = params;
+
+  // Find the project and verify user has access through team membership
+  const project = await db.query.projects.findFirst({
+    where: eq(projects.id, projectId),
+  });
+
+  if (!project) {
+    return { success: false, error: "Project not found" };
+  }
+
+  // Check user has access to this project through team membership
+  const userTeams = await db
+    .select({ teamId: teamsMemberships.teamId })
+    .from(teamsMemberships)
+    .where(eq(teamsMemberships.userId, session.user.id));
+
+  const teamIds = userTeams.map((t) => t.teamId);
+  if (!teamIds.includes(project.teamId)) {
+    return { success: false, error: "Access denied to this project" };
+  }
+
+  // Delegate to models layer for business logic
+  return findOrCreateEnvironmentModel({
+    projectId,
+    prNumber,
+    repoFullName,
+    branch,
+    commitSha,
+    userId: session.user.id,
+    userName: session.user.name ?? undefined,
+  });
 }

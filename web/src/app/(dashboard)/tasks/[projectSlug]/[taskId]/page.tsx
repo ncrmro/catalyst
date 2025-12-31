@@ -176,7 +176,7 @@ export default async function TaskPage({ params }: TaskPageProps) {
         projectSlug={projectSlug}
         projectName={project.name}
       />
-      <AgentChat projectSlug={projectSlug} tasks={taskFixtures} />
+      <AgentChat projectSlug={projectSlug} />
     </div>
   );
 }

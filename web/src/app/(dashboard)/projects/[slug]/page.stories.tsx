@@ -1,5 +1,51 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { ProjectPageContent } from "./project-page-content";
+import type { Spec, PRsBySpec } from "@/lib/pr-spec-matching";
+import type { PullRequest } from "@/types/reports";
+
+// Mock data for stories
+const mockSpecs: Spec[] = [
+  { id: "009-projects", name: "009-projects", href: "/projects/catalyst/spec/009-projects" },
+  { id: "001-auth-system", name: "001-auth-system", href: "/projects/catalyst/spec/001-auth-system" },
+];
+
+const mockPR: PullRequest = {
+  id: 1,
+  title: "feat(009-projects): Add project creation wizard",
+  number: 42,
+  author: "ncrmro",
+  author_avatar: "https://github.com/ncrmro.png",
+  repository: "ncrmro/catalyst",
+  url: "https://github.com/ncrmro/catalyst/pull/42",
+  created_at: "2024-01-10T00:00:00Z",
+  updated_at: "2024-01-15T00:00:00Z",
+  comments_count: 5,
+  priority: "high",
+  status: "ready",
+};
+
+const mockFeaturePRs: PRsBySpec = {
+  bySpec: {
+    "009-projects": [mockPR],
+  },
+  noSpec: [],
+};
+
+const mockPlatformPRs: PRsBySpec = {
+  bySpec: {},
+  noSpec: [
+    {
+      ...mockPR,
+      id: 2,
+      number: 43,
+      title: "chore: Update dependencies",
+      priority: "low",
+      status: "draft",
+    },
+  ],
+};
+
+const emptyPRsBySpec: PRsBySpec = { bySpec: {}, noSpec: [] };
 
 const meta = {
   title: "Pages/Projects/ProjectPage",
@@ -14,7 +60,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * Default state - project with feature tasks
+ * Default state - project with feature and platform PRs
  */
 export const Default: Story = {
   args: {
@@ -24,11 +70,14 @@ export const Default: Story = {
       name: "Catalyst",
       fullName: "ncrmro/catalyst",
     },
+    specs: mockSpecs,
+    featurePRs: mockFeaturePRs,
+    platformPRs: mockPlatformPRs,
   },
 };
 
 /**
- * Meze project - shows different project's feature tasks
+ * Meze project - shows different project's PRs
  */
 export const MezeProject: Story = {
   args: {
@@ -38,11 +87,29 @@ export const MezeProject: Story = {
       name: "Meze",
       fullName: "ncrmro/meze",
     },
+    specs: [
+      { id: "002-recipe-import", name: "002-recipe-import", href: "/projects/meze/spec/002-recipe-import" },
+    ],
+    featurePRs: {
+      bySpec: {
+        "002-recipe-import": [
+          {
+            ...mockPR,
+            id: 10,
+            number: 15,
+            title: "feat(002-recipe-import): Add recipe parser",
+            repository: "ncrmro/meze",
+          },
+        ],
+      },
+      noSpec: [],
+    },
+    platformPRs: emptyPRsBySpec,
   },
 };
 
 /**
- * New project with no tasks
+ * New project with no PRs
  */
 export const NewProject: Story = {
   args: {
@@ -52,5 +119,8 @@ export const NewProject: Story = {
       name: "New Project",
       fullName: "org/new-project",
     },
+    specs: [],
+    featurePRs: emptyPRsBySpec,
+    platformPRs: emptyPRsBySpec,
   },
 };

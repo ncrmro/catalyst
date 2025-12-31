@@ -9,73 +9,37 @@ import {
   type AgentMessage,
   getMessageText,
 } from "@tetrastack/react-agent-chat";
-import type { Task } from "@/components/tasks/types";
-
-// Priority order for sorting tasks
-const priorityOrder: Record<string, number> = {
-  high: 1,
-  medium: 2,
-  low: 3,
-};
 
 // Extended message type to include timestamp
 type ExtendedAgentMessage = AgentMessage & {
   createdAt: Date;
 };
 
-function generateInitialSummary(
-  projectSlug: string,
-  tasks: Task[],
-): ExtendedAgentMessage {
-  const projectTasks = tasks.filter((t) => t.projectSlug === projectSlug);
-  const completed = projectTasks.filter((t) => t.status === "completed");
-  const pending = projectTasks
-    .filter((t) => t.status !== "completed")
-    .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
-
-  const completedList = 
-    completed.length > 0
-      ? completed
-          .map(
-            (t) => `- ${t.spec?.href.split("/").pop() || "task"}: ${t.title}`,
-          )
-          .join("\n")
-      : "- No recently completed tasks";
-
-  const pendingList = 
-    pending.length > 0
-      ? pending
-          .slice(0, 3)
-          .map(
-            (t) => `- ${t.spec?.href.split("/").pop() || "task"}: ${t.title}`,
-          )
-          .join("\n")
-      : "- No pending tasks";
-
+function generateInitialSummary(projectSlug: string): ExtendedAgentMessage {
   return {
     id: "initial-summary",
     role: "assistant",
     parts: [
       {
         type: "text",
-        text: `Here's a summary of the ${projectSlug} project status:`,
+        text: `Welcome to the ${projectSlug} project! I can help you with:`,
       },
       {
         type: "text",
-        text: "\n**Recently Completed:**\n"
+        text: "\n- Understanding the project status",
       },
       {
         type: "text",
-        text: completedList
+        text: "\n- Navigating pull requests and specs",
       },
       {
         type: "text",
-        text: "\n**Next Priority Tasks:**\n"
+        text: "\n- Getting information about deployments",
       },
       {
         type: "text",
-        text: pendingList
-      }
+        text: "\n\nAsk me anything about this project!",
+      },
     ],
     createdAt: new Date(),
   };
@@ -83,17 +47,12 @@ function generateInitialSummary(
 
 export interface AgentChatProps {
   projectSlug: string;
-  tasks: Task[];
   className?: string;
 }
 
-export function AgentChat({
-  projectSlug,
-  tasks,
-  className = "",
-}: AgentChatProps) {
+export function AgentChat({ projectSlug, className = "" }: AgentChatProps) {
   const [messages, setMessages] = useState<ExtendedAgentMessage[]>(() => [
-    generateInitialSummary(projectSlug, tasks),
+    generateInitialSummary(projectSlug),
   ]);
 
   const handleSend = useCallback((content: string) => {
