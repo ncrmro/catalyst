@@ -1,3 +1,9 @@
+# Load .env file if it exists
+ifneq (,$(wildcard ./.env))
+  include .env
+  export
+endif
+
 # DC normally is docker compose, but podman compose is used if available
 DC:=docker compose $(DC_ARGS)
 
