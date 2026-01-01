@@ -28,7 +28,12 @@ export async function fetchProjectSpecs(
   const specsResult = await listDirectory(repo.fullName, "specs");
   if (!specsResult.success) return [];
 
-  const specDirs = specsResult.entries.filter((e) => e.type === "dir");
+  // Filter to only directories that start with 3 digits (e.g., 001-feature, 009-projects)
+  // This excludes non-spec directories like .templates
+  const specPattern = /^\d{3}-/;
+  const specDirs = specsResult.entries.filter(
+    (e) => e.type === "dir" && specPattern.test(e.name),
+  );
 
   return specDirs.map((dir) => ({
     id: dir.name,

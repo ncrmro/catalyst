@@ -27,6 +27,9 @@ export function ProjectPageContent({
   // Split issues between feature and platform categories
   const { featureIssues, platformIssues } = splitIssuesByType(issues);
 
+  // Extract repo slug from fullName (format: "owner/repo")
+  const repoSlug = project.fullName.split("/")[1] || project.slug;
+
   return (
     <>
       <TasksSectionCard
@@ -35,6 +38,7 @@ export function ProjectPageContent({
         prsBySpec={featurePRs}
         issues={featureIssues}
         projectSlug={project.slug}
+        repoSlug={repoSlug}
       />
 
       <TasksSectionCard
@@ -43,6 +47,8 @@ export function ProjectPageContent({
         prsBySpec={platformPRs}
         issues={platformIssues}
         projectSlug={project.slug}
+        repoSlug={repoSlug}
+        showAllSpecs={false}
       />
 
       {/* Agent Chat Section */}

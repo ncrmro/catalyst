@@ -238,6 +238,24 @@ A user wants to manage the implementation of a spec through organized PRs - brea
 
 ---
 
+### User Story 10 - Chat with Spec-Aware Agent (Priority: P1)
+
+A user wants to chat with an agent that already has the spec context preloaded so they can properly amend existing specs, ask clarifying questions, and get implementation guidance.
+
+**Why this priority**: Spec-driven development requires iteration. An agent with spec context can help users refine specs without manually providing context each time.
+
+**Independent Test**: Click agent button on a spec in project page, navigate to spec detail page with agent chat ready to type.
+
+**Acceptance Scenarios**:
+
+1. **Given** the project page with specs listed, **When** I click the agent button on a spec, **Then** I am navigated to `/specs/[project-slug]/[repo-slug]/[spec-slug]` with the agent chat input focused
+2. **Given** the spec detail page, **When** the page loads, **Then** I see breadcrumbs (PROJECT_NAME / REPO_NAME / Specs / SPEC_SLUG) on the left and TASKS | SPEC tabs on the right
+3. **Given** the Tasks tab is selected, **When** viewing the page, **Then** I see open PRs for this spec followed by merged PRs (last 10)
+4. **Given** the agent chat, **When** I start typing, **Then** the agent has context about this specific spec pre-loaded
+5. **Given** the SPEC tab is selected, **When** viewing the page, **Then** I see the spec files (spec.md, plan.md, tasks.md) with markdown rendering
+
+---
+
 ## Key Entities
 
 ### StatusCheck (API Type, not DB)
@@ -309,6 +327,7 @@ Discriminated union representing a work item (PR or branch):
 - **FR-020**: System MUST prioritize PR review order based on: blocking other work > ready for review > changes requested > draft
 - **FR-021**: System MUST provide a mechanism for developers to ask spec clarification questions during implementation
 - **FR-022**: System MUST match PRs/issues/branches to specs using tokenized spec name matching - given a spec directory named `001-foo-bar`, a PR/issue/branch containing "001", "foo", OR "bar" in its title/name MUST be matched to that spec
+- **FR-023**: System MUST provide an agent button on each spec in the project page that navigates to the spec detail page (`/specs/[projectSlug]/[repoSlug]/[specSlug]`) with the agent chat input focused and ready for typing
 
 ### Non-Requirements (Deferred to v2)
 

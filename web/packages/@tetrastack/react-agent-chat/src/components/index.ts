@@ -1,15 +1,21 @@
 // Chat components
-export { ChatContainer } from './ChatContainer';
-export type { ChatContainerProps } from './ChatContainer';
+export { ChatContainer } from "./ChatContainer";
+export type { ChatContainerProps } from "./ChatContainer";
 
-export { MessageList } from './MessageList';
-export type { MessageListProps } from './MessageList';
+export { MessageList } from "./MessageList";
+export type { MessageListProps } from "./MessageList";
 
-export { MessageBubble } from './MessageBubble';
-export type { MessageBubbleProps } from './MessageBubble';
+export { MessageBubble } from "./MessageBubble";
+export type { MessageBubbleProps } from "./MessageBubble";
 
-export { ChatInput } from './ChatInput';
-export type { ChatInputProps } from './ChatInput';
+export { ChatInput } from "./ChatInput";
+export type { ChatInputProps } from "./ChatInput";
+
+export { ExpandableAgentChat } from "./ExpandableAgentChat";
+export type {
+  ExpandableAgentChatProps,
+  SpecContext,
+} from "./ExpandableAgentChat";
 
 // Clarifying questions components
 export {
@@ -19,7 +25,7 @@ export {
   QuestionOption,
   AnsweredQuestions,
   ClarifyingQuestionsSkeleton,
-} from './ClarifyingQuestions';
+} from "./ClarifyingQuestions";
 export type {
   ClarifyingQuestionsCardProps,
   QuestionTabProps,
@@ -27,4 +33,4 @@ export type {
   QuestionOptionProps,
   AnsweredQuestionsProps,
   ClarifyingQuestionsSkeletonProps,
-} from './ClarifyingQuestions';
+} from "./ClarifyingQuestions";

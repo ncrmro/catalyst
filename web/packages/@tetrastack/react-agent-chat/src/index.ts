@@ -8,6 +8,7 @@ export {
   MessageList,
   MessageBubble,
   ChatInput,
+  ExpandableAgentChat,
   // Clarifying questions components
   ClarifyingQuestionsCard,
   QuestionTab,
@@ -15,20 +16,22 @@ export {
   QuestionOption,
   AnsweredQuestions,
   ClarifyingQuestionsSkeleton,
-} from './components';
+} from "./components";
 
 export type {
   ChatContainerProps,
   MessageListProps,
   MessageBubbleProps,
   ChatInputProps,
+  ExpandableAgentChatProps,
+  SpecContext,
   ClarifyingQuestionsCardProps,
   QuestionTabProps,
   QuestionPanelProps,
   QuestionOptionProps,
   AnsweredQuestionsProps,
   ClarifyingQuestionsSkeletonProps,
-} from './components';
+} from "./components";
 
 // Hooks
 export {
@@ -36,7 +39,7 @@ export {
   useMessageParts,
   useToolResponse,
   useClarifyingQuestions,
-} from './hooks';
+} from "./hooks";
 
 export type {
   UseAgentChatOptions,
@@ -46,7 +49,7 @@ export type {
   UseToolResponseReturn,
   UseClarifyingQuestionsOptions,
   UseClarifyingQuestionsReturn,
-} from './hooks';
+} from "./hooks";
 
 // Types
 export type {
@@ -67,7 +70,7 @@ export type {
   ToolCall,
   AddToolOutputOptions,
   OnToolCallHandler,
-} from './types';
+} from "./types";
 
 // Schemas (for validation)
 export {
@@ -75,7 +78,7 @@ export {
   clarifyingQuestionSchema,
   clarifyingQuestionsInputSchema,
   clarifyingQuestionsOutputSchema,
-} from './types';
+} from "./types";
 
 // Utils
 export {
@@ -102,4 +105,4 @@ export {
   isSystemMessage,
   areAllToolsCompleted,
   getLastAssistantMessage,
-} from './utils';
+} from "./utils";
