@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { GlassCard } from "@tetrastack/react-glass-components";
 import { Metadata } from "next";
 import Image from "next/image";
+import { ConnectProviderButton } from "./_components/ConnectProviderButton";
 
 export const metadata: Metadata = {
   title: "Account - Catalyst",
@@ -169,12 +170,7 @@ function ProviderCard({
                 Disconnect
               </button>
             ) : (
-              <button
-                disabled
-                className="px-3 py-1.5 text-sm font-medium rounded-lg bg-primary text-on-primary opacity-50 cursor-not-allowed"
-              >
-                Connect
-              </button>
+              <ConnectProviderButton providerId={provider.id} />
             )}
           </div>
         )}
