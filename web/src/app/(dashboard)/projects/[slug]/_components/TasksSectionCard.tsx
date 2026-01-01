@@ -120,6 +120,10 @@ export function TasksSectionCard({
 
   const specLookup = new Map(specs.map((s) => [s.id, s]));
 
+  // Sort spec IDs alphabetically (which also sorts by number prefix like 001, 002, 009)
+  const sortedPRSpecIds = Object.keys(prsBySpec.bySpec).sort();
+  const sortedIssueSpecIds = Object.keys(issuesBySpec.bySpec).sort();
+
   return (
     <EntityCard
       title={title}
@@ -138,7 +142,7 @@ export function TasksSectionCard({
         <div className="pt-2 space-y-4">
           {activeTab === "specs" && (
             <>
-              {Object.keys(prsBySpec.bySpec).map((specId) => {
+              {sortedPRSpecIds.map((specId) => {
                 const spec = specLookup.get(specId) || {
                   id: specId,
                   name: specId,
@@ -194,7 +198,7 @@ export function TasksSectionCard({
 
           {activeTab === "issues" && (
             <>
-              {Object.keys(issuesBySpec.bySpec).map((specId) => {
+              {sortedIssueSpecIds.map((specId) => {
                 const spec = specLookup.get(specId) || {
                   id: specId,
                   name: specId,

@@ -308,6 +308,7 @@ Discriminated union representing a work item (PR or branch):
 - **FR-019**: System MUST visualize PR dependencies as a graph showing merge order and blocking relationships
 - **FR-020**: System MUST prioritize PR review order based on: blocking other work > ready for review > changes requested > draft
 - **FR-021**: System MUST provide a mechanism for developers to ask spec clarification questions during implementation
+- **FR-022**: System MUST match PRs/issues/branches to specs using tokenized spec name matching - given a spec directory named `001-foo-bar`, a PR/issue/branch containing "001", "foo", OR "bar" in its title/name MUST be matched to that spec
 
 ### Non-Requirements (Deferred to v2)
 

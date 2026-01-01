@@ -55,6 +55,51 @@
 - Read: Fetch directory listing + file contents via GitHub API
 - Write: Create commits/PRs via GitHub API
 
+### Tokenized Spec Matching (FR-022)
+
+**Decision**: Match PRs/issues/branches to specs using tokenized spec name matching.
+
+**Rationale**:
+
+- Spec names follow pattern `###-slug-words` (e.g., `009-projects`, `001-auth-system`)
+- PRs/issues often reference specs with partial matches (`009`, `projects`, `auth`)
+- Tokenized matching catches more valid associations than exact substring matching
+
+**Algorithm**:
+
+1. Split spec directory name on `-` to get tokens: `001-foo-bar` → `["001", "foo", "bar"]`
+2. For each PR/issue/branch, check if title/name contains ANY token (case-insensitive)
+3. If match found, associate item with that spec
+4. Handle conflicts: if item matches multiple specs, prefer longer token matches
+
+**Implementation** (`src/lib/pr-spec-matching.ts`, `src/lib/issue-spec-matching.ts`):
+
+```typescript
+function tokenizeSpecName(specName: string): string[] {
+  return specName.split("-").filter((token) => token.length > 0);
+}
+
+function matchItemToSpec(itemTitle: string, specs: Spec[]): Spec | undefined {
+  const titleLower = itemTitle.toLowerCase();
+
+  for (const spec of specs) {
+    const tokens = tokenizeSpecName(spec.name);
+    for (const token of tokens) {
+      if (titleLower.includes(token.toLowerCase())) {
+        return spec;
+      }
+    }
+  }
+  return undefined;
+}
+```
+
+**Edge Cases**:
+
+- Single-digit tokens (e.g., `1`) may cause false positives - filter tokens shorter than 2 chars
+- Common words (e.g., `the`, `add`) - rely on spec number prefix to disambiguate
+- Multiple matches - first matching spec wins (specs processed in order)
+
 ## Technical Context
 
 **Language/Version**: TypeScript 5.x with Next.js 15 (App Router)

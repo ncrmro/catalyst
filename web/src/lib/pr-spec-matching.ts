@@ -18,12 +18,30 @@ export interface PRsBySpec {
 }
 
 /**
- * Match a PR title to a spec ID
+ * Tokenize a spec name into searchable tokens
  *
- * Looks for spec IDs in PR titles using common patterns:
- * - "feat(009-projects): description"
- * - "[009-projects] description"
- * - "009-projects: description"
+ * Splits spec directory name on hyphens and filters out short tokens
+ * to avoid false positives.
+ *
+ * @example tokenizeSpecName("009-projects") => ["009", "projects"]
+ * @example tokenizeSpecName("001-auth-system") => ["001", "auth", "system"]
+ *
+ * @param specName - The spec directory name (e.g., "009-projects")
+ * @returns Array of tokens for matching
+ */
+export function tokenizeSpecName(specName: string): string[] {
+  return specName.split("-").filter((token) => token.length >= 2); // Filter single-char tokens to avoid false positives
+}
+
+/**
+ * Match a PR title to a spec ID using tokenized matching (FR-022)
+ *
+ * Given a spec like "001-foo-bar", a PR containing "001", "foo", OR "bar"
+ * in its title will be matched to that spec.
+ *
+ * Matching priority:
+ * 1. Exact full spec ID match (e.g., "feat(009-projects):" matches "009-projects")
+ * 2. Token match - any token from the spec name appears in the title
  *
  * @param prTitle - The pull request title
  * @param specIds - Array of spec IDs to match against
@@ -35,10 +53,23 @@ export function matchPRToSpec(
 ): string | null {
   const titleLower = prTitle.toLowerCase();
 
+  // First pass: exact spec ID match (highest priority)
   for (const specId of specIds) {
-    // Case-insensitive substring match
     if (titleLower.includes(specId.toLowerCase())) {
       return specId;
+    }
+  }
+
+  // Second pass: tokenized matching
+  for (const specId of specIds) {
+    const tokens = tokenizeSpecName(specId);
+    for (const token of tokens) {
+      // Use word boundary matching to avoid partial word matches
+      // e.g., "001" should match "001-projects" but not "10001"
+      const tokenRegex = new RegExp(`\\b${token}\\b`, "i");
+      if (tokenRegex.test(prTitle)) {
+        return specId;
+      }
     }
   }
 

@@ -14,8 +14,11 @@ export interface IssuesBySpec {
 }
 
 /**
- * Match an issue title to a spec ID
- * Reuses the same matching logic as PRs.
+ * Match an issue title to a spec ID using tokenized matching (FR-022)
+ *
+ * Reuses the same tokenized matching logic as PRs:
+ * Given a spec like "001-foo-bar", an issue containing "001", "foo", OR "bar"
+ * in its title will be matched to that spec.
  *
  * @param issueTitle - The issue title
  * @param specIds - Array of spec IDs to match against
