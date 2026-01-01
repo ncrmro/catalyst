@@ -200,6 +200,44 @@ A developer wants to see their work organized by type - feature work vs platform
 
 ---
 
+### User Story 8 - Adopt Spec-Driven Development (Priority: P2)
+
+A user wants to adopt spec-driven development for their project through a dedicated workflow in the web UI - bootstrapping specs for existing projects, writing new specs, amending existing ones, and adding code annotations that link back to specifications.
+
+**Why this priority**: Spec-driven development has a learning curve. A dedicated workflow with agent assistance lowers the barrier to adoption and maintains traceability between code and specifications.
+
+**Independent Test**: Use the spec workflow UI to bootstrap specs for a project without them, create a new spec, or add code annotations.
+
+**Acceptance Scenarios**:
+
+1. **Given** a project without a `specs/` folder, **When** user initiates "Bootstrap specs" in the workflow, **Then** agent analyzes the repository (README, docs, code structure) and creates a PR with `specs/AGENTS.md` and template structure
+2. **Given** a project with existing code but no specs, **When** user selects "Distill spec from code", **Then** agent reads relevant code files and generates a draft `spec.md` capturing user stories and requirements
+3. **Given** user describes a new feature in the spec workflow, **When** they submit the description, **Then** agent generates a `spec.md` following spec-kit templates and creates a PR
+4. **Given** an existing spec, **When** user selects "Amend spec", **Then** agent presents the current spec, accepts changes, and creates a PR with amendments
+5. **Given** a spec with functional requirements (FR-###), **When** user selects "Add code annotations", **Then** agent identifies relevant code locations and adds comments linking to requirements (e.g., `// FR-001: implements user authentication`)
+6. **Given** code with spec annotations, **When** an agent reads the codebase, **Then** it can trace implementation back to specifications for context
+
+---
+
+### User Story 9 - Manage Spec Implementation Work (Priority: P2)
+
+A user wants to manage the implementation of a spec through organized PRs - breaking work into small reviewable PRs, identifying parallelizable work, visualizing PR dependencies, prioritizing review order, and getting spec clarifications during development.
+
+**Why this priority**: Effective spec execution requires coordination. Small PRs merge faster, parallel work increases velocity, and clear review priorities reduce bottlenecks.
+
+**Independent Test**: View a spec's implementation dashboard showing PR graph, review priorities, and ask clarification questions.
+
+**Acceptance Scenarios**:
+
+1. **Given** a spec with a `tasks.md`, **When** viewing the spec implementation page, **Then** tasks are displayed with suggested PR boundaries (small, focused PRs)
+2. **Given** tasks with dependency markers `[P]` (parallelizable), **When** viewing the implementation graph, **Then** parallel tasks are shown as concurrent branches that can be worked simultaneously
+3. **Given** multiple open PRs for a spec, **When** viewing the PR graph, **Then** dependencies between PRs are visualized (which PRs block others, merge order)
+4. **Given** PRs with different review states, **When** viewing review priorities, **Then** PRs are ordered by: blocking other work > ready for review > changes requested > draft
+5. **Given** a developer has a question about the spec during implementation, **When** they ask via the workflow, **Then** agent answers using spec context or flags the question for spec author clarification
+6. **Given** spec clarifications are provided, **When** they affect the spec, **Then** amendments are suggested and tracked
+
+---
+
 ## Key Entities
 
 ### StatusCheck (API Type, not DB)
@@ -261,6 +299,15 @@ Discriminated union representing a work item (PR or branch):
 - **FR-010**: System MUST fetch and display active branches without open PRs that have recent commits (within 7 days)
 - **FR-011**: System MUST categorize branches as feature or platform based on branch name and last commit message patterns
 - **FR-012**: System MUST display PRs and branches in separate sub-sections within Feature and Platform Task sections
+- **FR-013**: System MUST provide a workflow UI for bootstrapping spec-driven development in projects without specs
+- **FR-014**: System MUST support distilling specs from existing code via agent analysis
+- **FR-015**: System MUST support creating new specs from natural language feature descriptions
+- **FR-016**: System MUST support amending existing specs through the workflow UI
+- **FR-017**: System MUST support adding code annotations that link to functional requirements (FR-###)
+- **FR-018**: System MUST display spec tasks with suggested PR boundaries for small, focused PRs
+- **FR-019**: System MUST visualize PR dependencies as a graph showing merge order and blocking relationships
+- **FR-020**: System MUST prioritize PR review order based on: blocking other work > ready for review > changes requested > draft
+- **FR-021**: System MUST provide a mechanism for developers to ask spec clarification questions during implementation
 
 ### Non-Requirements (Deferred to v2)
 
@@ -268,7 +315,7 @@ Discriminated union representing a work item (PR or branch):
 - **NR-002**: PrioritizationRule database table (prioritization is manual)
 - **NR-003**: ProjectSpec database table (specs read on demand from VCS)
 - **NR-004**: Project status management (Active/Archived/Suspended)
-- **NR-005**: Agent integration (platform, project, QA agents)
+- **NR-005**: Platform and QA agent integration (project agent for specs is in scope via US-8/US-9)
 
 ## Success Criteria
 
@@ -276,6 +323,9 @@ Discriminated union representing a work item (PR or branch):
 - **SC-002**: PR list displays within 3 seconds of page load
 - **SC-003**: CI check status is accurate and updates within 30 seconds of check completion
 - **SC-004**: Specs can be read and displayed from any repository with a `specs/` folder
+- **SC-005**: Users can bootstrap spec-driven development for a project within 5 minutes using the workflow
+- **SC-006**: Agent-generated specs follow spec-kit templates and include valid user stories
+- **SC-007**: PR dependency graph accurately reflects blocking relationships and suggested merge order
 
 ## Assumptions
 
