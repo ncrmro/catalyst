@@ -237,24 +237,122 @@
 
 ---
 
+## Phase 7: US8 - Adopt Spec-Driven Development (Priority: P2)
+
+**Goal**: Users can bootstrap and adopt spec-driven development through a dedicated workflow UI.
+
+**Independent Test**: Use the spec workflow UI to bootstrap specs, create a new spec, or add code annotations.
+
+### Spec Workflow UI
+
+- [ ] T060 [P] [US8] Create spec workflow page structure in web/src/app/(dashboard)/projects/[slug]/specs/workflow/page.tsx
+- [ ] T061 [P] [US8] Create SpecWorkflowLayout component with step navigation
+- [ ] T062 [US8] Create BootstrapSpecsPanel component for analyzing repo and proposing structure
+
+### Bootstrap Specs Action
+
+- [ ] T063 [US8] Implement `analyzeRepoForSpecs(projectId)` - read README, docs, code structure via VCS API
+- [ ] T064 [US8] Implement `bootstrapSpecs(projectId)` action - generate specs/AGENTS.md + templates
+- [ ] T065 [US8] Create PR with proposed spec structure via VCS API
+
+### Distill Spec from Code
+
+- [ ] T066 [US8] Create DistillSpecPanel component with file selector and description input
+- [ ] T067 [US8] Implement `distillSpec(projectId, description, filePaths)` action
+- [ ] T068 [US8] Agent integration for code analysis and user story extraction
+
+### Create/Amend Spec
+
+- [ ] T069 [US8] Create NewSpecPanel component with description input and preview
+- [ ] T070 [US8] Implement `createSpec(projectId, name, description)` action
+- [ ] T071 [US8] Create AmendSpecPanel component showing current spec with edit capability
+- [ ] T072 [US8] Implement `amendSpec(projectId, specPath, changes)` action
+
+### Code Annotations
+
+- [ ] T073 [US8] Create CodeAnnotationsPanel component with FR mapping preview
+- [ ] T074 [US8] Implement `addCodeAnnotations(projectId, specPath)` action - identify code locations, generate comments
+
+### Tests
+
+- [ ] T075 [P] [US8] Unit tests for spec workflow actions
+- [ ] T076 [P] [US8] Integration tests for bootstrap and distill flows
+- [ ] T077 [US8] E2E test for complete spec creation workflow
+
+**Checkpoint**: Users can bootstrap spec-driven development and create specs via UI.
+
+---
+
+## Phase 8: US9 - Manage Spec Implementation Work (Priority: P2)
+
+**Goal**: Users can manage spec implementation through organized PRs with dependency visualization.
+
+**Independent Test**: View spec implementation dashboard showing PR graph, review priorities, and ask clarification questions.
+
+### Spec Implementation Dashboard
+
+- [ ] T078 [US9] Create implementation dashboard page in web/src/app/(dashboard)/projects/[slug]/specs/[specId]/implementation/page.tsx
+- [ ] T079 [US9] Create ImplementationOverview component showing progress summary
+
+### Task-to-PR Mapping
+
+- [ ] T080 [US9] Create `suggestPRBoundaries(tasks)` utility in web/src/lib/spec-implementation.ts
+- [ ] T081 [US9] Create `identifyParallelWork(tasks)` utility - find [P] marked tasks
+- [ ] T082 [US9] Create TaskPRPlanView component displaying suggested PR groupings
+
+### PR Dependency Graph
+
+- [ ] T083 [US9] Research graph visualization library (react-flow vs d3) - add findings to research.md
+- [ ] T084 [US9] Create PRDependencyGraph component in web/src/components/specs/PRDependencyGraph.tsx
+- [ ] T085 [US9] Implement `buildPRDependencyGraph(prs, tasks)` utility
+- [ ] T086 [US9] Add interactive features: hover for details, click to navigate to PR
+
+### Review Priority
+
+- [ ] T087 [US9] Create `prioritizeReviews(prs)` utility in web/src/lib/review-priority.ts
+- [ ] T088 [US9] Create ReviewPriorityList component with priority badges
+- [ ] T089 [US9] Integrate priority list into implementation dashboard
+
+### Spec Clarification Q&A
+
+- [ ] T090 [US9] Create SpecQAPanel component with chat-like interface
+- [ ] T091 [US9] Implement `askSpecQuestion(projectId, specPath, question)` action
+- [ ] T092 [US9] Implement `recordClarification(specPath, question, answer)` for tracking Q&A
+- [ ] T093 [US9] Add clarification-to-amendment suggestion flow
+
+### Tests
+
+- [ ] T094 [P] [US9] Unit tests for PR boundary and priority utilities
+- [ ] T095 [P] [US9] Component tests for PRDependencyGraph and ReviewPriorityList
+- [ ] T096 [US9] E2E test for implementation dashboard workflow
+
+**Checkpoint**: Users can visualize and manage spec implementation through organized PRs.
+
+---
+
 ## Summary
 
-| Phase | Tasks     | User Story            | Priority | Done | Remaining |
-| ----- | --------- | --------------------- | -------- | ---- | --------- |
-| 1     | T001-T004 | Setup                 | -        | 2    | 2         |
-| 2     | T005-T014 | US1: Manage Specs     | P1       | 8    | 2         |
-| 3     | T015-T024 | US2: View PRs         | P1       | 3    | 7         |
-| 4     | T025-T034 | US3: CI Checks        | P1       | 0    | 10        |
-| 5     | T035-T044 | US4-6: Polish         | P2       | 2    | 8         |
-| 6     | T045-T059 | US7: Categorized Work | P1       | 0    | 15        |
+| Phase | Tasks     | User Story             | Priority | Done | Remaining |
+| ----- | --------- | ---------------------- | -------- | ---- | --------- |
+| 1     | T001-T004 | Setup                  | -        | 2    | 2         |
+| 2     | T005-T014 | US1: Manage Specs      | P1       | 8    | 2         |
+| 3     | T015-T024 | US2: View PRs          | P1       | 3    | 7         |
+| 4     | T025-T034 | US3: CI Checks         | P1       | 0    | 10        |
+| 5     | T035-T044 | US4-6: Polish          | P2       | 2    | 8         |
+| 6     | T045-T059 | US7: Categorized Work  | P1       | 0    | 15        |
+| 7     | T060-T077 | US8: Adopt Spec-Driven | P2       | 0    | 18        |
+| 8     | T078-T096 | US9: Manage Spec Work  | P2       | 0    | 19        |
 
-**Total Tasks**: 59
-**Completed**: 15 (25%)
+**Total Tasks**: 96
+**Completed**: 15 (16%)
 **Remaining for MVP (Phases 1-4, 6)**: 36 tasks
+**Remaining for Full Feature (All Phases)**: 81 tasks
 
 ---
 
 ## Next Priority Tasks
+
+### MVP (P1)
 
 1. **T045**: Create work categorization utility (foundation for Phase 6)
 2. **T046-T048**: Add branch listing to VCS provider
@@ -263,6 +361,14 @@
 5. **T020-T022**: Replace mock tasks with real PRs on project page (high impact)
 6. **T019**: Link PRs to preview environments
 7. **T025-T032**: Add CI check status display
+
+### Post-MVP (P2)
+
+8. **T060-T065**: Spec workflow UI and bootstrap specs functionality
+9. **T066-T068**: Distill spec from existing code
+10. **T078-T082**: Spec implementation dashboard and task-to-PR mapping
+11. **T083-T086**: PR dependency graph visualization
+12. **T087-T089**: Review priority system
 
 ---
 

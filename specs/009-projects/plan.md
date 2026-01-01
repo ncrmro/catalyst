@@ -5,16 +5,19 @@
 
 ## Summary
 
-| Phase | Tasks     | User Story        | Priority | Notes                          |
-| ----- | --------- | ----------------- | -------- | ------------------------------ |
-| 1     | T001-T004 | Setup             | -        | Minimal schema (slug only)     |
-| 2     | T005-T014 | US1: Manage Specs | P1       | File-based, VCS API            |
-| 3     | T015-T024 | US2: View PRs     | P1       | PRs + preview env links        |
-| 4     | T025-T034 | US3: CI Checks    | P1       | GitHub Checks API integration  |
-| 5     | T035-T044 | US4-6: Polish     | P2       | Context, branch mgmt, settings |
+| Phase | Tasks     | User Story             | Priority | Notes                          |
+| ----- | --------- | ---------------------- | -------- | ------------------------------ |
+| 1     | T001-T004 | Setup                  | -        | Minimal schema (slug only)     |
+| 2     | T005-T014 | US1: Manage Specs      | P1       | File-based, VCS API            |
+| 3     | T015-T024 | US2: View PRs          | P1       | PRs + preview env links        |
+| 4     | T025-T034 | US3: CI Checks         | P1       | GitHub Checks API integration  |
+| 5     | T035-T044 | US4-6: Polish          | P2       | Context, branch mgmt, settings |
+| 6     | T045-T059 | US7: Categorized Work  | P1       | Feature vs Platform tasks      |
+| 7     | T060-T074 | US8: Adopt Spec-Driven | P2       | Bootstrap, distill, annotate   |
+| 8     | T075-T089 | US9: Manage Spec Work  | P2       | PR graph, review priority, Q&A |
 
-**Total Tasks**: ~44
-**MVP Scope**: Phases 1-4 (US1 + US2 + US3)
+**Total Tasks**: ~89
+**MVP Scope**: Phases 1-4, 6 (US1 + US2 + US3 + US7)
 **Key Principle**: VCS-First - fetch data from GitHub, don't sync to database
 
 ## Design Decisions
@@ -207,6 +210,86 @@ web/
    - View linked repository
    - View team ownership
 
+### Phase 6: US7 - Categorized Work Items (P1)
+
+**Goal**: Display PRs and branches categorized into Feature Tasks and Platform Tasks.
+
+**Implementation**: See tasks.md for detailed breakdown (T045-T059).
+
+### Phase 7: US8 - Adopt Spec-Driven Development (P2)
+
+**Goal**: Users can bootstrap and adopt spec-driven development through a dedicated workflow UI.
+
+**Implementation**:
+
+1. **Spec Workflow UI** (`src/app/(dashboard)/projects/[slug]/specs/workflow/`):
+   - Dedicated page for spec operations (bootstrap, create, amend)
+   - Agent chat interface for interactive spec creation
+   - Preview of generated content before committing
+
+2. **Bootstrap Specs Action** (`src/actions/spec-workflow.ts`):
+   - `bootstrapSpecs(projectId)`: Analyze repo, generate `specs/AGENTS.md` + templates
+   - Uses VCS API to read README, existing docs, code structure
+   - Creates PR with proposed spec structure
+
+3. **Distill Spec from Code** (`src/actions/spec-workflow.ts`):
+   - `distillSpec(projectId, description, filePaths)`: Read code, generate spec.md
+   - Agent analyzes code patterns, extracts user stories
+   - Returns draft spec for user review
+
+4. **Create/Amend Spec** (`src/actions/spec-workflow.ts`):
+   - `createSpec(projectId, name, description)`: Generate new spec from description
+   - `amendSpec(projectId, specPath, changes)`: Update existing spec
+   - Both create PRs with changes
+
+5. **Code Annotations** (`src/actions/spec-workflow.ts`):
+   - `addCodeAnnotations(projectId, specPath)`: Identify code implementing FRs
+   - Generate comments like `// FR-001: implements user authentication`
+   - Create PR with annotation changes
+
+**Agent Integration**:
+
+- MCP tools for all spec workflow operations
+- Agent can be invoked from UI or programmatically
+
+### Phase 8: US9 - Manage Spec Implementation Work (P2)
+
+**Goal**: Users can manage spec implementation through organized PRs with dependency visualization.
+
+**Implementation**:
+
+1. **Spec Implementation Dashboard** (`src/app/(dashboard)/projects/[slug]/specs/[specId]/implementation/`):
+   - Overview of spec implementation progress
+   - Task list with PR boundaries
+   - PR dependency graph visualization
+
+2. **Task-to-PR Mapping** (`src/lib/spec-implementation.ts`):
+   - `suggestPRBoundaries(tasks)`: Analyze tasks.md, suggest small PR groupings
+   - `identifyParallelWork(tasks)`: Find tasks marked [P] for concurrent work
+   - Returns structured PR plan
+
+3. **PR Dependency Graph** (`src/components/specs/PRDependencyGraph.tsx`):
+   - Visual graph showing PR relationships
+   - Nodes: PRs (open, merged, draft)
+   - Edges: blocking relationships
+   - Highlights merge order
+
+4. **Review Priority** (`src/lib/review-priority.ts`):
+   - `prioritizeReviews(prs)`: Sort PRs by review urgency
+   - Priority order: blocking others > ready for review > changes requested > draft
+   - Display priority badges in UI
+
+5. **Spec Clarification Q&A** (`src/actions/spec-clarification.ts`):
+   - `askSpecQuestion(projectId, specPath, question)`: Submit clarification question
+   - Agent answers from spec context or flags for human
+   - `recordClarification(specPath, question, answer)`: Track Q&A, suggest amendments
+
+**UI Components**:
+
+- `PRDependencyGraph`: Interactive graph visualization (consider react-flow or d3)
+- `ReviewPriorityList`: Ordered list with priority badges
+- `SpecQAPanel`: Chat-like interface for clarification questions
+
 ## Dependencies
 
 ### External APIs
@@ -237,6 +320,9 @@ From spec.md:
 - **SC-002**: PR list displays within 3 seconds
 - **SC-003**: CI status accurate, updates within 30 seconds
 - **SC-004**: Specs readable from any repo with `specs/` folder
+- **SC-005**: Bootstrap spec-driven development within 5 minutes
+- **SC-006**: Agent-generated specs follow templates with valid user stories
+- **SC-007**: PR dependency graph accurately reflects blocking relationships
 
 ## Risk Mitigation
 
