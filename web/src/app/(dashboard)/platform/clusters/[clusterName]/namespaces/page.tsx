@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getClusters } from "@/actions/clusters";
 import { getNamespaces, NamespaceInfo } from "@/actions/namespaces";
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
 
 interface NamespaceCardProps {
   namespace: NamespaceInfo;
@@ -22,10 +23,10 @@ function NamespaceCard({ namespace, clusterName }: NamespaceCardProps) {
 
   return (
     <Link
-      href={`/compute/clusters/${encodeURIComponent(clusterName)}/namespaces/${encodeURIComponent(namespace.name)}`}
+      href={`/platform/clusters/${encodeURIComponent(clusterName)}/namespaces/${encodeURIComponent(namespace.name)}`}
       className="block"
     >
-      <div className="border border-outline rounded-lg p-6 bg-surface shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+      <Card className="hover:shadow-md transition-shadow cursor-pointer">
         <div className="flex justify-between items-start mb-4">
           <h3 className="text-xl font-semibold text-on-surface">
             {namespace.name}
@@ -69,7 +70,7 @@ function NamespaceCard({ namespace, clusterName }: NamespaceCardProps) {
             </div>
           )}
         </div>
-      </div>
+      </Card>
     </Link>
   );
 }
@@ -104,15 +105,15 @@ export default async function ClusterNamespacesPage({ params }: PageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background py-8">
+    <div className="py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-4">
             <Link
-              href="/compute"
+              href="/platform"
               className="text-primary hover:text-primary-variant text-sm"
             >
-              ← Back to Compute
+              ← Back to Platform
             </Link>
           </div>
           <h1 className="text-3xl font-bold text-on-background catalyst-title">
