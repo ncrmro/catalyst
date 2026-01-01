@@ -29,7 +29,7 @@ import { getClusterConfig } from "../../src/lib/k8s-client";
 
 describe("Preview Deployment Integration", () => {
   const testPrNumber = 9999;
-  const testRepoName = "test-repo";
+  const _testRepoName = "test-repo";
   const testCommitSha = "abc1234567890";
   const testNamespace = "default"; // Use default namespace for testing
   const testDeploymentName = `preview-test-${Date.now()}`;

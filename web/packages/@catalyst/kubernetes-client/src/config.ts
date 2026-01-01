@@ -53,7 +53,7 @@ export class KubeConfig {
         return;
       }
 
-      const serverUrl = cluster.server as string;
+      const _serverUrl = cluster.server as string;
 
       // Override server URL if KUBERNETES_API_SERVER_HOST is set
       // This is used in Docker to reach the host's K8s API via host.docker.internal

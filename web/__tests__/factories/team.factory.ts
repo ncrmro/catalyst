@@ -15,7 +15,7 @@ class TeamFactory extends Factory<InsertTeam> {
   }
 }
 
-export const teamFactory = TeamFactory.define(({ sequence }) => ({
+export const teamFactory = TeamFactory.define(() => ({
   name: `${faker.company.name()} Team`,
   description: faker.company.catchPhrase(),
   // ownerId will need to be provided when building

@@ -24,10 +24,10 @@ import { vi } from "vitest";
 export function createMockExecCommand() {
   return vi.fn(
     async (
-      namespace: string,
-      podName: string,
+      _namespace: string,
+      _podName: string,
       command: string,
-      containerName?: string,
+      _containerName?: string,
     ): Promise<{ stdout: string; stderr: string }> => {
       // Simulate realistic network latency (300-1000ms)
       await new Promise((resolve) =>
@@ -210,10 +210,10 @@ export function createUnauthorizedExecCommand() {
 export function createSlowExecCommand(delayMs: number = 3000) {
   return vi.fn(
     async (
-      namespace: string,
-      podName: string,
-      command: string,
-      containerName?: string,
+      _namespace: string,
+      _podName: string,
+      _command: string,
+      _containerName?: string,
     ): Promise<{ stdout: string; stderr: string }> => {
       await new Promise((resolve) => setTimeout(resolve, delayMs));
       return {

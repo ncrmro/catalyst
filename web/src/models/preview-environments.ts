@@ -633,7 +633,6 @@ export async function createPreviewDeployment(
   params: CreatePreviewDeploymentParams,
 ): Promise<CreatePreviewDeploymentResult> {
   const {
-    pullRequestId,
     prNumber,
     branch,
     commitSha,
@@ -652,7 +651,6 @@ export async function createPreviewDeployment(
   const crNamespace = "default";
 
   const publicUrl = generatePublicUrl(targetNamespace);
-  const imageTag = generateImageTag(repoFullName, prNumber, commitSha);
 
   // Start deployment timer for performance tracking
   void startTimer("preview-deployment-creation");
@@ -1477,15 +1475,8 @@ export interface FindOrCreateEnvironmentResult {
 export async function findOrCreateEnvironment(
   params: FindOrCreateEnvironmentParams,
 ): Promise<FindOrCreateEnvironmentResult> {
-  const {
-    projectId,
-    prNumber,
-    repoFullName,
-    branch,
-    commitSha,
-    userId,
-    userName,
-  } = params;
+  const { projectId, prNumber, repoFullName, branch, commitSha, userId } =
+    params;
 
   // TODO: Re-enable DB caching for existing environments
   // For MVP, we skip DB lookups and always create/check K8s directly

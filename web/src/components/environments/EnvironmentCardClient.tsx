@@ -12,6 +12,7 @@ import {
   type EnvironmentStatus,
 } from "./EnvironmentStatusBadge";
 import { EnvironmentPodsList } from "./EnvironmentPodsList";
+import { EnvironmentLogs } from "./EnvironmentLogs";
 import { AgentChat } from "@/components/chat/AgentChat";
 import type { EnvironmentData } from "@/models/preview-environments";
 
@@ -50,7 +51,7 @@ export function EnvironmentCardClient({
 }: EnvironmentCardClientProps) {
   const [environment, setEnvironment] =
     useState<EnvironmentData>(initialEnvironment);
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const [activeTab, setActiveTab] = useState<TabValue>("pods");
 
   // Check if this is a pending environment that needs configuration
@@ -131,7 +132,7 @@ export function EnvironmentCardClient({
           <AgentChat projectSlug={projectSlug} className="min-h-[300px]" />
         );
       case "logs":
-        return <ComingSoonPlaceholder feature="Logs" />;
+        return <EnvironmentLogs namespace={environment.namespace} />;
       case "metrics":
         return <ComingSoonPlaceholder feature="Metrics" />;
       default:

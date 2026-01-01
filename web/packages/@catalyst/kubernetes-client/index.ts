@@ -44,3 +44,6 @@ export * from "./src/exec/index";
 
 // Namespaces client
 export * from "./src/namespaces/index";
+
+// Unified API handler
+export * from "./src/api/index";

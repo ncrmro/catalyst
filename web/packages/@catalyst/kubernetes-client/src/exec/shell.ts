@@ -93,7 +93,7 @@ export async function createShellSession(
 
   // Callbacks
   let dataCallback: ((data: string) => void) | null = null;
-  let errorCallback: ((error: Error) => void) | null = null;
+  let _errorCallback: ((error: Error) => void) | null = null;
   let closeCallback: ((exitCode: number) => void) | null = null;
 
   // Create passthrough streams for bidirectional communication
@@ -176,7 +176,7 @@ export async function createShellSession(
     },
 
     onError(callback: (error: Error) => void): void {
-      errorCallback = callback;
+      _errorCallback = callback;
 
       // Also attach to streams
       stdinStream.on("error", callback);

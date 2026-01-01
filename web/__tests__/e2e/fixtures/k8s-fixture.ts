@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/rules-of-hooks */
+ 
 import { test as base } from "@playwright/test";
 import { loginAndSeedForE2E } from "../helpers";
 import {

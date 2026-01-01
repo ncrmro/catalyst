@@ -26,7 +26,7 @@ class RepoFactory extends Factory<InsertRepo> {
   }
 }
 
-export const repoFactory = RepoFactory.define(({ sequence }) => ({
+export const repoFactory = RepoFactory.define(() => ({
   githubId: faker.number.int({ min: 100000, max: 999999 }),
   name: faker.lorem.slug(),
   fullName: `${faker.internet.username()}/${faker.lorem.slug()}`,

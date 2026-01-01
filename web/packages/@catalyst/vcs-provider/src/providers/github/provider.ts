@@ -21,8 +21,11 @@ import type {
   WebhookEvent,
   Branch,
   CIStatusSummary,
+  CICheck,
+  CICheckState,
+  CICheckSource,
 } from "../../types";
-import { getUserOctokit, GITHUB_CONFIG, fetchCIStatus } from "./client";
+import { getUserOctokit, GITHUB_CONFIG } from "./client";
 import { storeGitHubTokens, getGitHubTokens } from "./token-service";
 import { refreshTokenIfNeeded } from "./token-refresh";
 import { createHmac, timingSafeEqual } from "crypto";
@@ -287,94 +290,23 @@ export class GitHubProvider implements VCSProvider {
     repo: string,
     prNumber: number,
   ): Promise<CIStatusSummary | null> {
-    // We can't easily extract userId from client here without changing AuthenticatedClient
-    // But fetchCIStatus takes userId to get an octokit.
-    // However, we already HAVE an authenticated client here!
-    // We should refactor fetchCIStatus to take an Octokit instance, or reimplement logic here.
-    // Reimplementing logic here using the client.raw (Octokit) is better for the provider pattern.
-    
-    // Actually, let's just reuse the logic from client.ts but adapt it to use the passed client
-    // Since fetchCIStatus in client.ts creates a NEW client using userId, that defeats the purpose of passing client.
-    // So we should move the logic here or refactor client.ts to accept octokit.
-    
-    // For now, let's copy the logic or refactor client.ts? 
-    // Refactoring client.ts functions to accept Octokit is cleaner.
-    
-    // But wait, the previous instruction was to use fetchCIStatus. 
-    // fetchCIStatus uses getUserOctokit(userId).
-    // The interface method receives `client: AuthenticatedClient`.
-    // We should use `client.raw` which IS the octokit instance.
-    
-    // Let's refactor fetchCIStatus in client.ts to optionally accept octokit, OR just copy the logic.
-    // Copying logic is safer to avoid breaking other things right now, but DRY is better.
-    // Let's use the logic from client.ts but modifying it to take octokit.
-    
-    // Actually, looking at client.ts content from previous turns, it uses `getUserOctokit(userId)`.
-    // I will implementation getCIStatus here using the client.raw directly.
-    
     const octokit = client.raw as Octokit;
-    
-    // Logic from fetchCIStatus adapted:
+
     try {
-        // Get PR to get the head SHA
-        const { data: pr } = await octokit.rest.pulls.get({
-          owner,
-          repo,
-          pull_number: prNumber,
-        });
-    
-        const headSha = pr.head.sha;
-    
-        // Fetch both check runs and commit statuses in parallel
-        const [checkRunsResponse, statusesResponse] = await Promise.all([
-          octokit.rest.checks.listForRef({
-            owner,
-            repo,
-            ref: headSha,
-          }).catch((error) => {
-            console.warn("Could not fetch check runs:", error);
-            return null;
-          }),
-          octokit.rest.repos.getCombinedStatusForRef({
-            owner,
-            repo,
-            ref: headSha,
-          }).catch((error) => {
-            console.warn("Could not fetch commit statuses:", error);
-            return null;
-          }),
-        ]);
-        
-        // We need to import normalizeCheckRun and normalizeCommitStatus or move them to a shared place.
-        // They are not exported from client.ts.
-        // I will import them from client.ts if I export them, or just implement getCIStatus by calling a refactored client function.
-        
-        // Let's export them from client.ts in a separate step or just use the existing function if I can get userId?
-        // AuthenticatedClient doesn't have userId.
-        
-        // Best approach: I will assume I can export `fetchCIStatusWithClient` from client.ts and use that.
-        // But I can't easily edit client.ts and provider.ts in one step cleanly without knowing context.
-        
-        // I'll reimplement the logic here and duplicate the normalize functions for now to ensure it works without breaking imports.
-        // It keeps the provider self-contained.
-        
-        const checks: any[] = []; // Use explicit type if available, but for now any to match structure
-        
-        // ... (implementation details) ...
-        // Actually, creating a helper in provider.ts is better.
-        
-        // Wait, I can just call `fetchCIStatus` if I had userId. But I don't.
-        // I'll implement it here using `client.raw`.
-        
-        return await this.fetchCIStatusInternal(octokit, owner, repo, prNumber);
+      return await this.fetchCIStatusInternal(octokit, owner, repo, prNumber);
     } catch (error) {
-        console.error(`Error fetching CI status:`, error);
-        return null;
+      console.error(`Error fetching CI status:`, error);
+      return null;
     }
   }
-  
-  private async fetchCIStatusInternal(octokit: Octokit, owner: string, repo: string, prNumber: number): Promise<CIStatusSummary | null> {
-      // Get PR to get the head SHA
+
+  private async fetchCIStatusInternal(
+    octokit: Octokit,
+    owner: string,
+    repo: string,
+    prNumber: number,
+  ): Promise<CIStatusSummary | null> {
+    // Get PR to get the head SHA
     const { data: pr } = await octokit.rest.pulls.get({
       owner,
       repo,
@@ -385,25 +317,29 @@ export class GitHubProvider implements VCSProvider {
 
     // Fetch both check runs and commit statuses in parallel
     const [checkRunsResponse, statusesResponse] = await Promise.all([
-      octokit.rest.checks.listForRef({
-        owner,
-        repo,
-        ref: headSha,
-      }).catch((error) => {
-        console.warn("Could not fetch check runs:", error);
-        return null;
-      }),
-      octokit.rest.repos.getCombinedStatusForRef({
-        owner,
-        repo,
-        ref: headSha,
-      }).catch((error) => {
-        console.warn("Could not fetch commit statuses:", error);
-        return null;
-      }),
+      octokit.rest.checks
+        .listForRef({
+          owner,
+          repo,
+          ref: headSha,
+        })
+        .catch((error) => {
+          console.warn("Could not fetch check runs:", error);
+          return null;
+        }),
+      octokit.rest.repos
+        .getCombinedStatusForRef({
+          owner,
+          repo,
+          ref: headSha,
+        })
+        .catch((error) => {
+          console.warn("Could not fetch commit statuses:", error);
+          return null;
+        }),
     ]);
 
-    const checks: any[] = []; // Typed as CICheck[]
+    const checks: CICheck[] = [];
 
     // Process check runs (newer GitHub Checks API)
     if (checkRunsResponse) {
@@ -425,7 +361,7 @@ export class GitHubProvider implements VCSProvider {
     const pendingChecks = checks.filter((c) => c.state === "pending").length;
 
     // Determine overall state
-    let overall: any = "passing";
+    let overall: CICheckState = "passing";
     if (failingChecks > 0) {
       overall = "failing";
     } else if (pendingChecks > 0) {
@@ -442,75 +378,119 @@ export class GitHubProvider implements VCSProvider {
     };
   }
 
-  private normalizeCheckRun(checkRun: any): any {
-      let state = "pending";
-      if (checkRun.status === "completed") {
-        switch (checkRun.conclusion) {
-          case "success": state = "passing"; break;
-          case "failure": state = "failing"; break;
-          case "cancelled": case "timed_out": state = "cancelled"; break;
-          case "skipped": case "neutral": state = "skipped"; break;
-          default: state = "failing";
-        }
-      } else if (checkRun.status === "queued" || checkRun.status === "in_progress") {
-        state = "pending";
+  private normalizeCheckRun(checkRun: Record<string, unknown>): CICheck {
+    let state: CICheckState = "pending";
+    if (checkRun.status === "completed") {
+      switch (checkRun.conclusion) {
+        case "success":
+          state = "passing";
+          break;
+        case "failure":
+          state = "failing";
+          break;
+        case "cancelled":
+        case "timed_out":
+          state = "cancelled";
+          break;
+        case "skipped":
+        case "neutral":
+          state = "skipped";
+          break;
+        default:
+          state = "failing";
       }
-    
-      let source = "external";
-      const name = checkRun.name.toLowerCase();
-      const appSlug = checkRun.app?.slug?.toLowerCase() || "";
-      
-      if (name.includes("github") || appSlug.includes("github")) source = "github-actions";
-      else if (name.includes("cloudflare") || appSlug.includes("cloudflare")) source = "cloudflare";
-      else if (name.includes("vercel") || appSlug.includes("vercel")) source = "vercel";
-      else if (name.includes("catalyst") || appSlug.includes("catalyst")) source = "catalyst";
-    
-      const startedAt = checkRun.started_at ? new Date(checkRun.started_at) : undefined;
-      const completedAt = checkRun.completed_at ? new Date(checkRun.completed_at) : undefined;
-      const duration = startedAt && completedAt ? Math.floor((completedAt.getTime() - startedAt.getTime()) / 1000) : undefined;
-    
-      return {
-        id: String(checkRun.id),
-        name: checkRun.name,
-        state,
-        url: checkRun.html_url || checkRun.details_url || undefined,
-        description: checkRun.output?.title || undefined,
-        context: checkRun.name,
-        startedAt,
-        completedAt,
-        duration,
-        source,
-      };
+    } else if (
+      checkRun.status === "queued" ||
+      checkRun.status === "in_progress"
+    ) {
+      state = "pending";
+    }
+
+    let source: CICheckSource = "external";
+    const name = (checkRun.name as string).toLowerCase();
+    const app = checkRun.app as Record<string, unknown> | undefined;
+    const appSlug = (app?.slug as string | undefined)?.toLowerCase() || "";
+
+    if (name.includes("github") || appSlug.includes("github"))
+      source = "github-actions";
+    else if (name.includes("cloudflare") || appSlug.includes("cloudflare"))
+      source = "cloudflare";
+    else if (name.includes("vercel") || appSlug.includes("vercel"))
+      source = "vercel";
+    else if (name.includes("catalyst") || appSlug.includes("catalyst"))
+      source = "catalyst";
+
+    const startedAt = checkRun.started_at
+      ? new Date(checkRun.started_at as string)
+      : undefined;
+    const completedAt = checkRun.completed_at
+      ? new Date(checkRun.completed_at as string)
+      : undefined;
+    const duration =
+      startedAt && completedAt
+        ? Math.floor((completedAt.getTime() - startedAt.getTime()) / 1000)
+        : undefined;
+
+    const output = checkRun.output as Record<string, unknown> | undefined;
+
+    return {
+      id: String(checkRun.id),
+      name: checkRun.name as string,
+      state,
+      url:
+        (checkRun.html_url as string) ||
+        (checkRun.details_url as string) ||
+        undefined,
+      description: (output?.title as string) || undefined,
+      context: checkRun.name as string,
+      startedAt,
+      completedAt,
+      duration,
+      source,
+    };
   }
 
-  private normalizeCommitStatus(status: any): any {
-      let state;
-      switch (status.state) {
-        case "success": state = "passing"; break;
-        case "failure": case "error": state = "failing"; break;
-        case "pending": state = "pending"; break;
-        default: state = "pending";
-      }
-    
-      let source = "external";
-      const context = status.context.toLowerCase();
-      
-      if (context.includes("github") || context.includes("actions")) source = "github-actions";
-      else if (context.includes("cloudflare")) source = "cloudflare";
-      else if (context.includes("vercel")) source = "vercel";
-      else if (context.includes("catalyst")) source = "catalyst";
-    
-      return {
-        id: String(status.id),
-        name: status.context,
-        state,
-        url: status.target_url || undefined,
-        description: status.description || undefined,
-        context: status.context,
-        startedAt: status.created_at ? new Date(status.created_at) : undefined,
-        completedAt: status.updated_at ? new Date(status.updated_at) : undefined,
-        source,
-      };
+  private normalizeCommitStatus(status: Record<string, unknown>): CICheck {
+    let state: CICheckState;
+    switch (status.state) {
+      case "success":
+        state = "passing";
+        break;
+      case "failure":
+      case "error":
+        state = "failing";
+        break;
+      case "pending":
+        state = "pending";
+        break;
+      default:
+        state = "pending";
+    }
+
+    let source: CICheckSource = "external";
+    const context = (status.context as string).toLowerCase();
+
+    if (context.includes("github") || context.includes("actions"))
+      source = "github-actions";
+    else if (context.includes("cloudflare")) source = "cloudflare";
+    else if (context.includes("vercel")) source = "vercel";
+    else if (context.includes("catalyst")) source = "catalyst";
+
+    return {
+      id: String(status.id),
+      name: status.context as string,
+      state,
+      url: (status.target_url as string) || undefined,
+      description: (status.description as string) || undefined,
+      context: status.context as string,
+      startedAt: status.created_at
+        ? new Date(status.created_at as string)
+        : undefined,
+      completedAt: status.updated_at
+        ? new Date(status.updated_at as string)
+        : undefined,
+      source,
+    };
   }
 
   /**
@@ -545,8 +525,8 @@ export class GitHubProvider implements VCSProvider {
     }
 
     // 2. Update/Create file
-    const { data: commit } = await octokit.rest.repos.createOrUpdateFileContents(
-      {
+    const { data: commit } =
+      await octokit.rest.repos.createOrUpdateFileContents({
         owner,
         repo,
         path,
@@ -554,8 +534,7 @@ export class GitHubProvider implements VCSProvider {
         content: Buffer.from(content).toString("base64"),
         branch,
         sha,
-      },
-    );
+      });
 
     return {
       name: commit.content?.name || path.split("/").pop() || "unknown",

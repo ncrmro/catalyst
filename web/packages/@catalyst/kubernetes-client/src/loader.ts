@@ -5,7 +5,7 @@
  * with Jest and other CommonJS-based tooling.
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 let k8sModule: typeof import("@kubernetes/client-node") | null = null;
 
 /**

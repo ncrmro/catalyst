@@ -2,7 +2,6 @@
 
 import { auth } from "@/auth";
 import { getVCSClient, getProvider } from "@/lib/vcs-providers";
-import { revalidatePath } from "next/cache";
 
 export interface CreateBranchParams {
   owner: string;
@@ -31,13 +30,13 @@ export async function createBranch(params: CreateBranchParams) {
 
   const client = await getVCSClient(session.user.id);
   const provider = getProvider(client.providerId);
-  
+
   const result = await provider.createBranch(
     client,
     params.owner,
     params.repo,
     params.name,
-    params.fromBranch
+    params.fromBranch,
   );
 
   return result;
@@ -62,7 +61,7 @@ export async function updateFile(params: UpdateFileParams) {
     params.path,
     params.content,
     params.message,
-    params.branch
+    params.branch,
   );
 
   return result;

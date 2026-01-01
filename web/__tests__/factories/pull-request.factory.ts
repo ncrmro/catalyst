@@ -50,7 +50,7 @@ class PullRequestFactory extends Factory<InsertPullRequest> {
   }
 }
 
-export const pullRequestFactory = PullRequestFactory.define(({ sequence }) => ({
+export const pullRequestFactory = PullRequestFactory.define(() => ({
   number: faker.number.int({ min: 1, max: 9999 }),
   title: `${faker.hacker.verb()} ${faker.hacker.noun()}`,
   status: "ready" as const,
@@ -71,10 +71,7 @@ export const pullRequestFactory = PullRequestFactory.define(({ sequence }) => ({
   additionsCount: faker.number.int({ min: 1, max: 500 }),
   deletionsCount: faker.number.int({ min: 0, max: 200 }),
   // JSON fields stored as strings - will be serialized by model layer
-  labels: JSON.stringify([
-    faker.lorem.word(),
-    faker.lorem.word(),
-  ]),
+  labels: JSON.stringify([faker.lorem.word(), faker.lorem.word()]),
   assignees: JSON.stringify([faker.internet.username()]),
   reviewers: JSON.stringify([faker.internet.username()]),
   createdAt: faker.date.past(),

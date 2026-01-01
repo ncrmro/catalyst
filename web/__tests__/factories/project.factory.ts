@@ -20,7 +20,7 @@ class ProjectFactory extends Factory<InsertProject> {
   }
 }
 
-export const projectFactory = ProjectFactory.define(({ sequence }) => {
+export const projectFactory = ProjectFactory.define(() => {
   const name = faker.company.name();
   return {
     name,

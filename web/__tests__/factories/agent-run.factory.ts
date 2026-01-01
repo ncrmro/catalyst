@@ -25,7 +25,6 @@ export interface AgentRun {
 class AgentRunFactory extends Factory<AgentRun> {
   // Status traits
   running() {
-    const now = new Date();
     return this.params({
       status: "running",
       duration: `${faker.number.int({ min: 1, max: 15 })}m ${faker.number.int({ min: 0, max: 59 })}s`,
@@ -145,7 +144,7 @@ class AgentRunFactory extends Factory<AgentRun> {
   }
 }
 
-export const agentRunFactory = AgentRunFactory.define(({ sequence }) => {
+export const agentRunFactory = AgentRunFactory.define(() => {
   const agentTypes = [
     "implementation-agent",
     "review-agent",

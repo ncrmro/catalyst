@@ -6,18 +6,15 @@
 
 import { getProjects } from "@/models/projects";
 import { auth } from "@/auth";
-import { Octokit } from "@octokit/rest"; // Keep Octokit for now, might be needed elsewhere
 import { getUserTeamIds } from "@/lib/team-auth";
 import {
   fetchPullRequests,
   fetchIssues,
   fetchPullRequestById,
-  type EnrichedPullRequest,
-  type EnrichedIssue
 } from "@/lib/vcs-providers";
 import type { PullRequest, Issue } from "@/types/reports";
 import { db } from "@/db";
-import { pullRequestPods, pullRequests as pullRequestsTable } from "@/db/schema";
+import { pullRequestPods } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
 /**
@@ -116,12 +113,11 @@ export async function fetchProjectPullRequests(
       console.warn("No user ID found for fetching project pull requests");
       return [];
     }
-    const repoNames = repositories.map(r => r.full_name);
+    const repoNames = repositories.map((r) => r.full_name);
     const prs = await fetchPullRequests(userId, repoNames);
 
     // Enrich PRs with preview environment data
-    // Cast EnrichedPullRequest to PullRequest as they are compatible structure-wise
-    return enrichPullRequestsWithPreviewEnvs(prs, repositories);
+    return enrichPullRequestsWithPreviewEnvs(prs);
   } catch (error) {
     console.error("Error fetching project pull requests:", error);
     return [];
@@ -133,10 +129,9 @@ export async function fetchProjectPullRequests(
  */
 async function enrichPullRequestsWithPreviewEnvs(
   prs: PullRequest[],
-  repositories: { id: number; name: string; full_name: string; url: string }[],
 ): Promise<PullRequest[]> {
   // Fetch all preview environments for these repositories
-  
+
   const previewEnvs = await db
     .select({
       id: pullRequestPods.id,
@@ -148,7 +143,7 @@ async function enrichPullRequestsWithPreviewEnvs(
     .where(eq(pullRequestPods.source, "pull_request"));
 
   // Create a map for quick lookup using branch name (which contains repo and PR number)
-  const previewEnvMap = new Map<string, typeof previewEnvs[0]>();
+  const previewEnvMap = new Map<string, (typeof previewEnvs)[0]>();
   previewEnvs.forEach((env) => {
     if (env.branch) {
       // Store by branch name since we can extract repo and PR number from it
@@ -160,14 +155,14 @@ async function enrichPullRequestsWithPreviewEnvs(
   return prs.map((pr) => {
     // Try to find preview env by matching branch pattern (typically: pr-{repo}-{number})
     // or by exact branch name from PR
-    let previewEnv: typeof previewEnvs[0] | undefined;
-    
+    let previewEnv: (typeof previewEnvs)[0] | undefined;
+
     // Try multiple key formats to match preview environments
     const possibleKeys = [
       `pr-${pr.repository}-${pr.number}`, // Standard preview env branch pattern
       pr.repository, // In case branch name matches repo name
     ];
-    
+
     for (const key of possibleKeys) {
       const env = previewEnvMap.get(key);
       if (env) {
@@ -211,7 +206,7 @@ export async function fetchProjectIssues(projectId: string): Promise<Issue[]> {
       console.warn("No user ID found for fetching project issues");
       return [];
     }
-    const repoNames = repositories.map(r => r.full_name);
+    const repoNames = repositories.map((r) => r.full_name);
     return await fetchIssues(userId, repoNames);
   } catch (error) {
     console.error("Error fetching project issues:", error);
@@ -280,6 +275,3 @@ export async function getPullRequest(
     return null;
   }
 }
-
-
-

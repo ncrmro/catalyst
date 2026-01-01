@@ -1,3 +1,4 @@
+// eslint-disable-next-line storybook/no-renderer-packages
 import type { Meta, StoryObj } from "@storybook/react";
 import { MarkdownRenderer } from "./index";
 import "./styles.css";
@@ -35,4 +36,3 @@ function hello() {
     `,
   },
 };
-

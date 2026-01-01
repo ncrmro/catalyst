@@ -333,7 +333,7 @@ export const test = base.extend<{
     // If we don't have projects and don't want any, do nothing
 
     // Provide the initialized ProjectsPage to the test
-    // eslint-disable-next-line react-hooks/rules-of-hooks
+     
     await use(projectsPage);
 
     // Clean up - not strictly necessary as the database is reset between test runs,
