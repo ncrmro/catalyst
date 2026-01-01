@@ -26,6 +26,21 @@ Environments provide isolated and pre-configured contexts for code to run. The p
 
 This separation ensures production stability while enabling rapid experimentation. Development environments extend the traditional "preview environment" concept—they're not just view-only deployments, but fully interactive spaces where developers can shell in, agents can autonomously code, and both can inspect their work through real public URLs.
 
+## User Stories
+
+### US-1: Zero-Friction Development Environments (P1)
+
+As a developer, I want to use development environments with as little friction as possible so that I can adopt the platform quickly and get to deploying features faster.
+
+**Acceptance Criteria**:
+
+1. **Given** a repository with a standard project structure (e.g., `package.json` with `dev` script), **When** a PR is opened, **Then** a development environment is automatically provisioned with the correct dev server command inferred—no manual configuration required.
+2. **Given** the system detects an incorrect project type, **When** I view the environment configuration, **Then** I can override the dev command via UI or API.
+3. **Given** a PR is opened, **When** the environment is ready, **Then** I receive a public URL within 2 minutes without any setup steps.
+4. **Given** I need to debug an issue, **When** I access the environment, **Then** I can shell in immediately without additional authentication steps.
+
+**Related Requirements**: [FR-ENV-006] Automatic Project Type Detection
+
 ## What
 
 ### Deployment Environments
@@ -151,6 +166,65 @@ The operator supports a "development" deployment mode that creates a hot-reload 
 - PVCs for node_modules and .next cache persistence
 - `WATCHPACK_POLLING=true` for file system watching in VMs
 - PostgreSQL sidecar for database
+
+**[FR-ENV-006] Automatic Project Type Detection**:
+When creating a development environment, the system attempts to detect the project type and infer sensible defaults for the dev server command. Detection is best-effort—if incorrect, users can override in the environment configuration. Detection heuristics include:
+
+| Indicator                              | Inferred Setup                                 |
+| -------------------------------------- | ---------------------------------------------- |
+| `package.json` with `scripts.dev`      | `npm run dev` (or pnpm/yarn based on lockfile) |
+| `package.json` with `scripts.start`    | `npm start` as fallback                        |
+| `docker-compose.yml` or `compose.yml`  | `docker compose up`                            |
+| `Dockerfile` only                      | Build and run container                        |
+| `Makefile` with `dev` target           | `make dev`                                     |
+| `pyproject.toml` or `requirements.txt` | Python environment (future)                    |
+| `go.mod`                               | Go environment (future)                        |
+
+The detected configuration is stored in the Environment CR's `spec.devCommand` field and can be overridden via the UI or API. This enables zero-config preview environments for common project structures while remaining flexible for custom setups.
+
+**[FR-ENV-007] Detection Precedence Rules**:
+When multiple project indicators are present, detection follows this priority order:
+
+1. `docker-compose.yml` / `compose.yml` (highest - explicit orchestration intent)
+2. `Dockerfile` (containerized but no orchestration)
+3. `package.json` with `scripts.dev` (Node.js development)
+4. `Makefile` with `dev` target (generic build system)
+5. `package.json` with `scripts.start` (Node.js fallback)
+
+The first matching indicator wins. Users can override if the inferred choice is incorrect.
+
+**[FR-ENV-008] Fallback When No Project Type Detected**:
+When no recognized project indicators are found, the system:
+
+1. Creates the environment with a generic base container (e.g., `ubuntu:latest`)
+2. Displays a prompt in the UI indicating "No project type detected"
+3. Provides a configuration form to manually specify the dev command
+4. Does NOT block environment creation—users can still shell in and configure manually
+
+**[FR-ENV-009] Monorepo and Nested Project Handling**:
+For repositories with multiple project roots or nested structures:
+
+- Detection scans the repository root by default
+- If `spec.workdir` is specified in the Environment CR, detection runs from that subdirectory
+- Common patterns auto-detected: `web/`, `app/`, `frontend/`, `backend/`, `packages/*`
+- When multiple `package.json` files exist, the root-level one takes precedence unless `workdir` overrides
+
+**[FR-ENV-010] Dev Command Failure Recovery**:
+When the detected or configured dev command fails on startup:
+
+1. Environment enters `degraded` status (not `failed`)
+2. Container remains running for debugging (shell access preserved)
+3. Logs are captured and surfaced in the UI
+4. User is prompted to either fix the command or override it
+5. "Retry" action re-runs the dev command without full environment recreation
+
+**[FR-ENV-011] Override Scope and Persistence**:
+User overrides to detected configuration follow these rules:
+
+- **Scope**: Overrides apply at the **project level** by default (all environments for that project)
+- **Per-environment override**: Optional flag to apply override only to specific environment
+- **Persistence**: Overrides are stored in the database `projectEnvironments.deploymentConfig` field
+- **PR updates**: When a PR is updated (new commits), existing overrides are preserved unless the user explicitly resets to auto-detect
 
 ### User Interfaces
 

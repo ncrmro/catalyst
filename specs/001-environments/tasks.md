@@ -181,19 +181,82 @@ _Goal: Enable environment creation using K8s and GitHub API as source of truth, 
 
 ---
 
+## Phase 7: Automatic Project Type Detection [FR-ENV-006 through FR-ENV-011] [US-1]
+
+_Goal: Detect project type from repository files and infer sensible dev server defaults for zero-friction adoption._
+
+### Phase 7a: Detection Logic [FR-ENV-006, FR-ENV-007]
+
+- [ ] T046 [P] [US-1] Create `web/src/lib/project-detection.ts` with detection heuristics:
+  - Detect `package.json` and parse `scripts.dev` / `scripts.start`
+  - Detect lockfile type (package-lock.json → npm, pnpm-lock.yaml → pnpm, yarn.lock → yarn)
+  - Detect `docker-compose.yml` or `compose.yml`
+  - Detect `Dockerfile` without compose
+  - Detect `Makefile` with `dev` target
+- [ ] T047 [P] Add unit tests for project detection with fixture files
+- [ ] T048 Create `ProjectDetectionResult` type with detected config and confidence score
+- [ ] T058 [FR-ENV-007] Implement precedence rules (compose > Dockerfile > package.json > Makefile)
+- [ ] T059 [FR-ENV-007] Add unit tests for precedence when multiple indicators present
+
+### Phase 7b: Monorepo & Nested Projects [FR-ENV-009]
+
+- [ ] T060 [P] [FR-ENV-009] Add `spec.workdir` field to Environment CRD
+- [ ] T061 [FR-ENV-009] Implement subdirectory detection for common patterns (`web/`, `app/`, `packages/*`)
+- [ ] T062 [FR-ENV-009] Add unit tests for monorepo detection scenarios
+
+### Phase 7c: Fallback & Recovery [FR-ENV-008, FR-ENV-010]
+
+- [ ] T063 [FR-ENV-008] Implement fallback to generic container when no project type detected
+- [ ] T064 [FR-ENV-008] Add "No project type detected" UI prompt with manual config form
+- [ ] T065 [FR-ENV-010] Add `degraded` status to Environment CR for failed dev commands
+- [ ] T066 [FR-ENV-010] Implement "Retry" action that re-runs dev command without recreation
+- [ ] T067 [FR-ENV-010] Surface dev command failure logs in environment detail UI
+
+### Phase 7d: CRD & Operator Integration
+
+- [ ] T049 Add `spec.devCommand` field to Environment CRD in `operator/api/v1alpha1/environment_types.go`
+- [ ] T050 Run `make generate && make manifests` to regenerate CRDs
+- [ ] T051 Update `reconcileDevelopment()` to use `spec.devCommand` if provided, else default
+
+### Phase 7e: Override Persistence [FR-ENV-011]
+
+- [ ] T068 [FR-ENV-011] Add `deploymentConfig` JSONB column to `projectEnvironments` table
+- [ ] T069 [FR-ENV-011] Implement project-level override storage (default scope)
+- [ ] T070 [FR-ENV-011] Add per-environment override flag option
+- [ ] T071 [FR-ENV-011] Preserve overrides on PR update (new commits)
+
+### Phase 7f: Web Integration
+
+- [ ] T052 [P] Call detection logic when creating environment from PR webhook
+- [ ] T053 [P] Add detection preview in environment creation UI (show what was detected)
+- [ ] T054 Add `devCommand` override field in environment configuration form
+- [ ] T055 Store detected/overridden config in Environment CR
+
+### Phase 7g: Testing
+
+- [ ] T056 Add integration test for detection → CR creation flow
+- [ ] T057 Add E2E test: PR opened on Node.js project auto-detects `npm run dev`
+- [ ] T072 Add E2E test: monorepo with `web/package.json` detects correct workdir
+- [ ] T073 Add E2E test: override persists across PR updates
+
+---
+
 ## Summary
 
-| Phase                     | Total  | Complete | Remaining |
-| ------------------------- | ------ | -------- | --------- |
-| Phase 0 (Foundation)      | 10     | 10       | 0         |
-| Phase 1 (Setup)           | 2      | 0        | 2         |
-| Phase 2 (Operator)        | 7      | 4        | 3         |
-| Phase 3 (Web UI)          | 4      | 3        | 1         |
-| Phase 4 (Polish)          | 3      | 0        | 3         |
-| Phase 5 (Self-Deployment) | 17     | 0        | 17        |
-| Phase 6 (MVP No DB Sync)  | 21     | 14       | 7         |
-| **Total**                 | **64** | **31**   | **33**    |
+| Phase                       | Total  | Complete | Remaining |
+| --------------------------- | ------ | -------- | --------- |
+| Phase 0 (Foundation)        | 10     | 10       | 0         |
+| Phase 1 (Setup)             | 2      | 0        | 2         |
+| Phase 2 (Operator)          | 7      | 4        | 3         |
+| Phase 3 (Web UI)            | 4      | 3        | 1         |
+| Phase 4 (Polish)            | 3      | 0        | 3         |
+| Phase 5 (Self-Deployment)   | 17     | 0        | 17        |
+| Phase 6 (MVP No DB Sync)    | 21     | 14       | 7         |
+| Phase 7 (Project Detection) | 28     | 0        | 28        |
+| **Total**                   | **92** | **31**   | **61**    |
 
 **Critical Path (Local URL)**: T005 → T006 → T007 → T013
 
 **Critical Path (Self-Deploy)**: T017/T018 → T020 → T022/T023 → T024 → T026/T028 → T032
+
+**Critical Path (Project Detection)**: T046 → T058 → T049 → T051 → T052 → T057
