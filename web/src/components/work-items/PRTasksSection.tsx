@@ -87,11 +87,7 @@ export function PRTasksSection({
                 {/* PRs in this spec */}
                 <div className="divide-y divide-outline/30">
                   {prs.map((pr) => (
-                    <PRListItem
-                      key={pr.id}
-                      pr={pr}
-                      projectSlug={projectSlug}
-                    />
+                    <PRListItem key={pr.id} pr={pr} projectSlug={projectSlug} />
                   ))}
                 </div>
               </div>
@@ -146,7 +142,7 @@ export function PRTasksSection({
 /**
  * Compact PR list item for display within spec groups
  */
-function PRListItem({
+export function PRListItem({
   pr,
   projectSlug,
 }: {
@@ -196,7 +192,10 @@ function PRListItem({
 
         {/* Preview status indicator */}
         {pr.previewUrl && pr.previewStatus === "running" && (
-          <span className="w-2 h-2 rounded-full bg-success" title="Preview running" />
+          <span
+            className="w-2 h-2 rounded-full bg-success"
+            title="Preview running"
+          />
         )}
 
         {/* Author avatar */}

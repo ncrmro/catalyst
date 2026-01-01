@@ -1,6 +1,7 @@
 import {
   fetchProjectBySlug,
   fetchProjectPullRequests,
+  fetchProjectIssues,
 } from "@/actions/projects";
 import { fetchProjectSpecs } from "@/actions/specs";
 import { groupPRsBySpecAndType } from "@/lib/pr-spec-matching";
@@ -35,11 +36,12 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     notFound();
   }
 
-  // TODO: Add caching for specs and PRs - consider unstable_cache or revalidate
-  // Fetch specs and PRs in parallel for better performance
-  const [specs, pullRequests] = await Promise.all([
+  // TODO: Add caching for specs, PRs, and issues - consider unstable_cache or revalidate
+  // Fetch specs, PRs, and issues in parallel for better performance
+  const [specs, pullRequests, issues] = await Promise.all([
     fetchProjectSpecs(project.id, slug),
     fetchProjectPullRequests(project.id),
+    fetchProjectIssues(project.id),
   ]);
 
   // Group PRs by type (feature vs platform/chore) and spec
@@ -59,6 +61,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       specs={specs}
       featurePRs={featurePRs}
       platformPRs={platformPRs}
+      issues={issues}
     />
   );
 }

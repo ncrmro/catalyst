@@ -1,12 +1,20 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { ProjectPageContent } from "./project-page-content";
 import type { Spec, PRsBySpec } from "@/lib/pr-spec-matching";
-import type { PullRequest } from "@/types/reports";
+import type { PullRequest, Issue } from "@/types/reports";
 
 // Mock data for stories
 const mockSpecs: Spec[] = [
-  { id: "009-projects", name: "009-projects", href: "/projects/catalyst/spec/009-projects" },
-  { id: "001-auth-system", name: "001-auth-system", href: "/projects/catalyst/spec/001-auth-system" },
+  {
+    id: "009-projects",
+    name: "009-projects",
+    href: "/projects/catalyst/spec/009-projects",
+  },
+  {
+    id: "001-auth-system",
+    name: "001-auth-system",
+    href: "/projects/catalyst/spec/001-auth-system",
+  },
 ];
 
 const mockPR: PullRequest = {
@@ -47,6 +55,34 @@ const mockPlatformPRs: PRsBySpec = {
 
 const emptyPRsBySpec: PRsBySpec = { bySpec: {}, noSpec: [] };
 
+const mockIssue: Issue = {
+  id: 1,
+  title: "Bug: Login fails on mobile",
+  number: 100,
+  repository: "ncrmro/catalyst",
+  url: "https://github.com/ncrmro/catalyst/issues/100",
+  created_at: "2024-01-05T00:00:00Z",
+  updated_at: "2024-01-10T00:00:00Z",
+  labels: ["bug"],
+  priority: "high",
+  effort_estimate: "medium",
+  type: "bug",
+  state: "open",
+};
+
+const mockIssues: Issue[] = [
+  mockIssue,
+  {
+    ...mockIssue,
+    id: 2,
+    number: 101,
+    title: "feat(009-projects): Add project templates",
+    type: "feature",
+    labels: ["enhancement"],
+    priority: "medium",
+  },
+];
+
 const meta = {
   title: "Pages/Projects/ProjectPage",
   component: ProjectPageContent,
@@ -73,6 +109,7 @@ export const Default: Story = {
     specs: mockSpecs,
     featurePRs: mockFeaturePRs,
     platformPRs: mockPlatformPRs,
+    issues: mockIssues,
   },
 };
 
@@ -88,7 +125,11 @@ export const MezeProject: Story = {
       fullName: "ncrmro/meze",
     },
     specs: [
-      { id: "002-recipe-import", name: "002-recipe-import", href: "/projects/meze/spec/002-recipe-import" },
+      {
+        id: "002-recipe-import",
+        name: "002-recipe-import",
+        href: "/projects/meze/spec/002-recipe-import",
+      },
     ],
     featurePRs: {
       bySpec: {
@@ -105,6 +146,7 @@ export const MezeProject: Story = {
       noSpec: [],
     },
     platformPRs: emptyPRsBySpec,
+    issues: [],
   },
 };
 
@@ -122,5 +164,6 @@ export const NewProject: Story = {
     specs: [],
     featurePRs: emptyPRsBySpec,
     platformPRs: emptyPRsBySpec,
+    issues: [],
   },
 };
