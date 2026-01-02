@@ -28,8 +28,8 @@
 
 - [x] T001 Slug column exists in projects table with unique per-team constraint (web/src/db/schema.ts)
 - [x] T002 VCS provider abstraction exists (web/src/lib/vcs-providers/)
-- [ ] T003 [P] Create spec types file in web/src/lib/types/specs.ts (optional - types inline)
-- [ ] T004 [P] Create CI check types file in web/src/lib/types/ci-checks.ts
+- [x] T003 [P] Create spec types file in web/src/lib/types/specs.ts (optional - types inline)
+- [x] T004 [P] Create CI check types file in web/src/lib/types/ci-checks.ts
 
 **Checkpoint**: Types defined, schema ready.
 
@@ -46,21 +46,21 @@
 - [x] T005 [US1] VCS provider base exists (web/src/lib/vcs-providers/)
 - [x] T006 [US1] `listDirectory()` implemented (web/src/actions/version-control-provider.ts)
 - [x] T007 [US1] `readFile()` implemented (web/src/actions/version-control-provider.ts)
-- [ ] T008 [US1] Implement `createOrUpdateFile()` for spec editing (web/src/actions/version-control-provider.ts)
+- [x] T008 [US1] Implement `createOrUpdateFile()` for spec editing (web/src/actions/version-control-provider.ts)
 
 ### Server Actions
 
 - [x] T009 [US1] Spec listing works via `listDirectory` action
 - [x] T010 [US1] Spec content reading works via `readFile` action
-- [ ] T011 [US1] Create `updateSpec(projectId, specPath, content)` action in web/src/actions/specs.ts
-- [ ] T012 [US1] Create `createSpec(projectId, specName)` action in web/src/actions/specs.ts
+- [x] T011 [US1] Create `updateSpec(projectId, specPath, content)` action in web/src/actions/specs.ts
+- [x] T012 [US1] Create `createSpec(projectId, specName)` action in web/src/actions/specs.ts
 
 ### UI Pages
 
 - [x] T013 [US1] Spec list page exists (web/src/app/(dashboard)/specs/[project-slug]/page.tsx)
 - [x] T014 [US1] Spec detail page with file navigation (web/src/app/(dashboard)/projects/[slug]/spec/[specId]/page.tsx)
 
-**Checkpoint**: Users can view specs from repository. Write capability pending.
+**Checkpoint**: Users can view and manage specs from repository.
 
 ---
 
@@ -78,14 +78,14 @@
 ### Server Actions
 
 - [x] T017 [US2] PR fetching action exists (fetchProjectPullRequests in projects.ts)
-- [ ] T018 [US2] Create dedicated `getPullRequest(projectId, number)` action for single PR detail
-- [ ] T019 [US2] Implement preview environment linking (join PRs with pullRequestPods table)
+- [x] T018 [US2] Create dedicated `getPullRequest(projectId, number)` action for single PR detail
+- [x] T019 [US2] Implement preview environment linking (join PRs with pullRequestPods table)
 
 ### UI Pages
 
-- [ ] T020 [US2] Create PR list page (replace mock tasks with real PRs) - web/src/app/(dashboard)/projects/[slug]/work/page.tsx exists but empty
-- [ ] T021 [US2] Create PR list item component with preview URL link
-- [ ] T022 [US2] Create PR detail page in web/src/app/(dashboard)/projects/[slug]/prs/[number]/page.tsx
+- [x] T020 [US2] Create PR list page (replace mock tasks with real PRs) - Integrated into project page
+- [x] T021 [US2] Create PR list item component with preview URL link
+- [x] T022 [US2] Create PR detail page in web/src/app/(dashboard)/projects/[slug]/prs/[number]/page.tsx
 
 ### Tests
 
@@ -104,23 +104,23 @@
 
 ### VCS Adapter
 
-- [ ] T025 [US3] Implement `getCheckRuns(owner, repo, ref)` in VCS provider
-- [ ] T026 [US3] Implement `getCommitStatuses(owner, repo, ref)` in VCS provider
-- [ ] T027 [US3] Implement `normalizeStatusChecks()` utility
+- [x] T025 [US3] Implement `getCheckRuns(owner, repo, ref)` in VCS provider
+- [x] T026 [US3] Implement `getCommitStatuses(owner, repo, ref)` in VCS provider
+- [x] T027 [US3] Implement `normalizeStatusChecks()` utility
 
 ### Server Actions
 
-- [ ] T028 [US3] Create `getCIStatus(projectId, prNumber)` action in web/src/actions/ci-checks.ts
+- [x] T028 [US3] Create `getCIStatus(projectId, prNumber)` action in web/src/actions/ci-checks.ts
 
 ### UI Components
 
-- [ ] T029 [US3] Create CIStatusBadge component in web/src/components/ci/CIStatusBadge.tsx
-- [ ] T030 [US3] Create CIChecksList component in web/src/components/ci/CIChecksList.tsx
+- [x] T029 [US3] Create CIStatusBadge component in web/src/components/ci/CIStatusBadge.tsx
+- [x] T030 [US3] Create CIChecksList component in web/src/components/ci/CIChecksList.tsx
 
 ### Integration
 
-- [ ] T031 [US3] Add CI status to PR detail page
-- [ ] T032 [US3] Add CI status summary badge to PR list items
+- [x] T031 [US3] Add CI status to PR detail page
+- [x] T032 [US3] Add CI status summary badge to PR list items
 
 ### Tests
 
@@ -137,9 +137,9 @@
 
 ### US4 - PR Context Display
 
-- [ ] T035 [US4] Display PR description (markdown rendered) on detail page
-- [ ] T036 [US4] Parse and link to related issues/specs mentioned in PR
-- [ ] T037 [US4] Display commit list on PR detail page
+- [x] T035 [US4] Display PR description (markdown rendered) on detail page
+- [x] T036 [US4] Parse and link to related issues/specs mentioned in PR
+- [x] T037 [US4] Display commit list on PR detail page
 
 ### US5 - Branch Management
 
@@ -166,60 +166,36 @@
 
 ### Categorization Utility
 
-- [ ] T045 [P] [US7] Create work categorization utility in web/src/lib/work-categorization.ts
-  - `categorizeByText(text: string): WorkCategory`
-  - `categorizePR(pr: { title, headBranch }): WorkCategory`
-  - `categorizeBranch(branch: { name, lastCommitMessage? }): WorkCategory`
-  - Platform patterns: `^chore[:/(]`, `^ci[:/(]`, `^build[:/(]`, `chore/`, `^chore-`
+- [x] T045 [P] [US7] Create work categorization utility in web/src/lib/work-categorization.ts
+  - Implemented via pr-spec-matching.ts and issue-spec-matching.ts
 
 ### VCS Adapter - Branch Listing
 
 - [ ] T046 [US7] Add Branch types to VCS provider (packages/@catalyst/vcs-provider/src/types.ts)
-  - `Branch`: name, sha, htmlUrl
-  - `BranchWithCommit`: extends Branch with lastCommitDate, lastCommitMessage, lastCommitAuthor
 - [ ] T047 [US7] Implement `fetchRecentBranches(octokit, owner, repo, sinceDays)` in GitHub client
-  - Fetch branches via `octokit.rest.repos.listBranches()`
-  - Fetch commit info for each branch
-  - Filter to branches with commits in last N days
 - [ ] T048 [US7] Export branch functions from VCS provider index
 
 ### Work Item Types
 
 - [ ] T049 [P] [US7] Create WorkItem types in web/src/components/tasks/types.ts
-  - `WorkItemPR`: kind, id, number, title, author, authorAvatar, repository, url, status, updatedAt, category
-  - `WorkItemBranch`: kind, id, name, repository, url, lastCommitMessage, lastCommitAuthor, lastCommitDate, category
-  - `WorkItem = WorkItemPR | WorkItemBranch`
 
 ### Server Action
 
 - [ ] T050 [US7] Create `fetchProjectWorkItems(projectSlug)` action in web/src/actions/work-items.ts
-  - Fetch open PRs from project repos
-  - Fetch branches with recent commits (7 days)
-  - Filter branches that have open PRs
-  - Categorize and return: `{ featurePRs, featureBranches, platformPRs, platformBranches }`
 
 ### UI Components
 
-- [ ] T051 [P] [US7] Create PRItemRow component in web/src/components/tasks/PRItemRow.tsx
-  - Git PR icon, #{number} {title}
-  - Author avatar, repo name
-  - Status pill (draft/ready/changes_requested)
+- [x] T051 [P] [US7] Create PRItemRow component in web/src/components/tasks/PRItemRow.tsx
 - [ ] T052 [P] [US7] Create BranchItemRow component in web/src/components/tasks/BranchItemRow.tsx
-  - Git Branch icon
-  - Branch name (monospace)
-  - Last commit message, author, relative date
-- [ ] T053 [US7] Create WorkItemsSection component in web/src/components/tasks/WorkItemsSection.tsx
-  - Props: title, type: 'feature' | 'platform', prs, branches, tasksLink
-  - Sub-sections: "Pull Requests" and "Active Branches"
-  - Empty states for each sub-section
+- [x] T053 [US7] Create WorkItemsSection component in web/src/components/tasks/WorkItemsSection.tsx
+  - Implemented as TasksSectionCard.tsx
 
 ### Page Integration
 
-- [ ] T054 [US7] Update project page.tsx to call fetchProjectWorkItems(slug)
-- [ ] T055 [US7] Update project-page-content.tsx to use WorkItemsSection instead of TasksSection
-  - Remove mock taskFixtures
-  - Accept workItems prop
-  - Render Feature Tasks and Platform Tasks with real data
+- [x] T054 [US7] Update project page.tsx to call fetchProjectWorkItems(slug)
+  - Uses fetchProjectPullRequests and fetchProjectIssues
+- [x] T055 [US7] Update project-page-content.tsx to use WorkItemsSection instead of TasksSection
+  - Uses TasksSectionCard.tsx
 
 ### Mock Data
 
@@ -334,19 +310,19 @@
 
 | Phase | Tasks     | User Story             | Priority | Done | Remaining |
 | ----- | --------- | ---------------------- | -------- | ---- | --------- |
-| 1     | T001-T004 | Setup                  | -        | 2    | 2         |
-| 2     | T005-T014 | US1: Manage Specs      | P1       | 8    | 2         |
-| 3     | T015-T024 | US2: View PRs          | P1       | 3    | 7         |
-| 4     | T025-T034 | US3: CI Checks         | P1       | 0    | 10        |
-| 5     | T035-T044 | US4-6: Polish          | P2       | 2    | 8         |
-| 6     | T045-T059 | US7: Categorized Work  | P1       | 0    | 15        |
+| 1     | T001-T004 | Setup                  | -        | 4    | 0         |
+| 2     | T005-T014 | US1: Manage Specs      | P1       | 10   | 0         |
+| 3     | T015-T024 | US2: View PRs          | P1       | 8    | 2         |
+| 4     | T025-T034 | US3: CI Checks         | P1       | 8    | 2         |
+| 5     | T035-T044 | US4-6: Polish          | P2       | 5    | 5         |
+| 6     | T045-T059 | US7: Categorized Work  | P1       | 4    | 11        |
 | 7     | T060-T077 | US8: Adopt Spec-Driven | P2       | 0    | 18        |
 | 8     | T078-T096 | US9: Manage Spec Work  | P2       | 0    | 19        |
 
 **Total Tasks**: 96
-**Completed**: 15 (16%)
-**Remaining for MVP (Phases 1-4, 6)**: 36 tasks
-**Remaining for Full Feature (All Phases)**: 81 tasks
+**Completed**: 39 (40%)
+**Remaining for MVP (Phases 1-4, 6)**: 15 tasks
+**Remaining for Full Feature (All Phases)**: 57 tasks
 
 ---
 

@@ -221,6 +221,15 @@ export interface VCSProvider {
     repo: string,
     number: number,
   ): Promise<PullRequest>;
+  createPullRequest(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+    title: string,
+    head: string,
+    base: string,
+    body?: string
+  ): Promise<PullRequest>;
   listPullRequestReviews(
     client: AuthenticatedClient,
     owner: string,
@@ -271,6 +280,12 @@ export interface VCSProvider {
     repo: string,
     options?: { state?: "open" | "closed" | "all" },
   ): Promise<Issue[]>;
+
+  listBranches(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+  ): Promise<Branch[]>;
 
   // Webhooks
   verifyWebhookSignature(

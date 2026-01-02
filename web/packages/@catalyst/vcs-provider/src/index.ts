@@ -18,6 +18,7 @@ export type {
   Issue,
   PRComment,
   WebhookEvent,
+  Branch,
   VCSProvider,
 } from "./types";
 

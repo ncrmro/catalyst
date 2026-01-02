@@ -19,6 +19,15 @@ export interface UpdateFileParams {
   branch: string;
 }
 
+export interface CreatePullRequestParams {
+  owner: string;
+  repo: string;
+  title: string;
+  head: string;
+  base: string;
+  body?: string;
+}
+
 /**
  * Create a new branch in a repository
  */
@@ -37,6 +46,31 @@ export async function createBranch(params: CreateBranchParams) {
     params.repo,
     params.name,
     params.fromBranch,
+  );
+
+  return result;
+}
+
+/**
+ * Create a pull request in a repository
+ */
+export async function createPullRequest(params: CreatePullRequestParams) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized");
+  }
+
+  const client = await getVCSClient(session.user.id);
+  const provider = getProvider(client.providerId);
+
+  const result = await provider.createPullRequest(
+    client,
+    params.owner,
+    params.repo,
+    params.title,
+    params.head,
+    params.base,
+    params.body,
   );
 
   return result;

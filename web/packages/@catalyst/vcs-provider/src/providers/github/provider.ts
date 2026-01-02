@@ -585,6 +585,31 @@ export class GitHubProvider implements VCSProvider {
   }
 
   /**
+   * Create a pull request
+   */
+  async createPullRequest(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+    title: string,
+    head: string,
+    base: string,
+    body?: string,
+  ): Promise<PullRequest> {
+    const octokit = client.raw as Octokit;
+    const { data: pr } = await octokit.rest.pulls.create({
+      owner,
+      repo,
+      title,
+      head,
+      base,
+      body,
+    });
+
+    return this.mapPullRequest(pr);
+  }
+
+  /**
    * List reviews for a pull request
    */
   async listPullRequestReviews(
@@ -707,9 +732,6 @@ export class GitHubProvider implements VCSProvider {
     });
   }
 
-  /**
-   * List issues for a repository
-   */
   async listIssues(
     client: AuthenticatedClient,
     owner: string,
@@ -740,6 +762,27 @@ export class GitHubProvider implements VCSProvider {
           typeof label === "string" ? label : label.name || "",
         ),
       }));
+  }
+
+  /**
+   * List branches for a repository
+   */
+  async listBranches(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+  ): Promise<Branch[]> {
+    const octokit = client.raw as Octokit;
+    const { data: branches } = await octokit.rest.repos.listBranches({
+      owner,
+      repo,
+      per_page: 100,
+    });
+
+    return branches.map((branch) => ({
+      name: branch.name,
+      sha: branch.commit.sha,
+    }));
   }
 
   /**

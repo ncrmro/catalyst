@@ -49,6 +49,7 @@ class MockProvider implements VCSProvider {
 
   listPullRequests = vi.fn().mockResolvedValue([]);
   getPullRequest = vi.fn().mockResolvedValue({} as PullRequest);
+  createPullRequest = vi.fn().mockResolvedValue({} as PullRequest);
   listPullRequestReviews = vi.fn().mockResolvedValue([]);
 
   listPRComments = vi.fn().mockResolvedValue([]);
@@ -62,6 +63,9 @@ class MockProvider implements VCSProvider {
   createBranch = vi
     .fn()
     .mockResolvedValue({ name: "test-branch", sha: "sha" } as Branch);
+  listBranches = vi
+    .fn()
+    .mockResolvedValue([{ name: "main", sha: "sha" }] as Branch[]);
   updateFile = vi
     .fn()
     .mockResolvedValue({
