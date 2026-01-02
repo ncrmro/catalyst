@@ -16,14 +16,16 @@ interface SpecWorkflowClientProps {
   projectId: string;
   projectSlug: string;
   repoFullName?: string;
+  initialStep?: WorkflowStep;
 }
 
 export function SpecWorkflowClient({
   projectId,
   projectSlug,
   repoFullName,
+  initialStep = "bootstrap",
 }: SpecWorkflowClientProps) {
-  const [activeStep, setActiveStep] = useState<WorkflowStep>("bootstrap");
+  const [activeStep, setActiveStep] = useState<WorkflowStep>(initialStep);
   const [createMode, setCreateMode] = useState<"choose" | "new" | "amend">("choose");
 
   return (
