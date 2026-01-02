@@ -3,17 +3,18 @@ import { notFound } from "next/navigation";
 import {
   fetchProjectBySlug,
   fetchProjectPullRequests,
+  fetchProjectIssues,
 } from "@/actions/projects";
 import { fetchProjectSpecs } from "@/actions/specs";
 import { matchPRToSpec } from "@/lib/pr-spec-matching";
+import { matchIssueToSpec } from "@/lib/issue-spec-matching";
+import { parseSpecSlug } from "@/lib/spec-url";
 import { SpecTasksTab } from "./_components/SpecTasksTab";
 import { SpecContentTab } from "./_components/SpecContentTab";
 
 interface SpecPageProps {
   params: Promise<{
-    projectSlug: string;
-    repoSlug: string;
-    specSlug: string;
+    slug: string[];
   }>;
   searchParams: Promise<{
     tab?: string;
@@ -23,7 +24,8 @@ interface SpecPageProps {
 export async function generateMetadata({
   params,
 }: SpecPageProps): Promise<Metadata> {
-  const { projectSlug, specSlug } = await params;
+  const { slug } = await params;
+  const { projectSlug, specSlug } = parseSpecSlug(slug);
 
   return {
     title: `${specSlug} - ${projectSlug} - Catalyst`,
@@ -35,7 +37,8 @@ export default async function SpecPage({
   params,
   searchParams,
 }: SpecPageProps) {
-  const { projectSlug, specSlug } = await params;
+  const { slug } = await params;
+  const { projectSlug, specSlug } = parseSpecSlug(slug);
   const { tab = "tasks" } = await searchParams;
 
   const project = await fetchProjectBySlug(projectSlug);
@@ -43,10 +46,11 @@ export default async function SpecPage({
     notFound();
   }
 
-  // Fetch specs and PRs
-  const [specs, allPRs] = await Promise.all([
+  // Fetch specs, PRs, and issues in parallel
+  const [specs, allPRs, allIssues] = await Promise.all([
     fetchProjectSpecs(project.id, projectSlug),
     fetchProjectPullRequests(project.id),
+    fetchProjectIssues(project.id),
   ]);
 
   // Validate spec exists
@@ -65,6 +69,19 @@ export default async function SpecPage({
   // TODO: Fetch merged PRs (last 10) - requires vcs-provider update
   const mergedPRs: typeof allPRs = [];
 
+  // Filter issues for this spec
+  const openIssues = allIssues.filter((issue) => {
+    if (issue.state !== "open") return false;
+    const matchedSpec = matchIssueToSpec(issue.title, specIds);
+    return matchedSpec === specSlug;
+  });
+
+  const closedIssues = allIssues.filter((issue) => {
+    if (issue.state !== "closed") return false;
+    const matchedSpec = matchIssueToSpec(issue.title, specIds);
+    return matchedSpec === specSlug;
+  });
+
   if (tab === "spec") {
     return (
       <SpecContentTab
@@ -79,6 +96,8 @@ export default async function SpecPage({
     <SpecTasksTab
       openPRs={openPRs}
       mergedPRs={mergedPRs}
+      openIssues={openIssues}
+      closedIssues={closedIssues}
       projectSlug={projectSlug}
     />
   );

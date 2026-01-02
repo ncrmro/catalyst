@@ -9,6 +9,7 @@ import { IssueListItem } from "@/components/work-items/IssueListItem";
 import type { Spec, PRsBySpec } from "@/lib/pr-spec-matching";
 import type { IssuesBySpec } from "@/lib/issue-spec-matching";
 import type { Issue } from "@/types/reports";
+import { buildSpecUrl } from "@/lib/spec-url";
 
 type TabValue = "specs" | "issues" | "prs";
 
@@ -49,10 +50,10 @@ function SpecGroupHeader({
   const isNoSpec = specId === "no-spec";
   const specHref = isNoSpec
     ? undefined
-    : `/specs/${projectSlug}/${repoSlug}/${encodeURIComponent(specId)}`;
+    : buildSpecUrl(projectSlug, repoSlug, specId);
   const agentHref = isNoSpec
     ? undefined
-    : `/specs/${projectSlug}/${repoSlug}/${encodeURIComponent(specId)}?chat=1`;
+    : buildSpecUrl(projectSlug, repoSlug, specId, { chat: true });
 
   return (
     <div className="flex items-center justify-between py-2 px-1">
