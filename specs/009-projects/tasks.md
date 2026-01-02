@@ -306,6 +306,43 @@
 
 ---
 
+## Phase 9: US10 - Chat with Spec-Aware Agent (Priority: P1)
+
+**Goal**: Users can chat with an agent that has spec context preloaded for amendment and clarification.
+
+**Independent Test**: Click agent button on spec, navigate to spec detail page, chat with agent that understands the spec.
+
+### Completed Tasks
+
+- [x] T097 [US10] Create spec detail page route at `/specs/[...slug]/page.tsx` (FR-023)
+- [x] T098 [US10] Implement parseSpecSlug utility for URL parsing (web/src/lib/spec-url.ts)
+- [x] T099 [US10] Create SpecTasksTab component showing open/merged PRs and issues
+- [x] T100 [US10] Create SpecContentTab component for spec file display
+- [x] T101 [US10] Create SpecAgentChat component with UI shell (web/src/app/(dashboard)/specs/[...slug]/\_components/SpecAgentChat.tsx)
+- [x] T102 [US10] Add agent button to specs in project page TasksSectionCard
+- [x] T103 [US10] Implement tokenized spec matching for PRs (FR-022, web/src/lib/pr-spec-matching.ts)
+- [x] T104 [US10] Implement tokenized spec matching for issues (web/src/lib/issue-spec-matching.ts)
+- [x] T105 [US10] Create WorkItemsList shared component for PR/issue display
+- [x] T106 [US10] Add tab navigation (Tasks | Spec) with URL search params
+
+### Thread Persistence Integration (@tetrastack/threads)
+
+- [ ] T107 [P] [US10] Add threads schema to main database (web/src/db/schema.ts) - import from @tetrastack/threads/database/postgres
+- [ ] T108 [P] [US10] Generate and run database migration for threads tables
+- [ ] T109 [US10] Create spec-chat server action `getOrCreateSpecThread(projectId, specSlug)` in web/src/actions/spec-chat.ts
+- [ ] T110 [US10] Create spec-chat server action `appendMessage(threadId, role, parts)` in web/src/actions/spec-chat.ts
+- [ ] T111 [US10] Create spec-chat server action `listThreadMessages(threadId)` in web/src/actions/spec-chat.ts
+- [ ] T112 [US10] Replace local state in SpecAgentChat with thread-backed persistence
+- [ ] T113 [US10] Create AI chat API route at web/src/app/api/spec-chat/route.ts (streams AI responses)
+- [ ] T114 [US10] Integrate AI SDK useChat hook with SpecAgentChat component
+- [ ] T115 [US10] Inject spec context (spec.md, plan.md, tasks.md) as system message in AI chat
+- [ ] T116 [P] [US10] Unit tests for spec-chat actions
+- [ ] T117 [US10] E2E test for spec chat flow (send message, receive response, persistence)
+
+**Checkpoint**: Users can chat with a persistent, spec-aware agent.
+
+---
+
 ## Summary
 
 | Phase | Tasks     | User Story             | Priority | Done | Remaining |
@@ -318,33 +355,41 @@
 | 6     | T045-T059 | US7: Categorized Work  | P1       | 4    | 11        |
 | 7     | T060-T077 | US8: Adopt Spec-Driven | P2       | 0    | 18        |
 | 8     | T078-T096 | US9: Manage Spec Work  | P2       | 0    | 19        |
+| 9     | T097-T117 | US10: Spec Agent Chat  | P1       | 10   | 11        |
 
-**Total Tasks**: 96
-**Completed**: 39 (40%)
-**Remaining for MVP (Phases 1-4, 6)**: 15 tasks
-**Remaining for Full Feature (All Phases)**: 57 tasks
+**Total Tasks**: 117
+**Completed**: 25 (21%)
+**Remaining for MVP (Phases 1-4, 6, 9)**: 45 tasks
+**Remaining for Full Feature (All Phases)**: 92 tasks
 
 ---
 
 ## Next Priority Tasks
 
-### MVP (P1)
+### Immediate (US10 Threads Integration)
 
-1. **T045**: Create work categorization utility (foundation for Phase 6)
-2. **T046-T048**: Add branch listing to VCS provider
-3. **T049-T050**: Create WorkItem types and server action
-4. **T051-T055**: Create UI components and integrate with project page
-5. **T020-T022**: Replace mock tasks with real PRs on project page (high impact)
-6. **T019**: Link PRs to preview environments
-7. **T025-T032**: Add CI check status display
+1. **T107-T108**: Add threads schema to database and run migration
+2. **T109-T111**: Create spec-chat server actions (getOrCreateSpecThread, appendMessage, listThreadMessages)
+3. **T112-T114**: Replace local state with thread persistence and AI SDK integration
+4. **T115**: Inject spec context as system message
+
+### MVP (P1) - After Threads
+
+5. **T045**: Create work categorization utility (foundation for Phase 6)
+6. **T046-T048**: Add branch listing to VCS provider
+7. **T049-T050**: Create WorkItem types and server action
+8. **T051-T055**: Create UI components and integrate with project page
+9. **T020-T022**: Replace mock tasks with real PRs on project page (high impact)
+10. **T019**: Link PRs to preview environments
+11. **T025-T032**: Add CI check status display
 
 ### Post-MVP (P2)
 
-8. **T060-T065**: Spec workflow UI and bootstrap specs functionality
-9. **T066-T068**: Distill spec from existing code
-10. **T078-T082**: Spec implementation dashboard and task-to-PR mapping
-11. **T083-T086**: PR dependency graph visualization
-12. **T087-T089**: Review priority system
+12. **T060-T065**: Spec workflow UI and bootstrap specs functionality
+13. **T066-T068**: Distill spec from existing code
+14. **T078-T082**: Spec implementation dashboard and task-to-PR mapping
+15. **T083-T086**: PR dependency graph visualization
+16. **T087-T089**: Review priority system
 
 ---
 

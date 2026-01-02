@@ -16,6 +16,25 @@ import type { ReportData } from "@/types/reports";
 import type { EnvironmentConfig } from "@/types/environment-config";
 import type { ProjectConfig } from "@/types/project-config";
 
+// Re-export threads schema from @tetrastack/threads for Drizzle migrations
+import { postgres as threadsDb } from "@tetrastack/threads/database";
+
+export const threads = threadsDb.threads;
+export const threadItems = threadsDb.items;
+export const threadEdges = threadsDb.edges;
+export const threadStreams = threadsDb.streams;
+
+export type {
+  Thread,
+  NewThread,
+  Item,
+  NewItem,
+  Edge,
+  NewEdge,
+  Stream,
+  NewStream,
+} from "@tetrastack/threads";
+
 export const users = pgTable("user", {
   id: text("id")
     .primaryKey()
