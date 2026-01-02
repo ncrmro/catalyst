@@ -30,12 +30,12 @@
 
 **Goal**: Data model and dependencies ready
 
-- [ ] T004 [P] [US-5] Create `convention_rules` table migration
-- [ ] T005 [P] [US-6] Create `spec_folders` and `spec_tasks` table migrations
-- [ ] T006 [P] [US-3] Create `platform_tasks` table migration
-- [ ] T007 [P] [US-9] Create `agent_contexts` table migration
-- [ ] T008 [P] [US-7] Create `alert_rules` table migration
-- [ ] T009 Add new dependencies: gray-matter, remark/unified, prometheus client
+- [x] T004 [P] [US-5] Create `convention_rules` table migration
+- [x] T005 [P] [US-6] Create `spec_folders` and `spec_tasks` table migrations
+- [x] T006 [P] [US-3] Create `platform_tasks` table migration
+- [x] T007 [P] [US-9] Create `agent_contexts` table migration
+- [x] T008 [P] [US-7] Create `alert_rules` table migration
+- [x] T009 Add new dependencies: gray-matter, remark/unified, prometheus client
 
 **Checkpoint**: `npm run db:migrate` and `npm run typecheck` pass
 
@@ -47,23 +47,23 @@
 
 ### Platform Dashboard
 
-- [ ] T010 [P] [US-5] Create ConventionStatus component with fixtures
-- [ ] T011 [P] [US-6] Create SpecBrowser component with fixtures
-- [ ] T012 [P] [US-6] Create SpecTaskList component with fixtures
-- [ ] T013 [P] [US-3] Create PlatformTaskQueue component with fixtures
+- [x] T010 [P] [US-5] Create ConventionStatus component with fixtures
+- [x] T011 [P] [US-6] Create SpecBrowser component with fixtures
+- [x] T012 [P] [US-6] Create SpecTaskList component with fixtures
+- [x] T013 [P] [US-3] Create PlatformTaskQueue component with fixtures
 
 ### Observability UI
 
-- [ ] T014 [P] [US-7] Create GoldenSignalDashboard component with fixtures
-- [ ] T015 [P] [US-7] Create AlertList component with fixtures
-- [ ] T016 [P] [US-8] Create IncidentView component with fixtures
-- [ ] T017 [P] [US-8] Create MetricExplorer component with fixtures
+- [x] T014 [P] [US-7] Create GoldenSignalDashboard component with fixtures
+- [x] T015 [P] [US-7] Create AlertList component with fixtures
+- [x] T016 [P] [US-8] Create IncidentView component with fixtures
+- [x] T017 [P] [US-8] Create MetricExplorer component with fixtures
 
 ### Agent Context UI
 
-- [ ] T018 [P] [US-9] Create AgentContextViewer component with fixtures
+- [x] T018 [P] [US-9] Create AgentContextViewer component with fixtures
 
-- [ ] T019 Add Storybook stories for all new components
+- [x] T019 Add Storybook stories for all new components
 
 **Checkpoint**: UI review complete, UX validated
 
@@ -75,17 +75,17 @@
 
 ### Backend
 
-- [ ] T020 [US-5] Implement convention rules model in src/models/conventions.ts
-- [ ] T021 [US-5] Implement scaffoldProjectConventions action
-- [ ] T022 [US-5] Implement detectConventionDrift action
-- [ ] T023 [US-5] Implement applyConventionFixes action
-- [ ] T024 [US-5] Create convention templates (linting, formatting, commit hooks)
-- [ ] T025 [US-5] Add GitHub PR creation for convention scaffolding
+- [x] T020 [US-5] Implement convention rules model in src/models/conventions.ts
+- [x] T021 [US-5] Implement scaffoldProjectConventions action
+- [x] T022 [US-5] Implement detectConventionDrift action
+- [x] T023 [US-5] Implement applyConventionFixes action
+- [x] T024 [US-5] Create convention templates (linting, formatting, commit hooks)
+- [x] T025 [US-5] Add GitHub PR creation for convention scaffolding
 
 ### Integration
 
-- [ ] T026 [US-5] Connect ConventionStatus component to server actions
-- [ ] T027 [US-5] Add convention onboarding flow in project settings
+- [x] T026 [US-5] Connect ConventionStatus component to server actions
+- [x] T027 [US-5] Add convention onboarding flow in project settings
 
 ### Tests
 

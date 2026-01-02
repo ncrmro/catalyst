@@ -8,6 +8,10 @@ import type {
   PRComment,
   WebhookEvent,
   Branch,
+  
+  CIStatusSummary,
+  
+  Repository,
 } from "../../types";
 
 // Mock Provider Implementation
@@ -34,21 +38,22 @@ class MockProvider implements VCSProvider {
   listOrgRepositories = vi.fn().mockResolvedValue([]);
   getRepository = vi
     .fn()
-    .mockImplementation(async (_client, owner, repo) => ({
+    .mockImplementation(async (_client, _owner, repo) => ({
       id: "1",
       name: repo,
-      fullName: `${owner}/${repo}`,
-      owner,
+      fullName: `owner/${repo}`,
+      owner: "owner",
       private: false,
       defaultBranch: "main",
       htmlUrl: "",
       updatedAt: new Date(),
-    }));
+    } as Repository));
   getFileContent = vi.fn().mockResolvedValue(null);
   getDirectoryContent = vi.fn().mockResolvedValue([]);
 
   listPullRequests = vi.fn().mockResolvedValue([]);
   getPullRequest = vi.fn().mockResolvedValue({} as PullRequest);
+  createPullRequest = vi.fn().mockResolvedValue({} as PullRequest);
   listPullRequestReviews = vi.fn().mockResolvedValue([]);
 
   listPRComments = vi.fn().mockResolvedValue([]);
@@ -57,6 +62,7 @@ class MockProvider implements VCSProvider {
   deletePRComment = vi.fn().mockResolvedValue(undefined);
 
   listIssues = vi.fn().mockResolvedValue([]);
+  listBranches = vi.fn().mockResolvedValue([]);
 
   // Git operations
   createBranch = vi
@@ -73,7 +79,7 @@ class MockProvider implements VCSProvider {
     } as FileContent);
 
   // CI/CD
-  getCIStatus = vi.fn().mockResolvedValue(null);
+  getCIStatus = vi.fn().mockResolvedValue(null as unknown as CIStatusSummary);
 
   verifyWebhookSignature = vi.fn().mockReturnValue(true);
   parseWebhookEvent = vi
@@ -136,21 +142,7 @@ describe("VCS Provider Registry", () => {
 });
 
 describe("getVCSClient", () => {
-  // We need to mock the exported providerRegistry instance from the module
-  // depending on how it's used. Since getVCSClient uses the exported singleton,
-  // we might need to manipulate that singleton or mock the module.
-  // Ideally, for unit testing `getVCSClient` in isolation without side effects,
-  // we should be able to inject the registry, but the API doesn't allow it.
-
-  // A simpler approach for this specific codebase structure where a singleton is exported:
-  // We can just rely on the side-effects if we run tests sequentially or mock the module.
-
-  // Let's mock the module 'provider-registry' to return our test registry if possible,
-  // or just register our mocks into the actual singleton and clean up.
-  // Using the actual singleton is easier here given the simple state.
-
   it("should return authenticated client for default provider", async () => {
-    // Import the actual singleton to register our mock
     const { providerRegistry } = await import("../../provider-registry");
     const mockProvider = new MockProvider("github", "GitHub");
     providerRegistry.register(mockProvider);
