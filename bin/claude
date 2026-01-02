@@ -106,7 +106,9 @@ def main():
             # Add the --append-system-prompt flag
             system_prompt = (
                 f"You are handling work in worktree located at {worktree_path}, "
-                f"only read or edit files in that directory, all commands should be run in that directory"
+                f"only read or edit files in that directory, all commands should be run in that directory. "
+                f"Note: The development server has NOT been started automatically. If you need to run the application, "
+                f"please run 'make up' within the worktree directory."
             )
             processed_args.extend(["--append-system-prompt", system_prompt])
 

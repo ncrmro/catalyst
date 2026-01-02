@@ -63,7 +63,9 @@ def main():
                 f"I am working in the worktree located at: {worktree_path}. "
                 f"Please acknowledge this by confirming you will change your working directory to this path "
                 f"and only create, read, update, or delete files within this directory. "
-                f"Refocus on the spec '{branch_input}' which should now be available inside this worktree."
+                f"Refocus on the spec '{branch_input}' which should now be available inside this worktree. "
+                f"Note: The development server has NOT been started automatically. If you need to run the application, "
+                f"please run 'make up' within the worktree directory."
             )
 
             # Skip the worktree flag and its argument
