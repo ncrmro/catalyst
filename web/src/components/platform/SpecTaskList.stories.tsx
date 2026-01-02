@@ -55,7 +55,7 @@ const mockTasks: SpecTask[] = [
 export const Default: Story = {
   args: {
     tasks: mockTasks,
-    onTaskClick:  (_id: string) => console.log(`Task clicked: ${_id}`),
+    onTaskClick: (_id: string) => console.log(`Task clicked: ${_id}`),
   },
 };
 

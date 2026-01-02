@@ -1,7 +1,7 @@
-import type { Meta, StoryObj } from '@storybook/react-vite';
-import type React from 'react';
-import { useState } from 'react';
-import { GlassIncrementor } from './GlassIncrementor';
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import type React from "react";
+import { useState } from "react";
+import { GlassIncrementor } from "./GlassIncrementor";
 
 function IncrementorExample(
   props: React.ComponentProps<typeof GlassIncrementor>,
@@ -18,21 +18,21 @@ function IncrementorExample(
 }
 
 const meta: Meta<typeof GlassIncrementor> = {
-  title: 'Glass Components/GlassIncrementor',
+  title: "Glass Components/GlassIncrementor",
   component: GlassIncrementor,
-  tags: ['autodocs'],
+  tags: ["autodocs"],
   argTypes: {
     disabled: {
-      control: 'boolean',
+      control: "boolean",
     },
     showAddButton: {
-      control: 'boolean',
+      control: "boolean",
     },
     min: {
-      control: { type: 'number' },
+      control: { type: "number" },
     },
     max: {
-      control: { type: 'number' },
+      control: { type: "number" },
     },
   },
 };

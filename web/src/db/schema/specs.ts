@@ -1,4 +1,11 @@
-import { pgTable, text, integer, timestamp, varchar, boolean } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  integer,
+  timestamp,
+  varchar,
+  boolean,
+} from "drizzle-orm/pg-core";
 import { relations, type InferSelectModel } from "drizzle-orm";
 import { projects } from "../schema";
 

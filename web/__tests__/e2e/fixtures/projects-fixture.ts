@@ -20,7 +20,7 @@ export const test = base.extend<{
     const projectsPage = new ProjectsPage(page);
 
     // Provide the initialized ProjectsPage to the test
-     
+
     await use(projectsPage);
   },
 });

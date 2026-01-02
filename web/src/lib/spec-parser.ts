@@ -18,25 +18,29 @@ export interface ParsedSpec {
  * @param content - The markdown content
  * @param slug - The spec slug (e.g., '001-user-auth')
  */
-export async function parseSpecFile(content: string, slug: string): Promise<ParsedSpec> {
+export async function parseSpecFile(
+  content: string,
+  slug: string,
+): Promise<ParsedSpec> {
   // 1. Parse frontmatter
   const { data, content: body } = matter(content);
 
   // 2. Parse tasks from markdown body
   // We look for checklist items like "- [ ] T001: Description"
   const tasks: Partial<SpecTask>[] = [];
-  
+
   // Regex to match tasks: - [ ] **ID** [P?] [Ref?] Description
   // Examples:
   // - [ ] **T001**: Initialize project
   // - [x] **T002** [P]: Parallel task
   // - [ ] **T003** [US-1]: User story ref
-  const taskRegex = /-\s+\[([ x])\]\s+(?:\*\*)?(T\d+)(?:\*\*)?(?:\s+\[(P)\])?(?:\s+\[([A-Z]+-\d+)\])?[:\s]+(.*)/gm;
+  const taskRegex =
+    /-\s+\[([ x])\]\s+(?:\*\*)?(T\d+)(?:\*\*)?(?:\s+\[(P)\])?(?:\s+\[([A-Z]+-\d+)\])?[:\s]+(.*)/gm;
 
   let match;
   while ((match = taskRegex.exec(body)) !== null) {
     const [_, checked, taskId, parallelFlag, userStoryRef, description] = match;
-    
+
     tasks.push({
       taskId,
       status: checked === "x" ? "complete" : "pending",

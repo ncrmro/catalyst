@@ -36,19 +36,44 @@ export function ConventionStatus({
     switch (status) {
       case "pass":
         return (
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M5 13l4 4L19 7"
+            />
           </svg>
         );
       case "fail":
         return (
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         );
       case "warn":
         return (
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -65,12 +90,18 @@ export function ConventionStatus({
       <div className="p-6 border-b border-white/10">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-on-surface">Convention Compliance</h3>
-            <p className="text-sm text-on-surface-variant">Project: {projectName}</p>
+            <h3 className="text-lg font-semibold text-on-surface">
+              Convention Compliance
+            </h3>
+            <p className="text-sm text-on-surface-variant">
+              Project: {projectName}
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <div className="text-2xl font-bold text-on-surface">{complianceScore}%</div>
+              <div className="text-2xl font-bold text-on-surface">
+                {complianceScore}%
+              </div>
               <div className="text-xs text-on-surface-variant">Score</div>
             </div>
             <div className="w-12 h-12 relative rounded-full border-4 border-surface-variant">
@@ -88,7 +119,10 @@ export function ConventionStatus({
 
       <div className="divide-y divide-white/10">
         {rules.map((rule) => (
-          <div key={rule.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+          <div
+            key={rule.id}
+            className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
+          >
             <div className="flex items-center gap-4">
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center border ${getStatusColor(
@@ -99,11 +133,17 @@ export function ConventionStatus({
               </div>
               <div>
                 <div className="font-medium text-on-surface">{rule.name}</div>
-                <div className="text-xs text-on-surface-variant uppercase tracking-wider">{rule.type}</div>
+                <div className="text-xs text-on-surface-variant uppercase tracking-wider">
+                  {rule.type}
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-4">
-              {rule.message && <span className="text-sm text-on-surface-variant">{rule.message}</span>}
+              {rule.message && (
+                <span className="text-sm text-on-surface-variant">
+                  {rule.message}
+                </span>
+              )}
               {rule.status !== "pass" && onFix && (
                 <button
                   onClick={() => onFix(rule.id)}

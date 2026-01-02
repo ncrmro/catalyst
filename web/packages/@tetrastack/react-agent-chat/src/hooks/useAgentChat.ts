@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport } from 'ai';
-import type { ChatStatus } from '../types';
-import type { OnToolCallHandler, AddToolOutputOptions } from '../types';
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
+import type { ChatStatus } from "../types";
+import type { OnToolCallHandler, AddToolOutputOptions } from "../types";
 
 /**
  * Options for useAgentChat hook
@@ -20,7 +20,7 @@ export interface UseAgentChatOptions {
   /** Initial messages to populate the chat */
   initialMessages?: Array<{
     id: string;
-    role: 'user' | 'assistant' | 'system';
+    role: "user" | "assistant" | "system";
     parts: Array<{ type: string; text?: string }>;
   }>;
 }
@@ -101,8 +101,8 @@ export function useAgentChat(options: UseAgentChatOptions): UseAgentChatReturn {
 
   const addToolOutput = (toolOutputOptions: AddToolOutputOptions) => {
     chat.addToolOutput({
-      state: 'output-available',
-      tool: '', // Tool name not needed for output
+      state: "output-available",
+      tool: "", // Tool name not needed for output
       toolCallId: toolOutputOptions.toolCallId,
       output: toolOutputOptions.output,
     });
@@ -114,7 +114,7 @@ export function useAgentChat(options: UseAgentChatOptions): UseAgentChatReturn {
     error: chat.error,
     sendMessage,
     addToolOutput,
-    isLoading: chat.status === 'streaming' || chat.status === 'submitted',
+    isLoading: chat.status === "streaming" || chat.status === "submitted",
     clearError: chat.clearError,
   };
 }

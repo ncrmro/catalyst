@@ -113,13 +113,13 @@ import {
   MessageList,
   MessageBubble,
   ChatInput,
-} from '@tetrastack/react-agent-chat';
+} from "@tetrastack/react-agent-chat";
 
 // Subpath exports
-import { useAgentChat } from '@tetrastack/react-agent-chat/hooks';
-import { ClarifyingQuestionsCard } from '@tetrastack/react-agent-chat/components';
-import { clarifyingQuestionSchema } from '@tetrastack/react-agent-chat/types';
-import { isTextPart, getMessageText } from '@tetrastack/react-agent-chat/utils';
+import { useAgentChat } from "@tetrastack/react-agent-chat/hooks";
+import { ClarifyingQuestionsCard } from "@tetrastack/react-agent-chat/components";
+import { clarifyingQuestionSchema } from "@tetrastack/react-agent-chat/types";
+import { isTextPart, getMessageText } from "@tetrastack/react-agent-chat/utils";
 ```
 
 ## Component Props
@@ -130,7 +130,7 @@ import { isTextPart, getMessageText } from '@tetrastack/react-agent-chat/utils';
 interface ClarifyingQuestionsCardProps {
   questions: ClarifyingQuestion[];
   toolCallId: string;
-  state: 'input-streaming' | 'input-available' | 'output-available';
+  state: "input-streaming" | "input-available" | "output-available";
   result?: ClarifyingQuestionsOutput;
   persistKey?: string;
   onSubmit: (output: ClarifyingQuestionsOutput) => void;

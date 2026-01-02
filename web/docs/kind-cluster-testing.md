@@ -20,6 +20,7 @@ The Kind cluster includes an in-cluster container registry that enables fast ima
 - **Usage**: Images can be built and pushed directly to the registry for immediate use in deployments
 
 Example usage:
+
 ```bash
 # Build and push to in-cluster registry
 docker build -t localhost:5000/myapp:latest .
@@ -160,12 +161,14 @@ kubectl auth can-i create deployments
 ## Integration with CI/CD
 
 This kind cluster setup is designed to work in CI environments where:
+
 - A kind cluster is automatically provisioned and must be accessible
 - The web application can create real Kubernetes resources
 - Tests verify end-to-end functionality including actual cluster state using the Kubernetes JavaScript client
 - Tests will fail if the cluster is not accessible (no graceful fallback)
 
 **Test Requirements**:
+
 - Kubernetes cluster must be running and accessible
 - Tests use the default kubeconfig context
 - Full RBAC permissions required for creating/deleting deployments and listing namespaces

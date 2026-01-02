@@ -19,7 +19,8 @@ const mockTasks: PlatformTask[] = [
     id: "1",
     type: "dependency_update",
     title: "Update Next.js to v15.1.0",
-    description: "Security patch available. Includes performance improvements for App Router.",
+    description:
+      "Security patch available. Includes performance improvements for App Router.",
     status: "pending",
     priority: "high",
     createdAt: new Date("2024-01-10"),
@@ -29,7 +30,8 @@ const mockTasks: PlatformTask[] = [
     id: "2",
     type: "convention_fix",
     title: "Fix ESLint Configuration Drift",
-    description: "Project config differs from organization standard. 3 rules disabled.",
+    description:
+      "Project config differs from organization standard. 3 rules disabled.",
     status: "running",
     priority: "medium",
     createdAt: new Date("2024-01-12"),
@@ -50,9 +52,9 @@ const mockTasks: PlatformTask[] = [
 export const Default: Story = {
   args: {
     tasks: mockTasks,
-    onRetry:  (_id: string) => console.log(`Retry ${_id}`),
-    onApprove:  (_id: string) => console.log(`Approve ${_id}`),
-    onDismiss:  (_id: string) => console.log(`Dismiss ${_id}`),
+    onRetry: (_id: string) => console.log(`Retry ${_id}`),
+    onApprove: (_id: string) => console.log(`Approve ${_id}`),
+    onDismiss: (_id: string) => console.log(`Dismiss ${_id}`),
   },
 };
 

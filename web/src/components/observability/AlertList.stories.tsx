@@ -47,7 +47,7 @@ const mockAlerts: Alert[] = [
 export const Default: Story = {
   args: {
     alerts: mockAlerts,
-    onAlertClick:  (_id: string) => console.log(`Alert clicked: ${_id}`),
+    onAlertClick: (_id: string) => console.log(`Alert clicked: ${_id}`),
   },
 };
 

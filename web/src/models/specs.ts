@@ -19,7 +19,10 @@ export async function getProjectSpecs(projectId: string) {
 
 export async function getSpecBySlug(projectId: string, slug: string) {
   return await db.query.specFolders.findFirst({
-    where: and(eq(specFolders.projectId, projectId), eq(specFolders.slug, slug)),
+    where: and(
+      eq(specFolders.projectId, projectId),
+      eq(specFolders.slug, slug),
+    ),
     with: {
       tasks: true,
     },
@@ -31,7 +34,10 @@ export async function createSpecFolder(spec: NewSpecFolder) {
   return created;
 }
 
-export async function updateSpecFolder(id: string, updates: Partial<SpecFolder>) {
+export async function updateSpecFolder(
+  id: string,
+  updates: Partial<SpecFolder>,
+) {
   const [updated] = await db
     .update(specFolders)
     .set({ ...updates, updatedAt: new Date() })
@@ -40,7 +46,10 @@ export async function updateSpecFolder(id: string, updates: Partial<SpecFolder>)
   return updated;
 }
 
-export async function syncSpecTasksToDb(specFolderId: string, tasks: NewSpecTask[]) {
+export async function syncSpecTasksToDb(
+  specFolderId: string,
+  tasks: NewSpecTask[],
+) {
   // Use transaction to replace tasks
   await db.transaction(async (tx) => {
     // 1. Delete existing tasks for this spec
@@ -53,7 +62,10 @@ export async function syncSpecTasksToDb(specFolderId: string, tasks: NewSpecTask
   });
 }
 
-export async function updateSpecTaskStatus(taskId: string, status: SpecTask["status"]) {
+export async function updateSpecTaskStatus(
+  taskId: string,
+  status: SpecTask["status"],
+) {
   const [updated] = await db
     .update(specTasks)
     .set({ status, updatedAt: new Date() })

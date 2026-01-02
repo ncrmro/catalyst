@@ -1,21 +1,21 @@
-import type { Meta, StoryObj } from '@storybook/react-vite';
-import { GlassCard } from './GlassCard';
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { GlassCard } from "./GlassCard";
 
 const meta: Meta<typeof GlassCard> = {
-  title: 'Glass Components/GlassCard',
+  title: "Glass Components/GlassCard",
   component: GlassCard,
-  tags: ['autodocs'],
+  tags: ["autodocs"],
   argTypes: {
     padded: {
-      control: 'boolean',
+      control: "boolean",
     },
     intensity: {
-      control: { type: 'select' },
-      options: ['light', 'medium', 'strong'],
+      control: { type: "select" },
+      options: ["light", "medium", "strong"],
     },
     variant: {
-      control: { type: 'select' },
-      options: ['default', 'primary', 'secondary', 'tertiary', 'error'],
+      control: { type: "select" },
+      options: ["default", "primary", "secondary", "tertiary", "error"],
     },
   },
 };

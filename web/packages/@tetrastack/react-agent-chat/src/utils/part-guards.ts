@@ -5,34 +5,34 @@ import type {
   FilePart,
   DynamicToolPart,
   ToolState,
-} from '../types';
+} from "../types";
 
 /**
  * Check if a message part is a text part
  */
 export function isTextPart(part: MessagePart): part is TextPart {
-  return part.type === 'text';
+  return part.type === "text";
 }
 
 /**
  * Check if a message part is a reasoning part
  */
 export function isReasoningPart(part: MessagePart): part is ReasoningPart {
-  return part.type === 'reasoning';
+  return part.type === "reasoning";
 }
 
 /**
  * Check if a message part is a file part
  */
 export function isFilePart(part: MessagePart): part is FilePart {
-  return part.type === 'file';
+  return part.type === "file";
 }
 
 /**
  * Check if a message part is a dynamic tool part
  */
 export function isDynamicToolPart(part: MessagePart): part is DynamicToolPart {
-  return part.type === 'dynamic-tool';
+  return part.type === "dynamic-tool";
 }
 
 /**
@@ -43,11 +43,11 @@ export function isToolPart(
   part: MessagePart,
   toolName?: string,
 ): part is DynamicToolPart {
-  if (part.type === 'dynamic-tool') {
+  if (part.type === "dynamic-tool") {
     return toolName ? (part as DynamicToolPart).toolName === toolName : true;
   }
   // Static tool parts start with 'tool-'
-  if (part.type.startsWith('tool-')) {
+  if (part.type.startsWith("tool-")) {
     return toolName ? part.type === `tool-${toolName}` : true;
   }
   return false;
@@ -59,14 +59,14 @@ export function isToolPart(
 export function isClarifyingQuestionsPart(
   part: MessagePart,
 ): part is DynamicToolPart {
-  return isToolPart(part, 'askClarifyingQuestions');
+  return isToolPart(part, "askClarifyingQuestions");
 }
 
 /**
  * Get the tool state from a message part
  */
 export function getToolState(part: MessagePart): ToolState | undefined {
-  if ('state' in part && part.state) {
+  if ("state" in part && part.state) {
     return part.state as ToolState;
   }
   return undefined;
@@ -76,7 +76,7 @@ export function getToolState(part: MessagePart): ToolState | undefined {
  * Get the tool input from a message part
  */
 export function getToolInput<T>(part: MessagePart): T | undefined {
-  if ('input' in part) {
+  if ("input" in part) {
     return part.input as T;
   }
   return undefined;
@@ -86,7 +86,7 @@ export function getToolInput<T>(part: MessagePart): T | undefined {
  * Get the tool call ID from a message part
  */
 export function getToolCallId(part: MessagePart): string | undefined {
-  if ('toolCallId' in part) {
+  if ("toolCallId" in part) {
     return part.toolCallId;
   }
   return undefined;
@@ -96,10 +96,10 @@ export function getToolCallId(part: MessagePart): string | undefined {
  * Get the tool name from a message part
  */
 export function getToolName(part: MessagePart): string | undefined {
-  if (part.type === 'dynamic-tool') {
+  if (part.type === "dynamic-tool") {
     return (part as DynamicToolPart).toolName;
   }
-  if (part.type.startsWith('tool-')) {
+  if (part.type.startsWith("tool-")) {
     return part.type.slice(5); // Remove 'tool-' prefix
   }
   return undefined;
@@ -109,7 +109,7 @@ export function getToolName(part: MessagePart): string | undefined {
  * Get the tool output from a message part
  */
 export function getToolOutput<T>(part: MessagePart): T | undefined {
-  if ('output' in part) {
+  if ("output" in part) {
     return part.output as T;
   }
   return undefined;
@@ -121,9 +121,9 @@ export function getToolOutput<T>(part: MessagePart): T | undefined {
 export function isToolCompleted(part: MessagePart): boolean {
   const state = getToolState(part);
   return (
-    state === 'output-available' ||
-    state === 'output-error' ||
-    state === 'output-denied'
+    state === "output-available" ||
+    state === "output-error" ||
+    state === "output-denied"
   );
 }
 
@@ -132,7 +132,7 @@ export function isToolCompleted(part: MessagePart): boolean {
  */
 export function isToolWaitingForInput(part: MessagePart): boolean {
   const state = getToolState(part);
-  return state === 'input-available' || state === 'approval-requested';
+  return state === "input-available" || state === "approval-requested";
 }
 
 /**
@@ -140,5 +140,5 @@ export function isToolWaitingForInput(part: MessagePart): boolean {
  */
 export function isToolStreaming(part: MessagePart): boolean {
   const state = getToolState(part);
-  return state === 'input-streaming';
+  return state === "input-streaming";
 }

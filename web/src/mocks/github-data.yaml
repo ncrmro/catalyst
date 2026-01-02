@@ -26,7 +26,7 @@ user_repos:
     connection:
       projectId: catalyst-project-1
       isPrimary: true
-    
+
   - id: 423819567
     name: meze
     full_name: ncrmro/meze
@@ -76,7 +76,7 @@ organizations:
     id: 987654321
     avatar_url: https://avatars.githubusercontent.com/u/987654321?v=4
     description: "Development organization for Catalyst platform"
-    
+
   - login: open-source-lab
     id: 123456789
     avatar_url: https://avatars.githubusercontent.com/u/123456789?v=4
@@ -104,7 +104,7 @@ org_repos:
       stargazers_count: 3
       forks_count: 1
       open_issues_count: 2
-      
+
     - id: 345678901
       name: catalyst-helm-charts
       full_name: catalyst-dev/catalyst-helm-charts
@@ -160,7 +160,7 @@ pull_requests:
     comments_count: 12
     priority: high
     status: ready
-    
+
   - id: 502
     title: "fix: correct build context for Docker images in PR pods"
     number: 255
@@ -173,7 +173,7 @@ pull_requests:
     comments_count: 8
     priority: high
     status: ready
-    
+
   - id: 503
     title: "docs: update integration test documentation"
     number: 256
@@ -186,7 +186,7 @@ pull_requests:
     comments_count: 3
     priority: medium
     status: draft
-    
+
   - id: 504
     title: "feat: add restaurant menu management interface"
     number: 78
@@ -199,7 +199,7 @@ pull_requests:
     comments_count: 6
     priority: medium
     status: ready
-    
+
   - id: 505
     title: "chore: update Helm chart values for new features"
     number: 23
@@ -230,7 +230,7 @@ projects:
       - name: production
         namespace_pattern: "catalyst-prod-*"
         cluster: ocean
-        
+
   - id: meze-project-1
     name: "Meze Restaurant System"
     description: "Modern Mediterranean restaurant management platform"

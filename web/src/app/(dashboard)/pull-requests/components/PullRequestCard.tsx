@@ -1,33 +1,33 @@
-import Image from 'next/image';
-import { PullRequest } from '@/types/reports';
+import Image from "next/image";
+import { PullRequest } from "@/types/reports";
 
 interface PullRequestCardProps {
   pr: PullRequest;
 }
 
-function getPriorityColor(priority: 'high' | 'medium' | 'low') {
+function getPriorityColor(priority: "high" | "medium" | "low") {
   switch (priority) {
-    case 'high':
-      return 'bg-error-container text-on-error-container';
-    case 'medium':
-      return 'bg-warning-container text-on-warning-container';
-    case 'low':
-      return 'bg-success-container text-on-success-container';
+    case "high":
+      return "bg-error-container text-on-error-container";
+    case "medium":
+      return "bg-warning-container text-on-warning-container";
+    case "low":
+      return "bg-success-container text-on-success-container";
     default:
-      return 'bg-surface-variant text-on-surface-variant';
+      return "bg-surface-variant text-on-surface-variant";
   }
 }
 
-function getStatusColor(status: 'draft' | 'ready' | 'changes_requested') {
+function getStatusColor(status: "draft" | "ready" | "changes_requested") {
   switch (status) {
-    case 'ready':
-      return 'bg-success-container text-on-success-container';
-    case 'changes_requested':
-      return 'bg-warning-container text-on-warning-container';
-    case 'draft':
-      return 'bg-surface-variant text-on-surface-variant';
+    case "ready":
+      return "bg-success-container text-on-success-container";
+    case "changes_requested":
+      return "bg-warning-container text-on-warning-container";
+    case "draft":
+      return "bg-surface-variant text-on-surface-variant";
     default:
-      return 'bg-surface-variant text-on-surface-variant';
+      return "bg-surface-variant text-on-surface-variant";
   }
 }
 
@@ -36,8 +36,8 @@ export function PullRequestCard({ pr }: PullRequestCardProps) {
     <div className="bg-surface border border-outline rounded-lg p-6 shadow-sm">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          <Image 
-            src={pr.author_avatar} 
+          <Image
+            src={pr.author_avatar}
             alt={`${pr.author} avatar`}
             width={32}
             height={32}
@@ -46,11 +46,15 @@ export function PullRequestCard({ pr }: PullRequestCardProps) {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="font-medium text-on-surface">#{pr.number}</span>
-              <span className={`px-2 py-1 text-xs rounded-full ${getPriorityColor(pr.priority)}`}>
+              <span
+                className={`px-2 py-1 text-xs rounded-full ${getPriorityColor(pr.priority)}`}
+              >
                 {pr.priority} priority
               </span>
-              <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(pr.status)}`}>
-                {pr.status.replace('_', ' ')}
+              <span
+                className={`px-2 py-1 text-xs rounded-full ${getStatusColor(pr.status)}`}
+              >
+                {pr.status.replace("_", " ")}
               </span>
             </div>
             <div className="text-sm text-on-surface-variant">
@@ -60,7 +64,7 @@ export function PullRequestCard({ pr }: PullRequestCardProps) {
         </div>
       </div>
 
-      <a 
+      <a
         href={pr.url}
         target="_blank"
         rel="noopener noreferrer"

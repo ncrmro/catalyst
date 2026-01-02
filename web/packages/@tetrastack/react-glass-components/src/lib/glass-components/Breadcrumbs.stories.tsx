@@ -1,19 +1,19 @@
-import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Breadcrumbs } from './Breadcrumbs';
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { Breadcrumbs } from "./Breadcrumbs";
 
 const meta: Meta<typeof Breadcrumbs> = {
-  title: 'Glass Components/Breadcrumbs',
+  title: "Glass Components/Breadcrumbs",
   component: Breadcrumbs,
-  tags: ['autodocs'],
+  tags: ["autodocs"],
 };
 
 export default meta;
 type Story = StoryObj<typeof Breadcrumbs>;
 
 const demoItems = [
-  { label: 'Home', href: '/', isHome: true },
-  { label: 'Recipes', href: '/recipes' },
-  { label: 'Pasta Carbonara' },
+  { label: "Home", href: "/", isHome: true },
+  { label: "Recipes", href: "/recipes" },
+  { label: "Pasta Carbonara" },
 ];
 
 export const Default: Story = {

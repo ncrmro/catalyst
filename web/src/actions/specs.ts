@@ -9,7 +9,14 @@ import { listDirectory, readFile } from "@/actions/version-control-provider";
 import { updateFile } from "@/actions/vcs";
 import type { Spec } from "@/lib/pr-spec-matching";
 import { parseSpecFile } from "@/lib/spec-parser";
-import { createSpecFolder, syncSpecTasksToDb, updateSpecFolder, getSpecBySlug, updateSpecTaskStatus, type NewSpecTask } from "@/models/specs";
+import {
+  createSpecFolder,
+  syncSpecTasksToDb,
+  updateSpecFolder,
+  getSpecBySlug,
+  updateSpecTaskStatus,
+  type NewSpecTask,
+} from "@/models/specs";
 import { db } from "@/db";
 import { specTasks, specFolders } from "@/db/schema/specs";
 import { eq, and } from "drizzle-orm";
@@ -142,7 +149,7 @@ export async function indexSpecFolders(projectId: string) {
         lastSyncedAt: new Date(),
       });
       if (parsed.tasks.length > 0) {
-        const tasksToSync: NewSpecTask[] = parsed.tasks.map(t => ({
+        const tasksToSync: NewSpecTask[] = parsed.tasks.map((t) => ({
           taskId: t.taskId!,
           description: t.description!,
           status: t.status!,
@@ -162,7 +169,7 @@ export async function indexSpecFolders(projectId: string) {
         lastSyncedAt: new Date(),
       });
       if (parsed.tasks.length > 0) {
-        const tasksToSync: NewSpecTask[] = parsed.tasks.map(t => ({
+        const tasksToSync: NewSpecTask[] = parsed.tasks.map((t) => ({
           taskId: t.taskId!,
           description: t.description!,
           status: t.status!,
@@ -190,8 +197,11 @@ export async function syncSpecTasks(projectId: string, specSlug: string) {
   if (!repo) throw new Error("Project repository not found");
 
   // Try reading tasks.md first
-  let contentResult = await readFile(repo.fullName, `specs/${specSlug}/tasks.md`);
-  
+  let contentResult = await readFile(
+    repo.fullName,
+    `specs/${specSlug}/tasks.md`,
+  );
+
   // Fallback to spec.md if tasks.md doesn't exist
   if (!contentResult.success || !contentResult.file) {
     contentResult = await readFile(repo.fullName, `specs/${specSlug}/spec.md`);
@@ -205,7 +215,7 @@ export async function syncSpecTasks(projectId: string, specSlug: string) {
   const spec = await getSpecBySlug(projectId, specSlug);
 
   if (spec && parsed.tasks.length > 0) {
-    const tasksToSync: NewSpecTask[] = parsed.tasks.map(t => ({
+    const tasksToSync: NewSpecTask[] = parsed.tasks.map((t) => ({
       taskId: t.taskId!,
       description: t.description!,
       status: t.status!,
@@ -214,12 +224,14 @@ export async function syncSpecTasks(projectId: string, specSlug: string) {
       specFolderId: spec.id,
     }));
     await syncSpecTasksToDb(spec.id, tasksToSync);
-    
+
     // Update completion percentage
-    const completed = parsed.tasks.filter(t => t.status === "complete").length;
+    const completed = parsed.tasks.filter(
+      (t) => t.status === "complete",
+    ).length;
     const total = parsed.tasks.length;
     const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
-    
+
     await updateSpecFolder(spec.id, {
       completionPercentage: percentage,
       lastSyncedAt: new Date(),
@@ -237,13 +249,13 @@ export async function updateTaskFromPR(
   prTitle: string,
   prBody: string,
   prState: "open" | "closed" | "merged",
-  projectId: string
+  projectId: string,
 ) {
   // Regex to find Task IDs (e.g. T001, T123)
   const taskRegex = /\b(T\d{3})\b/g;
   const matches = new Set([
     ...(prTitle.match(taskRegex) || []),
-    ...(prBody?.match(taskRegex) || [])
+    ...(prBody?.match(taskRegex) || []),
   ]);
 
   if (matches.size === 0) return { updated: 0 };
@@ -259,14 +271,13 @@ export async function updateTaskFromPR(
       })
       .from(specTasks)
       .innerJoin(specFolders, eq(specTasks.specFolderId, specFolders.id))
-      .where(and(
-        eq(specFolders.projectId, projectId),
-        eq(specTasks.taskId, taskId)
-      ));
+      .where(
+        and(eq(specFolders.projectId, projectId), eq(specTasks.taskId, taskId)),
+      );
 
     for (const task of relevantTasks) {
       let newStatus = task.status;
-      
+
       if (prState === "merged") {
         newStatus = "complete";
       } else if (prState === "open") {
@@ -274,9 +285,13 @@ export async function updateTaskFromPR(
       }
 
       if (newStatus !== task.status) {
-        await updateSpecTaskStatus(task.id, newStatus as "pending" | "in_progress" | "complete");
+        await updateSpecTaskStatus(
+          task.id,
+          newStatus as "pending" | "in_progress" | "complete",
+        );
         // Also update the linked PR number
-        await db.update(specTasks)
+        await db
+          .update(specTasks)
           .set({ linkedPrNumber: prNumber })
           .where(eq(specTasks.id, task.id));
         updatedCount++;

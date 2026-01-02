@@ -38,9 +38,7 @@ describe("Projects Model Integration", () => {
   afterAll(async () => {
     // Clean up all created projects
     if (createdProjectIds.length > 0) {
-      await db
-        .delete(projects)
-        .where(inArray(projects.id, createdProjectIds));
+      await db.delete(projects).where(inArray(projects.id, createdProjectIds));
     }
 
     // Clean up team and user (cascades will handle team memberships)
@@ -187,9 +185,9 @@ describe("Projects Model Integration", () => {
       });
 
       expect(updated).toHaveLength(2);
-      expect(updated.every((p) => p.description === "Updated Description")).toBe(
-        true,
-      );
+      expect(
+        updated.every((p) => p.description === "Updated Description"),
+      ).toBe(true);
 
       // Verify in database
       const fromDb = await getProjects({ ids: [project1.id, project2.id] });
@@ -253,9 +251,9 @@ describe("Projects Model Integration", () => {
     });
 
     it("should throw error when project not found", async () => {
-      await expect(
-        incrementPreviewCount("non-existent-id"),
-      ).rejects.toThrow("Project not found");
+      await expect(incrementPreviewCount("non-existent-id")).rejects.toThrow(
+        "Project not found",
+      );
     });
   });
 });

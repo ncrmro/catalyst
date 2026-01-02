@@ -9,7 +9,7 @@ import { listPodsInNamespace } from "@/lib/k8s-pods";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ namespace: string }> }
+  { params }: { params: Promise<{ namespace: string }> },
 ) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -25,7 +25,7 @@ export async function GET(
     console.error("Error fetching pods:", error);
     return NextResponse.json(
       { error: "Failed to fetch pods", pods: [] },
-      { status: 200 } // Return 200 with empty pods to handle gracefully
+      { status: 200 }, // Return 200 with empty pods to handle gracefully
     );
   }
 }

@@ -1,6 +1,6 @@
-import { fetchUserTeams, Team } from '@/actions/teams';
-import { Metadata } from 'next';
-import Link from 'next/link';
+import { fetchUserTeams, Team } from "@/actions/teams";
+import { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Teams - Catalyst",
@@ -10,14 +10,14 @@ export const metadata: Metadata = {
 function TeamCard({ team }: { team: Team }) {
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'owner':
-        return 'bg-primary text-on-primary';
-      case 'admin':
-        return 'bg-secondary text-on-secondary';
-      case 'member':
-        return 'bg-outline text-on-surface';
+      case "owner":
+        return "bg-primary text-on-primary";
+      case "admin":
+        return "bg-secondary text-on-secondary";
+      case "member":
+        return "bg-outline text-on-surface";
       default:
-        return 'bg-outline text-on-surface';
+        return "bg-outline text-on-surface";
     }
   };
 
@@ -36,22 +36,28 @@ function TeamCard({ team }: { team: Team }) {
               </span>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-on-surface">{team.name}</h3>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor(team.role)}`}>
+              <h3 className="text-lg font-semibold text-on-surface">
+                {team.name}
+              </h3>
+              <span
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor(team.role)}`}
+              >
                 {capitalizeRole(team.role)}
               </span>
             </div>
           </div>
-          
+
           {team.description && (
             <p className="text-on-surface-variant mb-3">{team.description}</p>
           )}
-          
+
           <div className="flex items-center gap-4 text-sm text-on-surface-variant">
             <span className="flex items-center gap-1">
               👤 Owner: {team.owner.name || team.owner.email}
             </span>
-            <span>📅 Created {new Date(team.createdAt).toLocaleDateString()}</span>
+            <span>
+              📅 Created {new Date(team.createdAt).toLocaleDateString()}
+            </span>
           </div>
         </div>
       </div>
@@ -71,7 +77,7 @@ export default async function TeamsPage() {
             Teams you&apos;re a member of and their roles
           </p>
           <p className="text-sm text-on-surface-variant mt-2">
-            {teams.length} {teams.length === 1 ? 'team' : 'teams'}
+            {teams.length} {teams.length === 1 ? "team" : "teams"}
           </p>
         </div>
 
@@ -90,10 +96,13 @@ export default async function TeamsPage() {
             <div className="w-24 h-24 bg-surface rounded-full flex items-center justify-center mx-auto mb-4 border border-outline">
               <span className="text-on-surface-variant text-3xl">👥</span>
             </div>
-            <h3 className="text-lg font-medium text-on-surface mb-2">No teams found</h3>
+            <h3 className="text-lg font-medium text-on-surface mb-2">
+              No teams found
+            </h3>
             <p className="text-on-surface-variant max-w-md mx-auto">
-              You haven&apos;t been added to any teams yet. Teams are automatically created when you sign up.
-              If you don&apos;t see any teams, try signing out and signing back in.
+              You haven&apos;t been added to any teams yet. Teams are
+              automatically created when you sign up. If you don&apos;t see any
+              teams, try signing out and signing back in.
             </p>
             <div className="mt-6">
               <Link

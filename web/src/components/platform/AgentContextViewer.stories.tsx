@@ -46,4 +46,3 @@ export const Outdated: Story = {
     needsRefresh: true,
   },
 };
-

@@ -2,7 +2,10 @@
 
 import { db, projects } from "@/db";
 import { eq } from "drizzle-orm";
-import { ProjectConfigSchema, type ProjectConfig } from "@/types/project-config";
+import {
+  ProjectConfigSchema,
+  type ProjectConfig,
+} from "@/types/project-config";
 import { z } from "zod";
 import { auth } from "@/auth";
 
@@ -48,7 +51,10 @@ export async function updateProjectConfig(
     return { success: true };
   } catch (error) {
     if (error instanceof z.ZodError) {
-        return { success: false, error: "Invalid configuration: " + error.message };
+      return {
+        success: false,
+        error: "Invalid configuration: " + error.message,
+      };
     }
     return { success: false, error: "Failed to update configuration" };
   }

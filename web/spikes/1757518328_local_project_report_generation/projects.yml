@@ -126,7 +126,8 @@ projects:
         type: improvement
         state: open
       - id: 3340051966
-        title: "User periodic report of prioritized blockers, next priorities based on
+        title:
+          "User periodic report of prioritized blockers, next priorities based on
           active projects repos. "
         number: 78
         repository: catalyst
@@ -557,7 +558,8 @@ projects:
         type: feature
         state: open
       - id: 3344414401
-        title: "MCP Server: Tell Agent to investigate issue happening in environment.
+        title:
+          "MCP Server: Tell Agent to investigate issue happening in environment.
           #124"
         number: 111
         repository: catalyst
@@ -585,7 +587,8 @@ projects:
         state: closed
     pullRequests:
       - id: 2806687765
-        title: Add TypeScript script for testing periodic report agent with different AI
+        title:
+          Add TypeScript script for testing periodic report agent with different AI
           models
         number: 285
         author: Copilot
@@ -634,7 +637,8 @@ projects:
         priority: medium
         status: draft
       - id: 2805472622
-        title: Create NextJS Starter Template with Authentication, Database, AI SDK, and
+        title:
+          Create NextJS Starter Template with Authentication, Database, AI SDK, and
           Testing
         number: 280
         author: Copilot
@@ -647,7 +651,8 @@ projects:
         priority: medium
         status: draft
       - id: 2790822806
-        title: Implement real Kubernetes AuthenticationConfiguration functionality for
+        title:
+          Implement real Kubernetes AuthenticationConfiguration functionality for
           GitHub OIDC with comprehensive testing
         number: 272
         author: Copilot
@@ -1122,7 +1127,8 @@ projects:
         priority: medium
         status: draft
       - id: 2781896707
-        title: Move E2E testing best practices to dedicated README and update copilot
+        title:
+          Move E2E testing best practices to dedicated README and update copilot
           instructions
         number: 187
         author: Copilot
@@ -1147,7 +1153,8 @@ projects:
         priority: medium
         status: ready
       - id: 2773623547
-        title: "[WIP] In test action, create new job called preview-environment a new
+        title:
+          "[WIP] In test action, create new job called preview-environment a new
           turso db with the cli, seed it, deploy cloudflare preview environment
           configured to use this turso db."
         number: 157

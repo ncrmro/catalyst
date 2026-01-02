@@ -1,7 +1,10 @@
 import { fetchProjectBySlug } from "@/actions/projects";
 import { indexSpecFolders } from "@/actions/specs";
 import { getProjectSpecs } from "@/models/specs";
-import { SpecBrowser, type SpecFolder } from "@/components/platform/SpecBrowser";
+import {
+  SpecBrowser,
+  type SpecFolder,
+} from "@/components/platform/SpecBrowser";
 import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
@@ -57,8 +60,18 @@ export default async function SpecsPage({ params }: SpecsPageProps) {
             type="submit"
             className="px-4 py-2 bg-surface-variant text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-variant/80 transition-colors flex items-center gap-2"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
             </svg>
             Sync from Repo
           </button>
@@ -66,17 +79,34 @@ export default async function SpecsPage({ params }: SpecsPageProps) {
       </div>
 
       {uiSpecs.length > 0 ? (
-        <SpecBrowser specs={uiSpecs} projectId={project.id} projectSlug={slug} />
+        <SpecBrowser
+          specs={uiSpecs}
+          projectId={project.id}
+          projectSlug={slug}
+        />
       ) : (
         <div className="text-center py-12 border-2 border-dashed border-outline/30 rounded-xl">
           <div className="w-16 h-16 bg-surface-variant rounded-full flex items-center justify-center mx-auto mb-4 text-on-surface-variant">
-            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <svg
+              className="w-8 h-8"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
             </svg>
           </div>
-          <h3 className="text-lg font-medium text-on-surface">No specs found</h3>
+          <h3 className="text-lg font-medium text-on-surface">
+            No specs found
+          </h3>
           <p className="text-on-surface-variant max-w-md mx-auto mt-2 mb-6">
-            Create a `specs/` directory in your repository and add markdown files to get started.
+            Create a `specs/` directory in your repository and add markdown
+            files to get started.
           </p>
           <form action={handleRefresh}>
             <button

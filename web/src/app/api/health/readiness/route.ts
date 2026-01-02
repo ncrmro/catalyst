@@ -1,13 +1,13 @@
-import { NextResponse } from 'next/server';
-import { db } from '@/db';
-import { sql } from 'drizzle-orm';
+import { NextResponse } from "next/server";
+import { db } from "@/db";
+import { sql } from "drizzle-orm";
 
 export async function GET() {
   // In mocked mode, skip database check
-  if (process.env.MOCKED === '1') {
+  if (process.env.MOCKED === "1") {
     return NextResponse.json({
       success: true,
-      message: 'Health check successful (mocked mode)',
+      message: "Health check successful (mocked mode)",
       mocked: true,
     });
   }
@@ -15,22 +15,22 @@ export async function GET() {
   try {
     // Simple query to test database connectivity
     const result = await db.execute(sql`SELECT 1 as test`);
-    
+
     return NextResponse.json({
       success: true,
-      message: 'Database connection successful',
+      message: "Database connection successful",
       result: result.rows[0],
     });
   } catch (error) {
-    console.error('Database connection error:', error);
-    
+    console.error("Database connection error:", error);
+
     return NextResponse.json(
       {
         success: false,
-        message: 'Database connection failed',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        message: "Database connection failed",
+        error: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

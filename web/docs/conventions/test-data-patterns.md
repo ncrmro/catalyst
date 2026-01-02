@@ -36,19 +36,19 @@ Rails FactoryBot-inspired pattern using **fishery** + **@faker-js/faker** for ge
 ### Example Usage
 
 ```typescript
-import { userFactory, mealFactory } from '../factories';
+import { userFactory, mealFactory } from "../factories";
 
 // Build with defaults
 const user = userFactory.build();
 
 // Override specific fields
-const admin = userFactory.build({ name: 'Alice', admin: true });
+const admin = userFactory.build({ name: "Alice", admin: true });
 
 // Use traits (chainable)
 const processedFatFood = foodFactory.processed().fat().build();
 
 // Persist to database via model layer
-const savedUser = await userFactory.create({ name: 'Bob' });
+const savedUser = await userFactory.create({ name: "Bob" });
 
 // Build multiple
 const users = userFactory.buildList(5);
@@ -58,7 +58,7 @@ const meal = mealFactory.build(
   {},
   {
     associations: {
-      creator: userFactory.build({ name: 'Chef' }),
+      creator: userFactory.build({ name: "Chef" }),
     },
   },
 );
@@ -68,20 +68,20 @@ const meal = mealFactory.build(
 
 ```typescript
 // tests/factories/post.factory.ts
-import { Factory } from '@/lib/factories';
-import type { CreatePostModelData } from '@/models/posts';
-import { userFactory } from './user.factory';
+import { Factory } from "@/lib/factories";
+import type { CreatePostModelData } from "@/models/posts";
+import { userFactory } from "./user.factory";
 
 class PostFactory extends Factory<CreatePostModelData> {
   // Define traits for common variations
   published() {
-    return this.params({ status: 'published' });
+    return this.params({ status: "published" });
   }
 
   // Implement create() for database persistence
   async create(params) {
     const post = this.build(params);
-    const { createPosts } = await import('@/models/posts');
+    const { createPosts } = await import("@/models/posts");
     const [created] = await createPosts([post]);
     return created;
   }
@@ -91,14 +91,14 @@ export const postFactory = PostFactory.define(({ sequence, associations }) => ({
   title: Factory.faker.lorem.sentence(),
   content: Factory.faker.lorem.paragraphs(3),
   author: associations.author || userFactory.build(),
-  status: 'draft',
+  status: "draft",
 }));
 ```
 
 **Export from `tests/factories/index.ts`:**
 
 ```typescript
-export { postFactory } from './post.factory';
+export { postFactory } from "./post.factory";
 ```
 
 ### Key Patterns
@@ -178,12 +178,12 @@ Playwright test fixtures provide pre-configured test contexts with authenticatio
 Import from `tests/e2e/fixtures/base-fixtures.ts`:
 
 ```typescript
-import { test, expect } from './fixtures/base-fixtures';
+import { test, expect } from "./fixtures/base-fixtures";
 
-test('my test', async ({ onboardedUser }) => {
+test("my test", async ({ onboardedUser }) => {
   const { page, userId } = onboardedUser;
   // User is already authenticated and onboarded
-  await page.goto('/meal-plan');
+  await page.goto("/meal-plan");
 });
 ```
 
@@ -209,8 +209,8 @@ test('my test', async ({ onboardedUser }) => {
 ### Creating Custom Fixtures
 
 ```typescript
-import { test as base } from './base-fixtures';
-import type { OnboardedContext } from './base-fixtures';
+import { test as base } from "./base-fixtures";
+import type { OnboardedContext } from "./base-fixtures";
 
 type MealPlanFixtures = {
   mealPlanWithMeals: OnboardedContext & { mealPlanId: number };
@@ -221,7 +221,7 @@ export const test = base.extend<MealPlanFixtures>({
     const { page, userId } = onboardedUser;
 
     // Setup: Create meal plan with meals
-    const { createMealPlans } = await import('@/models/meal-plans');
+    const { createMealPlans } = await import("@/models/meal-plans");
     const [mealPlan] = await createMealPlans([
       {
         householdId: 1,
@@ -400,7 +400,7 @@ E2E fixtures can use factories for data generation:
 
 ```typescript
 // tests/e2e/fixtures/meal-plan-fixtures.ts
-import { mealFactory } from '../../factories';
+import { mealFactory } from "../../factories";
 
 export const test = base.extend<MealPlanFixtures>({
   mealPlanWithMeals: async ({ onboardedUser }, use) => {
@@ -454,12 +454,12 @@ export const test = base.extend<MealPlanFixtures>({
 **Before:**
 
 ```typescript
-test('create meal', async () => {
+test("create meal", async () => {
   const user = await db
     .insert(users)
     .values({
-      email: 'test@example.com',
-      name: 'Test User',
+      email: "test@example.com",
+      name: "Test User",
       admin: false,
     })
     .returning();
@@ -467,8 +467,8 @@ test('create meal', async () => {
   const meal = await db
     .insert(meals)
     .values({
-      name: 'Test Meal',
-      description: 'A test meal',
+      name: "Test Meal",
+      description: "A test meal",
       creatorId: user.id,
     })
     .returning();
@@ -480,9 +480,9 @@ test('create meal', async () => {
 **After:**
 
 ```typescript
-import { userFactory, mealFactory } from '../factories';
+import { userFactory, mealFactory } from "../factories";
 
-test('create meal', async () => {
+test("create meal", async () => {
   const user = await userFactory.create();
   const meal = await mealFactory.create({ creatorId: user.id });
 
@@ -495,19 +495,19 @@ test('create meal', async () => {
 **Before:**
 
 ```typescript
-test('create meal plan', async ({ page }) => {
+test("create meal plan", async ({ page }) => {
   // Sign in via UI (slow)
-  await page.goto('/sign-in');
-  await page.fill('[name="email"]', 'test@example.com');
-  await page.fill('[name="password"]', 'password');
+  await page.goto("/sign-in");
+  await page.fill('[name="email"]', "test@example.com");
+  await page.fill('[name="password"]', "password");
   await page.click('button[type="submit"]');
 
   // Complete onboarding via UI (very slow)
-  await page.goto('/onboarding');
+  await page.goto("/onboarding");
   // ... 10+ steps of onboarding
 
   // Finally, test the actual feature
-  await page.goto('/meal-plan');
+  await page.goto("/meal-plan");
   // ... test code
 });
 ```
@@ -515,13 +515,13 @@ test('create meal plan', async ({ page }) => {
 **After:**
 
 ```typescript
-import { test } from './fixtures/base-fixtures';
+import { test } from "./fixtures/base-fixtures";
 
-test('create meal plan', async ({ onboardedUser }) => {
+test("create meal plan", async ({ onboardedUser }) => {
   const { page } = onboardedUser;
 
   // User is already authenticated and onboarded (fast)
-  await page.goto('/meal-plan');
+  await page.goto("/meal-plan");
   // ... test code
 });
 ```

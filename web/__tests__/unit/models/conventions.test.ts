@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createConventionRule, getProjectConventionRules, updateConventionRule } from "@/models/conventions";
+import {
+  createConventionRule,
+  getProjectConventionRules,
+  updateConventionRule,
+} from "@/models/conventions";
 
 const mocks = vi.hoisted(() => {
   // Chain for insert
@@ -49,11 +53,11 @@ vi.mock("@/db", () => ({
 describe("Convention Model", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     // Re-establish the chain relationships (since clearAllMocks clears return values too)
     mocks.mockInsert.mockReturnValue({ values: mocks.mockValues });
     mocks.mockValues.mockReturnValue({ returning: mocks.mockReturning });
-    
+
     mocks.mockUpdate.mockReturnValue({ set: mocks.mockSet });
     mocks.mockSet.mockReturnValue({ where: mocks.mockWhere });
     mocks.mockWhere.mockReturnValue({ returning: mocks.mockWhereReturning });
@@ -79,10 +83,12 @@ describe("Convention Model", () => {
 
     expect(result).toEqual(mockRule);
     expect(mocks.mockInsert).toHaveBeenCalled();
-    expect(mocks.mockValues).toHaveBeenCalledWith(expect.objectContaining({
-      projectId: "proj-1",
-      ruleName: "ESLint"
-    }));
+    expect(mocks.mockValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "proj-1",
+        ruleName: "ESLint",
+      }),
+    );
   });
 
   it("should get project convention rules", async () => {
@@ -98,11 +104,15 @@ describe("Convention Model", () => {
     const mockUpdatedRule = { id: "rule-1", ruleName: "Updated Name" };
     mocks.mockWhereReturning.mockResolvedValue([mockUpdatedRule]);
 
-    const result = await updateConventionRule("rule-1", { ruleName: "Updated Name" });
+    const result = await updateConventionRule("rule-1", {
+      ruleName: "Updated Name",
+    });
     expect(result).toEqual(mockUpdatedRule);
     expect(mocks.mockUpdate).toHaveBeenCalled();
-    expect(mocks.mockSet).toHaveBeenCalledWith(expect.objectContaining({
-      ruleName: "Updated Name"
-    }));
+    expect(mocks.mockSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ruleName: "Updated Name",
+      }),
+    );
   });
 });

@@ -56,15 +56,15 @@ import {
   MessageList,
   ChatInput,
   ClarifyingQuestionsCard,
-} from '@tetrastack/react-agent-chat';
+} from "@tetrastack/react-agent-chat";
 import {
   getMessageText,
   isClarifyingQuestionsPart,
-} from '@tetrastack/react-agent-chat/utils';
+} from "@tetrastack/react-agent-chat/utils";
 
 function ChatPage() {
   const { messages, sendMessage, addToolOutput, isLoading } = useAgentChat({
-    apiEndpoint: '/api/chat',
+    apiEndpoint: "/api/chat",
   });
 
   const handleToolSubmit = (toolCallId: string, output: unknown) => {
@@ -106,7 +106,7 @@ function ChatPage() {
 ### Using useClarifyingQuestions Hook Directly
 
 ```tsx
-import { useClarifyingQuestions } from '@tetrastack/react-agent-chat/hooks';
+import { useClarifyingQuestions } from "@tetrastack/react-agent-chat/hooks";
 
 function CustomQuestionsUI({ questions, toolCallId, onSubmit }) {
   const {
@@ -140,7 +140,7 @@ function CustomQuestionsUI({ questions, toolCallId, onSubmit }) {
             onClick={() => setActiveTab(i)}
           >
             {q.header}
-            {isAnswered(i) && ' ✓'}
+            {isAnswered(i) && " ✓"}
           </button>
         ))}
       </div>
@@ -148,11 +148,11 @@ function CustomQuestionsUI({ questions, toolCallId, onSubmit }) {
       {/* Current Question */}
       <div role="tabpanel">
         <p>{currentQuestion.question}</p>
-        <div role={currentQuestion.multiSelect ? 'group' : 'radiogroup'}>
+        <div role={currentQuestion.multiSelect ? "group" : "radiogroup"}>
           {currentQuestion.options.map((opt) => (
             <button
               key={opt.label}
-              role={currentQuestion.multiSelect ? 'checkbox' : 'radio'}
+              role={currentQuestion.multiSelect ? "checkbox" : "radio"}
               aria-checked={isOptionSelected(activeTab, opt.label)}
               onClick={() => selectOption(activeTab, opt.label)}
             >
@@ -176,13 +176,13 @@ function CustomQuestionsUI({ questions, toolCallId, onSubmit }) {
 ### Processing Message Parts
 
 ```tsx
-import { useMessageParts } from '@tetrastack/react-agent-chat/hooks';
+import { useMessageParts } from "@tetrastack/react-agent-chat/hooks";
 
 function MessageWithTools({ message }) {
   const { text, tools, hasTools, isStreaming } = useMessageParts(message);
 
   return (
-    <div className={isStreaming ? 'streaming' : ''}>
+    <div className={isStreaming ? "streaming" : ""}>
       {/* Text content */}
       <p>{text.text}</p>
 
@@ -192,7 +192,7 @@ function MessageWithTools({ message }) {
           <div key={tool.toolCallId}>
             <span>Tool: {tool.toolName}</span>
             <span>State: {tool.state}</span>
-            {tool.state === 'output-available' && (
+            {tool.state === "output-available" && (
               <pre>{JSON.stringify(tool.output, null, 2)}</pre>
             )}
           </div>
@@ -314,12 +314,12 @@ pnpm add @tetrastack/react-agent-chat
 
 ```typescript
 // app/api/chat/route.ts
-import { tool } from 'ai';
-import { clarifyingQuestionsInputSchema } from '@tetrastack/react-agent-chat/types';
+import { tool } from "ai";
+import { clarifyingQuestionsInputSchema } from "@tetrastack/react-agent-chat/types";
 
 const tools = {
   askClarifyingQuestions: tool({
-    description: 'Ask clarifying questions with predefined options',
+    description: "Ask clarifying questions with predefined options",
     inputSchema: clarifyingQuestionsInputSchema,
     // No execute - client-side tool
   }),
@@ -330,13 +330,13 @@ const tools = {
 
 ```tsx
 // components/Chat.tsx
-import { ClarifyingQuestionsCard } from '@tetrastack/react-agent-chat';
+import { ClarifyingQuestionsCard } from "@tetrastack/react-agent-chat";
 import {
   isClarifyingQuestionsPart,
   getToolInput,
   getToolCallId,
   getToolState,
-} from '@tetrastack/react-agent-chat/utils';
+} from "@tetrastack/react-agent-chat/utils";
 
 function renderToolPart(part, addToolOutput) {
   if (isClarifyingQuestionsPart(part)) {

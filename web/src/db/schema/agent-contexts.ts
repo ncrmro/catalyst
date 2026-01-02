@@ -1,4 +1,10 @@
-import { pgTable, text, varchar, timestamp, boolean } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  varchar,
+  timestamp,
+  boolean,
+} from "drizzle-orm/pg-core";
 import { projects } from "../schema";
 
 export const agentContexts = pgTable("agent_contexts", {

@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useState, useCallback, useEffect, KeyboardEvent } from 'react';
-import type { ClarifyingQuestion, ClarifyingQuestionsOutput } from '../types';
+import { useState, useCallback, useEffect, KeyboardEvent } from "react";
+import type { ClarifyingQuestion, ClarifyingQuestionsOutput } from "../types";
 
 /**
  * Options for useClarifyingQuestions hook
@@ -113,7 +113,7 @@ export function useClarifyingQuestions(
 
   // Initialize state from localStorage if available
   const [activeTab, setActiveTab] = useState<number>(() => {
-    if (persistKey && typeof window !== 'undefined') {
+    if (persistKey && typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem(persistKey);
         if (saved) {
@@ -131,7 +131,7 @@ export function useClarifyingQuestions(
 
   const [answers, setAnswers] = useState<Record<string, string | string[]>>(
     () => {
-      if (persistKey && typeof window !== 'undefined') {
+      if (persistKey && typeof window !== "undefined") {
         try {
           const saved = localStorage.getItem(persistKey);
           if (saved) {
@@ -153,7 +153,7 @@ export function useClarifyingQuestions(
 
   // Persist to localStorage on changes
   useEffect(() => {
-    if (persistKey && typeof window !== 'undefined') {
+    if (persistKey && typeof window !== "undefined") {
       const state: PersistedState = {
         toolCallId,
         answers,
@@ -235,7 +235,7 @@ export function useClarifyingQuestions(
           [String(questionIndex)]: question.multiSelect ? [text] : text,
         }));
         setShowOther((prev) => ({ ...prev, [String(questionIndex)]: false }));
-        setOtherText((prev) => ({ ...prev, [String(questionIndex)]: '' }));
+        setOtherText((prev) => ({ ...prev, [String(questionIndex)]: "" }));
       }
     },
     [questions, otherText],
@@ -260,7 +260,7 @@ export function useClarifyingQuestions(
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       switch (event.key) {
-        case 'Tab':
+        case "Tab":
           if (event.shiftKey) {
             event.preventDefault();
             prevTab();
@@ -271,13 +271,13 @@ export function useClarifyingQuestions(
             nextTab();
           }
           break;
-        case 'Enter':
+        case "Enter":
           if (allAnswered) {
             event.preventDefault();
             submit();
           }
           break;
-        case 'Escape':
+        case "Escape":
           // Close "Other" input if open
           setShowOther((prev) => ({
             ...prev,

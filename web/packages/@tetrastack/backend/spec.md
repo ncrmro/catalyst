@@ -14,11 +14,11 @@ Schemas are available for both SQLite and PostgreSQL, optimized for each databas
 
 ```typescript
 // SQLite schemas
-import { sqlite } from '@tetrastack/backend/database';
+import { sqlite } from "@tetrastack/backend/database";
 const { users, accounts, sessions, verificationTokens, uploads } = sqlite;
 
 // PostgreSQL schemas
-import { postgres } from '@tetrastack/backend/database';
+import { postgres } from "@tetrastack/backend/database";
 const { users, accounts, sessions, verificationTokens, uploads } = postgres;
 ```
 
@@ -54,8 +54,8 @@ The auth system supports two runtime modes:
 **Node.js Mode** (with database):
 
 ```typescript
-import { createAuth } from '@tetrastack/backend/auth';
-import { database } from './database';
+import { createAuth } from "@tetrastack/backend/auth";
+import { database } from "./database";
 
 export const { handlers, auth, signIn, signOut } = createAuth({ database });
 ```
@@ -63,7 +63,7 @@ export const { handlers, auth, signIn, signOut } = createAuth({ database });
 **Edge Mode** (without database):
 
 ```typescript
-import { createAuth } from '@tetrastack/backend/auth';
+import { createAuth } from "@tetrastack/backend/auth";
 
 export const { auth } = createAuth();
 ```
@@ -85,16 +85,16 @@ Projects can provide their own auth providers:
 import {
   createAuth,
   providers as defaultProviders,
-} from '@tetrastack/backend/auth';
-import GitHub from 'next-auth/providers/github';
-import Google from 'next-auth/providers/google';
+} from "@tetrastack/backend/auth";
+import GitHub from "next-auth/providers/github";
+import Google from "next-auth/providers/google";
 
 export const { handlers, auth, signIn, signOut } = createAuth({
   database,
   providers: [
     ...defaultProviders,
-    GitHub({ clientId: '...', clientSecret: '...' }),
-    Google({ clientId: '...', clientSecret: '...' }),
+    GitHub({ clientId: "...", clientSecret: "..." }),
+    Google({ clientId: "...", clientSecret: "..." }),
   ],
 });
 ```
@@ -171,22 +171,22 @@ Next.js 16 introduces `proxy.js` (formerly `middleware.js`) for edge-deployed re
 
 ```typescript
 // src/proxy.ts
-import { auth } from '@/lib/auth';
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 export default async function proxy(req: NextRequest) {
   const session = await auth();
 
-  if (!session && req.nextUrl.pathname.startsWith('/dashboard')) {
-    return NextResponse.redirect(new URL('/login', req.url));
+  if (!session && req.nextUrl.pathname.startsWith("/dashboard")) {
+    return NextResponse.redirect(new URL("/login", req.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*'],
+  matcher: ["/dashboard/:path*"],
 };
 ```
 
@@ -194,7 +194,7 @@ For edge deployment with auth-only verification (no database access):
 
 ```typescript
 // src/lib/auth.edge.ts
-import { createAuth } from '@tetrastack/backend/auth';
+import { createAuth } from "@tetrastack/backend/auth";
 
 export const { auth } = createAuth(); // No database for edge runtime
 ```
@@ -215,7 +215,7 @@ Time-ordered UUIDs that provide:
 - No collision risk across distributed systems
 
 ```typescript
-import { uuidv7 } from '@tetrastack/backend/utils';
+import { uuidv7 } from "@tetrastack/backend/utils";
 
 const id = uuidv7(); // "018f6b2a-5c3d-7def-8abc-1234567890ab"
 ```
@@ -225,10 +225,10 @@ const id = uuidv7(); // "018f6b2a-5c3d-7def-8abc-1234567890ab"
 URL-safe slug generation from strings.
 
 ```typescript
-import { slugify } from '@tetrastack/backend/utils';
+import { slugify } from "@tetrastack/backend/utils";
 
-slugify('Hello World!'); // "hello-world"
-slugify('My Article Title', { separator: '_' }); // "my_article_title"
+slugify("Hello World!"); // "hello-world"
+slugify("My Article Title", { separator: "_" }); // "my_article_title"
 ```
 
 **Options:**
@@ -268,12 +268,12 @@ R2_PUBLIC_URL; // Optional: public bucket URL for direct access
 #### Methods
 
 ```typescript
-import { uploads } from '@tetrastack/backend/uploads';
+import { uploads } from "@tetrastack/backend/uploads";
 
 // Generate presigned upload URL
 const { url, key } = await uploads.createPresignedUpload({
-  filename: 'document.pdf',
-  contentType: 'application/pdf',
+  filename: "document.pdf",
+  contentType: "application/pdf",
   maxSizeBytes: 10_000_000, // 10MB
   expiresIn: 3600, // 1 hour
 });
@@ -287,7 +287,7 @@ const downloadUrl = await uploads.getSignedUrl(key, {
 await uploads.delete(key);
 
 // List objects with prefix
-const objects = await uploads.list({ prefix: 'uploads/user-123/' });
+const objects = await uploads.list({ prefix: "uploads/user-123/" });
 ```
 
 #### Storage Conventions

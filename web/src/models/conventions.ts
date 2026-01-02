@@ -16,7 +16,10 @@ export async function createConventionRule(rule: NewConventionRule) {
   return created;
 }
 
-export async function updateConventionRule(id: string, updates: Partial<ConventionRule>) {
+export async function updateConventionRule(
+  id: string,
+  updates: Partial<ConventionRule>,
+) {
   const [updated] = await db
     .update(conventionRules)
     .set({ ...updates, updatedAt: new Date() })

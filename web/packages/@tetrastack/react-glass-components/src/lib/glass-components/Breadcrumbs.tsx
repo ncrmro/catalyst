@@ -1,5 +1,5 @@
-import type * as React from 'react';
-import { cn } from './utils';
+import type * as React from "react";
+import { cn } from "./utils";
 
 export interface BreadcrumbItem {
   label: string;
@@ -7,18 +7,18 @@ export interface BreadcrumbItem {
   isHome?: boolean;
 }
 
-export interface BreadcrumbsProps extends React.ComponentProps<'nav'> {
+export interface BreadcrumbsProps extends React.ComponentProps<"nav"> {
   items: BreadcrumbItem[];
   showHomeIcon?: boolean;
   /** Optional home icon component to display for home breadcrumbs */
   HomeIcon?: React.ComponentType<{
     className?: string;
-    'aria-hidden'?: boolean;
+    "aria-hidden"?: boolean;
   }>;
   /** Optional separator icon component between breadcrumbs */
   SeparatorIcon?: React.ComponentType<{
     className?: string;
-    'aria-hidden'?: boolean;
+    "aria-hidden"?: boolean;
   }>;
   LinkComponent?: React.ElementType<{
     href: string;
@@ -36,7 +36,7 @@ export function Breadcrumbs({
   showHomeIcon = true,
   HomeIcon,
   SeparatorIcon,
-  LinkComponent = 'a',
+  LinkComponent = "a",
   ...props
 }: BreadcrumbsProps) {
   if (!items || items.length === 0) {
@@ -46,7 +46,7 @@ export function Breadcrumbs({
   return (
     <nav
       aria-label="Breadcrumb"
-      className={cn('flex items-center space-x-2 text-sm', className)}
+      className={cn("flex items-center space-x-2 text-sm", className)}
       {...props}
     >
       <ol className="flex items-center space-x-2">
@@ -73,10 +73,10 @@ export function Breadcrumbs({
                 <LinkComponent
                   href={item.href}
                   className={cn(
-                    'flex items-center gap-1 hover:text-primary transition-colors',
+                    "flex items-center gap-1 hover:text-primary transition-colors",
                     isLast
-                      ? 'text-on-surface font-medium cursor-default'
-                      : 'text-on-surface-variant',
+                      ? "text-on-surface font-medium cursor-default"
+                      : "text-on-surface-variant",
                   )}
                 >
                   {showIcon && HomeIcon && (
@@ -87,12 +87,12 @@ export function Breadcrumbs({
               ) : (
                 <span
                   className={cn(
-                    'flex items-center gap-1',
+                    "flex items-center gap-1",
                     isLast
-                      ? 'text-on-surface font-medium'
-                      : 'text-on-surface-variant',
+                      ? "text-on-surface font-medium"
+                      : "text-on-surface-variant",
                   )}
-                  aria-current={isLast ? 'page' : undefined}
+                  aria-current={isLast ? "page" : undefined}
                 >
                   {showIcon && HomeIcon && (
                     <HomeIcon className="h-4 w-4" aria-hidden={true} />

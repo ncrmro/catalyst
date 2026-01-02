@@ -5,8 +5,8 @@
  */
 
 // Load environment variables
-import 'dotenv/config';
-import { seedDefaultUsers } from '@/lib/seed';
+import "dotenv/config";
+import { seedDefaultUsers } from "@/lib/seed";
 
 type SeedResult = {
   success: boolean;
@@ -26,18 +26,18 @@ type SeedResult = {
 
 async function main(): Promise<void> {
   try {
-    console.log('Starting database seeding...');
-    
+    console.log("Starting database seeding...");
+
     // seedDefaultUsers now automatically handles mocked vs non-mocked mode
-    const result = await seedDefaultUsers() as SeedResult;
-    
+    const result = (await seedDefaultUsers()) as SeedResult;
+
     if (result.success) {
-      console.log('Database seeding completed successfully!');
+      console.log("Database seeding completed successfully!");
       console.log(result.message);
-      
+
       if (result.results) {
         result.results.forEach((r, i) => {
-          console.log(`User ${i+1}: ${r.message}`);
+          console.log(`User ${i + 1}: ${r.message}`);
           if (r.data) {
             if (r.data.userEmail) console.log(`  Email: ${r.data.userEmail}`);
             if (r.data.projectsCount) {
@@ -48,12 +48,15 @@ async function main(): Promise<void> {
         });
       }
     } else {
-      console.error('Error seeding database:', result.message);
+      console.error("Error seeding database:", result.message);
     }
-    
+
     process.exit(0);
   } catch (error) {
-    console.error('Error seeding database:', error instanceof Error ? error.message : String(error));
+    console.error(
+      "Error seeding database:",
+      error instanceof Error ? error.message : String(error),
+    );
     process.exit(1);
   }
 }

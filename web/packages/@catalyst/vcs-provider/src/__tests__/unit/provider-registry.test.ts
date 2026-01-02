@@ -8,9 +8,7 @@ import type {
   PRComment,
   WebhookEvent,
   Branch,
-  
   CIStatusSummary,
-  
   Repository,
 } from "../../types";
 
@@ -36,18 +34,19 @@ class MockProvider implements VCSProvider {
 
   listUserRepositories = vi.fn().mockResolvedValue([]);
   listOrgRepositories = vi.fn().mockResolvedValue([]);
-  getRepository = vi
-    .fn()
-    .mockImplementation(async (_client, _owner, repo) => ({
-      id: "1",
-      name: repo,
-      fullName: `owner/${repo}`,
-      owner: "owner",
-      private: false,
-      defaultBranch: "main",
-      htmlUrl: "",
-      updatedAt: new Date(),
-    } as Repository));
+  getRepository = vi.fn().mockImplementation(
+    async (_client, _owner, repo) =>
+      ({
+        id: "1",
+        name: repo,
+        fullName: `owner/${repo}`,
+        owner: "owner",
+        private: false,
+        defaultBranch: "main",
+        htmlUrl: "",
+        updatedAt: new Date(),
+      }) as Repository,
+  );
   getFileContent = vi.fn().mockResolvedValue(null);
   getDirectoryContent = vi.fn().mockResolvedValue([]);
 
@@ -68,15 +67,13 @@ class MockProvider implements VCSProvider {
   createBranch = vi
     .fn()
     .mockResolvedValue({ name: "test-branch", sha: "sha" } as Branch);
-  updateFile = vi
-    .fn()
-    .mockResolvedValue({
-      name: "file",
-      path: "path",
-      content: "content",
-      sha: "sha",
-      htmlUrl: "url",
-    } as FileContent);
+  updateFile = vi.fn().mockResolvedValue({
+    name: "file",
+    path: "path",
+    content: "content",
+    sha: "sha",
+    htmlUrl: "url",
+  } as FileContent);
 
   // CI/CD
   getCIStatus = vi.fn().mockResolvedValue(null as unknown as CIStatusSummary);

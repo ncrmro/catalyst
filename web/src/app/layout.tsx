@@ -28,7 +28,9 @@ export default function RootLayout({
                 TS
               </div>
               <div className="flex flex-col leading-tight">
-                <span className="text-sm text-on-surface-variant">Catalyst</span>
+                <span className="text-sm text-on-surface-variant">
+                  Catalyst
+                </span>
                 <span className="text-base font-semibold text-on-surface">
                   Preview Platform
                 </span>

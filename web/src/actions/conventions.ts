@@ -2,7 +2,10 @@
 
 import { auth } from "@/auth";
 import { fetchProjectById } from "@/actions/projects";
-import { createConventionRule, getProjectConventionRules } from "@/models/conventions";
+import {
+  createConventionRule,
+  getProjectConventionRules,
+} from "@/models/conventions";
 import { updateFile, createPullRequest } from "@/actions/vcs";
 import { readFile } from "@/actions/version-control-provider";
 
@@ -39,12 +42,14 @@ const DEFAULT_CONVENTIONS = [
   {
     type: "commit",
     ruleName: "Conventional Commits",
-    config: { types: ["feat", "fix", "chore", "docs", "style", "refactor", "test"] },
+    config: {
+      types: ["feat", "fix", "chore", "docs", "style", "refactor", "test"],
+    },
   },
 ];
 
 export async function scaffoldProjectConventions(
-  projectId: string
+  projectId: string,
 ): Promise<ConventionScaffoldResult> {
   const session = await auth();
   if (!session?.user?.id) {
@@ -76,7 +81,7 @@ export async function scaffoldProjectConventions(
     if (repo) {
       const [owner, repoName] = repo.fullName.split("/");
       const branchName = "chore/scaffold-conventions";
-      
+
       // Update/create config file
       await updateFile({
         owner,
@@ -86,7 +91,7 @@ export async function scaffoldProjectConventions(
         message: "chore: scaffold project conventions",
         branch: branchName,
       });
-      
+
       // Create PR
       try {
         const pr = await createPullRequest({
@@ -107,16 +112,16 @@ export async function scaffoldProjectConventions(
     return { success: true, rulesCreated, prUrl };
   } catch (error) {
     console.error("Error scaffolding conventions:", error);
-    return { 
-      success: false, 
-      rulesCreated: 0, 
-      error: error instanceof Error ? error.message : "Unknown error" 
+    return {
+      success: false,
+      rulesCreated: 0,
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
 
 export async function detectConventionDrift(
-  projectId: string
+  projectId: string,
 ): Promise<DriftReport | null> {
   const project = await fetchProjectById(projectId);
   if (!project) return null;
@@ -137,8 +142,11 @@ export async function detectConventionDrift(
 
   // Check for .catalyst/conventions.json existence
   // This is a simplified check. Real implementation would check actual config files.
-  const conventionsFile = await readFile(repo.fullName, ".catalyst/conventions.json");
-  
+  const conventionsFile = await readFile(
+    repo.fullName,
+    ".catalyst/conventions.json",
+  );
+
   if (!conventionsFile.success) {
     issues.push({
       ruleId: "base-config",
@@ -162,11 +170,11 @@ export async function detectConventionDrift(
 
 export async function applyConventionFixes(
   projectId: string,
-  driftReport: DriftReport
+  driftReport: DriftReport,
 ) {
   // TODO: Implement fix application logic
   // This would typically involve re-running the scaffold or applying specific patches
   console.log("Applying fixes for project", projectId, driftReport);
-  
+
   return scaffoldProjectConventions(projectId);
 }

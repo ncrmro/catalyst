@@ -1,6 +1,6 @@
-import React from 'react';
-import { GlassCard } from './GlassCard';
-import { cn } from './utils';
+import React from "react";
+import { GlassCard } from "./GlassCard";
+import { cn } from "./utils";
 
 export interface ApplicationLayoutProps {
   /**
@@ -63,7 +63,7 @@ export function ApplicationLayout({
 }: ApplicationLayoutProps) {
   return (
     <div
-      className={cn('min-h-screen flex flex-col gap-6 p-4 sm:p-6', className)}
+      className={cn("min-h-screen flex flex-col gap-6 p-4 sm:p-6", className)}
     >
       <GlassCard
         glass={false}

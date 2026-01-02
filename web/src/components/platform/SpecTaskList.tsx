@@ -24,8 +24,18 @@ export function SpecTaskList({ tasks, onTaskClick }: SpecTaskListProps) {
       case "complete":
         return (
           <div className="w-5 h-5 rounded-full bg-success/10 text-success flex items-center justify-center">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={3}
+                d="M5 13l4 4L19 7"
+              />
             </svg>
           </div>
         );
@@ -36,7 +46,9 @@ export function SpecTaskList({ tasks, onTaskClick }: SpecTaskListProps) {
           </div>
         );
       case "pending":
-        return <div className="w-5 h-5 rounded-full border-2 border-surface-variant" />;
+        return (
+          <div className="w-5 h-5 rounded-full border-2 border-surface-variant" />
+        );
     }
   };
 
@@ -55,21 +67,28 @@ export function SpecTaskList({ tasks, onTaskClick }: SpecTaskListProps) {
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <span className="font-mono text-xs text-on-surface-variant font-medium">{task.taskId}</span>
+                <span className="font-mono text-xs text-on-surface-variant font-medium">
+                  {task.taskId}
+                </span>
                 {task.userStoryRef && (
                   <span className="font-mono text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded">
                     {task.userStoryRef}
                   </span>
                 )}
                 {task.isParallelizable && (
-                  <span className="font-mono text-xs text-secondary bg-secondary/10 px-1.5 py-0.5 rounded" title="Parallelizable">
+                  <span
+                    className="font-mono text-xs text-secondary bg-secondary/10 px-1.5 py-0.5 rounded"
+                    title="Parallelizable"
+                  >
                     [P]
                   </span>
                 )}
               </div>
               <p
                 className={`text-sm ${
-                  task.status === "complete" ? "text-on-surface-variant line-through" : "text-on-surface"
+                  task.status === "complete"
+                    ? "text-on-surface-variant line-through"
+                    : "text-on-surface"
                 }`}
               >
                 {task.description}
@@ -85,7 +104,12 @@ export function SpecTaskList({ tasks, onTaskClick }: SpecTaskListProps) {
                   onClick={(e) => e.stopPropagation()}
                   className="flex items-center gap-1.5 text-xs text-on-surface-variant hover:text-primary transition-colors bg-surface-variant/30 px-2 py-1 rounded-full"
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"

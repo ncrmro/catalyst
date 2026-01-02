@@ -1,5 +1,5 @@
-import type { AgentMessage, MessagePart, TextPart } from '../types';
-import { isTextPart, isToolPart, getToolState } from './part-guards';
+import type { AgentMessage, MessagePart, TextPart } from "../types";
+import { isTextPart, isToolPart, getToolState } from "./part-guards";
 
 /**
  * Extract all text content from a message
@@ -8,7 +8,7 @@ export function getMessageText(message: AgentMessage): string {
   return message.parts
     .filter(isTextPart)
     .map((part) => (part as TextPart).text)
-    .join('');
+    .join("");
 }
 
 /**
@@ -46,21 +46,21 @@ export function getToolPartsByName(
  * Check if a message is from the user
  */
 export function isUserMessage(message: AgentMessage): boolean {
-  return message.role === 'user';
+  return message.role === "user";
 }
 
 /**
  * Check if a message is from the assistant
  */
 export function isAssistantMessage(message: AgentMessage): boolean {
-  return message.role === 'assistant';
+  return message.role === "assistant";
 }
 
 /**
  * Check if a message is a system message
  */
 export function isSystemMessage(message: AgentMessage): boolean {
-  return message.role === 'system';
+  return message.role === "system";
 }
 
 /**
@@ -68,8 +68,8 @@ export function isSystemMessage(message: AgentMessage): boolean {
  */
 export function isMessageStreaming(message: AgentMessage): boolean {
   return message.parts.some((part) => {
-    if ('state' in part) {
-      return part.state === 'streaming' || part.state === 'input-streaming';
+    if ("state" in part) {
+      return part.state === "streaming" || part.state === "input-streaming";
     }
     return false;
   });
@@ -85,9 +85,9 @@ export function areAllToolsCompleted(message: AgentMessage): boolean {
   return toolParts.every((part) => {
     const state = getToolState(part);
     return (
-      state === 'output-available' ||
-      state === 'output-error' ||
-      state === 'output-denied'
+      state === "output-available" ||
+      state === "output-error" ||
+      state === "output-denied"
     );
   });
 }
@@ -103,14 +103,14 @@ export function getFirstTextPart(message: AgentMessage): TextPart | undefined {
  * Create a simple text message
  */
 export function createTextMessage(
-  role: 'user' | 'assistant' | 'system',
+  role: "user" | "assistant" | "system",
   text: string,
   id?: string,
 ): AgentMessage {
   return {
     id: id || crypto.randomUUID(),
     role,
-    parts: [{ type: 'text', text }],
+    parts: [{ type: "text", text }],
   };
 }
 
@@ -137,7 +137,7 @@ export function getLastAssistantMessage(
   messages: AgentMessage[],
 ): AgentMessage | undefined {
   for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === 'assistant') {
+    if (messages[i].role === "assistant") {
       return messages[i];
     }
   }

@@ -37,7 +37,7 @@ const mockResults: QueryResult[] = [
 export const Default: Story = {
   args: {
     initialQuery: 'sum(rate(http_requests_total{job="api"}[5m])) by (status)',
-    onRunQuery:  (_q: string) => console.log(`Run query: ${_q}`),
+    onRunQuery: (_q: string) => console.log(`Run query: ${_q}`),
     results: mockResults,
   },
 };

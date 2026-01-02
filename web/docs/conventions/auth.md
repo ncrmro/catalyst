@@ -37,41 +37,41 @@ The schema follows NextAuth.js v5 conventions but is NOT used by the adapter (pu
 
 ```typescript
 // Users table - Core user data
-export const users = sqliteTable('user', {
-  id: integer('id').primaryKey(),
-  name: text('name'),
-  email: text('email').unique(),
-  emailVerified: integer('emailVerified', { mode: 'timestamp_ms' }),
-  image: text('image'),
-  admin: integer('admin', { mode: 'boolean' }).default(false),
-  onboardingCompleted: integer('onboarding_completed', {
-    mode: 'boolean',
+export const users = sqliteTable("user", {
+  id: integer("id").primaryKey(),
+  name: text("name"),
+  email: text("email").unique(),
+  emailVerified: integer("emailVerified", { mode: "timestamp_ms" }),
+  image: text("image"),
+  admin: integer("admin", { mode: "boolean" }).default(false),
+  onboardingCompleted: integer("onboarding_completed", {
+    mode: "boolean",
   }).default(false),
-  onboardingData: text('onboarding_data', {
-    mode: 'json',
+  onboardingData: text("onboarding_data", {
+    mode: "json",
   }).$type<OnboardingDataValidated>(),
-  data: text('data', { mode: 'json' }).$type<{
+  data: text("data", { mode: "json" }).$type<{
     defaultMealAllocations?: MemberAllocations;
   }>(),
 });
 
 // OAuth accounts (for Google OAuth)
 export const accounts = sqliteTable(
-  'account',
+  "account",
   {
-    userId: integer('userId')
+    userId: integer("userId")
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    type: text('type').$type<AdapterAccountType>().notNull(),
-    provider: text('provider').notNull(),
-    providerAccountId: text('providerAccountId').notNull(),
-    refresh_token: text('refresh_token'),
-    access_token: text('access_token'),
-    expires_at: integer('expires_at'),
-    token_type: text('token_type'),
-    scope: text('scope'),
-    id_token: text('id_token'),
-    session_state: text('session_state'),
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: text("type").$type<AdapterAccountType>().notNull(),
+    provider: text("provider").notNull(),
+    providerAccountId: text("providerAccountId").notNull(),
+    refresh_token: text("refresh_token"),
+    access_token: text("access_token"),
+    expires_at: integer("expires_at"),
+    token_type: text("token_type"),
+    scope: text("scope"),
+    id_token: text("id_token"),
+    session_state: text("session_state"),
   },
   (account) => ({
     compoundKey: primaryKey({
@@ -81,21 +81,21 @@ export const accounts = sqliteTable(
 );
 
 // Sessions table (not used with JWT strategy, but kept for schema compatibility)
-export const sessions = sqliteTable('session', {
-  sessionToken: text('sessionToken').primaryKey(),
-  userId: integer('userId')
+export const sessions = sqliteTable("session", {
+  sessionToken: text("sessionToken").primaryKey(),
+  userId: integer("userId")
     .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  expires: integer('expires', { mode: 'timestamp_ms' }).notNull(),
+    .references(() => users.id, { onDelete: "cascade" }),
+  expires: integer("expires", { mode: "timestamp_ms" }).notNull(),
 });
 
 // Verification tokens (for email verification)
 export const verificationTokens = sqliteTable(
-  'verificationToken',
+  "verificationToken",
   {
-    identifier: text('identifier').notNull(),
-    token: text('token').notNull(),
-    expires: integer('expires', { mode: 'timestamp_ms' }).notNull(),
+    identifier: text("identifier").notNull(),
+    token: text("token").notNull(),
+    expires: integer("expires", { mode: "timestamp_ms" }).notNull(),
   },
   (verificationToken) => ({
     compositePk: primaryKey({
@@ -106,20 +106,20 @@ export const verificationTokens = sqliteTable(
 
 // Authenticators (for WebAuthn/Passkeys)
 export const authenticators = sqliteTable(
-  'authenticator',
+  "authenticator",
   {
-    credentialID: text('credentialID').notNull().unique(),
-    userId: integer('userId')
+    credentialID: text("credentialID").notNull().unique(),
+    userId: integer("userId")
       .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    providerAccountId: text('providerAccountId').notNull(),
-    credentialPublicKey: text('credentialPublicKey').notNull(),
-    counter: integer('counter').notNull(),
-    credentialDeviceType: text('credentialDeviceType').notNull(),
-    credentialBackedUp: integer('credentialBackedUp', {
-      mode: 'boolean',
+      .references(() => users.id, { onDelete: "cascade" }),
+    providerAccountId: text("providerAccountId").notNull(),
+    credentialPublicKey: text("credentialPublicKey").notNull(),
+    counter: integer("counter").notNull(),
+    credentialDeviceType: text("credentialDeviceType").notNull(),
+    credentialBackedUp: integer("credentialBackedUp", {
+      mode: "boolean",
     }).notNull(),
-    transports: text('transports'),
+    transports: text("transports"),
   },
   (authenticator) => ({
     compositePK: primaryKey({
@@ -143,8 +143,8 @@ export const authenticators = sqliteTable(
 Location: `src/lib/auth.config.ts`
 
 ```typescript
-import type { NextAuthConfig } from 'next-auth';
-import Google from 'next-auth/providers/google';
+import type { NextAuthConfig } from "next-auth";
+import Google from "next-auth/providers/google";
 
 export const authConfig = {
   providers: [Google],
@@ -161,17 +161,17 @@ export const authConfig = {
 Location: `src/app/auth.ts`
 
 ```typescript
-import NextAuth from 'next-auth';
-import Credentials from 'next-auth/providers/credentials';
-import { authConfig } from '@/lib/auth.config';
+import NextAuth from "next-auth";
+import Credentials from "next-auth/providers/credentials";
+import { authConfig } from "@/lib/auth.config";
 
 // Add Credentials provider for development
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV === "development") {
   authConfig.providers.push(
     Credentials({
-      id: 'password',
-      name: 'Password',
-      credentials: { password: { label: 'Password', type: 'password' } },
+      id: "password",
+      name: "Password",
+      credentials: { password: { label: "Password", type: "password" } },
       authorize: async (credentials) => {
         const password = credentials.password as string;
         const passwordMatch = password.match(/^(password|admin)(?:-.*)?$/);
@@ -179,7 +179,7 @@ if (process.env.NODE_ENV === 'development') {
 
         const [, baseType] = passwordMatch;
         const email =
-          baseType === 'admin' ? 'admin@example.com' : 'bob@alice.com';
+          baseType === "admin" ? "admin@example.com" : "bob@alice.com";
 
         const [user] = await db
           .select()
@@ -228,7 +228,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           image: picture,
           admin: false,
           onboardingCompleted: true,
-          onboardingData: createDefaultOnboardingData(1, name || 'User'),
+          onboardingData: createDefaultOnboardingData(1, name || "User"),
         })
         .returning();
 
@@ -305,13 +305,13 @@ Location: `tests/e2e/fixtures/base-fixtures.ts`
 This bypasses the UI for faster test execution:
 
 ```typescript
-import { encode } from 'next-auth/jwt';
+import { encode } from "next-auth/jwt";
 
 // Create test user in database
 async function createTestUser(credentials: string): Promise<TestUser> {
   const passwordMatch = credentials.match(/^(password|admin)-(.+)$/);
   const [, baseType, suffix] = passwordMatch;
-  const isAdmin = baseType === 'admin';
+  const isAdmin = baseType === "admin";
 
   const email = isAdmin
     ? `admin-${suffix}@example.com`
@@ -324,7 +324,7 @@ async function createTestUser(credentials: string): Promise<TestUser> {
       email,
       name,
       admin: isAdmin,
-      image: 'https://avatars.githubusercontent.com/u/67470890?s=200&v=4',
+      image: "https://avatars.githubusercontent.com/u/67470890?s=200&v=4",
     })
     .returning();
 
@@ -339,7 +339,7 @@ async function createTestUser(credentials: string): Promise<TestUser> {
 // Generate JWT session token (same as Auth.js)
 async function generateSessionToken(user: TestUser): Promise<string> {
   const secret =
-    process.env.AUTH_SECRET || 'txPLQWs8toKE251TIWiGS6abI4dJafPA5Kd/DTxou6q5';
+    process.env.AUTH_SECRET || "txPLQWs8toKE251TIWiGS6abI4dJafPA5Kd/DTxou6q5";
   const now = Math.floor(Date.now() / 1000);
 
   return await encode({
@@ -352,7 +352,7 @@ async function generateSessionToken(user: TestUser): Promise<string> {
       exp: now + 3600,
     },
     secret,
-    salt: 'authjs.session-token', // CRITICAL: Must match Auth.js v5 salt
+    salt: "authjs.session-token", // CRITICAL: Must match Auth.js v5 salt
   });
 }
 
@@ -368,31 +368,31 @@ export async function setAuthCookies(
 
   await context.addCookies([
     {
-      name: 'authjs.session-token',
+      name: "authjs.session-token",
       value: sessionToken,
-      domain: 'localhost',
-      path: '/',
+      domain: "localhost",
+      path: "/",
       httpOnly: true,
       secure: false,
-      sameSite: 'Lax',
+      sameSite: "Lax",
     },
     {
-      name: 'authjs.csrf-token',
+      name: "authjs.csrf-token",
       value: csrfToken,
-      domain: 'localhost',
-      path: '/',
+      domain: "localhost",
+      path: "/",
       httpOnly: true,
       secure: false,
-      sameSite: 'Lax',
+      sameSite: "Lax",
     },
     {
-      name: 'authjs.callback-url',
-      value: 'http://localhost:3000/',
-      domain: 'localhost',
-      path: '/',
+      name: "authjs.callback-url",
+      value: "http://localhost:3000/",
+      domain: "localhost",
+      path: "/",
       httpOnly: false,
       secure: false,
-      sameSite: 'Lax',
+      sameSite: "Lax",
     },
   ]);
 }
@@ -467,8 +467,8 @@ export default async function Page() {
 ### Server Action
 
 ```typescript
-'use server';
-import { authRequired } from '@/app/auth';
+"use server";
+import { authRequired } from "@/app/auth";
 
 export async function createMeal() {
   const session = await authRequired(); // Throws if not authenticated
@@ -495,13 +495,13 @@ export function ProfileButton() {
 ### Playwright Test
 
 ```typescript
-import { test, expect } from './fixtures/base-fixtures';
+import { test, expect } from "./fixtures/base-fixtures";
 
-test('view meal plan', async ({ onboardedUser }) => {
+test("view meal plan", async ({ onboardedUser }) => {
   const { page } = onboardedUser;
   // User is already authenticated + onboarded via cookies
-  await page.goto('/meal-plan');
-  await expect(page.getByRole('heading', { name: 'Meal Plan' })).toBeVisible();
+  await page.goto("/meal-plan");
+  await expect(page.getByRole("heading", { name: "Meal Plan" })).toBeVisible();
 });
 ```
 
@@ -523,7 +523,7 @@ These credentials work with seeded users from `npm run db:seed`.
 **Solution**: Ensure the salt matches Auth.js v5:
 
 ```typescript
-salt: 'authjs.session-token'; // NOT 'session-token'
+salt: "authjs.session-token"; // NOT 'session-token'
 ```
 
 ### OAuth Redirect Mismatch
