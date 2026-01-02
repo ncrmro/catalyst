@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+# Central pre-commit hook script
+# Used by Git pre-commit, Claude stop hook, and Gemini stop hook
+# Runs: Biome check --write + TypeScript check + unit tests
+# See: docs/platform/development-workflow.md
+
+set -e
+
+# Resolve symlinks to find the real script location
+SCRIPT_PATH="$(readlink -f "$0")"
+cd "$(dirname "$SCRIPT_PATH")/../web" || exit 1
+
+echo "Running pre-commit checks..."
+
+# Run Biome for formatting and linting
+echo "Checking code with Biome..."
+node_modules/.bin/biome check --write .
+
+# Run TypeScript type checking
+echo "Type checking with TypeScript..."
+node_modules/.bin/tsc --noEmit
+
+# Run unit tests
+echo "Running unit tests..."
+npm run test:unit
+
+echo "✓ All pre-commit checks passed!"
