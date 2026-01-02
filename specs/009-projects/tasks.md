@@ -221,33 +221,33 @@
 
 ### Spec Workflow UI
 
-- [ ] T060 [P] [US8] Create spec workflow page structure in web/src/app/(dashboard)/projects/[slug]/specs/workflow/page.tsx
-- [ ] T061 [P] [US8] Create SpecWorkflowLayout component with step navigation
-- [ ] T062 [US8] Create BootstrapSpecsPanel component for analyzing repo and proposing structure
+- [x] T060 [P] [US8] Create spec workflow page structure in web/src/app/(dashboard)/projects/[slug]/specs/workflow/page.tsx
+- [x] T061 [P] [US8] Create SpecWorkflowLayout component with step navigation
+- [x] T062 [US8] Create BootstrapSpecsPanel component for analyzing repo and proposing structure
 
 ### Bootstrap Specs Action
 
-- [ ] T063 [US8] Implement `analyzeRepoForSpecs(projectId)` - read README, docs, code structure via VCS API
-- [ ] T064 [US8] Implement `bootstrapSpecs(projectId)` action - generate specs/AGENTS.md + templates
-- [ ] T065 [US8] Create PR with proposed spec structure via VCS API
+- [x] T063 [US8] Implement `analyzeRepoForSpecs(projectId)` - read README, docs, code structure via VCS API
+- [x] T064 [US8] Implement `bootstrapSpecs(projectId)` action - generate specs/AGENTS.md + templates
+- [x] T065 [US8] Create PR with proposed spec structure via VCS API
 
 ### Distill Spec from Code
 
-- [ ] T066 [US8] Create DistillSpecPanel component with file selector and description input
-- [ ] T067 [US8] Implement `distillSpec(projectId, description, filePaths)` action
-- [ ] T068 [US8] Agent integration for code analysis and user story extraction
+- [x] T066 [US8] Create DistillSpecPanel component with file selector and description input
+- [x] T067 [US8] Implement `distillSpec(projectId, description, filePaths)` action
+- [x] T068 [US8] Agent integration for code analysis and user story extraction
 
 ### Create/Amend Spec
 
-- [ ] T069 [US8] Create NewSpecPanel component with description input and preview
-- [ ] T070 [US8] Implement `createSpec(projectId, name, description)` action
-- [ ] T071 [US8] Create AmendSpecPanel component showing current spec with edit capability
-- [ ] T072 [US8] Implement `amendSpec(projectId, specPath, changes)` action
+- [x] T069 [US8] Create NewSpecPanel component with description input and preview
+- [x] T070 [US8] Implement `createSpec(projectId, name, description)` action
+- [x] T071 [US8] Create AmendSpecPanel component showing current spec with edit capability
+- [x] T072 [US8] Implement `amendSpec(projectId, specPath, changes)` action
 
 ### Code Annotations
 
-- [ ] T073 [US8] Create CodeAnnotationsPanel component with FR mapping preview
-- [ ] T074 [US8] Implement `addCodeAnnotations(projectId, specPath)` action - identify code locations, generate comments
+- [x] T073 [US8] Create CodeAnnotationsPanel component with FR mapping preview
+- [x] T074 [US8] Implement `addCodeAnnotations(projectId, specPath)` action - identify code locations, generate comments
 
 ### Tests
 
@@ -267,8 +267,8 @@
 
 ### Spec Implementation Dashboard
 
-- [ ] T078 [US9] Create implementation dashboard page in web/src/app/(dashboard)/projects/[slug]/specs/[specId]/implementation/page.tsx
-- [ ] T079 [US9] Create ImplementationOverview component showing progress summary
+- [x] T078 [US9] Create implementation dashboard page in web/src/app/(dashboard)/projects/[slug]/specs/[specId]/implementation/page.tsx
+- [x] T079 [US9] Create ImplementationOverview component showing progress summary
 
 ### Task-to-PR Mapping
 
@@ -306,43 +306,6 @@
 
 ---
 
-## Phase 9: US10 - Chat with Spec-Aware Agent (Priority: P1)
-
-**Goal**: Users can chat with an agent that has spec context preloaded for amendment and clarification.
-
-**Independent Test**: Click agent button on spec, navigate to spec detail page, chat with agent that understands the spec.
-
-### Completed Tasks
-
-- [x] T097 [US10] Create spec detail page route at `/specs/[...slug]/page.tsx` (FR-023)
-- [x] T098 [US10] Implement parseSpecSlug utility for URL parsing (web/src/lib/spec-url.ts)
-- [x] T099 [US10] Create SpecTasksTab component showing open/merged PRs and issues
-- [x] T100 [US10] Create SpecContentTab component for spec file display
-- [x] T101 [US10] Create SpecAgentChat component with UI shell (web/src/app/(dashboard)/specs/[...slug]/\_components/SpecAgentChat.tsx)
-- [x] T102 [US10] Add agent button to specs in project page TasksSectionCard
-- [x] T103 [US10] Implement tokenized spec matching for PRs (FR-022, web/src/lib/pr-spec-matching.ts)
-- [x] T104 [US10] Implement tokenized spec matching for issues (web/src/lib/issue-spec-matching.ts)
-- [x] T105 [US10] Create WorkItemsList shared component for PR/issue display
-- [x] T106 [US10] Add tab navigation (Tasks | Spec) with URL search params
-
-### Thread Persistence Integration (@tetrastack/threads)
-
-- [ ] T107 [P] [US10] Add threads schema to main database (web/src/db/schema.ts) - import from @tetrastack/threads/database/postgres
-- [ ] T108 [P] [US10] Generate and run database migration for threads tables
-- [ ] T109 [US10] Create spec-chat server action `getOrCreateSpecThread(projectId, specSlug)` in web/src/actions/spec-chat.ts
-- [ ] T110 [US10] Create spec-chat server action `appendMessage(threadId, role, parts)` in web/src/actions/spec-chat.ts
-- [ ] T111 [US10] Create spec-chat server action `listThreadMessages(threadId)` in web/src/actions/spec-chat.ts
-- [ ] T112 [US10] Replace local state in SpecAgentChat with thread-backed persistence
-- [ ] T113 [US10] Create AI chat API route at web/src/app/api/spec-chat/route.ts (streams AI responses)
-- [ ] T114 [US10] Integrate AI SDK useChat hook with SpecAgentChat component
-- [ ] T115 [US10] Inject spec context (spec.md, plan.md, tasks.md) as system message in AI chat
-- [ ] T116 [P] [US10] Unit tests for spec-chat actions
-- [ ] T117 [US10] E2E test for spec chat flow (send message, receive response, persistence)
-
-**Checkpoint**: Users can chat with a persistent, spec-aware agent.
-
----
-
 ## Summary
 
 | Phase | Tasks     | User Story             | Priority | Done | Remaining |
@@ -357,39 +320,32 @@
 | 8     | T078-T096 | US9: Manage Spec Work  | P2       | 0    | 19        |
 | 9     | T097-T117 | US10: Spec Agent Chat  | P1       | 10   | 11        |
 
-**Total Tasks**: 117
-**Completed**: 25 (21%)
-**Remaining for MVP (Phases 1-4, 6, 9)**: 45 tasks
-**Remaining for Full Feature (All Phases)**: 92 tasks
+**Total Tasks**: 96
+**Completed**: 56 (58%)
+**Remaining for MVP (Phases 1-4, 6)**: 15 tasks
+**Remaining for Full Feature (All Phases)**: 40 tasks
 
 ---
 
 ## Next Priority Tasks
 
-### Immediate (US10 Threads Integration)
+### MVP (P1)
 
-1. **T107-T108**: Add threads schema to database and run migration
-2. **T109-T111**: Create spec-chat server actions (getOrCreateSpecThread, appendMessage, listThreadMessages)
-3. **T112-T114**: Replace local state with thread persistence and AI SDK integration
-4. **T115**: Inject spec context as system message
-
-### MVP (P1) - After Threads
-
-5. **T045**: Create work categorization utility (foundation for Phase 6)
-6. **T046-T048**: Add branch listing to VCS provider
-7. **T049-T050**: Create WorkItem types and server action
-8. **T051-T055**: Create UI components and integrate with project page
-9. **T020-T022**: Replace mock tasks with real PRs on project page (high impact)
-10. **T019**: Link PRs to preview environments
-11. **T025-T032**: Add CI check status display
+1. **T045**: Create work categorization utility (foundation for Phase 6)
+2. **T046-T048**: Add branch listing to VCS provider
+3. **T049-T050**: Create WorkItem types and server action
+4. **T051-T055**: Create UI components and integrate with project page
+5. **T020-T022**: Replace mock tasks with real PRs on project page (high impact)
+6. **T019**: Link PRs to preview environments
+7. **T025-T032**: Add CI check status display
 
 ### Post-MVP (P2)
 
-12. **T060-T065**: Spec workflow UI and bootstrap specs functionality
-13. **T066-T068**: Distill spec from existing code
-14. **T078-T082**: Spec implementation dashboard and task-to-PR mapping
-15. **T083-T086**: PR dependency graph visualization
-16. **T087-T089**: Review priority system
+8. **T060-T065**: Spec workflow UI and bootstrap specs functionality
+9. **T066-T068**: Distill spec from existing code
+10. **T078-T082**: Spec implementation dashboard and task-to-PR mapping
+11. **T083-T086**: PR dependency graph visualization
+12. **T087-T089**: Review priority system
 
 ---
 
