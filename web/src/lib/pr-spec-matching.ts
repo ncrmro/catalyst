@@ -7,14 +7,14 @@
 import type { PullRequest } from "@/types/reports";
 
 export interface Spec {
-  id: string;
-  name: string;
-  href: string;
+	id: string;
+	name: string;
+	href: string;
 }
 
 export interface PRsBySpec {
-  bySpec: Record<string, PullRequest[]>;
-  noSpec: PullRequest[];
+	bySpec: Record<string, PullRequest[]>;
+	noSpec: PullRequest[];
 }
 
 /**
@@ -30,7 +30,7 @@ export interface PRsBySpec {
  * @returns Array of tokens for matching
  */
 export function tokenizeSpecName(specName: string): string[] {
-  return specName.split("-").filter((token) => token.length >= 2); // Filter single-char tokens to avoid false positives
+	return specName.split("-").filter((token) => token.length >= 2); // Filter single-char tokens to avoid false positives
 }
 
 /**
@@ -48,32 +48,32 @@ export function tokenizeSpecName(specName: string): string[] {
  * @returns The matched spec ID or null if no match
  */
 export function matchPRToSpec(
-  prTitle: string,
-  specIds: string[],
+	prTitle: string,
+	specIds: string[],
 ): string | null {
-  const titleLower = prTitle.toLowerCase();
+	const titleLower = prTitle.toLowerCase();
 
-  // First pass: exact spec ID match (highest priority)
-  for (const specId of specIds) {
-    if (titleLower.includes(specId.toLowerCase())) {
-      return specId;
-    }
-  }
+	// First pass: exact spec ID match (highest priority)
+	for (const specId of specIds) {
+		if (titleLower.includes(specId.toLowerCase())) {
+			return specId;
+		}
+	}
 
-  // Second pass: tokenized matching
-  for (const specId of specIds) {
-    const tokens = tokenizeSpecName(specId);
-    for (const token of tokens) {
-      // Use word boundary matching to avoid partial word matches
-      // e.g., "001" should match "001-projects" but not "10001"
-      const tokenRegex = new RegExp(`\\b${token}\\b`, "i");
-      if (tokenRegex.test(prTitle)) {
-        return specId;
-      }
-    }
-  }
+	// Second pass: tokenized matching
+	for (const specId of specIds) {
+		const tokens = tokenizeSpecName(specId);
+		for (const token of tokens) {
+			// Use word boundary matching to avoid partial word matches
+			// e.g., "001" should match "001-projects" but not "10001"
+			const tokenRegex = new RegExp(`\\b${token}\\b`, "i");
+			if (tokenRegex.test(prTitle)) {
+				return specId;
+			}
+		}
+	}
 
-  return null;
+	return null;
 }
 
 /**
@@ -86,17 +86,17 @@ export function matchPRToSpec(
  * @returns true if the PR is a chore/platform task
  */
 export function isPRChore(prTitle: string): boolean {
-  const chorePatterns = [
-    /^chore/i,
-    /^ci/i,
-    /^build/i,
-    /^refactor/i,
-    /^style/i,
-    /^docs/i,
-  ];
+	const chorePatterns = [
+		/^chore/i,
+		/^ci/i,
+		/^build/i,
+		/^refactor/i,
+		/^style/i,
+		/^docs/i,
+	];
 
-  const trimmedTitle = prTitle.trim();
-  return chorePatterns.some((pattern) => pattern.test(trimmedTitle));
+	const trimmedTitle = prTitle.trim();
+	return chorePatterns.some((pattern) => pattern.test(trimmedTitle));
 }
 
 /**
@@ -107,28 +107,28 @@ export function isPRChore(prTitle: string): boolean {
  * @returns Object containing feature and platform PRs grouped by spec
  */
 export function groupPRsBySpecAndType(
-  pullRequests: PullRequest[],
-  specs: Spec[],
+	pullRequests: PullRequest[],
+	specs: Spec[],
 ): { featurePRs: PRsBySpec; platformPRs: PRsBySpec } {
-  const specIds = specs.map((s) => s.id);
+	const specIds = specs.map((s) => s.id);
 
-  const featurePRs: PRsBySpec = { bySpec: {}, noSpec: [] };
-  const platformPRs: PRsBySpec = { bySpec: {}, noSpec: [] };
+	const featurePRs: PRsBySpec = { bySpec: {}, noSpec: [] };
+	const platformPRs: PRsBySpec = { bySpec: {}, noSpec: [] };
 
-  pullRequests.forEach((pr) => {
-    const isChore = isPRChore(pr.title);
-    const matchedSpecId = matchPRToSpec(pr.title, specIds);
-    const target = isChore ? platformPRs : featurePRs;
+	pullRequests.forEach((pr) => {
+		const isChore = isPRChore(pr.title);
+		const matchedSpecId = matchPRToSpec(pr.title, specIds);
+		const target = isChore ? platformPRs : featurePRs;
 
-    if (matchedSpecId) {
-      if (!target.bySpec[matchedSpecId]) {
-        target.bySpec[matchedSpecId] = [];
-      }
-      target.bySpec[matchedSpecId].push(pr);
-    } else {
-      target.noSpec.push(pr);
-    }
-  });
+		if (matchedSpecId) {
+			if (!target.bySpec[matchedSpecId]) {
+				target.bySpec[matchedSpecId] = [];
+			}
+			target.bySpec[matchedSpecId].push(pr);
+		} else {
+			target.noSpec.push(pr);
+		}
+	});
 
-  return { featurePRs, platformPRs };
+	return { featurePRs, platformPRs };
 }

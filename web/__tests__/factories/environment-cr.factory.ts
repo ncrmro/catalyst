@@ -1,14 +1,14 @@
 import { Factory, faker } from "@/lib/factories";
-import { EnvironmentCR, EnvironmentType } from "@/types/crd";
+import type { EnvironmentCR, EnvironmentType } from "@/types/crd";
 
 /**
  * Transient params for EnvironmentCRFactory
  * These are used to control factory behavior without being part of the final object
  */
 interface EnvironmentCRTransientParams {
-  envType?: EnvironmentType;
-  branch?: string;
-  prNumber?: number;
+	envType?: EnvironmentType;
+	branch?: string;
+	prNumber?: number;
 }
 
 /**
@@ -23,160 +23,160 @@ interface EnvironmentCRTransientParams {
  *   const previewEnv = environmentCRFactory.preview().ready().build();
  */
 class EnvironmentCRFactory extends Factory<
-  EnvironmentCR,
-  EnvironmentCRTransientParams
+	EnvironmentCR,
+	EnvironmentCRTransientParams
 > {
-  // State traits
-  pending() {
-    return this.params({
-      status: {
-        phase: "Pending",
-        conditions: [{ type: "Ready", status: "False" }],
-      },
-    });
-  }
+	// State traits
+	pending() {
+		return this.params({
+			status: {
+				phase: "Pending",
+				conditions: [{ type: "Ready", status: "False" }],
+			},
+		});
+	}
 
-  provisioning() {
-    return this.params({
-      status: {
-        phase: "Provisioning",
-        conditions: [
-          { type: "Ready", status: "False" },
-          { type: "BuildStarted", status: "True" },
-        ],
-      },
-    });
-  }
+	provisioning() {
+		return this.params({
+			status: {
+				phase: "Provisioning",
+				conditions: [
+					{ type: "Ready", status: "False" },
+					{ type: "BuildStarted", status: "True" },
+				],
+			},
+		});
+	}
 
-  deploying() {
-    return this.params({
-      status: {
-        phase: "Deploying",
-        conditions: [
-          { type: "BuildComplete", status: "True" },
-          { type: "DeploymentStarted", status: "True" },
-        ],
-      },
-    });
-  }
+	deploying() {
+		return this.params({
+			status: {
+				phase: "Deploying",
+				conditions: [
+					{ type: "BuildComplete", status: "True" },
+					{ type: "DeploymentStarted", status: "True" },
+				],
+			},
+		});
+	}
 
-  ready() {
-    const baseUrl = faker.internet.url({ protocol: "https" });
-    return this.params({
-      status: {
-        phase: "Ready",
-        url: baseUrl,
-        conditions: [
-          { type: "Ready", status: "True" },
-          { type: "BuildComplete", status: "True" },
-          { type: "DeploymentReady", status: "True" },
-        ],
-      },
-    });
-  }
+	ready() {
+		const baseUrl = faker.internet.url({ protocol: "https" });
+		return this.params({
+			status: {
+				phase: "Ready",
+				url: baseUrl,
+				conditions: [
+					{ type: "Ready", status: "True" },
+					{ type: "BuildComplete", status: "True" },
+					{ type: "DeploymentReady", status: "True" },
+				],
+			},
+		});
+	}
 
-  failed() {
-    return this.params({
-      status: {
-        phase: "Failed",
-        conditions: [
-          { type: "Ready", status: "False" },
-          { type: "BuildFailed", status: "True" },
-        ],
-      },
-    });
-  }
+	failed() {
+		return this.params({
+			status: {
+				phase: "Failed",
+				conditions: [
+					{ type: "Ready", status: "False" },
+					{ type: "BuildFailed", status: "True" },
+				],
+			},
+		});
+	}
 
-  // Environment type traits (use transient params to override type)
-  deployment() {
-    return this.transient({ envType: "deployment" as const });
-  }
+	// Environment type traits (use transient params to override type)
+	deployment() {
+		return this.transient({ envType: "deployment" as const });
+	}
 
-  development() {
-    return this.transient({ envType: "development" as const });
-  }
+	development() {
+		return this.transient({ envType: "development" as const });
+	}
 
-  // Convenience method for PR-based environments
-  withPullRequest(prNumber: number) {
-    const branch = `pr-${prNumber}-${faker.git.branch()}`;
-    return this.transient({ prNumber, branch });
-  }
+	// Convenience method for PR-based environments
+	withPullRequest(prNumber: number) {
+		const branch = `pr-${prNumber}-${faker.git.branch()}`;
+		return this.transient({ prNumber, branch });
+	}
 
-  // Convenience method for branch-based environments
-  withBranch(branch: string) {
-    return this.transient({ branch });
-  }
+	// Convenience method for branch-based environments
+	withBranch(branch: string) {
+		return this.transient({ branch });
+	}
 }
 
 export const environmentCRFactory = EnvironmentCRFactory.define(
-  ({ sequence, transientParams }) => {
-    const projectName = faker.word.noun().toLowerCase();
-    const commitSha = faker.git.commitSha();
-    const defaultBranch = faker.git.branch();
-    const defaultEnvType: EnvironmentType = faker.helpers.arrayElement([
-      "deployment",
-      "development",
-    ]);
+	({ sequence, transientParams }) => {
+		const projectName = faker.word.noun().toLowerCase();
+		const commitSha = faker.git.commitSha();
+		const defaultBranch = faker.git.branch();
+		const defaultEnvType: EnvironmentType = faker.helpers.arrayElement([
+			"deployment",
+			"development",
+		]);
 
-    // Use transient params if provided, otherwise use defaults
-    const envType = transientParams.envType || defaultEnvType;
-    const branch = transientParams.branch || defaultBranch;
-    const prNumber = transientParams.prNumber;
+		// Use transient params if provided, otherwise use defaults
+		const envType = transientParams.envType || defaultEnvType;
+		const branch = transientParams.branch || defaultBranch;
+		const prNumber = transientParams.prNumber;
 
-    // Generate realistic environment name
-    const envName =
-      envType === "deployment"
-        ? `${projectName}-${faker.helpers.arrayElement(["prod", "staging"])}`
-        : `${projectName}-${branch.replace(/[^a-z0-9-]/g, "-").toLowerCase()}-${sequence}`;
+		// Generate realistic environment name
+		const envName =
+			envType === "deployment"
+				? `${projectName}-${faker.helpers.arrayElement(["prod", "staging"])}`
+				: `${projectName}-${branch.replace(/[^a-z0-9-]/g, "-").toLowerCase()}-${sequence}`;
 
-    return {
-      metadata: {
-        name: envName,
-        namespace: "default",
-        creationTimestamp: faker.date.recent({ days: 7 }).toISOString(),
-      },
-      spec: {
-        projectRef: {
-          name: projectName,
-        },
-        type: envType,
-        source: {
-          commitSha,
-          branch,
-          prNumber:
-            prNumber !== undefined
-              ? prNumber
-              : envType === "development"
-                ? faker.number.int({ min: 1, max: 999 })
-                : undefined,
-        },
-        config: {
-          envVars: [
-            {
-              name: "NODE_ENV",
-              value: envType === "deployment" ? "production" : "development",
-            },
-            { name: "API_URL", value: faker.internet.url() },
-            {
-              name: "LOG_LEVEL",
-              value: faker.helpers.arrayElement([
-                "debug",
-                "info",
-                "warn",
-                "error",
-              ]),
-            },
-          ],
-        },
-      },
-      status: {
-        phase: "Ready",
-        url: `https://${envName}.preview.${faker.internet.domainName()}`,
-        conditions: [
-          { type: "Ready", status: "True" },
-          { type: "DeploymentReady", status: "True" },
-        ],
-      },
-    };
-  },
+		return {
+			metadata: {
+				name: envName,
+				namespace: "default",
+				creationTimestamp: faker.date.recent({ days: 7 }).toISOString(),
+			},
+			spec: {
+				projectRef: {
+					name: projectName,
+				},
+				type: envType,
+				source: {
+					commitSha,
+					branch,
+					prNumber:
+						prNumber !== undefined
+							? prNumber
+							: envType === "development"
+								? faker.number.int({ min: 1, max: 999 })
+								: undefined,
+				},
+				config: {
+					envVars: [
+						{
+							name: "NODE_ENV",
+							value: envType === "deployment" ? "production" : "development",
+						},
+						{ name: "API_URL", value: faker.internet.url() },
+						{
+							name: "LOG_LEVEL",
+							value: faker.helpers.arrayElement([
+								"debug",
+								"info",
+								"warn",
+								"error",
+							]),
+						},
+					],
+				},
+			},
+			status: {
+				phase: "Ready",
+				url: `https://${envName}.preview.${faker.internet.domainName()}`,
+				conditions: [
+					{ type: "Ready", status: "True" },
+					{ type: "DeploymentReady", status: "True" },
+				],
+			},
+		};
+	},
 );

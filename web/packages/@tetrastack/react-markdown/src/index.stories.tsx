@@ -4,20 +4,20 @@ import { MarkdownRenderer } from "./index";
 import "./styles.css";
 
 const meta: Meta<typeof MarkdownRenderer> = {
-  title: "Packages/ReactMarkdown/MarkdownRenderer",
-  component: MarkdownRenderer,
-  tags: ["autodocs"],
-  parameters: {
-    layout: "padded",
-  },
+	title: "Packages/ReactMarkdown/MarkdownRenderer",
+	component: MarkdownRenderer,
+	tags: ["autodocs"],
+	parameters: {
+		layout: "padded",
+	},
 };
 
 export default meta;
 type Story = StoryObj<typeof MarkdownRenderer>;
 
 export const Default: Story = {
-  args: {
-    content: `
+	args: {
+		content: `
 # Hello World
 
 This is a **markdown** example with some *features*.
@@ -34,5 +34,5 @@ function hello() {
 
 > A blockquote
     `,
-  },
+	},
 };

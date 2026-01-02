@@ -2,48 +2,48 @@ import { z } from "zod";
 
 // Deployment method schemas
 export const HelmConfigSchema = z.object({
-  chartPath: z.string().min(1),
-  valuesPath: z.string().optional(),
+	chartPath: z.string().min(1),
+	valuesPath: z.string().optional(),
 });
 
 export const DockerConfigSchema = z.object({
-  dockerfilePath: z.string().min(1),
-  context: z.string().optional(),
+	dockerfilePath: z.string().min(1),
+	context: z.string().optional(),
 });
 
 export const ManifestsConfigSchema = z.object({
-  directory: z.string().min(1),
+	directory: z.string().min(1),
 });
 
 // Managed services schema
 export const ManagedServicesSchema = z.object({
-  postgres: z.boolean(),
-  redis: z.boolean(),
-  opensearch: z.boolean(),
+	postgres: z.boolean(),
+	redis: z.boolean(),
+	opensearch: z.boolean(),
 });
 
 // Environment variable schema
 export const EnvVarSchema = z.object({
-  name: z.string().min(1),
-  value: z.string(),
-  isSecret: z.boolean().optional(),
+	name: z.string().min(1),
+	value: z.string(),
+	isSecret: z.boolean().optional(),
 });
 
 // Full deployment configuration schema
 export const DeploymentConfigSchema = z.object({
-  method: z.enum(["helm", "docker", "manifests"]),
-  helm: HelmConfigSchema.optional(),
-  docker: DockerConfigSchema.optional(),
-  manifests: ManifestsConfigSchema.optional(),
-  managedServices: ManagedServicesSchema,
-  envVars: z.array(EnvVarSchema).optional(),
+	method: z.enum(["helm", "docker", "manifests"]),
+	helm: HelmConfigSchema.optional(),
+	docker: DockerConfigSchema.optional(),
+	manifests: ManifestsConfigSchema.optional(),
+	managedServices: ManagedServicesSchema,
+	envVars: z.array(EnvVarSchema).optional(),
 });
 
 // Deployment mode for the operator
 export const DeploymentModeSchema = z.enum([
-  "production",
-  "development",
-  "workspace",
+	"production",
+	"development",
+	"workspace",
 ]);
 
 // TypeScript types derived from schemas
@@ -57,18 +57,18 @@ export type DeploymentMode = z.infer<typeof DeploymentModeSchema>;
 
 // Default managed services (all disabled)
 export const DEFAULT_MANAGED_SERVICES: ManagedServices = {
-  postgres: false,
-  redis: false,
-  opensearch: false,
+	postgres: false,
+	redis: false,
+	opensearch: false,
 };
 
 // Helper to determine deployment mode from config
 export function determineDeploymentMode(
-  config: DeploymentConfig,
-  environmentType: "deployment" | "development",
+	_config: DeploymentConfig,
+	environmentType: "deployment" | "development",
 ): DeploymentMode {
-  if (environmentType === "development") {
-    return "development";
-  }
-  return "production";
+	if (environmentType === "development") {
+		return "development";
+	}
+	return "production";
 }

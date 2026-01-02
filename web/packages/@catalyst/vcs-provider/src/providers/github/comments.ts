@@ -12,32 +12,32 @@ import { getOctokitForComments } from "./client";
 
 // Pod status type for deployment comments
 export type PodStatus =
-  | "pending"
-  | "deploying"
-  | "running"
-  | "failed"
-  | "deleting";
+	| "pending"
+	| "deploying"
+	| "running"
+	| "failed"
+	| "deleting";
 
 // Marker to identify Catalyst deployment comments for upsert operations
 const DEPLOYMENT_COMMENT_MARKER = "<!-- catalyst-preview-deployment -->";
 
 export interface DeploymentCommentParams {
-  /** Optional: If not provided, uses PAT for local development */
-  installationId?: number;
-  owner: string;
-  repo: string;
-  prNumber: number;
-  status: PodStatus;
-  publicUrl?: string;
-  commitSha: string;
-  namespace?: string;
-  errorMessage?: string;
+	/** Optional: If not provided, uses PAT for local development */
+	installationId?: number;
+	owner: string;
+	repo: string;
+	prNumber: number;
+	status: PodStatus;
+	publicUrl?: string;
+	commitSha: string;
+	namespace?: string;
+	errorMessage?: string;
 }
 
 export interface CommentResult {
-  success: boolean;
-  commentId?: number;
-  error?: string;
+	success: boolean;
+	commentId?: number;
+	error?: string;
 }
 
 /**
@@ -47,46 +47,46 @@ export interface CommentResult {
  * @returns Formatted markdown comment body
  */
 export function formatDeploymentComment(params: {
-  status: PodStatus;
-  publicUrl?: string;
-  commitSha: string;
-  namespace?: string;
-  errorMessage?: string;
+	status: PodStatus;
+	publicUrl?: string;
+	commitSha: string;
+	namespace?: string;
+	errorMessage?: string;
 }): string {
-  const { status, publicUrl, commitSha, namespace, errorMessage } = params;
-  const shortSha = commitSha.slice(0, 7);
-  const timestamp = new Date().toISOString();
+	const { status, publicUrl, commitSha, namespace, errorMessage } = params;
+	const shortSha = commitSha.slice(0, 7);
+	const timestamp = new Date().toISOString();
 
-  let statusEmoji: string;
-  let statusText: string;
+	let statusEmoji: string;
+	let statusText: string;
 
-  switch (status) {
-    case "pending":
-      statusEmoji = "🟡";
-      statusText = "Pending";
-      break;
-    case "deploying":
-      statusEmoji = "🔄";
-      statusText = "Deploying";
-      break;
-    case "running":
-      statusEmoji = "🟢";
-      statusText = "Live";
-      break;
-    case "failed":
-      statusEmoji = "🔴";
-      statusText = "Failed";
-      break;
-    case "deleting":
-      statusEmoji = "⏳";
-      statusText = "Deleting";
-      break;
-    default:
-      statusEmoji = "⚪";
-      statusText = "Unknown";
-  }
+	switch (status) {
+		case "pending":
+			statusEmoji = "🟡";
+			statusText = "Pending";
+			break;
+		case "deploying":
+			statusEmoji = "🔄";
+			statusText = "Deploying";
+			break;
+		case "running":
+			statusEmoji = "🟢";
+			statusText = "Live";
+			break;
+		case "failed":
+			statusEmoji = "🔴";
+			statusText = "Failed";
+			break;
+		case "deleting":
+			statusEmoji = "⏳";
+			statusText = "Deleting";
+			break;
+		default:
+			statusEmoji = "⚪";
+			statusText = "Unknown";
+	}
 
-  let body = `${DEPLOYMENT_COMMENT_MARKER}
+	let body = `${DEPLOYMENT_COMMENT_MARKER}
 ## ${statusEmoji} Preview Environment
 
 | Property | Value |
@@ -94,37 +94,37 @@ export function formatDeploymentComment(params: {
 | **Status** | ${statusText} |
 | **Commit** | \`${shortSha}\` |`;
 
-  if (namespace) {
-    body += `
+	if (namespace) {
+		body += `
 | **Namespace** | \`${namespace}\` |`;
-  }
+	}
 
-  if (publicUrl && status === "running") {
-    body += `
+	if (publicUrl && status === "running") {
+		body += `
 | **URL** | [${publicUrl}](${publicUrl}) |`;
-  }
+	}
 
-  body += `
+	body += `
 | **Updated** | ${timestamp} |`;
 
-  if (status === "running" && publicUrl) {
-    body += `
+	if (status === "running" && publicUrl) {
+		body += `
 
 ### Access Your Preview
 
 Click the link above to view your preview environment. The environment will automatically update when you push new commits to this PR.`;
-  }
+	}
 
-  if (status === "deploying") {
-    body += `
+	if (status === "deploying") {
+		body += `
 
 ### Deployment in Progress
 
 Your preview environment is being deployed. This usually takes 1-3 minutes. This comment will be updated once deployment completes.`;
-  }
+	}
 
-  if (status === "failed" && errorMessage) {
-    body += `
+	if (status === "failed" && errorMessage) {
+		body += `
 
 ### Deployment Failed
 
@@ -133,22 +133,22 @@ ${errorMessage}
 \`\`\`
 
 Please check the build logs for more details.`;
-  }
+	}
 
-  if (status === "deleting") {
-    body += `
+	if (status === "deleting") {
+		body += `
 
 ### Cleanup in Progress
 
 This preview environment is being deleted. This usually happens when the PR is closed or merged.`;
-  }
+	}
 
-  body += `
+	body += `
 
 ---
 <sub>Deployed by [Catalyst](https://github.com/ncrmro/catalyst) | Last updated: ${timestamp}</sub>`;
 
-  return body;
+	return body;
 }
 
 /**
@@ -161,36 +161,36 @@ This preview environment is being deleted. This usually happens when the PR is c
  * @returns Comment ID if found, null otherwise
  */
 async function findExistingDeploymentComment(
-  installationId: number | undefined,
-  owner: string,
-  repo: string,
-  prNumber: number,
+	installationId: number | undefined,
+	owner: string,
+	repo: string,
+	prNumber: number,
 ): Promise<number | null> {
-  try {
-    const octokit = await getOctokitForComments(installationId);
+	try {
+		const octokit = await getOctokitForComments(installationId);
 
-    // Fetch all comments on the PR using request() API
-    const { data: comments } = await octokit.request(
-      "GET /repos/{owner}/{repo}/issues/{issue_number}/comments",
-      {
-        owner,
-        repo,
-        issue_number: prNumber,
-        per_page: 100,
-      },
-    );
+		// Fetch all comments on the PR using request() API
+		const { data: comments } = await octokit.request(
+			"GET /repos/{owner}/{repo}/issues/{issue_number}/comments",
+			{
+				owner,
+				repo,
+				issue_number: prNumber,
+				per_page: 100,
+			},
+		);
 
-    // Find comment with our marker
-    const deploymentComment = comments.find(
-      (comment: { body?: string; id: number }) =>
-        comment.body && comment.body.includes(DEPLOYMENT_COMMENT_MARKER),
-    );
+		// Find comment with our marker
+		const deploymentComment = comments.find(
+			(comment: { body?: string; id: number }) =>
+				comment.body?.includes(DEPLOYMENT_COMMENT_MARKER),
+		);
 
-    return deploymentComment?.id || null;
-  } catch (error) {
-    console.error("Error finding existing deployment comment:", error);
-    return null;
-  }
+		return deploymentComment?.id || null;
+	} catch (error) {
+		console.error("Error finding existing deployment comment:", error);
+		return null;
+	}
 }
 
 /**
@@ -203,74 +203,74 @@ async function findExistingDeploymentComment(
  * @returns Result of the operation
  */
 export async function upsertDeploymentComment(
-  params: DeploymentCommentParams,
+	params: DeploymentCommentParams,
 ): Promise<CommentResult> {
-  const {
-    installationId,
-    owner,
-    repo,
-    prNumber,
-    status,
-    publicUrl,
-    commitSha,
-    namespace,
-    errorMessage,
-  } = params;
+	const {
+		installationId,
+		owner,
+		repo,
+		prNumber,
+		status,
+		publicUrl,
+		commitSha,
+		namespace,
+		errorMessage,
+	} = params;
 
-  try {
-    const octokit = await getOctokitForComments(installationId);
+	try {
+		const octokit = await getOctokitForComments(installationId);
 
-    // Format the comment body
-    const body = formatDeploymentComment({
-      status,
-      publicUrl,
-      commitSha,
-      namespace,
-      errorMessage,
-    });
+		// Format the comment body
+		const body = formatDeploymentComment({
+			status,
+			publicUrl,
+			commitSha,
+			namespace,
+			errorMessage,
+		});
 
-    // Check for existing deployment comment
-    const existingCommentId = await findExistingDeploymentComment(
-      installationId,
-      owner,
-      repo,
-      prNumber,
-    );
+		// Check for existing deployment comment
+		const existingCommentId = await findExistingDeploymentComment(
+			installationId,
+			owner,
+			repo,
+			prNumber,
+		);
 
-    if (existingCommentId) {
-      // Update existing comment
-      const { data: comment } = await octokit.request(
-        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
-        {
-          owner,
-          repo,
-          comment_id: existingCommentId,
-          body,
-        },
-      );
+		if (existingCommentId) {
+			// Update existing comment
+			const { data: comment } = await octokit.request(
+				"PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
+				{
+					owner,
+					repo,
+					comment_id: existingCommentId,
+					body,
+				},
+			);
 
-      return { success: true, commentId: comment.id };
-    } else {
-      // Create new comment
-      const { data: comment } = await octokit.request(
-        "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
-        {
-          owner,
-          repo,
-          issue_number: prNumber,
-          body,
-        },
-      );
+			return { success: true, commentId: comment.id };
+		} else {
+			// Create new comment
+			const { data: comment } = await octokit.request(
+				"POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
+				{
+					owner,
+					repo,
+					issue_number: prNumber,
+					body,
+				},
+			);
 
-      return { success: true, commentId: comment.id };
-    }
-  } catch (error) {
-    console.error("Error upserting deployment comment:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
-  }
+			return { success: true, commentId: comment.id };
+		}
+	} catch (error) {
+		console.error("Error upserting deployment comment:", error);
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : "Unknown error",
+		};
+	}
 }
 
 /**
@@ -285,41 +285,41 @@ export async function upsertDeploymentComment(
  * @returns Result of the operation
  */
 export async function deleteDeploymentComment(
-  installationId: number | undefined,
-  owner: string,
-  repo: string,
-  prNumber: number,
+	installationId: number | undefined,
+	owner: string,
+	repo: string,
+	prNumber: number,
 ): Promise<{ success: boolean; error?: string }> {
-  try {
-    const existingCommentId = await findExistingDeploymentComment(
-      installationId,
-      owner,
-      repo,
-      prNumber,
-    );
+	try {
+		const existingCommentId = await findExistingDeploymentComment(
+			installationId,
+			owner,
+			repo,
+			prNumber,
+		);
 
-    if (!existingCommentId) {
-      // No comment to delete - that's fine
-      return { success: true };
-    }
+		if (!existingCommentId) {
+			// No comment to delete - that's fine
+			return { success: true };
+		}
 
-    const octokit = await getOctokitForComments(installationId);
+		const octokit = await getOctokitForComments(installationId);
 
-    await octokit.request(
-      "DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}",
-      {
-        owner,
-        repo,
-        comment_id: existingCommentId,
-      },
-    );
+		await octokit.request(
+			"DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}",
+			{
+				owner,
+				repo,
+				comment_id: existingCommentId,
+			},
+		);
 
-    return { success: true };
-  } catch (error) {
-    console.error("Error deleting deployment comment:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
-  }
+		return { success: true };
+	} catch (error) {
+		console.error("Error deleting deployment comment:", error);
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : "Unknown error",
+		};
+	}
 }

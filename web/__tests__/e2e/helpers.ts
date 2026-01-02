@@ -1,4 +1,4 @@
-import { Page, TestInfo } from "@playwright/test";
+import type { Page, TestInfo } from "@playwright/test";
 import { seedUser } from "@/lib/seed";
 
 /**
@@ -6,15 +6,15 @@ import { seedUser } from "@/lib/seed";
  * to avoid conflicts between parallel test runs
  */
 export function generateUserCredentials(
-  testInfo: TestInfo,
-  role: "user" | "admin" = "user",
+	testInfo: TestInfo,
+	role: "user" | "admin" = "user",
 ) {
-  const workerIndex = testInfo.workerIndex;
-  const timestamp = Date.now();
-  const suffix = `${workerIndex}-${timestamp}`;
+	const workerIndex = testInfo.workerIndex;
+	const timestamp = Date.now();
+	const suffix = `${workerIndex}-${timestamp}`;
 
-  const basePassword = role === "admin" ? "admin" : "password";
-  return `${basePassword}-${suffix}`;
+	const basePassword = role === "admin" ? "admin" : "password";
+	return `${basePassword}-${suffix}`;
 }
 
 /**
@@ -25,33 +25,33 @@ export function generateUserCredentials(
  * @returns The password used for login
  */
 export async function loginWithDevPassword(
-  page: Page,
-  testInfo: TestInfo,
-  role: "user" | "admin" = "user",
+	page: Page,
+	testInfo: TestInfo,
+	role: "user" | "admin" = "user",
 ) {
-  // Generate a unique dev password that NextAuth credentials provider understands
-  const password = generateUserCredentials(testInfo, role);
-  await page.goto("/api/auth/signin");
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Sign in with Password" }).click();
-  await page.waitForURL("**/projects");
+	// Generate a unique dev password that NextAuth credentials provider understands
+	const password = generateUserCredentials(testInfo, role);
+	await page.goto("/api/auth/signin");
+	await page.getByLabel("Password").fill(password);
+	await page.getByRole("button", { name: "Sign in with Password" }).click();
+	await page.waitForURL("**/projects");
 
-  // Return the password so it can be used for seeding
-  return password;
+	// Return the password so it can be used for seeding
+	return password;
 }
 
 /**
  * For E2E tests - seed projects for the authenticated user
  */
 export async function seedProjectsForE2EUser(
-  password: string,
-  testInfo?: TestInfo,
+	password: string,
+	testInfo?: TestInfo,
 ) {
-  return seedUser({
-    password,
-    testInfo,
-    createProjects: true,
-  });
+	return seedUser({
+		password,
+		testInfo,
+		createProjects: true,
+	});
 }
 
 /**
@@ -59,13 +59,13 @@ export async function seedProjectsForE2EUser(
  * This is a convenience function that combines login and seeding
  */
 export async function loginAndSeedForE2E(
-  page: Page,
-  testInfo: TestInfo,
-  role: "user" | "admin" = "user",
+	page: Page,
+	testInfo: TestInfo,
+	role: "user" | "admin" = "user",
 ) {
-  // First login the user and get the password used
-  const password = await loginWithDevPassword(page, testInfo, role);
+	// First login the user and get the password used
+	const password = await loginWithDevPassword(page, testInfo, role);
 
-  // Then seed projects for this user using the database directly
-  await seedProjectsForE2EUser(password, testInfo);
+	// Then seed projects for this user using the database directly
+	await seedProjectsForE2EUser(password, testInfo);
 }

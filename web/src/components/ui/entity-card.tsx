@@ -16,5 +16,6 @@
  * />
  * ```
  */
-export { GlassEntityCard as EntityCard } from "@tetrastack/react-glass-components";
+
 export type { GlassEntityCardProps as EntityCardProps } from "@tetrastack/react-glass-components";
+export { GlassEntityCard as EntityCard } from "@tetrastack/react-glass-components";

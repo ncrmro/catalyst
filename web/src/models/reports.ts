@@ -5,10 +5,10 @@
  * No authentication - handled by actions layer
  */
 
+import type { InferInsertModel } from "drizzle-orm";
+import { desc } from "drizzle-orm";
 import { db } from "@/db";
 import { reports } from "@/db/schema";
-import { desc } from "drizzle-orm";
-import type { InferInsertModel } from "drizzle-orm";
 import type { ReportData } from "@/types/reports";
 
 export type InsertReport = InferInsertModel<typeof reports>;
@@ -17,8 +17,8 @@ export type InsertReport = InferInsertModel<typeof reports>;
  * Query parameters for flexible report filtering
  */
 export interface GetReportsParams {
-  limit?: number;
-  offset?: number;
+	limit?: number;
+	offset?: number;
 }
 
 /**
@@ -26,14 +26,14 @@ export interface GetReportsParams {
  * Ordered by creation date (newest first)
  */
 export async function getReports(params: GetReportsParams = {}) {
-  const { limit = 50, offset = 0 } = params;
+	const { limit = 50, offset = 0 } = params;
 
-  return db
-    .select()
-    .from(reports)
-    .orderBy(desc(reports.createdAt))
-    .limit(limit)
-    .offset(offset);
+	return db
+		.select()
+		.from(reports)
+		.orderBy(desc(reports.createdAt))
+		.limit(limit)
+		.offset(offset);
 }
 
 /**
@@ -41,11 +41,11 @@ export async function getReports(params: GetReportsParams = {}) {
  * Follows bulk operation pattern
  */
 export async function createReports(data: ReportData | ReportData[]) {
-  const items = Array.isArray(data) ? data : [data];
+	const items = Array.isArray(data) ? data : [data];
 
-  const values = items.map((item) => ({
-    data: item,
-  }));
+	const values = items.map((item) => ({
+		data: item,
+	}));
 
-  return db.insert(reports).values(values).returning();
+	return db.insert(reports).values(values).returning();
 }

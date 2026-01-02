@@ -2,21 +2,21 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { SetupWizard } from "./setup-wizard";
 
 const meta = {
-  title: "Pages/Projects/Configure/SetupWizard",
-  component: SetupWizard,
-  tags: ["autodocs"],
-  parameters: {
-    layout: "fullscreen",
-  },
+	title: "Pages/Projects/Configure/SetupWizard",
+	component: SetupWizard,
+	tags: ["autodocs"],
+	parameters: {
+		layout: "fullscreen",
+	},
 } satisfies Meta<typeof SetupWizard>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
 const mockProject = {
-  slug: "catalyst-web",
-  name: "Catalyst Web",
-  fullName: "catalyst/web",
+	slug: "catalyst-web",
+	name: "Catalyst Web",
+	fullName: "catalyst/web",
 };
 
 /**
@@ -24,10 +24,10 @@ const mockProject = {
  * Initial wizard state where user connects their repository
  */
 export const Step1_GitRepo: Story = {
-  args: {
-    project: mockProject,
-    initialStep: 0,
-  },
+	args: {
+		project: mockProject,
+		initialStep: 0,
+	},
 };
 
 /**
@@ -35,17 +35,17 @@ export const Step1_GitRepo: Story = {
  * Shows repository already connected
  */
 export const Step1_WithRepo: Story = {
-  args: {
-    project: mockProject,
-    initialStep: 0,
-    initialData: {
-      gitRepo: {
-        repoUrl: "https://github.com/catalyst/web",
-        branch: "main",
-        isConnected: true,
-      },
-    },
-  },
+	args: {
+		project: mockProject,
+		initialStep: 0,
+		initialData: {
+			gitRepo: {
+				repoUrl: "https://github.com/catalyst/web",
+				branch: "main",
+				isConnected: true,
+			},
+		},
+	},
 };
 
 /**
@@ -53,17 +53,17 @@ export const Step1_WithRepo: Story = {
  * User configures how the application deploys
  */
 export const Step2_DeploymentConfig: Story = {
-  args: {
-    project: mockProject,
-    initialStep: 1,
-    initialData: {
-      gitRepo: {
-        repoUrl: "https://github.com/catalyst/web",
-        branch: "main",
-        isConnected: true,
-      },
-    },
-  },
+	args: {
+		project: mockProject,
+		initialStep: 1,
+		initialData: {
+			gitRepo: {
+				repoUrl: "https://github.com/catalyst/web",
+				branch: "main",
+				isConnected: true,
+			},
+		},
+	},
 };
 
 /**
@@ -71,29 +71,29 @@ export const Step2_DeploymentConfig: Story = {
  * Shows Helm deployment configuration
  */
 export const Step2_WithHelmConfig: Story = {
-  args: {
-    project: mockProject,
-    initialStep: 1,
-    initialData: {
-      gitRepo: {
-        repoUrl: "https://github.com/catalyst/web",
-        branch: "main",
-        isConnected: true,
-      },
-      deployment: {
-        method: "helm",
-        helm: {
-          chartPath: "./charts/app",
-          valuesPath: "./values.yaml",
-        },
-        managedServices: {
-          postgres: true,
-          redis: false,
-          opensearch: false,
-        },
-      },
-    },
-  },
+	args: {
+		project: mockProject,
+		initialStep: 1,
+		initialData: {
+			gitRepo: {
+				repoUrl: "https://github.com/catalyst/web",
+				branch: "main",
+				isConnected: true,
+			},
+			deployment: {
+				method: "helm",
+				helm: {
+					chartPath: "./charts/app",
+					valuesPath: "./values.yaml",
+				},
+				managedServices: {
+					postgres: true,
+					redis: false,
+					opensearch: false,
+				},
+			},
+		},
+	},
 };
 
 /**
@@ -101,28 +101,28 @@ export const Step2_WithHelmConfig: Story = {
  * Final step - user creates their first environment
  */
 export const Step3_CreateEnvironment: Story = {
-  args: {
-    project: mockProject,
-    initialStep: 2,
-    initialData: {
-      gitRepo: {
-        repoUrl: "https://github.com/catalyst/web",
-        branch: "main",
-        isConnected: true,
-      },
-      deployment: {
-        method: "helm",
-        helm: {
-          chartPath: "./charts/app",
-        },
-        managedServices: {
-          postgres: true,
-          redis: true,
-          opensearch: false,
-        },
-      },
-    },
-  },
+	args: {
+		project: mockProject,
+		initialStep: 2,
+		initialData: {
+			gitRepo: {
+				repoUrl: "https://github.com/catalyst/web",
+				branch: "main",
+				isConnected: true,
+			},
+			deployment: {
+				method: "helm",
+				helm: {
+					chartPath: "./charts/app",
+				},
+				managedServices: {
+					postgres: true,
+					redis: true,
+					opensearch: false,
+				},
+			},
+		},
+	},
 };
 
 /**
@@ -130,34 +130,34 @@ export const Step3_CreateEnvironment: Story = {
  * Shows development environment selected
  */
 export const Step3_WithDevelopmentEnv: Story = {
-  args: {
-    project: mockProject,
-    initialStep: 2,
-    initialData: {
-      gitRepo: {
-        repoUrl: "https://github.com/catalyst/web",
-        branch: "main",
-        isConnected: true,
-      },
-      deployment: {
-        method: "docker",
-        docker: {
-          dockerfilePath: "./Dockerfile",
-          context: ".",
-        },
-        managedServices: {
-          postgres: true,
-          redis: false,
-          opensearch: false,
-        },
-      },
-      environment: {
-        name: "catalyst-web-dev",
-        type: "development",
-        branch: "main",
-      },
-    },
-  },
+	args: {
+		project: mockProject,
+		initialStep: 2,
+		initialData: {
+			gitRepo: {
+				repoUrl: "https://github.com/catalyst/web",
+				branch: "main",
+				isConnected: true,
+			},
+			deployment: {
+				method: "docker",
+				docker: {
+					dockerfilePath: "./Dockerfile",
+					context: ".",
+				},
+				managedServices: {
+					postgres: true,
+					redis: false,
+					opensearch: false,
+				},
+			},
+			environment: {
+				name: "catalyst-web-dev",
+				type: "development",
+				branch: "main",
+			},
+		},
+	},
 };
 
 /**
@@ -165,32 +165,32 @@ export const Step3_WithDevelopmentEnv: Story = {
  * Shows full configuration ready for submission
  */
 export const Complete: Story = {
-  args: {
-    project: mockProject,
-    initialStep: 2,
-    initialData: {
-      gitRepo: {
-        repoUrl: "https://github.com/catalyst/web",
-        branch: "main",
-        isConnected: true,
-      },
-      deployment: {
-        method: "helm",
-        helm: {
-          chartPath: "./charts/nextjs",
-          valuesPath: "./values/production.yaml",
-        },
-        managedServices: {
-          postgres: true,
-          redis: true,
-          opensearch: true,
-        },
-      },
-      environment: {
-        name: "catalyst-web-production",
-        type: "deployment",
-        branch: "main",
-      },
-    },
-  },
+	args: {
+		project: mockProject,
+		initialStep: 2,
+		initialData: {
+			gitRepo: {
+				repoUrl: "https://github.com/catalyst/web",
+				branch: "main",
+				isConnected: true,
+			},
+			deployment: {
+				method: "helm",
+				helm: {
+					chartPath: "./charts/nextjs",
+					valuesPath: "./values/production.yaml",
+				},
+				managedServices: {
+					postgres: true,
+					redis: true,
+					opensearch: true,
+				},
+			},
+			environment: {
+				name: "catalyst-web-production",
+				type: "deployment",
+				branch: "main",
+			},
+		},
+	},
 };

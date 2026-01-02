@@ -6,9 +6,9 @@ import { PreviewEnvironmentsLoading } from "./PreviewEnvironmentsLoading";
  * Server component wrapper that handles suspense for preview environments
  */
 export function PreviewEnvironmentsList() {
-  return (
-    <Suspense fallback={<PreviewEnvironmentsLoading />}>
-      <PreviewEnvironmentsContent />
-    </Suspense>
-  );
+	return (
+		<Suspense fallback={<PreviewEnvironmentsLoading />}>
+			<PreviewEnvironmentsContent />
+		</Suspense>
+	);
 }

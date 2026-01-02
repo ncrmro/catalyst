@@ -1,17 +1,17 @@
-import { _auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { _auth } from "@/auth";
 
 export default async function DashboardLayout({
-  children,
+	children,
 }: {
-  children: React.ReactNode;
+	children: React.ReactNode;
 }) {
-  const session = await _auth();
+	const session = await _auth();
 
-  // Redirect unauthenticated users to login
-  if (!session?.user) {
-    redirect("/login");
-  }
+	// Redirect unauthenticated users to login
+	if (!session?.user) {
+		redirect("/login");
+	}
 
-  return <>{children}</>;
+	return <>{children}</>;
 }

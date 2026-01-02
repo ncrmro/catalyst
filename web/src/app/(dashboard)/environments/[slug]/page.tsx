@@ -1,54 +1,54 @@
 // Split into separate client and server components to fix the "use client" + metadata issue
 
-import { fetchProjectBySlug } from "@/actions/projects";
-import { configureProjectEnvironments } from "@/actions/environments";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Metadata } from "next";
+import { configureProjectEnvironments } from "@/actions/environments";
+import { fetchProjectBySlug } from "@/actions/projects";
 import { EnvironmentsForm } from "./client";
 
 interface EnvironmentsPageProps {
-  params: Promise<{
-    slug: string;
-  }>;
+	params: Promise<{
+		slug: string;
+	}>;
 }
 
 export async function generateMetadata({
-  params,
+	params,
 }: EnvironmentsPageProps): Promise<Metadata> {
-  const { slug } = await params;
-  const project = await fetchProjectBySlug(slug);
+	const { slug } = await params;
+	const project = await fetchProjectBySlug(slug);
 
-  return {
-    title: project
-      ? `${project.fullName} - Environments - Catalyst`
-      : "Project Environments - Catalyst",
-    description: project
-      ? `Configure environments for ${project.fullName}`
-      : "Configure project environments in Catalyst.",
-  };
+	return {
+		title: project
+			? `${project.fullName} - Environments - Catalyst`
+			: "Project Environments - Catalyst",
+		description: project
+			? `Configure environments for ${project.fullName}`
+			: "Configure project environments in Catalyst.",
+	};
 }
 
 export default async function EnvironmentsPage({
-  params,
+	params,
 }: EnvironmentsPageProps) {
-  const { slug } = await params;
+	const { slug } = await params;
 
-  let project;
-  try {
-    project = await fetchProjectBySlug(slug);
-  } catch (err) {
-    console.error("Error fetching project:", err);
-    notFound();
-  }
+	let project;
+	try {
+		project = await fetchProjectBySlug(slug);
+	} catch (err) {
+		console.error("Error fetching project:", err);
+		notFound();
+	}
 
-  if (!project) {
-    notFound();
-  }
+	if (!project) {
+		notFound();
+	}
 
-  return (
-    <EnvironmentsForm
-      project={project}
-      onSubmit={configureProjectEnvironments}
-    />
-  );
+	return (
+		<EnvironmentsForm
+			project={project}
+			onSubmit={configureProjectEnvironments}
+		/>
+	);
 }

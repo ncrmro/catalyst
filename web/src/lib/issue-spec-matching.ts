@@ -4,13 +4,13 @@
  * Utilities for matching issues to specs and categorizing issues as bugs or enhancements.
  */
 
-import type { Issue } from "@/types/reports";
 import type { Spec } from "@/lib/pr-spec-matching";
-import { matchPRToSpec, isPRChore } from "@/lib/pr-spec-matching";
+import { isPRChore, matchPRToSpec } from "@/lib/pr-spec-matching";
+import type { Issue } from "@/types/reports";
 
 export interface IssuesBySpec {
-  bySpec: Record<string, Issue[]>;
-  noSpec: Issue[];
+	bySpec: Record<string, Issue[]>;
+	noSpec: Issue[];
 }
 
 /**
@@ -25,10 +25,10 @@ export interface IssuesBySpec {
  * @returns The matched spec ID or null if no match
  */
 export function matchIssueToSpec(
-  issueTitle: string,
-  specIds: string[],
+	issueTitle: string,
+	specIds: string[],
 ): string | null {
-  return matchPRToSpec(issueTitle, specIds);
+	return matchPRToSpec(issueTitle, specIds);
 }
 
 /**
@@ -38,10 +38,10 @@ export function matchIssueToSpec(
  * @returns true if the issue is a bug
  */
 export function isIssueBug(issue: Issue): boolean {
-  if (issue.type === "bug") {
-    return true;
-  }
-  return issue.labels.some((label) => label.toLowerCase().includes("bug"));
+	if (issue.type === "bug") {
+		return true;
+	}
+	return issue.labels.some((label) => label.toLowerCase().includes("bug"));
 }
 
 /**
@@ -51,12 +51,12 @@ export function isIssueBug(issue: Issue): boolean {
  * @returns true if the issue is an enhancement or feature
  */
 export function isIssueEnhancement(issue: Issue): boolean {
-  if (issue.type === "feature" || issue.type === "improvement") {
-    return true;
-  }
-  return issue.labels.some((label) =>
-    ["enhancement", "feature"].includes(label.toLowerCase()),
-  );
+	if (issue.type === "feature" || issue.type === "improvement") {
+		return true;
+	}
+	return issue.labels.some((label) =>
+		["enhancement", "feature"].includes(label.toLowerCase()),
+	);
 }
 
 /**
@@ -67,30 +67,30 @@ export function isIssueEnhancement(issue: Issue): boolean {
  * @returns Object containing bug and enhancement issues grouped by spec
  */
 export function groupIssuesBySpecAndType(
-  issues: Issue[],
-  specs: Spec[],
+	issues: Issue[],
+	specs: Spec[],
 ): { bugIssues: IssuesBySpec; enhancementIssues: IssuesBySpec } {
-  const specIds = specs.map((s) => s.id);
+	const specIds = specs.map((s) => s.id);
 
-  const bugIssues: IssuesBySpec = { bySpec: {}, noSpec: [] };
-  const enhancementIssues: IssuesBySpec = { bySpec: {}, noSpec: [] };
+	const bugIssues: IssuesBySpec = { bySpec: {}, noSpec: [] };
+	const enhancementIssues: IssuesBySpec = { bySpec: {}, noSpec: [] };
 
-  issues.forEach((issue) => {
-    const isBug = isIssueBug(issue);
-    const matchedSpecId = matchIssueToSpec(issue.title, specIds);
-    const target = isBug ? bugIssues : enhancementIssues;
+	issues.forEach((issue) => {
+		const isBug = isIssueBug(issue);
+		const matchedSpecId = matchIssueToSpec(issue.title, specIds);
+		const target = isBug ? bugIssues : enhancementIssues;
 
-    if (matchedSpecId) {
-      if (!target.bySpec[matchedSpecId]) {
-        target.bySpec[matchedSpecId] = [];
-      }
-      target.bySpec[matchedSpecId].push(issue);
-    } else {
-      target.noSpec.push(issue);
-    }
-  });
+		if (matchedSpecId) {
+			if (!target.bySpec[matchedSpecId]) {
+				target.bySpec[matchedSpecId] = [];
+			}
+			target.bySpec[matchedSpecId].push(issue);
+		} else {
+			target.noSpec.push(issue);
+		}
+	});
 
-  return { bugIssues, enhancementIssues };
+	return { bugIssues, enhancementIssues };
 }
 
 /**
@@ -101,12 +101,12 @@ export function groupIssuesBySpecAndType(
  * @returns true if the issue is platform/chore work
  */
 export function isIssuePlatform(issue: Issue): boolean {
-  // Bugs are typically platform/maintenance work
-  if (issue.type === "bug") {
-    return true;
-  }
-  // Check title for chore patterns (same as PRs)
-  return isPRChore(issue.title);
+	// Bugs are typically platform/maintenance work
+	if (issue.type === "bug") {
+		return true;
+	}
+	// Check title for chore patterns (same as PRs)
+	return isPRChore(issue.title);
 }
 
 /**
@@ -116,19 +116,19 @@ export function isIssuePlatform(issue: Issue): boolean {
  * @returns Object containing feature and platform issues
  */
 export function splitIssuesByType(issues: Issue[]): {
-  featureIssues: Issue[];
-  platformIssues: Issue[];
+	featureIssues: Issue[];
+	platformIssues: Issue[];
 } {
-  const featureIssues: Issue[] = [];
-  const platformIssues: Issue[] = [];
+	const featureIssues: Issue[] = [];
+	const platformIssues: Issue[] = [];
 
-  issues.forEach((issue) => {
-    if (isIssuePlatform(issue)) {
-      platformIssues.push(issue);
-    } else {
-      featureIssues.push(issue);
-    }
-  });
+	issues.forEach((issue) => {
+		if (isIssuePlatform(issue)) {
+			platformIssues.push(issue);
+		} else {
+			featureIssues.push(issue);
+		}
+	});
 
-  return { featureIssues, platformIssues };
+	return { featureIssues, platformIssues };
 }

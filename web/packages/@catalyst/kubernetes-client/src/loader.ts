@@ -5,7 +5,6 @@
  * with Jest and other CommonJS-based tooling.
  */
 
- 
 let k8sModule: typeof import("@kubernetes/client-node") | null = null;
 
 /**
@@ -13,17 +12,17 @@ let k8sModule: typeof import("@kubernetes/client-node") | null = null;
  * Caches the module after first load for efficiency.
  */
 export async function loadKubernetesClient(): Promise<
-  typeof import("@kubernetes/client-node")
+	typeof import("@kubernetes/client-node")
 > {
-  if (!k8sModule) {
-    k8sModule = await import("@kubernetes/client-node");
-  }
-  return k8sModule;
+	if (!k8sModule) {
+		k8sModule = await import("@kubernetes/client-node");
+	}
+	return k8sModule;
 }
 
 /**
  * Reset the cached module (for testing purposes)
  */
 export function resetLoader(): void {
-  k8sModule = null;
+	k8sModule = null;
 }

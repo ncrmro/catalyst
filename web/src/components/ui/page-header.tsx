@@ -1,19 +1,19 @@
 import { GlassCard } from "@tetrastack/react-glass-components";
-import { Breadcrumbs, BreadcrumbItem } from "./breadcrumbs";
+import { type BreadcrumbItem, Breadcrumbs } from "./breadcrumbs";
 
 export interface PageHeaderProps {
-  /**
-   * Breadcrumb items to display
-   */
-  breadcrumbs: BreadcrumbItem[];
-  /**
-   * Optional action element (e.g., button) to display on the right
-   */
-  action?: React.ReactNode;
-  /**
-   * Alternative to action - any children will be rendered on the right side
-   */
-  children?: React.ReactNode;
+	/**
+	 * Breadcrumb items to display
+	 */
+	breadcrumbs: BreadcrumbItem[];
+	/**
+	 * Optional action element (e.g., button) to display on the right
+	 */
+	action?: React.ReactNode;
+	/**
+	 * Alternative to action - any children will be rendered on the right side
+	 */
+	children?: React.ReactNode;
 }
 
 /**
@@ -31,12 +31,12 @@ export interface PageHeaderProps {
  * ```
  */
 export function PageHeader({ breadcrumbs, action, children }: PageHeaderProps) {
-  return (
-    <GlassCard>
-      <div className="flex items-center justify-between">
-        <Breadcrumbs items={breadcrumbs} />
-        {action || children}
-      </div>
-    </GlassCard>
-  );
+	return (
+		<GlassCard>
+			<div className="flex items-center justify-between">
+				<Breadcrumbs items={breadcrumbs} />
+				{action || children}
+			</div>
+		</GlassCard>
+	);
 }

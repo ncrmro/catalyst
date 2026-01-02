@@ -27,64 +27,64 @@
 
 import { Factory, faker } from "@/lib/factories";
 import {
-  createEnvironments,
-  type InsertEnvironment,
+	createEnvironments,
+	type InsertEnvironment,
 } from "@/models/environments";
 
 /**
  * Environment factory with trait methods for common environment types
  */
 class EnvironmentFactory extends Factory<InsertEnvironment> {
-  /**
-   * Create a preview environment
-   */
-  preview() {
-    return this.params({
-      environment: "preview",
-      latestDeployment: `preview-${faker.git.commitSha()}`,
-    });
-  }
+	/**
+	 * Create a preview environment
+	 */
+	preview() {
+		return this.params({
+			environment: "preview",
+			latestDeployment: `preview-${faker.git.commitSha()}`,
+		});
+	}
 
-  /**
-   * Create a production environment
-   */
-  production() {
-    return this.params({
-      environment: "production",
-      latestDeployment: `v${faker.system.semver()}`,
-    });
-  }
+	/**
+	 * Create a production environment
+	 */
+	production() {
+		return this.params({
+			environment: "production",
+			latestDeployment: `v${faker.system.semver()}`,
+		});
+	}
 
-  /**
-   * Create a staging environment
-   */
-  staging() {
-    return this.params({
-      environment: "staging",
-      latestDeployment: `staging-${faker.git.commitSha()}`,
-    });
-  }
+	/**
+	 * Create a staging environment
+	 */
+	staging() {
+		return this.params({
+			environment: "staging",
+			latestDeployment: `staging-${faker.git.commitSha()}`,
+		});
+	}
 
-  /**
-   * Create and persist environment to database using model layer
-   */
-  async create(params?: Partial<InsertEnvironment>) {
-    const environment = this.build(params);
-    const [created] = await createEnvironments(environment);
-    return created;
-  }
+	/**
+	 * Create and persist environment to database using model layer
+	 */
+	async create(params?: Partial<InsertEnvironment>) {
+		const environment = this.build(params);
+		const [created] = await createEnvironments(environment);
+		return created;
+	}
 }
 
 export const environmentFactory = EnvironmentFactory.define(() => ({
-  projectId: "", // Must be provided when building
-  repoId: "", // Must be provided when building
-  environment: faker.helpers.arrayElement([
-    "preview",
-    "production",
-    "staging",
-    "development",
-  ]),
-  latestDeployment:
-    faker.helpers.maybe(() => faker.git.commitSha(), { probability: 0.7 }) ??
-    null,
+	projectId: "", // Must be provided when building
+	repoId: "", // Must be provided when building
+	environment: faker.helpers.arrayElement([
+		"preview",
+		"production",
+		"staging",
+		"development",
+	]),
+	latestDeployment:
+		faker.helpers.maybe(() => faker.git.commitSha(), { probability: 0.7 }) ??
+		null,
 }));

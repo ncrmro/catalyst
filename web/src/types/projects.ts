@@ -10,11 +10,11 @@
 
 import type { InferSelectModel } from "drizzle-orm";
 import type {
-  projects,
-  projectsRepos,
-  projectEnvironments,
-  repos,
-  teams,
+	projectEnvironments,
+	projects,
+	projectsRepos,
+	repos,
+	teams,
 } from "@/db/schema";
 
 // Base types derived from schema (auto-sync with migrations)
@@ -26,22 +26,22 @@ export type ProjectEnvironment = InferSelectModel<typeof projectEnvironments>;
 
 // Client-friendly interface for repository info
 export interface ProjectRepo {
-  id: string;
-  name: string;
-  full_name: string;
-  url: string;
-  primary: boolean;
+	id: string;
+	name: string;
+	full_name: string;
+	url: string;
+	primary: boolean;
 }
 
 // Repository connection with nested repo data
 export interface ProjectRepoWithRepo extends ProjectRepoRow {
-  repo: Repo;
+	repo: Repo;
 }
 
 // Full project with all relations (matches getProjects() return type)
 export interface ProjectWithRelations extends Project {
-  repositories: ProjectRepoWithRepo[];
-  environments: ProjectEnvironment[];
-  team?: Team;
-  repo?: Repo;
+	repositories: ProjectRepoWithRepo[];
+	environments: ProjectEnvironment[];
+	team?: Team;
+	repo?: Repo;
 }

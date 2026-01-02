@@ -11,20 +11,20 @@ import type { Condition, ListMeta, ObjectMeta } from "./common";
  * CRD API constants
  */
 export const PROJECT_API = {
-  group: "catalyst.catalyst.dev",
-  version: "v1alpha1",
-  plural: "projects",
-  kind: "Project",
+	group: "catalyst.catalyst.dev",
+	version: "v1alpha1",
+	plural: "projects",
+	kind: "Project",
 } as const;
 
 /**
  * Source configuration for the project
  */
 export interface SourceConfig {
-  /** Git repository URL */
-  repositoryUrl: string;
-  /** Default branch to use */
-  branch: string;
+	/** Git repository URL */
+	repositoryUrl: string;
+	/** Default branch to use */
+	branch: string;
 }
 
 /**
@@ -36,71 +36,71 @@ export type DeploymentType = "helm" | "manifest" | "kustomize";
  * Deployment strategy configuration
  */
 export interface DeploymentConfig {
-  /** Type of deployment */
-  type: DeploymentType;
-  /** Path to the deployment definition (e.g., chart path) */
-  path: string;
-  /** Default values to inject (JSON) */
-  values?: Record<string, unknown>;
+	/** Type of deployment */
+	type: DeploymentType;
+	/** Path to the deployment definition (e.g., chart path) */
+	path: string;
+	/** Default values to inject (JSON) */
+	values?: Record<string, unknown>;
 }
 
 /**
  * Resource quota specification
  */
 export interface QuotaSpec {
-  /** CPU limit (e.g., "1") */
-  cpu?: string;
-  /** Memory limit (e.g., "2Gi") */
-  memory?: string;
+	/** CPU limit (e.g., "1") */
+	cpu?: string;
+	/** Memory limit (e.g., "2Gi") */
+	memory?: string;
 }
 
 /**
  * Resource configuration
  */
 export interface ResourceConfig {
-  /** Default resource quota for environments */
-  defaultQuota?: QuotaSpec;
+	/** Default resource quota for environments */
+	defaultQuota?: QuotaSpec;
 }
 
 /**
  * ProjectSpec defines the desired state of Project
  */
 export interface ProjectSpec {
-  /** Source configuration */
-  source: SourceConfig;
-  /** Deployment strategy */
-  deployment: DeploymentConfig;
-  /** Resource configuration */
-  resources?: ResourceConfig;
+	/** Source configuration */
+	source: SourceConfig;
+	/** Deployment strategy */
+	deployment: DeploymentConfig;
+	/** Resource configuration */
+	resources?: ResourceConfig;
 }
 
 /**
  * ProjectStatus defines the observed state of Project
  */
 export interface ProjectStatus {
-  /** Detailed conditions */
-  conditions?: Condition[];
+	/** Detailed conditions */
+	conditions?: Condition[];
 }
 
 /**
  * Project is the Schema for the projects API
  */
 export interface Project {
-  apiVersion: "catalyst.catalyst.dev/v1alpha1";
-  kind: "Project";
-  metadata: ObjectMeta;
-  spec: ProjectSpec;
-  status?: ProjectStatus;
+	apiVersion: "catalyst.catalyst.dev/v1alpha1";
+	kind: "Project";
+	metadata: ObjectMeta;
+	spec: ProjectSpec;
+	status?: ProjectStatus;
 }
 
 /**
  * ProjectList contains a list of Project
  */
 export interface ProjectList {
-  apiVersion: "catalyst.catalyst.dev/v1alpha1";
-  kind: "ProjectList";
-  metadata: ListMeta;
-  items: Project[];
+	apiVersion: "catalyst.catalyst.dev/v1alpha1";
+	kind: "ProjectList";
+	metadata: ListMeta;
+	items: Project[];
 }
 
 /**

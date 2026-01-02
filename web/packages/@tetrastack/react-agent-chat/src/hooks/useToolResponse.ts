@@ -1,26 +1,26 @@
-'use client';
+"use client";
 
-import { useCallback } from 'react';
-import type { ToolResponseHandler, AddToolOutputOptions } from '../types';
+import { useCallback } from "react";
+import type { AddToolOutputOptions, ToolResponseHandler } from "../types";
 
 /**
  * Options for useToolResponse hook
  */
 export interface UseToolResponseOptions {
-  /** Function to add tool output (from useAgentChat or AI SDK) */
-  addToolOutput: (options: AddToolOutputOptions) => void;
-  /** Optional callback after tool response is submitted */
-  onSubmit?: (toolCallId: string, output: unknown) => void;
+	/** Function to add tool output (from useAgentChat or AI SDK) */
+	addToolOutput: (options: AddToolOutputOptions) => void;
+	/** Optional callback after tool response is submitted */
+	onSubmit?: (toolCallId: string, output: unknown) => void;
 }
 
 /**
  * Return type for useToolResponse hook
  */
 export interface UseToolResponseReturn {
-  /** Submit a response for a tool call */
-  submitResponse: ToolResponseHandler;
-  /** Create a bound submit handler for a specific tool call */
-  createSubmitHandler: (toolCallId: string) => (output: unknown) => void;
+	/** Submit a response for a tool call */
+	submitResponse: ToolResponseHandler;
+	/** Create a bound submit handler for a specific tool call */
+	createSubmitHandler: (toolCallId: string) => (output: unknown) => void;
 }
 
 /**
@@ -42,32 +42,32 @@ export interface UseToolResponseReturn {
  * ```
  */
 export function useToolResponse(
-  options: UseToolResponseOptions,
+	options: UseToolResponseOptions,
 ): UseToolResponseReturn {
-  const { addToolOutput, onSubmit } = options;
+	const { addToolOutput, onSubmit } = options;
 
-  const submitResponse: ToolResponseHandler = useCallback(
-    (toolCallId: string, output: unknown) => {
-      addToolOutput({
-        toolCallId,
-        output,
-      });
-      onSubmit?.(toolCallId, output);
-    },
-    [addToolOutput, onSubmit],
-  );
+	const submitResponse: ToolResponseHandler = useCallback(
+		(toolCallId: string, output: unknown) => {
+			addToolOutput({
+				toolCallId,
+				output,
+			});
+			onSubmit?.(toolCallId, output);
+		},
+		[addToolOutput, onSubmit],
+	);
 
-  const createSubmitHandler = useCallback(
-    (toolCallId: string) => {
-      return (output: unknown) => {
-        submitResponse(toolCallId, output);
-      };
-    },
-    [submitResponse],
-  );
+	const createSubmitHandler = useCallback(
+		(toolCallId: string) => {
+			return (output: unknown) => {
+				submitResponse(toolCallId, output);
+			};
+		},
+		[submitResponse],
+	);
 
-  return {
-    submitResponse,
-    createSubmitHandler,
-  };
+	return {
+		submitResponse,
+		createSubmitHandler,
+	};
 }

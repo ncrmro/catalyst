@@ -7,34 +7,34 @@
  * This layer handles authentication, authorization, and delegates to models.
  */
 
+import { desc, eq, inArray } from "drizzle-orm";
 import { auth } from "@/auth";
-import {
-  listActivePreviewPods,
-  listActivePreviewPodsWithMetrics,
-  userHasAccessToPod,
-  getPreviewDeploymentStatusFull,
-  getPreviewDeploymentLogs,
-  deletePreviewDeploymentOrchestrated,
-  retryFailedDeployment,
-  createManualPreviewEnvironment,
-  findOrCreateEnvironment as findOrCreateEnvironmentModel,
-  type CreateManualPreviewResult,
-  type EnvironmentData,
-} from "@/models/preview-environments";
 import { db } from "@/db";
 import {
-  repos,
-  projects,
-  teamsMemberships,
-  pullRequestPods,
-  pullRequests,
+	projects,
+	pullRequestPods,
+	pullRequests,
+	repos,
+	teamsMemberships,
 } from "@/db/schema";
-import { eq, inArray, desc } from "drizzle-orm";
+import {
+	type CreateManualPreviewResult,
+	createManualPreviewEnvironment,
+	deletePreviewDeploymentOrchestrated,
+	type EnvironmentData,
+	findOrCreateEnvironment as findOrCreateEnvironmentModel,
+	getPreviewDeploymentLogs,
+	getPreviewDeploymentStatusFull,
+	listActivePreviewPods,
+	listActivePreviewPodsWithMetrics,
+	retryFailedDeployment,
+	userHasAccessToPod,
+} from "@/models/preview-environments";
 import type {
-  SelectRepo,
-  PreviewPodWithMetrics,
-  PreviewPodWithRelations,
-  ActionResult,
+	ActionResult,
+	PreviewPodWithMetrics,
+	PreviewPodWithRelations,
+	SelectRepo,
 } from "@/types/preview-environments";
 
 /**
@@ -43,21 +43,21 @@ import type {
  * Returns pods that the user has access to through team membership.
  */
 export async function getActivePreviewEnvironments(): Promise<
-  ActionResult<PreviewPodWithRelations[]>
+	ActionResult<PreviewPodWithRelations[]>
 > {
-  const session = await auth();
+	const session = await auth();
 
-  if (!session?.user?.id) {
-    return { success: false, error: "Not authenticated" };
-  }
+	if (!session?.user?.id) {
+		return { success: false, error: "Not authenticated" };
+	}
 
-  const result = await listActivePreviewPods(session.user.id);
+	const result = await listActivePreviewPods(session.user.id);
 
-  if (!result.success) {
-    return { success: false, error: result.error };
-  }
+	if (!result.success) {
+		return { success: false, error: result.error };
+	}
 
-  return { success: true, data: result.pods };
+	return { success: true, data: result.pods };
 }
 
 /**
@@ -66,71 +66,71 @@ export async function getActivePreviewEnvironments(): Promise<
  * Combines database state with live Kubernetes status.
  */
 export async function getPreviewEnvironmentStatus(podId: string): Promise<
-  ActionResult<{
-    dbStatus: string;
-    k8sStatus?: {
-      ready: boolean;
-      status: string;
-      replicas?: number;
-      readyReplicas?: number;
-      error?: string;
-    };
-    publicUrl?: string;
-    namespace: string;
-    deploymentName: string;
-    branch: string;
-    commitSha: string;
-    createdAt: Date;
-    updatedAt: Date;
-  }>
+	ActionResult<{
+		dbStatus: string;
+		k8sStatus?: {
+			ready: boolean;
+			status: string;
+			replicas?: number;
+			readyReplicas?: number;
+			error?: string;
+		};
+		publicUrl?: string;
+		namespace: string;
+		deploymentName: string;
+		branch: string;
+		commitSha: string;
+		createdAt: Date;
+		updatedAt: Date;
+	}>
 > {
-  const session = await auth();
+	const session = await auth();
 
-  if (!session?.user?.id) {
-    return { success: false, error: "Not authenticated" };
-  }
+	if (!session?.user?.id) {
+		return { success: false, error: "Not authenticated" };
+	}
 
-  // Check authorization
-  const hasAccess = await userHasAccessToPod(session.user.id, podId);
-  if (!hasAccess) {
-    return { success: false, error: "Access denied" };
-  }
+	// Check authorization
+	const hasAccess = await userHasAccessToPod(session.user.id, podId);
+	if (!hasAccess) {
+		return { success: false, error: "Access denied" };
+	}
 
-  const result = await getPreviewDeploymentStatusFull(podId);
+	const result = await getPreviewDeploymentStatusFull(podId);
 
-  if (!result.success) {
-    return { success: false, error: result.error };
-  }
+	if (!result.success) {
+		return { success: false, error: result.error };
+	}
 
-  return { success: true, data: result.status };
+	return { success: true, data: result.status };
 }
 
 /**
  * Get logs from a preview environment.
  */
 export async function getPreviewEnvironmentLogs(
-  podId: string,
-  options?: { tailLines?: number; timestamps?: boolean },
+	podId: string,
+	options?: { tailLines?: number; timestamps?: boolean },
 ): Promise<ActionResult<string>> {
-  const session = await auth();
+	const session = await auth();
 
-  if (!session?.user?.id) {
-    return { success: false, error: "Not authenticated" };
-  }
+	if (!session?.user?.id) {
+		return { success: false, error: "Not authenticated" };
+	}
 
-  // Check authorization
-  const hasAccess = await userHasAccessToPod(session.user.id, podId);
-  if (!hasAccess) {
-    return { success: false, error: "Access denied" };
-  }
+	// Check authorization
+	const hasAccess = await userHasAccessToPod(session.user.id, podId);
+	if (!hasAccess) {
+		return { success: false, error: "Access denied" };
+	}
 
-  const result = await getPreviewDeploymentLogs(podId, options);
+	const result = await getPreviewDeploymentLogs(podId, options);
 
-  if (!result.success) {
-    return { success: false, error: result.error };
-  }
+	if (!result.success) {
+		return { success: false, error: result.error };
+	}
 
-  return { success: true, data: result.logs };
+	return { success: true, data: result.logs };
 }
 
 /**
@@ -139,25 +139,25 @@ export async function getPreviewEnvironmentLogs(
  * This cleans up Kubernetes resources, GitHub comments, and database records.
  */
 export async function deletePreviewEnvironment(
-  podId: string,
+	podId: string,
 ): Promise<ActionResult> {
-  const session = await auth();
+	const session = await auth();
 
-  if (!session?.user?.id) {
-    return { success: false, error: "Not authenticated" };
-  }
+	if (!session?.user?.id) {
+		return { success: false, error: "Not authenticated" };
+	}
 
-  // Check authorization
-  const hasAccess = await userHasAccessToPod(session.user.id, podId);
-  if (!hasAccess) {
-    return { success: false, error: "Access denied" };
-  }
+	// Check authorization
+	const hasAccess = await userHasAccessToPod(session.user.id, podId);
+	if (!hasAccess) {
+		return { success: false, error: "Access denied" };
+	}
 
-  // Note: We don't pass GitHub info here since we don't have it in this context.
-  // The webhook handler will handle GitHub comment cleanup when PRs are closed.
-  const result = await deletePreviewDeploymentOrchestrated({ podId });
+	// Note: We don't pass GitHub info here since we don't have it in this context.
+	// The webhook handler will handle GitHub comment cleanup when PRs are closed.
+	const result = await deletePreviewDeploymentOrchestrated({ podId });
 
-  return result;
+	return result;
 }
 
 /**
@@ -166,25 +166,25 @@ export async function deletePreviewEnvironment(
  * Enhanced version that includes CPU/memory usage and age for operator dashboard.
  */
 export async function getPreviewEnvironmentsWithMetrics(options?: {
-  includeMetrics?: boolean;
-  statusFilter?: Array<"pending" | "deploying" | "running" | "failed">;
+	includeMetrics?: boolean;
+	statusFilter?: Array<"pending" | "deploying" | "running" | "failed">;
 }): Promise<ActionResult<PreviewPodWithMetrics[]>> {
-  const session = await auth();
+	const session = await auth();
 
-  if (!session?.user?.id) {
-    return { success: false, error: "Not authenticated" };
-  }
+	if (!session?.user?.id) {
+		return { success: false, error: "Not authenticated" };
+	}
 
-  const result = await listActivePreviewPodsWithMetrics(session.user.id, {
-    includeMetrics: options?.includeMetrics ?? true,
-    statusFilter: options?.statusFilter,
-  });
+	const result = await listActivePreviewPodsWithMetrics(session.user.id, {
+		includeMetrics: options?.includeMetrics ?? true,
+		statusFilter: options?.statusFilter,
+	});
 
-  if (!result.success) {
-    return { success: false, error: result.error };
-  }
+	if (!result.success) {
+		return { success: false, error: result.error };
+	}
 
-  return { success: true, data: result.pods };
+	return { success: true, data: result.pods };
 }
 
 /**
@@ -193,21 +193,21 @@ export async function getPreviewEnvironmentsWithMetrics(options?: {
  * Only works for pods in 'failed' status.
  */
 export async function retryDeployment(podId: string): Promise<ActionResult> {
-  const session = await auth();
+	const session = await auth();
 
-  if (!session?.user?.id) {
-    return { success: false, error: "Not authenticated" };
-  }
+	if (!session?.user?.id) {
+		return { success: false, error: "Not authenticated" };
+	}
 
-  // Check authorization
-  const hasAccess = await userHasAccessToPod(session.user.id, podId);
-  if (!hasAccess) {
-    return { success: false, error: "Access denied" };
-  }
+	// Check authorization
+	const hasAccess = await userHasAccessToPod(session.user.id, podId);
+	if (!hasAccess) {
+		return { success: false, error: "Access denied" };
+	}
 
-  const result = await retryFailedDeployment(podId);
+	const result = await retryFailedDeployment(podId);
 
-  return result;
+	return result;
 }
 
 /**
@@ -216,34 +216,34 @@ export async function retryDeployment(podId: string): Promise<ActionResult> {
  * Returns repos that the user has access to through team membership.
  */
 export async function getUserRepositories(): Promise<
-  ActionResult<SelectRepo[]>
+	ActionResult<SelectRepo[]>
 > {
-  const session = await auth();
+	const session = await auth();
 
-  if (!session?.user?.id) {
-    return { success: false, error: "Not authenticated" };
-  }
+	if (!session?.user?.id) {
+		return { success: false, error: "Not authenticated" };
+	}
 
-  // Get user's teams
-  const userTeams = await db
-    .select({ teamId: teamsMemberships.teamId })
-    .from(teamsMemberships)
-    .where(eq(teamsMemberships.userId, session.user.id));
+	// Get user's teams
+	const userTeams = await db
+		.select({ teamId: teamsMemberships.teamId })
+		.from(teamsMemberships)
+		.where(eq(teamsMemberships.userId, session.user.id));
 
-  const teamIds = userTeams.map((t) => t.teamId);
+	const teamIds = userTeams.map((t) => t.teamId);
 
-  if (teamIds.length === 0) {
-    return { success: true, data: [] };
-  }
+	if (teamIds.length === 0) {
+		return { success: true, data: [] };
+	}
 
-  // Get repos for those teams
-  const userRepos = await db
-    .select()
-    .from(repos)
-    .where(inArray(repos.teamId, teamIds))
-    .orderBy(repos.fullName);
+	// Get repos for those teams
+	const userRepos = await db
+		.select()
+		.from(repos)
+		.where(inArray(repos.teamId, teamIds))
+		.orderBy(repos.fullName);
 
-  return { success: true, data: userRepos };
+	return { success: true, data: userRepos };
 }
 
 /**
@@ -253,30 +253,30 @@ export async function getUserRepositories(): Promise<
  * populate the image URI field for manual preview environments.
  */
 export async function getLatestImageForRepo(
-  repoId: string,
+	repoId: string,
 ): Promise<ActionResult<string | null>> {
-  const session = await auth();
+	const session = await auth();
 
-  if (!session?.user?.id) {
-    return { success: false, error: "Not authenticated" };
-  }
+	if (!session?.user?.id) {
+		return { success: false, error: "Not authenticated" };
+	}
 
-  // Get the most recent pod for this repo
-  const latestPod = await db
-    .select({
-      imageTag: pullRequestPods.imageTag,
-    })
-    .from(pullRequestPods)
-    .innerJoin(pullRequests, eq(pullRequestPods.pullRequestId, pullRequests.id))
-    .where(eq(pullRequests.repoId, repoId))
-    .orderBy(desc(pullRequestPods.createdAt))
-    .limit(1);
+	// Get the most recent pod for this repo
+	const latestPod = await db
+		.select({
+			imageTag: pullRequestPods.imageTag,
+		})
+		.from(pullRequestPods)
+		.innerJoin(pullRequests, eq(pullRequestPods.pullRequestId, pullRequests.id))
+		.where(eq(pullRequests.repoId, repoId))
+		.orderBy(desc(pullRequestPods.createdAt))
+		.limit(1);
 
-  if (latestPod.length === 0 || !latestPod[0].imageTag) {
-    return { success: true, data: null };
-  }
+	if (latestPod.length === 0 || !latestPod[0].imageTag) {
+		return { success: true, data: null };
+	}
 
-  return { success: true, data: latestPod[0].imageTag };
+	return { success: true, data: latestPod[0].imageTag };
 }
 
 /**
@@ -286,31 +286,31 @@ export async function getLatestImageForRepo(
  * If no branch name is provided, a memorable auto-generated name is used.
  */
 export async function createManualPreview(params: {
-  repoId: string;
-  imageUri: string;
-  branchName?: string;
+	repoId: string;
+	imageUri: string;
+	branchName?: string;
 }): Promise<ActionResult<CreateManualPreviewResult>> {
-  const session = await auth();
+	const session = await auth();
 
-  if (!session?.user?.id) {
-    return { success: false, error: "Not authenticated" };
-  }
+	if (!session?.user?.id) {
+		return { success: false, error: "Not authenticated" };
+	}
 
-  const result = await createManualPreviewEnvironment({
-    repoId: params.repoId,
-    imageUri: params.imageUri,
-    userId: session.user.id,
-    branchName: params.branchName,
-  });
+	const result = await createManualPreviewEnvironment({
+		repoId: params.repoId,
+		imageUri: params.imageUri,
+		userId: session.user.id,
+		branchName: params.branchName,
+	});
 
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error || "Failed to create preview environment",
-    };
-  }
+	if (!result.success) {
+		return {
+			success: false,
+			error: result.error || "Failed to create preview environment",
+		};
+	}
 
-  return { success: true, data: result };
+	return { success: true, data: result };
 }
 
 // Note: EnvironmentData type should be imported from @/models/preview-environments
@@ -325,53 +325,53 @@ export async function createManualPreview(params: {
  * @returns Environment data with isNew flag
  */
 export async function findOrCreateEnvironment(params: {
-  projectId: string;
-  prNumber: number;
-  repoFullName: string;
-  branch: string;
-  commitSha: string;
+	projectId: string;
+	prNumber: number;
+	repoFullName: string;
+	branch: string;
+	commitSha: string;
 }): Promise<
-  ActionResult<{
-    environment: EnvironmentData;
-    isNew: boolean;
-  }>
+	ActionResult<{
+		environment: EnvironmentData;
+		isNew: boolean;
+	}>
 > {
-  const session = await auth();
+	const session = await auth();
 
-  if (!session?.user?.id) {
-    return { success: false, error: "Not authenticated" };
-  }
+	if (!session?.user?.id) {
+		return { success: false, error: "Not authenticated" };
+	}
 
-  const { projectId, prNumber, repoFullName, branch, commitSha } = params;
+	const { projectId, prNumber, repoFullName, branch, commitSha } = params;
 
-  // Find the project and verify user has access through team membership
-  const project = await db.query.projects.findFirst({
-    where: eq(projects.id, projectId),
-  });
+	// Find the project and verify user has access through team membership
+	const project = await db.query.projects.findFirst({
+		where: eq(projects.id, projectId),
+	});
 
-  if (!project) {
-    return { success: false, error: "Project not found" };
-  }
+	if (!project) {
+		return { success: false, error: "Project not found" };
+	}
 
-  // Check user has access to this project through team membership
-  const userTeams = await db
-    .select({ teamId: teamsMemberships.teamId })
-    .from(teamsMemberships)
-    .where(eq(teamsMemberships.userId, session.user.id));
+	// Check user has access to this project through team membership
+	const userTeams = await db
+		.select({ teamId: teamsMemberships.teamId })
+		.from(teamsMemberships)
+		.where(eq(teamsMemberships.userId, session.user.id));
 
-  const teamIds = userTeams.map((t) => t.teamId);
-  if (!teamIds.includes(project.teamId)) {
-    return { success: false, error: "Access denied to this project" };
-  }
+	const teamIds = userTeams.map((t) => t.teamId);
+	if (!teamIds.includes(project.teamId)) {
+		return { success: false, error: "Access denied to this project" };
+	}
 
-  // Delegate to models layer for business logic
-  return findOrCreateEnvironmentModel({
-    projectId,
-    prNumber,
-    repoFullName,
-    branch,
-    commitSha,
-    userId: session.user.id,
-    userName: session.user.name ?? undefined,
-  });
+	// Delegate to models layer for business logic
+	return findOrCreateEnvironmentModel({
+		projectId,
+		prNumber,
+		repoFullName,
+		branch,
+		commitSha,
+		userId: session.user.id,
+		userName: session.user.name ?? undefined,
+	});
 }

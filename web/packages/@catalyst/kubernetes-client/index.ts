@@ -7,43 +7,35 @@
  * API Group: catalyst.catalyst.dev/v1alpha1
  */
 
-// Configuration
-export {
-  getClusters,
-  getClusterConfig,
-  getAppsV1Api,
-  getCoreV1Api,
-  getCustomObjectsApi,
-  KubeConfig,
-  resetKubeConfigRegistry,
-} from "./src/config";
-export type { ClientOptions, ClusterInfo } from "./src/config";
-
-// Errors
-export {
-  ConnectionError,
-  ExecError,
-  KubernetesError,
-  WatchError,
-} from "./src/errors";
-
-// Loader (for advanced usage)
-export { loadKubernetesClient, resetLoader } from "./src/loader";
-
-// Types
-export * from "./src/types/index";
-
-// Environments client
-export * from "./src/environments/index";
-
-// Pods client
-export * from "./src/pods/index";
-
-// Exec client
-export * from "./src/exec/index";
-
-// Namespaces client
-export * from "./src/namespaces/index";
-
 // Unified API handler
 export * from "./src/api/index";
+export type { ClientOptions, ClusterInfo } from "./src/config";
+// Configuration
+export {
+	getAppsV1Api,
+	getClusterConfig,
+	getClusters,
+	getCoreV1Api,
+	getCustomObjectsApi,
+	KubeConfig,
+	resetKubeConfigRegistry,
+} from "./src/config";
+// Environments client
+export * from "./src/environments/index";
+// Errors
+export {
+	ConnectionError,
+	ExecError,
+	KubernetesError,
+	WatchError,
+} from "./src/errors";
+// Exec client
+export * from "./src/exec/index";
+// Loader (for advanced usage)
+export { loadKubernetesClient, resetLoader } from "./src/loader";
+// Namespaces client
+export * from "./src/namespaces/index";
+// Pods client
+export * from "./src/pods/index";
+// Types
+export * from "./src/types/index";

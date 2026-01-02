@@ -6,11 +6,11 @@ import { PreviewEnvironmentsSection } from "./components/PreviewEnvironmentsSect
  * Uses suspense for fast loading
  */
 export default function PreviewEnvironmentsPage() {
-  return (
-    <div className="space-y-6">
-      <PreviewEnvironmentsSection>
-        <PreviewEnvironmentsList />
-      </PreviewEnvironmentsSection>
-    </div>
-  );
+	return (
+		<div className="space-y-6">
+			<PreviewEnvironmentsSection>
+				<PreviewEnvironmentsList />
+			</PreviewEnvironmentsSection>
+		</div>
+	);
 }

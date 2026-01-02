@@ -1,13 +1,15 @@
-'use server';
+"use server";
 
-import { listNamespaces } from '@/lib/k8s-namespaces';
+import { listNamespaces } from "@/lib/k8s-namespaces";
 
 export interface NamespaceInfo {
-  name: string;
-  labels?: {[key: string]: string};
-  creationTimestamp?: string;
+	name: string;
+	labels?: { [key: string]: string };
+	creationTimestamp?: string;
 }
 
-export async function getNamespaces(clusterName?: string): Promise<NamespaceInfo[]> {
-  return listNamespaces(clusterName);
+export async function getNamespaces(
+	clusterName?: string,
+): Promise<NamespaceInfo[]> {
+	return listNamespaces(clusterName);
 }

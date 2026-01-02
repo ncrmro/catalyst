@@ -10,16 +10,16 @@ export type LogLevel = "info" | "warn" | "error" | "debug";
 
 /** Base log context that can be extended with specific fields */
 export interface LogContext {
-  [key: string]: unknown;
+	[key: string]: unknown;
 }
 
 /** Log entry structure */
 interface LogEntry {
-  timestamp: string;
-  level: LogLevel;
-  message: string;
-  component?: string;
-  [key: string]: unknown;
+	timestamp: string;
+	level: LogLevel;
+	message: string;
+	component?: string;
+	[key: string]: unknown;
 }
 
 /**
@@ -30,34 +30,33 @@ interface LogEntry {
  * @param context - Additional context data
  */
 export function log(
-  level: LogLevel,
-  message: string,
-  context?: LogContext,
+	level: LogLevel,
+	message: string,
+	context?: LogContext,
 ): void {
-  const timestamp = new Date().toISOString();
-  const logData: LogEntry = {
-    timestamp,
-    level,
-    message,
-    ...context,
-  };
+	const timestamp = new Date().toISOString();
+	const logData: LogEntry = {
+		timestamp,
+		level,
+		message,
+		...context,
+	};
 
-  // Use appropriate console method based on level
-  switch (level) {
-    case "error":
-      console.error(JSON.stringify(logData));
-      break;
-    case "warn":
-      console.warn(JSON.stringify(logData));
-      break;
-    case "debug":
-      console.debug(JSON.stringify(logData));
-      break;
-    case "info":
-    default:
-      console.log(JSON.stringify(logData));
-      break;
-  }
+	// Use appropriate console method based on level
+	switch (level) {
+		case "error":
+			console.error(JSON.stringify(logData));
+			break;
+		case "warn":
+			console.warn(JSON.stringify(logData));
+			break;
+		case "debug":
+			console.debug(JSON.stringify(logData));
+			break;
+		default:
+			console.log(JSON.stringify(logData));
+			break;
+	}
 }
 
 /**
@@ -68,16 +67,16 @@ export function log(
  * @returns Logger functions scoped to component
  */
 export function createLogger(component: string) {
-  return {
-    info: (message: string, context?: LogContext) =>
-      log("info", message, { component, ...context }),
-    warn: (message: string, context?: LogContext) =>
-      log("warn", message, { component, ...context }),
-    error: (message: string, context?: LogContext) =>
-      log("error", message, { component, ...context }),
-    debug: (message: string, context?: LogContext) =>
-      log("debug", message, { component, ...context }),
-  };
+	return {
+		info: (message: string, context?: LogContext) =>
+			log("info", message, { component, ...context }),
+		warn: (message: string, context?: LogContext) =>
+			log("warn", message, { component, ...context }),
+		error: (message: string, context?: LogContext) =>
+			log("error", message, { component, ...context }),
+		debug: (message: string, context?: LogContext) =>
+			log("debug", message, { component, ...context }),
+	};
 }
 
 /**
@@ -85,20 +84,20 @@ export function createLogger(component: string) {
  * Used for tracking deployment lifecycle events.
  */
 export interface PreviewLogContext extends LogContext {
-  podId?: string;
-  namespace?: string;
-  prNumber?: number;
-  commitSha?: string;
-  status?: string;
-  phase?:
-    | "created"
-    | "deploying"
-    | "running"
-    | "failed"
-    | "deleted"
-    | "retrying";
-  duration?: number; // milliseconds
-  errorMessage?: string;
+	podId?: string;
+	namespace?: string;
+	prNumber?: number;
+	commitSha?: string;
+	status?: string;
+	phase?:
+		| "created"
+		| "deploying"
+		| "running"
+		| "failed"
+		| "deleted"
+		| "retrying";
+	duration?: number; // milliseconds
+	errorMessage?: string;
 }
 
 /**
@@ -114,13 +113,13 @@ export const previewLogger = createLogger("preview-environments");
  * @param context - Event context
  */
 export function logPreviewLifecycleEvent(
-  event: string,
-  context: PreviewLogContext,
+	event: string,
+	context: PreviewLogContext,
 ): void {
-  previewLogger.info(`Lifecycle event: ${event}`, {
-    event,
-    ...context,
-  });
+	previewLogger.info(`Lifecycle event: ${event}`, {
+		event,
+		...context,
+	});
 }
 
 /**
@@ -130,17 +129,17 @@ export function logPreviewLifecycleEvent(
  * @returns Timer object with end() method
  */
 export function startTimer(operationName: string) {
-  const startTime = Date.now();
+	const startTime = Date.now();
 
-  return {
-    end: (context?: LogContext) => {
-      const duration = Date.now() - startTime;
-      previewLogger.info(`Operation completed: ${operationName}`, {
-        operation: operationName,
-        duration,
-        ...context,
-      });
-      return duration;
-    },
-  };
+	return {
+		end: (context?: LogContext) => {
+			const duration = Date.now() - startTime;
+			previewLogger.info(`Operation completed: ${operationName}`, {
+				operation: operationName,
+				duration,
+				...context,
+			});
+			return duration;
+		},
+	};
 }

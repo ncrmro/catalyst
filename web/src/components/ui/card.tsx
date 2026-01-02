@@ -14,5 +14,6 @@
  * </Card>
  * ```
  */
-export { GlassCard as Card } from "@tetrastack/react-glass-components";
+
 export type { GlassCardProps as CardProps } from "@tetrastack/react-glass-components";
+export { GlassCard as Card } from "@tetrastack/react-glass-components";

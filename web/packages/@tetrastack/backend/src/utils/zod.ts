@@ -76,7 +76,7 @@
  * ```
  */
 
-import { z } from "zod";
+import type { z } from "zod";
 
 /**
  * Helper to cast imported JSON schema to the type expected by z.fromJSONSchema.
@@ -101,7 +101,7 @@ import { z } from "zod";
  * ```
  */
 export function asJsonSchema<T>(
-  json: T,
+	json: T,
 ): Parameters<typeof z.fromJSONSchema>[0] {
-  return json as Parameters<typeof z.fromJSONSchema>[0];
+	return json as Parameters<typeof z.fromJSONSchema>[0];
 }

@@ -35,17 +35,16 @@
  * ```
  */
 
-// Types
-export * from './types';
-
 // Re-export commonly used types for convenience
 export type {
-  Thread,
-  NewThread,
-  Item,
-  NewItem,
-  Edge,
-  NewEdge,
-  Stream,
-  NewStream,
-} from './models';
+	Edge,
+	Item,
+	NewEdge,
+	NewItem,
+	NewStream,
+	NewThread,
+	Stream,
+	Thread,
+} from "./models";
+// Types
+export * from "./types";

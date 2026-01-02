@@ -1,22 +1,22 @@
-'use client';
+"use client";
 
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
 export interface MessageBubbleProps {
-  /** Message role */
-  role: 'user' | 'assistant';
-  /** Message content */
-  children: ReactNode;
-  /** Optional timestamp */
-  timestamp?: Date;
-  /** Whether message is still streaming */
-  isStreaming?: boolean;
-  /** Container className */
-  className?: string;
-  /** Content wrapper className */
-  contentClassName?: string;
-  /** Timestamp className */
-  timestampClassName?: string;
+	/** Message role */
+	role: "user" | "assistant";
+	/** Message content */
+	children: ReactNode;
+	/** Optional timestamp */
+	timestamp?: Date;
+	/** Whether message is still streaming */
+	isStreaming?: boolean;
+	/** Container className */
+	className?: string;
+	/** Content wrapper className */
+	contentClassName?: string;
+	/** Timestamp className */
+	timestampClassName?: string;
 }
 
 /**
@@ -37,40 +37,40 @@ export interface MessageBubbleProps {
  * ```
  */
 export function MessageBubble({
-  role,
-  children,
-  timestamp,
-  isStreaming = false,
-  className,
-  contentClassName,
-  timestampClassName,
+	role,
+	children,
+	timestamp,
+	isStreaming = false,
+	className,
+	contentClassName,
+	timestampClassName,
 }: MessageBubbleProps) {
-  return (
-    <div
-      data-message-bubble
-      data-role={role}
-      data-streaming={isStreaming}
-      className={className}
-    >
-      <div data-message-content className={contentClassName}>
-        {children}
-      </div>
-      {timestamp && (
-        <time
-          data-message-timestamp
-          dateTime={timestamp.toISOString()}
-          className={timestampClassName}
-        >
-          {formatTime(timestamp)}
-        </time>
-      )}
-    </div>
-  );
+	return (
+		<div
+			data-message-bubble
+			data-role={role}
+			data-streaming={isStreaming}
+			className={className}
+		>
+			<div data-message-content className={contentClassName}>
+				{children}
+			</div>
+			{timestamp && (
+				<time
+					data-message-timestamp
+					dateTime={timestamp.toISOString()}
+					className={timestampClassName}
+				>
+					{formatTime(timestamp)}
+				</time>
+			)}
+		</div>
+	);
 }
 
 function formatTime(date: Date): string {
-  return date.toLocaleTimeString(undefined, {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+	return date.toLocaleTimeString(undefined, {
+		hour: "numeric",
+		minute: "2-digit",
+	});
 }

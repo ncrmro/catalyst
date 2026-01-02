@@ -3,23 +3,21 @@
  */
 
 export {
-  exec,
-  execStream,
-  type ExecOptions,
-  type ExecResult,
-  type ExecStreamHandle,
-  type ExecStreamOptions,
+	type ExecOptions,
+	type ExecResult,
+	type ExecStreamHandle,
+	type ExecStreamOptions,
+	exec,
+	execStream,
 } from "./exec";
-
 export {
-  createShellSession,
-  type ShellOptions,
-  type ShellSession,
-  type TerminalSize,
-} from "./shell";
-
-export {
-  calculateTerminalSize,
-  createResizeHandler,
-  TerminalResizeQueue,
+	calculateTerminalSize,
+	createResizeHandler,
+	TerminalResizeQueue,
 } from "./resize";
+export {
+	createShellSession,
+	type ShellOptions,
+	type ShellSession,
+	type TerminalSize,
+} from "./shell";

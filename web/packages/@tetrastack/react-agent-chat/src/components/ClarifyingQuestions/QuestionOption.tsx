@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import type { QuestionOption as QuestionOptionType } from '../../types';
+import type { QuestionOption as QuestionOptionType } from "../../types";
 
 export interface QuestionOptionProps {
-  option: QuestionOptionType;
-  isSelected: boolean;
-  isMultiSelect: boolean;
-  onClick: () => void;
-  className?: string;
+	option: QuestionOptionType;
+	isSelected: boolean;
+	isMultiSelect: boolean;
+	onClick: () => void;
+	className?: string;
 }
 
 /**
@@ -17,26 +17,26 @@ export interface QuestionOptionProps {
  * Unstyled by default - consumers provide styles via className or CSS.
  */
 export function QuestionOption({
-  option,
-  isSelected,
-  isMultiSelect,
-  onClick,
-  className,
+	option,
+	isSelected,
+	isMultiSelect,
+	onClick,
+	className,
 }: QuestionOptionProps) {
-  return (
-    <button
-      type="button"
-      role={isMultiSelect ? 'checkbox' : 'radio'}
-      aria-checked={isSelected}
-      onClick={onClick}
-      data-question-option
-      data-selected={isSelected}
-      className={className}
-    >
-      <span data-option-label>{option.label}</span>
-      {option.description && (
-        <span data-option-description>{option.description}</span>
-      )}
-    </button>
-  );
+	return (
+		<button
+			type="button"
+			role={isMultiSelect ? "checkbox" : "radio"}
+			aria-checked={isSelected}
+			onClick={onClick}
+			data-question-option
+			data-selected={isSelected}
+			className={className}
+		>
+			<span data-option-label>{option.label}</span>
+			{option.description && (
+				<span data-option-description>{option.description}</span>
+			)}
+		</button>
+	);
 }

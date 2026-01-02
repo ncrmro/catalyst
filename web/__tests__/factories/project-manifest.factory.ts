@@ -24,33 +24,33 @@
 
 import { Factory, faker } from "@/lib/factories";
 import {
-  createProjectManifests,
-  type InsertManifest,
+	createProjectManifests,
+	type InsertManifest,
 } from "@/models/project-manifests";
 
 /**
  * Project manifest factory for generating test manifest data
  */
 class ProjectManifestFactory extends Factory<InsertManifest> {
-  /**
-   * Create and persist project manifest to database using model layer
-   */
-  async create(params?: Partial<InsertManifest>) {
-    const manifest = this.build(params);
-    const [created] = await createProjectManifests(manifest);
-    return created;
-  }
+	/**
+	 * Create and persist project manifest to database using model layer
+	 */
+	async create(params?: Partial<InsertManifest>) {
+		const manifest = this.build(params);
+		const [created] = await createProjectManifests(manifest);
+		return created;
+	}
 }
 
 export const projectManifestFactory = ProjectManifestFactory.define(() => ({
-  projectId: "", // Must be provided when building
-  repoId: "", // Must be provided when building
-  path: faker.helpers.arrayElement([
-    "package.json",
-    "manifest.yaml",
-    "catalyst.yaml",
-    "deploy.config.json",
-    ".catalyst/config.yml",
-    "docker-compose.yml",
-  ]),
+	projectId: "", // Must be provided when building
+	repoId: "", // Must be provided when building
+	path: faker.helpers.arrayElement([
+		"package.json",
+		"manifest.yaml",
+		"catalyst.yaml",
+		"deploy.config.json",
+		".catalyst/config.yml",
+		"docker-compose.yml",
+	]),
 }));

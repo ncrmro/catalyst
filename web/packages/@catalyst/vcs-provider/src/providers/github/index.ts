@@ -4,55 +4,51 @@
  * Complete GitHub VCS provider implementation.
  */
 
+// Export auth utilities
+export {
+	exchangeAuthorizationCode,
+	exchangeRefreshToken,
+	generateAuthorizationUrl,
+} from "./auth";
+export type { EnrichedIssue, EnrichedPullRequest } from "./client";
+// Export client utilities
+export {
+	determinePRPriority,
+	determinePRStatus,
+	fetchCIStatus,
+	fetchIssues, // Renamed from fetchRealIssues
+	fetchPullRequestById,
+	fetchPullRequests, // Renamed from fetchRealPullRequests
+	fetchUserRepositoryPullRequests,
+	GITHUB_CONFIG,
+	getAllInstallations,
+	getInstallationOctokit,
+	getUserOctokit,
+	isGitHubTokenError,
+} from "./client";
+export type {
+	CommentResult,
+	DeploymentCommentParams,
+	PodStatus,
+} from "./comments";
+// Export PR comment utilities
+export {
+	deleteDeploymentComment,
+	formatDeploymentComment,
+	upsertDeploymentComment,
+} from "./comments";
 // Export the provider class
 export { GitHubProvider } from "./provider";
 
-// Export client utilities
 export {
-  GITHUB_CONFIG,
-  getUserOctokit,
-  getInstallationOctokit,
-  getAllInstallations,
-  fetchPullRequests, // Renamed from fetchRealPullRequests
-  fetchIssues,       // Renamed from fetchRealIssues
-  fetchPullRequestById,
-  fetchCIStatus,
-  fetchUserRepositoryPullRequests,
-  isGitHubTokenError,
-  determinePRPriority,
-  determinePRStatus,
-} from "./client";
-export type { EnrichedPullRequest, EnrichedIssue } from "./client";
-
-// Export auth utilities
-export {
-  exchangeRefreshToken,
-  exchangeAuthorizationCode,
-  generateAuthorizationUrl,
-} from "./auth";
-
+	areTokensValid,
+	invalidateTokens,
+	refreshTokenIfNeeded,
+} from "./token-refresh";
+export type { GitHubTokens } from "./token-service";
 // Export token management
 export {
-  storeGitHubTokens,
-  getGitHubTokens,
-  deleteGitHubTokens,
+	deleteGitHubTokens,
+	getGitHubTokens,
+	storeGitHubTokens,
 } from "./token-service";
-export type { GitHubTokens } from "./token-service";
-
-export {
-  refreshTokenIfNeeded,
-  invalidateTokens,
-  areTokensValid,
-} from "./token-refresh";
-
-// Export PR comment utilities
-export {
-  formatDeploymentComment,
-  upsertDeploymentComment,
-  deleteDeploymentComment,
-} from "./comments";
-export type {
-  PodStatus,
-  DeploymentCommentParams,
-  CommentResult,
-} from "./comments";

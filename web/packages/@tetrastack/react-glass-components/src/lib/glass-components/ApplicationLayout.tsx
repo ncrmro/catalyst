@@ -1,28 +1,28 @@
-import React from 'react';
-import { GlassCard } from './GlassCard';
-import { cn } from './utils';
+import type React from "react";
+import { GlassCard } from "./GlassCard";
+import { cn } from "./utils";
 
 export interface ApplicationLayoutProps {
-  /**
-   * The header content, typically the application title or logo.
-   * Aligned to the left of the sticky header.
-   */
-  header: React.ReactNode;
-  /**
-   * The navigation content, typically ApplicationLayoutNav.
-   * Aligned to the right of the sticky header.
-   */
-  nav?: React.ReactNode;
-  /**
-   * The main content of the application.
-   * Renders below the sticky header.
-   */
-  children: React.ReactNode;
-  /**
-   * Optional className for the outer container.
-   * Useful for layout adjustments or spacing overrides.
-   */
-  className?: string;
+	/**
+	 * The header content, typically the application title or logo.
+	 * Aligned to the left of the sticky header.
+	 */
+	header: React.ReactNode;
+	/**
+	 * The navigation content, typically ApplicationLayoutNav.
+	 * Aligned to the right of the sticky header.
+	 */
+	nav?: React.ReactNode;
+	/**
+	 * The main content of the application.
+	 * Renders below the sticky header.
+	 */
+	children: React.ReactNode;
+	/**
+	 * Optional className for the outer container.
+	 * Useful for layout adjustments or spacing overrides.
+	 */
+	className?: string;
 }
 
 /**
@@ -56,24 +56,24 @@ export interface ApplicationLayoutProps {
  * ```
  */
 export function ApplicationLayout({
-  header,
-  nav,
-  children,
-  className,
+	header,
+	nav,
+	children,
+	className,
 }: ApplicationLayoutProps) {
-  return (
-    <div
-      className={cn('min-h-screen flex flex-col gap-6 p-4 sm:p-6', className)}
-    >
-      <GlassCard
-        glass={false}
-        className="flex flex-wrap items-center justify-between gap-4 sticky top-4 z-50"
-      >
-        <div className="text-lg font-semibold text-on-surface">{header}</div>
-        {nav && <div className="flex-shrink-0">{nav}</div>}
-      </GlassCard>
+	return (
+		<div
+			className={cn("min-h-screen flex flex-col gap-6 p-4 sm:p-6", className)}
+		>
+			<GlassCard
+				glass={false}
+				className="flex flex-wrap items-center justify-between gap-4 sticky top-4 z-50"
+			>
+				<div className="text-lg font-semibold text-on-surface">{header}</div>
+				{nav && <div className="flex-shrink-0">{nav}</div>}
+			</GlassCard>
 
-      <main className="flex-1">{children}</main>
-    </div>
-  );
+			<main className="flex-1">{children}</main>
+		</div>
+	);
 }

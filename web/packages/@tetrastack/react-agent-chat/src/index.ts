@@ -1,108 +1,105 @@
 // Main package entry point
 // Re-exports all public API
 
+export type {
+	AnsweredQuestionsProps,
+	ChatContainerProps,
+	ChatInputProps,
+	ClarifyingQuestionsCardProps,
+	ClarifyingQuestionsSkeletonProps,
+	ExpandableAgentChatProps,
+	MessageBubbleProps,
+	MessageListProps,
+	QuestionOptionProps,
+	QuestionPanelProps,
+	QuestionTabProps,
+	SpecContext,
+} from "./components";
 // Components
 export {
-  // Chat components
-  ChatContainer,
-  MessageList,
-  MessageBubble,
-  ChatInput,
-  ExpandableAgentChat,
-  // Clarifying questions components
-  ClarifyingQuestionsCard,
-  QuestionTab,
-  QuestionPanel,
-  QuestionOption,
-  AnsweredQuestions,
-  ClarifyingQuestionsSkeleton,
+	AnsweredQuestions,
+	// Chat components
+	ChatContainer,
+	ChatInput,
+	// Clarifying questions components
+	ClarifyingQuestionsCard,
+	ClarifyingQuestionsSkeleton,
+	ExpandableAgentChat,
+	MessageBubble,
+	MessageList,
+	QuestionOption,
+	QuestionPanel,
+	QuestionTab,
 } from "./components";
-
 export type {
-  ChatContainerProps,
-  MessageListProps,
-  MessageBubbleProps,
-  ChatInputProps,
-  ExpandableAgentChatProps,
-  SpecContext,
-  ClarifyingQuestionsCardProps,
-  QuestionTabProps,
-  QuestionPanelProps,
-  QuestionOptionProps,
-  AnsweredQuestionsProps,
-  ClarifyingQuestionsSkeletonProps,
-} from "./components";
-
+	UseAgentChatOptions,
+	UseAgentChatReturn,
+	UseClarifyingQuestionsOptions,
+	UseClarifyingQuestionsReturn,
+	UseMessagePartsReturn,
+	UseToolResponseOptions,
+	UseToolResponseReturn,
+} from "./hooks";
 // Hooks
 export {
-  useAgentChat,
-  useMessageParts,
-  useToolResponse,
-  useClarifyingQuestions,
-} from "./hooks";
-
-export type {
-  UseAgentChatOptions,
-  UseAgentChatReturn,
-  UseMessagePartsReturn,
-  UseToolResponseOptions,
-  UseToolResponseReturn,
-  UseClarifyingQuestionsOptions,
-  UseClarifyingQuestionsReturn,
+	useAgentChat,
+	useClarifyingQuestions,
+	useMessageParts,
+	useToolResponse,
 } from "./hooks";
 
 // Types
 export type {
-  // Clarifying questions types
-  QuestionOption as QuestionOptionType,
-  ClarifyingQuestion,
-  ClarifyingQuestionsInput,
-  ClarifyingQuestionsOutput,
-  ClarifyingQuestionsToolState,
-  // Message types
-  AgentMessage,
-  MessageRole,
-  TextPart,
-  MessagePart,
-  DynamicToolPart,
-  // Tool types
-  ToolState,
-  ToolCall,
-  AddToolOutputOptions,
-  OnToolCallHandler,
+	AddToolOutputOptions,
+	// Message types
+	AgentMessage,
+	ClarifyingQuestion,
+	ClarifyingQuestionsInput,
+	ClarifyingQuestionsOutput,
+	ClarifyingQuestionsToolState,
+	DynamicToolPart,
+	MessagePart,
+	MessageRole,
+	OnToolCallHandler,
+	// Clarifying questions types
+	QuestionOption as QuestionOptionType,
+	TextPart,
+	ToolCall,
+	// Tool types
+	ToolState,
 } from "./types";
 
 // Schemas (for validation)
 export {
-  questionOptionSchema,
-  clarifyingQuestionSchema,
-  clarifyingQuestionsInputSchema,
-  clarifyingQuestionsOutputSchema,
+	clarifyingQuestionSchema,
+	clarifyingQuestionsInputSchema,
+	clarifyingQuestionsOutputSchema,
+	questionOptionSchema,
 } from "./types";
 
 // Utils
 export {
-  // Part guards
-  isTextPart,
-  isToolPart,
-  isClarifyingQuestionsPart,
-  getToolState,
-  getToolInput,
-  getToolCallId,
-  getToolName,
-  getToolOutput,
-  isToolCompleted,
-  isToolWaitingForInput,
-  isToolStreaming,
-  // Message helpers
-  getMessageText,
-  hasTextContent,
-  hasToolParts,
-  getToolParts,
-  getToolPartsByName,
-  isUserMessage,
-  isAssistantMessage,
-  isSystemMessage,
-  areAllToolsCompleted,
-  getLastAssistantMessage,
+	areAllToolsCompleted,
+	getLastAssistantMessage,
+	// Message helpers
+	getMessageText,
+	getToolCallId,
+	getToolInput,
+	getToolName,
+	getToolOutput,
+	getToolParts,
+	getToolPartsByName,
+	getToolState,
+	hasTextContent,
+	hasToolParts,
+	isAssistantMessage,
+	isClarifyingQuestionsPart,
+	isSystemMessage,
+	// Part guards
+	isTextPart,
+	isToolCompleted,
+	isToolPart,
+	isToolStreaming,
+	isToolWaitingForInput,
+	isUserMessage,
 } from "./utils";

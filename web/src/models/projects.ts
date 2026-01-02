@@ -5,13 +5,13 @@
  * No authentication - handled by actions layer
  */
 
+import type { InferInsertModel } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { projects } from "@/db/schema";
-import { eq, inArray, and } from "drizzle-orm";
-import type { InferInsertModel } from "drizzle-orm";
 
 // Re-export types from shared types file for backwards compatibility
-export type { ProjectWithRelations, ProjectRepo } from "@/types/projects";
+export type { ProjectRepo, ProjectWithRelations } from "@/types/projects";
 
 export type InsertProject = InferInsertModel<typeof projects>;
 export type UpdateProject = Partial<Omit<InsertProject, "id" | "createdAt">>;
@@ -20,10 +20,10 @@ export type UpdateProject = Partial<Omit<InsertProject, "id" | "createdAt">>;
  * Query parameters for flexible project filtering
  */
 export interface GetProjectsParams {
-  ids?: string[];
-  slugs?: string[];
-  teamIds?: string[];
-  ownerLogin?: string;
+	ids?: string[];
+	slugs?: string[];
+	teamIds?: string[];
+	ownerLogin?: string;
 }
 
 /**
@@ -31,40 +31,40 @@ export interface GetProjectsParams {
  * Follows bulk operation pattern - handles single or multiple IDs
  */
 export async function getProjects(params: GetProjectsParams) {
-  const { ids, slugs, teamIds, ownerLogin } = params;
+	const { ids, slugs, teamIds, ownerLogin } = params;
 
-  // Build where conditions
-  const conditions = [];
-  if (ids && ids.length > 0) {
-    conditions.push(inArray(projects.id, ids));
-  }
-  if (slugs && slugs.length > 0) {
-    conditions.push(inArray(projects.slug, slugs));
-  }
-  if (teamIds && teamIds.length > 0) {
-    conditions.push(inArray(projects.teamId, teamIds));
-  }
-  if (ownerLogin) {
-    conditions.push(eq(projects.ownerLogin, ownerLogin));
-  }
+	// Build where conditions
+	const conditions = [];
+	if (ids && ids.length > 0) {
+		conditions.push(inArray(projects.id, ids));
+	}
+	if (slugs && slugs.length > 0) {
+		conditions.push(inArray(projects.slug, slugs));
+	}
+	if (teamIds && teamIds.length > 0) {
+		conditions.push(inArray(projects.teamId, teamIds));
+	}
+	if (ownerLogin) {
+		conditions.push(eq(projects.ownerLogin, ownerLogin));
+	}
 
-  // Return empty array if no conditions (prevents fetching all projects)
-  if (conditions.length === 0) {
-    return [];
-  }
+	// Return empty array if no conditions (prevents fetching all projects)
+	if (conditions.length === 0) {
+		return [];
+	}
 
-  // Always use relational query for simplicity
-  return db.query.projects.findMany({
-    where: and(...conditions),
-    with: {
-      repositories: {
-        with: {
-          repo: true,
-        },
-      },
-      environments: true,
-    },
-  });
+	// Always use relational query for simplicity
+	return db.query.projects.findMany({
+		where: and(...conditions),
+		with: {
+			repositories: {
+				with: {
+					repo: true,
+				},
+			},
+			environments: true,
+		},
+	});
 }
 
 /**
@@ -72,8 +72,8 @@ export async function getProjects(params: GetProjectsParams) {
  * Follows bulk operation pattern
  */
 export async function createProjects(data: InsertProject | InsertProject[]) {
-  const items = Array.isArray(data) ? data : [data];
-  return db.insert(projects).values(items).returning();
+	const items = Array.isArray(data) ? data : [data];
+	return db.insert(projects).values(items).returning();
 }
 
 /**
@@ -81,18 +81,18 @@ export async function createProjects(data: InsertProject | InsertProject[]) {
  * Follows bulk operation pattern
  */
 export async function updateProjects(ids: string[], data: UpdateProject) {
-  if (ids.length === 0) {
-    return [];
-  }
+	if (ids.length === 0) {
+		return [];
+	}
 
-  return db
-    .update(projects)
-    .set({
-      ...data,
-      updatedAt: new Date(),
-    })
-    .where(inArray(projects.id, ids))
-    .returning();
+	return db
+		.update(projects)
+		.set({
+			...data,
+			updatedAt: new Date(),
+		})
+		.where(inArray(projects.id, ids))
+		.returning();
 }
 
 /**
@@ -100,21 +100,21 @@ export async function updateProjects(ids: string[], data: UpdateProject) {
  * Specialized operation for common use case
  */
 export async function incrementPreviewCount(projectId: string) {
-  const [project] = await db
-    .select({ count: projects.previewEnvironmentsCount })
-    .from(projects)
-    .where(eq(projects.id, projectId));
+	const [project] = await db
+		.select({ count: projects.previewEnvironmentsCount })
+		.from(projects)
+		.where(eq(projects.id, projectId));
 
-  if (!project) {
-    throw new Error("Project not found");
-  }
+	if (!project) {
+		throw new Error("Project not found");
+	}
 
-  return db
-    .update(projects)
-    .set({
-      previewEnvironmentsCount: (project.count || 0) + 1,
-      updatedAt: new Date(),
-    })
-    .where(eq(projects.id, projectId))
-    .returning();
+	return db
+		.update(projects)
+		.set({
+			previewEnvironmentsCount: (project.count || 0) + 1,
+			updatedAt: new Date(),
+		})
+		.where(eq(projects.id, projectId))
+		.returning();
 }

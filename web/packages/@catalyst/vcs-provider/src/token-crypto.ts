@@ -4,7 +4,7 @@
  * Provider-agnostic token encryption using AES-256-GCM.
  */
 
-import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
+import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 // Key should be stored in environment variables
 const ENCRYPTION_KEY = process.env.TOKEN_ENCRYPTION_KEY as string;
@@ -15,22 +15,22 @@ const isNextJsBuild = process.env.NEXT_PHASE === "phase-production-build";
 
 // Only check environment variables at runtime, not during build
 if (!isNextJsBuild && !ENCRYPTION_KEY) {
-  if (process.env.NODE_ENV === "production") {
-    console.error(
-      "TOKEN_ENCRYPTION_KEY environment variable is required in production. Application will exit.",
-    );
-    process.exit(1);
-  } else {
-    console.warn(
-      "TOKEN_ENCRYPTION_KEY environment variable is not set. Token encryption will not work.",
-    );
-  }
+	if (process.env.NODE_ENV === "production") {
+		console.error(
+			"TOKEN_ENCRYPTION_KEY environment variable is required in production. Application will exit.",
+		);
+		process.exit(1);
+	} else {
+		console.warn(
+			"TOKEN_ENCRYPTION_KEY environment variable is not set. Token encryption will not work.",
+		);
+	}
 }
 
 export interface EncryptedToken {
-  encryptedData: string;
-  iv: string;
-  authTag: string;
+	encryptedData: string;
+	iv: string;
+	authTag: string;
 }
 
 /**
@@ -39,30 +39,30 @@ export interface EncryptedToken {
  * @returns Encrypted token with IV and auth tag
  */
 export function encryptToken(token: string): EncryptedToken {
-  if (!ENCRYPTION_KEY) {
-    throw new Error(
-      "TOKEN_ENCRYPTION_KEY environment variable is required for token encryption",
-    );
-  }
+	if (!ENCRYPTION_KEY) {
+		throw new Error(
+			"TOKEN_ENCRYPTION_KEY environment variable is required for token encryption",
+		);
+	}
 
-  const iv = randomBytes(16);
-  const cipher = createCipheriv(
-    ALGORITHM,
-    Buffer.from(ENCRYPTION_KEY, "hex"),
-    iv,
-  );
+	const iv = randomBytes(16);
+	const cipher = createCipheriv(
+		ALGORITHM,
+		Buffer.from(ENCRYPTION_KEY, "hex"),
+		iv,
+	);
 
-  let encryptedData = cipher.update(token, "utf8", "hex");
-  encryptedData += cipher.final("hex");
+	let encryptedData = cipher.update(token, "utf8", "hex");
+	encryptedData += cipher.final("hex");
 
-  // GCM mode provides authentication tag for integrity verification
-  const authTag = cipher.getAuthTag().toString("hex");
+	// GCM mode provides authentication tag for integrity verification
+	const authTag = cipher.getAuthTag().toString("hex");
 
-  return {
-    encryptedData,
-    iv: iv.toString("hex"),
-    authTag,
-  };
+	return {
+		encryptedData,
+		iv: iv.toString("hex"),
+		authTag,
+	};
 }
 
 /**
@@ -73,26 +73,26 @@ export function encryptToken(token: string): EncryptedToken {
  * @returns Decrypted token
  */
 export function decryptToken(
-  encryptedData: string,
-  iv: string,
-  authTag: string,
+	encryptedData: string,
+	iv: string,
+	authTag: string,
 ): string {
-  if (!ENCRYPTION_KEY) {
-    throw new Error(
-      "TOKEN_ENCRYPTION_KEY environment variable is required for token decryption",
-    );
-  }
+	if (!ENCRYPTION_KEY) {
+		throw new Error(
+			"TOKEN_ENCRYPTION_KEY environment variable is required for token decryption",
+		);
+	}
 
-  const decipher = createDecipheriv(
-    ALGORITHM,
-    Buffer.from(ENCRYPTION_KEY, "hex"),
-    Buffer.from(iv, "hex"),
-  );
+	const decipher = createDecipheriv(
+		ALGORITHM,
+		Buffer.from(ENCRYPTION_KEY, "hex"),
+		Buffer.from(iv, "hex"),
+	);
 
-  decipher.setAuthTag(Buffer.from(authTag, "hex"));
+	decipher.setAuthTag(Buffer.from(authTag, "hex"));
 
-  let decrypted = decipher.update(encryptedData, "hex", "utf8");
-  decrypted += decipher.final("utf8");
+	let decrypted = decipher.update(encryptedData, "hex", "utf8");
+	decrypted += decipher.final("utf8");
 
-  return decrypted;
+	return decrypted;
 }

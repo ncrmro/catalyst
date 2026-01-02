@@ -1,10 +1,14 @@
-import { generateObject } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
-import { openai } from '@ai-sdk/openai';
-import { z } from 'zod';
-import { fetchProjects } from '@/actions/projects';
-import { reportSchema } from '@/types/reports';
-import { getGitHubMCPClient, createGitHubMCPClient, GitHubMCPClient } from '@/lib/mcp-clients';
+import { anthropic } from "@ai-sdk/anthropic";
+import { openai } from "@ai-sdk/openai";
+import { generateObject } from "ai";
+import type { z } from "zod";
+import { fetchProjects } from "@/actions/projects";
+import {
+	createGitHubMCPClient,
+	type GitHubMCPClient,
+	getGitHubMCPClient,
+} from "@/lib/mcp-clients";
+import { reportSchema } from "@/types/reports";
 
 // System prompt for the periodic report agent
 const SYSTEM_PROMPT = `You are a Project Report Generator Agent for the Catalyst platform. Your role is to analyze pull requests and issues to generate comprehensive project reports.
@@ -27,74 +31,89 @@ When generating reports:
 The user will provide you with project data including merged and open pull requests to analyze.`;
 
 export interface PeriodicReportOptions {
-  provider?: 'anthropic' | 'openai';
-  model?: string;
-  enableGitHubMCP?: boolean;
-  gitHubMCPApiKey?: string;
-  accessToken?: string;
+	provider?: "anthropic" | "openai";
+	model?: string;
+	enableGitHubMCP?: boolean;
+	gitHubMCPApiKey?: string;
+	accessToken?: string;
 }
 
 export class PeriodicReportAgent {
-  private provider: 'anthropic' | 'openai';
-  private model: string;
-  private enableGitHubMCP: boolean;
-  private gitHubMCPClient?: GitHubMCPClient;
+	private provider: "anthropic" | "openai";
+	private model: string;
+	private enableGitHubMCP: boolean;
+	private gitHubMCPClient?: GitHubMCPClient;
 
-  constructor(options: PeriodicReportOptions = {}) {
-    this.provider = options.provider || 'openai';
-    this.model = options.model || (this.provider === 'anthropic' ? 'claude-3-sonnet-20240229' : 'gpt-5-mini');
-    this.enableGitHubMCP = options.enableGitHubMCP ?? true;
-    
-    if (this.enableGitHubMCP) {
-      // Prefer session access token over API key for user-specific GitHub access
-      if (options.accessToken) {
-        this.gitHubMCPClient = createGitHubMCPClient({
-          accessToken: options.accessToken,
-        });
-      } else if (options.gitHubMCPApiKey) {
-        this.gitHubMCPClient = getGitHubMCPClient({
-          apiKey: options.gitHubMCPApiKey,
-        });
-      } else {
-        // Fallback to default client (uses environment variable)
-        this.gitHubMCPClient = getGitHubMCPClient();
-      }
-    }
-  }
+	constructor(options: PeriodicReportOptions = {}) {
+		this.provider = options.provider || "openai";
+		this.model =
+			options.model ||
+			(this.provider === "anthropic"
+				? "claude-3-sonnet-20240229"
+				: "gpt-5-mini");
+		this.enableGitHubMCP = options.enableGitHubMCP ?? true;
 
-  async generateReport(): Promise<z.infer<typeof reportSchema>> {
-    // Fetch data using the action functions
-    const projectsData = await this.fetchProjects();
+		if (this.enableGitHubMCP) {
+			// Prefer session access token over API key for user-specific GitHub access
+			if (options.accessToken) {
+				this.gitHubMCPClient = createGitHubMCPClient({
+					accessToken: options.accessToken,
+				});
+			} else if (options.gitHubMCPApiKey) {
+				this.gitHubMCPClient = getGitHubMCPClient({
+					apiKey: options.gitHubMCPApiKey,
+				});
+			} else {
+				// Fallback to default client (uses environment variable)
+				this.gitHubMCPClient = getGitHubMCPClient();
+			}
+		}
+	}
 
-    // Check GitHub MCP availability for enhanced reporting context
-    let gitHubToolsAvailable = false;
-    let gitHubToolsCount = 0;
-    
-    if (this.enableGitHubMCP && this.gitHubMCPClient) {
-      try {
-        const gitHubTools = await this.gitHubMCPClient.getTools();
-        gitHubToolsAvailable = this.gitHubMCPClient.isAvailable() && Object.keys(gitHubTools).length > 0;
-        gitHubToolsCount = Object.keys(gitHubTools).length;
-        
-        if (gitHubToolsAvailable) {
-          console.log(`GitHub MCP integration enabled with ${gitHubToolsCount} tools available`);
-        }
-      } catch (error) {
-        console.warn('Failed to load GitHub MCP tools:', error);
-      }
-    }
+	async generateReport(): Promise<z.infer<typeof reportSchema>> {
+		// Fetch data using the action functions
+		const projectsData = await this.fetchProjects();
 
-    const model = this.provider === 'anthropic' ? anthropic(this.model) : openai(this.model);
+		// Check GitHub MCP availability for enhanced reporting context
+		let gitHubToolsAvailable = false;
+		let gitHubToolsCount = 0;
 
-    // Enhanced prompt focused on PR analysis and prioritization
-    const prompt = `Generate a comprehensive project report based on the following data:
+		if (this.enableGitHubMCP && this.gitHubMCPClient) {
+			try {
+				const gitHubTools = await this.gitHubMCPClient.getTools();
+				gitHubToolsAvailable =
+					this.gitHubMCPClient.isAvailable() &&
+					Object.keys(gitHubTools).length > 0;
+				gitHubToolsCount = Object.keys(gitHubTools).length;
+
+				if (gitHubToolsAvailable) {
+					console.log(
+						`GitHub MCP integration enabled with ${gitHubToolsCount} tools available`,
+					);
+				}
+			} catch (error) {
+				console.warn("Failed to load GitHub MCP tools:", error);
+			}
+		}
+
+		const model =
+			this.provider === "anthropic"
+				? anthropic(this.model)
+				: openai(this.model);
+
+		// Enhanced prompt focused on PR analysis and prioritization
+		const prompt = `Generate a comprehensive project report based on the following data:
 
 PROJECTS DATA:
 ${JSON.stringify(projectsData.data, null, 2)}
 
-${gitHubToolsAvailable ? `
+${
+	gitHubToolsAvailable
+		? `
 GITHUB INTEGRATION:
-GitHub MCP tools are available (${gitHubToolsCount} tools) and can provide additional repository insights, issue tracking, PR analysis, and code metrics to enhance the report with real GitHub data.` : ''}
+GitHub MCP tools are available (${gitHubToolsCount} tools) and can provide additional repository insights, issue tracking, PR analysis, and code metrics to enhance the report with real GitHub data.`
+		: ""
+}
 
 Analyze this data to create a detailed report covering:
 
@@ -104,64 +123,63 @@ Analyze this data to create a detailed report covering:
 4. Identification of PRs that should be reviewed first for maximum impact
 5. Recommendations for development priorities and next steps
 
-Focus on connecting merged work to open work, identifying patterns, and providing clear PR review priorities based on strategic value and user impact.${gitHubToolsAvailable ? ' Consider leveraging GitHub data for deeper PR relationship analysis.' : ''}`;
+Focus on connecting merged work to open work, identifying patterns, and providing clear PR review priorities based on strategic value and user impact.${gitHubToolsAvailable ? " Consider leveraging GitHub data for deeper PR relationship analysis." : ""}`;
 
-    const result = await generateObject({
-      model,
-      system: SYSTEM_PROMPT,
-      prompt,
-      schema: reportSchema,
-    });
+		const result = await generateObject({
+			model,
+			system: SYSTEM_PROMPT,
+			prompt,
+			schema: reportSchema,
+		});
 
-    return result.object;
-  }
+		return result.object;
+	}
 
-  // Tool functions for external use if needed
-  async fetchProjects() {
-    try {
-      const projectsData = await fetchProjects();
-      return {
-        success: true,
-        data: projectsData
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        data: null
-      };
-    }
-  }
+	// Tool functions for external use if needed
+	async fetchProjects() {
+		try {
+			const projectsData = await fetchProjects();
+			return {
+				success: true,
+				data: projectsData,
+			};
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : "Unknown error",
+				data: null,
+			};
+		}
+	}
 
+	async getGitHubTools() {
+		if (!this.enableGitHubMCP || !this.gitHubMCPClient) {
+			return {
+				success: false,
+				error: "GitHub MCP is not enabled",
+				data: {},
+			};
+		}
 
-  async getGitHubTools() {
-    if (!this.enableGitHubMCP || !this.gitHubMCPClient) {
-      return {
-        success: false,
-        error: 'GitHub MCP is not enabled',
-        data: {}
-      };
-    }
-
-    try {
-      const tools = await this.gitHubMCPClient.getTools();
-      return {
-        success: true,
-        data: tools,
-        available: this.gitHubMCPClient.isAvailable()
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        data: {}
-      };
-    }
-  }
+		try {
+			const tools = await this.gitHubMCPClient.getTools();
+			return {
+				success: true,
+				data: tools,
+				available: this.gitHubMCPClient.isAvailable(),
+			};
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : "Unknown error",
+				data: {},
+			};
+		}
+	}
 }
 
 // Export a convenience function for generating reports
 export async function generatePeriodicReport(options?: PeriodicReportOptions) {
-  const agent = new PeriodicReportAgent(options);
-  return agent.generateReport();
+	const agent = new PeriodicReportAgent(options);
+	return agent.generateReport();
 }

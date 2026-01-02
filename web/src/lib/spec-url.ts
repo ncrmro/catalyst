@@ -15,21 +15,21 @@
  * @returns Parsed route params with projectSlug, repoSlug (always resolved), and specSlug
  */
 export function parseSpecSlug(slug: string[]): {
-  projectSlug: string;
-  repoSlug: string; // Always resolved (defaults to projectSlug if omitted)
-  specSlug: string;
+	projectSlug: string;
+	repoSlug: string; // Always resolved (defaults to projectSlug if omitted)
+	specSlug: string;
 } {
-  if (slug.length === 2) {
-    // Project and repo have same name, repo omitted from URL
-    return { projectSlug: slug[0], repoSlug: slug[0], specSlug: slug[1] };
-  }
-  if (slug.length === 3) {
-    // Project and repo differ
-    return { projectSlug: slug[0], repoSlug: slug[1], specSlug: slug[2] };
-  }
-  throw new Error(
-    `Invalid spec URL: expected 2-3 segments, got ${slug.length}`,
-  );
+	if (slug.length === 2) {
+		// Project and repo have same name, repo omitted from URL
+		return { projectSlug: slug[0], repoSlug: slug[0], specSlug: slug[1] };
+	}
+	if (slug.length === 3) {
+		// Project and repo differ
+		return { projectSlug: slug[0], repoSlug: slug[1], specSlug: slug[2] };
+	}
+	throw new Error(
+		`Invalid spec URL: expected 2-3 segments, got ${slug.length}`,
+	);
 }
 
 /**
@@ -42,20 +42,20 @@ export function parseSpecSlug(slug: string[]): {
  * @returns The constructed URL path with query string
  */
 export function buildSpecUrl(
-  projectSlug: string,
-  repoSlug: string,
-  specSlug: string,
-  query?: { chat?: boolean; tab?: "tasks" | "spec" },
+	projectSlug: string,
+	repoSlug: string,
+	specSlug: string,
+	query?: { chat?: boolean; tab?: "tasks" | "spec" },
 ): string {
-  // Omit repoSlug from URL when it matches projectSlug (cleaner URLs)
-  const basePath =
-    projectSlug === repoSlug
-      ? `/specs/${projectSlug}/${encodeURIComponent(specSlug)}`
-      : `/specs/${projectSlug}/${repoSlug}/${encodeURIComponent(specSlug)}`;
+	// Omit repoSlug from URL when it matches projectSlug (cleaner URLs)
+	const basePath =
+		projectSlug === repoSlug
+			? `/specs/${projectSlug}/${encodeURIComponent(specSlug)}`
+			: `/specs/${projectSlug}/${repoSlug}/${encodeURIComponent(specSlug)}`;
 
-  const params = new URLSearchParams();
-  if (query?.chat) params.set("chat", "1");
-  if (query?.tab) params.set("tab", query.tab);
+	const params = new URLSearchParams();
+	if (query?.chat) params.set("chat", "1");
+	if (query?.tab) params.set("tab", query.tab);
 
-  return params.toString() ? `${basePath}?${params}` : basePath;
+	return params.toString() ? `${basePath}?${params}` : basePath;
 }

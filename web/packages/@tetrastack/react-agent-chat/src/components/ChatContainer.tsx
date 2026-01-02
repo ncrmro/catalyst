@@ -1,18 +1,18 @@
-'use client';
+"use client";
 
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
 export interface ChatContainerProps {
-  /** Chat content (typically MessageList and ChatInput) */
-  children: ReactNode;
-  /** Optional header content */
-  header?: ReactNode;
-  /** Container className */
-  className?: string;
-  /** Header className */
-  headerClassName?: string;
-  /** Body className (wraps children) */
-  bodyClassName?: string;
+	/** Chat content (typically MessageList and ChatInput) */
+	children: ReactNode;
+	/** Optional header content */
+	header?: ReactNode;
+	/** Container className */
+	className?: string;
+	/** Header className */
+	headerClassName?: string;
+	/** Body className (wraps children) */
+	bodyClassName?: string;
 }
 
 /**
@@ -34,22 +34,22 @@ export interface ChatContainerProps {
  * ```
  */
 export function ChatContainer({
-  children,
-  header,
-  className,
-  headerClassName,
-  bodyClassName,
+	children,
+	header,
+	className,
+	headerClassName,
+	bodyClassName,
 }: ChatContainerProps) {
-  return (
-    <div data-chat-container className={className}>
-      {header && (
-        <div data-chat-header className={headerClassName}>
-          {header}
-        </div>
-      )}
-      <div data-chat-body className={bodyClassName}>
-        {children}
-      </div>
-    </div>
-  );
+	return (
+		<div data-chat-container className={className}>
+			{header && (
+				<div data-chat-header className={headerClassName}>
+					{header}
+				</div>
+			)}
+			<div data-chat-body className={bodyClassName}>
+				{children}
+			</div>
+		</div>
+	);
 }

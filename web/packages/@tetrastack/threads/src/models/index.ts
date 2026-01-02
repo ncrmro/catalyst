@@ -3,39 +3,36 @@
  * Uses the many-first design pattern.
  */
 
-import { createThreadsModel, type Thread } from './threads';
-import { createItemsModel, type Item } from './items';
-import { createEdgesModel } from './edges';
-import { createStreamsModel } from './streams';
-import type { DrizzleDb } from './factory';
+import { createEdgesModel } from "./edges";
+import type { DrizzleDb } from "./factory";
+import { createItemsModel, type Item } from "./items";
+import { createStreamsModel } from "./streams";
+import { createThreadsModel, type Thread } from "./threads";
 
+export type { DrizzleDb, ModelInsert, ModelSelect } from "./factory";
 // Factory utilities
-export { createModelFactory, takeFirst } from './factory';
-export type { DrizzleDb, ModelSelect, ModelInsert } from './factory';
-
-// Thread model
-export { createThreadsModel } from './threads';
-export type { ThreadsModel, Thread, NewThread } from './threads';
-
+export { createModelFactory, takeFirst } from "./factory";
+export type { Item, ItemsModel, NewItem } from "./items";
 // Item model
-export { createItemsModel } from './items';
-export type { ItemsModel, Item, NewItem } from './items';
+export { createItemsModel } from "./items";
+export type { NewThread, Thread, ThreadsModel } from "./threads";
+// Thread model
+export { createThreadsModel } from "./threads";
 
 /**
  * Thread with its items (messages) included.
  * This is the shape returned when fetching a thread with a join on items.
  */
 export interface ThreadWithItems extends Thread {
-  items: Item[];
+	items: Item[];
 }
 
+export type { Edge, EdgesModel, NewEdge } from "./edges";
 // Edge model
-export { createEdgesModel } from './edges';
-export type { EdgesModel, Edge, NewEdge } from './edges';
-
+export { createEdgesModel } from "./edges";
+export type { NewStream, Stream, StreamsModel } from "./streams";
 // Stream model
-export { createStreamsModel } from './streams';
-export type { StreamsModel, Stream, NewStream } from './streams';
+export { createStreamsModel } from "./streams";
 
 /**
  * Create all thread-related models bound to a database instance.
@@ -59,48 +56,48 @@ export type { StreamsModel, Stream, NewStream } from './streams';
  * ```
  */
 export function createThreadModels(db: DrizzleDb) {
-  const threads = createThreadsModel(db);
-  const items = createItemsModel(db);
-  const edges = createEdgesModel(db);
-  const streams = createStreamsModel(db);
+	const threads = createThreadsModel(db);
+	const items = createItemsModel(db);
+	const edges = createEdgesModel(db);
+	const streams = createStreamsModel(db);
 
-  return {
-    threads,
-    items,
-    edges,
-    streams,
+	return {
+		threads,
+		items,
+		edges,
+		streams,
 
-    /**
-     * Get a thread with all its items (messages) included.
-     * This is the canonical way to fetch a complete thread.
-     *
-     * @param threadId - The thread ID
-     * @returns The thread with items, or undefined if not found
-     *
-     * @example
-     * ```typescript
-     * const thread = await models.getThreadWithItems('thread_123');
-     * if (thread) {
-     *   console.log(`Thread has ${thread.items.length} messages`);
-     * }
-     * ```
-     */
-    async getThreadWithItems(
-      threadId: string,
-    ): Promise<ThreadWithItems | undefined> {
-      const thread = await threads.selectById(threadId);
-      if (!thread) {
-        return undefined;
-      }
+		/**
+		 * Get a thread with all its items (messages) included.
+		 * This is the canonical way to fetch a complete thread.
+		 *
+		 * @param threadId - The thread ID
+		 * @returns The thread with items, or undefined if not found
+		 *
+		 * @example
+		 * ```typescript
+		 * const thread = await models.getThreadWithItems('thread_123');
+		 * if (thread) {
+		 *   console.log(`Thread has ${thread.items.length} messages`);
+		 * }
+		 * ```
+		 */
+		async getThreadWithItems(
+			threadId: string,
+		): Promise<ThreadWithItems | undefined> {
+			const thread = await threads.selectById(threadId);
+			if (!thread) {
+				return undefined;
+			}
 
-      const threadItems = await items.listByThread(threadId);
+			const threadItems = await items.listByThread(threadId);
 
-      return {
-        ...thread,
-        items: threadItems,
-      };
-    },
-  };
+			return {
+				...thread,
+				items: threadItems,
+			};
+		},
+	};
 }
 
 export type ThreadModels = ReturnType<typeof createThreadModels>;

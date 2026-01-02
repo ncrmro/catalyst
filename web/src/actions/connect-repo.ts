@@ -1,231 +1,231 @@
 "use server";
 
 import { getUserPrimaryTeamId } from "@/lib/team-auth";
-import { getProjects, createProjects } from "@/models/projects";
-import { upsertRepos } from "@/models/repos";
 import { createProjectRepoLinks, setPrimaryRepo } from "@/models/project-repos";
+import { createProjects, getProjects } from "@/models/projects";
+import { upsertRepos } from "@/models/repos";
 
 interface GitHubRepo {
-  id: number;
-  name: string;
-  full_name: string;
-  description: string | null;
-  private: boolean;
-  owner: {
-    login: string;
-    type: "User" | "Organization";
-    avatar_url: string;
-  };
-  html_url: string;
-  language: string | null;
-  stargazers_count: number;
-  forks_count: number;
-  open_issues_count: number;
-  updated_at: string;
+	id: number;
+	name: string;
+	full_name: string;
+	description: string | null;
+	private: boolean;
+	owner: {
+		login: string;
+		type: "User" | "Organization";
+		avatar_url: string;
+	};
+	html_url: string;
+	language: string | null;
+	stargazers_count: number;
+	forks_count: number;
+	open_issues_count: number;
+	updated_at: string;
 }
 
 interface ConnectRepoRequest {
-  repoId: number;
-  connectionType: "new" | "existing";
-  projectName?: string;
-  projectId?: string;
-  description?: string;
-  isPrimary: boolean;
-  repo: GitHubRepo;
+	repoId: number;
+	connectionType: "new" | "existing";
+	projectName?: string;
+	projectId?: string;
+	description?: string;
+	isPrimary: boolean;
+	repo: GitHubRepo;
 }
 
 interface ConnectRepoResponse {
-  success: boolean;
-  error?: string;
-  projectId?: string;
+	success: boolean;
+	error?: string;
+	projectId?: string;
 }
 
 /**
  * Connect a repository to a project (new or existing)
  */
 export async function connectRepoToProject(
-  request: ConnectRepoRequest,
+	request: ConnectRepoRequest,
 ): Promise<ConnectRepoResponse> {
-  try {
-    const {
-      repoId,
-      connectionType,
-      projectName,
-      projectId,
-      description,
-      isPrimary,
-      repo,
-    } = request;
+	try {
+		const {
+			repoId,
+			connectionType,
+			projectName,
+			projectId,
+			description,
+			isPrimary,
+			repo,
+		} = request;
 
-    // Use mocked implementation only if MOCKED env var is set
-    if (process.env.MOCKED === "1") {
-      // Since we're using mocked data and don't have a real database connection,
-      // we'll simulate the operation and return success
-      // In a real implementation, this would:
-      // 1. Create/find the project
-      // 2. Create/find the repository record
-      // 3. Create the projects_repos relationship
+		// Use mocked implementation only if MOCKED env var is set
+		if (process.env.MOCKED === "1") {
+			// Since we're using mocked data and don't have a real database connection,
+			// we'll simulate the operation and return success
+			// In a real implementation, this would:
+			// 1. Create/find the project
+			// 2. Create/find the repository record
+			// 3. Create the projects_repos relationship
 
-      if (connectionType === "new") {
-        if (!projectName) {
-          return {
-            success: false,
-            error: "Project name is required for new projects",
-          };
-        }
+			if (connectionType === "new") {
+				if (!projectName) {
+					return {
+						success: false,
+						error: "Project name is required for new projects",
+					};
+				}
 
-        // Simulate creating a new project
-        const newProjectId = `proj-${Date.now()}`;
+				// Simulate creating a new project
+				const newProjectId = `proj-${Date.now()}`;
 
-        console.log("Mock: Creating new project", {
-          projectId: newProjectId,
-          name: projectName,
-          fullName: `${repo.owner.login}/${projectName}`,
-          description,
-          repoId,
-          isPrimary,
-        });
+				console.log("Mock: Creating new project", {
+					projectId: newProjectId,
+					name: projectName,
+					fullName: `${repo.owner.login}/${projectName}`,
+					description,
+					repoId,
+					isPrimary,
+				});
 
-        return { success: true, projectId: newProjectId };
-      } else {
-        if (!projectId) {
-          return {
-            success: false,
-            error: "Project ID is required for existing projects",
-          };
-        }
+				return { success: true, projectId: newProjectId };
+			} else {
+				if (!projectId) {
+					return {
+						success: false,
+						error: "Project ID is required for existing projects",
+					};
+				}
 
-        // Simulate adding repo to existing project
-        console.log("Mock: Adding repository to existing project", {
-          projectId,
-          repoId,
-          isPrimary,
-        });
+				// Simulate adding repo to existing project
+				console.log("Mock: Adding repository to existing project", {
+					projectId,
+					repoId,
+					isPrimary,
+				});
 
-        return { success: true, projectId };
-      }
-    } else {
-      // Use the real database implementation
-      return await connectRepoToProjectReal(request);
-    }
-  } catch (error) {
-    console.error("Error connecting repository to project:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to connect repository",
-    };
-  }
+				return { success: true, projectId };
+			}
+		} else {
+			// Use the real database implementation
+			return await connectRepoToProjectReal(request);
+		}
+	} catch (error) {
+		console.error("Error connecting repository to project:", error);
+		return {
+			success: false,
+			error:
+				error instanceof Error ? error.message : "Failed to connect repository",
+		};
+	}
 }
 
 /**
  * Real implementation for when database is available
  */
 async function connectRepoToProjectReal(
-  request: ConnectRepoRequest,
+	request: ConnectRepoRequest,
 ): Promise<ConnectRepoResponse> {
-  try {
-    const {
-      repoId,
-      connectionType,
-      projectName,
-      projectId,
-      description,
-      isPrimary,
-      repo,
-    } = request;
+	try {
+		const {
+			repoId,
+			connectionType,
+			projectName,
+			projectId,
+			description,
+			isPrimary,
+			repo,
+		} = request;
 
-    // Get the user's primary team ID
-    const userTeamId = await getUserPrimaryTeamId();
-    if (!userTeamId) {
-      return {
-        success: false,
-        error: "User must be a member of at least one team",
-      };
-    }
+		// Get the user's primary team ID
+		const userTeamId = await getUserPrimaryTeamId();
+		if (!userTeamId) {
+			return {
+				success: false,
+				error: "User must be a member of at least one team",
+			};
+		}
 
-    let finalProjectId: string;
+		let finalProjectId: string;
 
-    if (connectionType === "new") {
-      if (!projectName) {
-        return {
-          success: false,
-          error: "Project name is required for new projects",
-        };
-      }
+		if (connectionType === "new") {
+			if (!projectName) {
+				return {
+					success: false,
+					error: "Project name is required for new projects",
+				};
+			}
 
-      // Create new project
-      const { generateSlug } = await import("@/lib/slug");
-      const [newProject] = await createProjects({
-        name: projectName,
-        slug: generateSlug(projectName),
-        fullName: `${repo.owner.login}/${projectName}`,
-        description: description || null,
-        ownerLogin: repo.owner.login,
-        ownerType: repo.owner.type,
-        ownerAvatarUrl: repo.owner.avatar_url,
-        teamId: userTeamId,
-      });
+			// Create new project
+			const { generateSlug } = await import("@/lib/slug");
+			const [newProject] = await createProjects({
+				name: projectName,
+				slug: generateSlug(projectName),
+				fullName: `${repo.owner.login}/${projectName}`,
+				description: description || null,
+				ownerLogin: repo.owner.login,
+				ownerType: repo.owner.type,
+				ownerAvatarUrl: repo.owner.avatar_url,
+				teamId: userTeamId,
+			});
 
-      finalProjectId = newProject.id;
-    } else {
-      if (!projectId) {
-        return {
-          success: false,
-          error: "Project ID is required for existing projects",
-        };
-      }
+			finalProjectId = newProject.id;
+		} else {
+			if (!projectId) {
+				return {
+					success: false,
+					error: "Project ID is required for existing projects",
+				};
+			}
 
-      // Verify project exists
-      const existingProjects = await getProjects({ ids: [projectId] });
-      if (existingProjects.length === 0) {
-        return { success: false, error: "Project not found" };
-      }
+			// Verify project exists
+			const existingProjects = await getProjects({ ids: [projectId] });
+			if (existingProjects.length === 0) {
+				return { success: false, error: "Project not found" };
+			}
 
-      finalProjectId = projectId;
-    }
+			finalProjectId = projectId;
+		}
 
-    // Upsert repo record (create if doesn't exist, otherwise return existing)
-    const [repoRecord] = await upsertRepos([
-      {
-        githubId: repoId,
-        name: repo.name,
-        fullName: repo.full_name,
-        description: repo.description,
-        url: repo.html_url,
-        isPrivate: repo.private,
-        language: repo.language,
-        stargazersCount: repo.stargazers_count,
-        forksCount: repo.forks_count,
-        openIssuesCount: repo.open_issues_count,
-        ownerLogin: repo.owner.login,
-        ownerType: repo.owner.type,
-        ownerAvatarUrl: repo.owner.avatar_url,
-        teamId: userTeamId,
-      },
-    ]);
+		// Upsert repo record (create if doesn't exist, otherwise return existing)
+		const [repoRecord] = await upsertRepos([
+			{
+				githubId: repoId,
+				name: repo.name,
+				fullName: repo.full_name,
+				description: repo.description,
+				url: repo.html_url,
+				isPrivate: repo.private,
+				language: repo.language,
+				stargazersCount: repo.stargazers_count,
+				forksCount: repo.forks_count,
+				openIssuesCount: repo.open_issues_count,
+				ownerLogin: repo.owner.login,
+				ownerType: repo.owner.type,
+				ownerAvatarUrl: repo.owner.avatar_url,
+				teamId: userTeamId,
+			},
+		]);
 
-    // Create the project-repo relationship
-    await createProjectRepoLinks([
-      {
-        projectId: finalProjectId,
-        repoId: repoRecord.id,
-        isPrimary: false, // Always create as non-primary first
-      },
-    ]);
+		// Create the project-repo relationship
+		await createProjectRepoLinks([
+			{
+				projectId: finalProjectId,
+				repoId: repoRecord.id,
+				isPrimary: false, // Always create as non-primary first
+			},
+		]);
 
-    // If this is set as primary, update it and unset any other primary repos
-    if (isPrimary) {
-      await setPrimaryRepo(finalProjectId, repoRecord.id);
-    }
+		// If this is set as primary, update it and unset any other primary repos
+		if (isPrimary) {
+			await setPrimaryRepo(finalProjectId, repoRecord.id);
+		}
 
-    return { success: true, projectId: finalProjectId };
-  } catch (error) {
-    console.error("Error connecting repository to project:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to connect repository",
-    };
-  }
+		return { success: true, projectId: finalProjectId };
+	} catch (error) {
+		console.error("Error connecting repository to project:", error);
+		return {
+			success: false,
+			error:
+				error instanceof Error ? error.message : "Failed to connect repository",
+		};
+	}
 }

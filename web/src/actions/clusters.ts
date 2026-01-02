@@ -1,33 +1,33 @@
 "use server";
 
-import { getClusters as getKubeClusters } from "@/lib/k8s-client";
 import type { ClusterInfo } from "@/lib/k8s-client";
+import { getClusters as getKubeClusters } from "@/lib/k8s-client";
 import {
-  isGitHubOIDCEnabled,
-  enableGitHubOIDC,
-  disableGitHubOIDC,
-  getClusterAudience,
-  type GitHubOIDCResult,
+	disableGitHubOIDC,
+	enableGitHubOIDC,
+	type GitHubOIDCResult,
+	getClusterAudience,
+	isGitHubOIDCEnabled,
 } from "@/lib/k8s-github-oidc";
 
 export async function getClusters(): Promise<ClusterInfo[]> {
-  return getKubeClusters();
+	return getKubeClusters();
 }
 
 export async function getGitHubOIDCStatus(
-  clusterName: string,
+	clusterName: string,
 ): Promise<boolean> {
-  return isGitHubOIDCEnabled(clusterName);
+	return isGitHubOIDCEnabled(clusterName);
 }
 
 export async function toggleGitHubOIDC(
-  clusterName: string,
-  enabled: boolean,
+	clusterName: string,
+	enabled: boolean,
 ): Promise<GitHubOIDCResult> {
-  if (enabled) {
-    const clusterAudience = getClusterAudience(clusterName);
-    return enableGitHubOIDC({ clusterAudience }, clusterName);
-  } else {
-    return disableGitHubOIDC(clusterName);
-  }
+	if (enabled) {
+		const clusterAudience = getClusterAudience(clusterName);
+		return enableGitHubOIDC({ clusterAudience }, clusterName);
+	} else {
+		return disableGitHubOIDC(clusterName);
+	}
 }
