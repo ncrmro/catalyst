@@ -2,6 +2,45 @@
 
 This document describes the development workflow, including code quality checks, pre-commit hooks, and AI agent integration.
 
+## Functional Specification
+
+### Purpose
+
+Provide unified code quality checks across all development entry points (Git commits, Claude Code sessions, Gemini CLI sessions) using a single central script.
+
+### Requirements
+
+1. **Central Script** (`bin/precommit`):
+   - Run code formatting and linting
+   - Run static type checking
+   - Run unit tests
+   - Exit with non-zero status if any check fails
+   - Resolve symlinks to work when called via symlink
+
+2. **Git Pre-commit Hook** (`web/.husky/pre-commit`):
+   - Symlink to `../../bin/precommit`
+   - Block commits if checks fail
+
+3. **Claude Code Stop Hook** (`.claude/hooks/pre-commit-on-stop.sh`):
+   - Symlink to `../../bin/precommit`
+   - Run when Claude session ends
+   - 180 second timeout
+
+4. **Gemini CLI Stop Hook** (`.gemini/hooks/pre-commit-on-stop.sh`):
+   - Symlink to `../../bin/precommit`
+   - Run when Gemini session ends
+   - 180 second timeout
+
+5. **Biome Configuration** (`web/biome.json`):
+   - Include only: `src/**`, `packages/**`, `__tests__/**`
+   - Use VCS ignore file integration
+   - Tab indentation, double quotes
+
+### Non-Requirements
+
+- No per-file formatting during editing (removed format-and-lint.py)
+- No separate linting step (Biome handles both formatting and linting)
+
 ## Overview
 
 The project uses a unified approach to code quality:
