@@ -20,87 +20,14 @@ export interface SpecAnalysisProposal {
   projectType: string;
 }
 
-// Hardcoded templates (read from specs/.templates/ in this repo)
+// Hardcoded templates
 const TEMPLATES = {
-  "AGENTS.md": `# Specification Process
-
-Specs define features through user stories, keeping development focused on user value. Each spec lives in a numbered directory and serves as documentation for agents and developers.
-
-## Directory Structure
-
-\`\`\`
-specs/
-├── AGENTS.md              # This file
-├── .templates/            # Template files
-│   ├── spec.md
-│   ├── plan.md
-│   ├── quickstart.md
-│   ├── tasks.md
-│   └── research.md
-└── ###-spec-slug/         # Individual specs
-    ├── spec.md
-    ├── plan.md
-    ├── quickstart.md
-    ├── tasks.md
-    └── research*.md
-\`\`\`
-
-## Spec Folder Contents
-
-| File            | Purpose                                                                                 |
-| --------------- | --------------------------------------------------------------------------------------- |
-| \`spec.md\`       | User stories, functional requirements, success criteria. **No implementation details.** |
-| \`plan.md\`       | Technical approach, code examples, data models, spike work.                             |
-| \`quickstart.md\` | How to start developing the spec.                                                       |
-| \`tasks.md\`      | Phased task breakdown. UI mocks before backend.                                         |
-| \`research*.md\`  | Library comparisons, method evaluations. Keeps other docs terse.                        |
-
-## Workflow
-
-1. **spec.md** - Define user stories (P1/P2/P3), requirements (FR-###), success criteria (SC-###)
-2. **plan.md** - Design implementation: schema, actions, components, spikes
-3. **tasks.md** - Break down into phases, UI-first approach
-
-## Registering Specs
-
-Specs must be referenced in the root \`AGENTS.md\`.
-`,
-  "spec.md": `# Feature Specification: [FEATURE NAME]`
-
-**Spec**: \`###-feature-slug\`
-**Status**: Draft
-
-## User Stories
-
-### US-1: [Title] (P1)
-[Description]
-
-**Acceptance Criteria**:
-1. **Given** [state], **When** [action], **Then** [outcome]
-`,
-  "plan.md": `# Implementation Plan`
-
-## Summary
-[Approach]
-
-## Data Model
-\`\`\`typescript
-// Schema
-\`\`\`
-`,
-  "tasks.md": `# Tasks`
-
-## Phase 1: Setup
-- [ ] T001 Task
-`,
-  "quickstart.md": `# Quickstart`
-
-## Setup
-\`\`\`bash
-npm install
-\`\`\`
-`,
-  "research.md": `# Research`
+  "AGENTS.md": "# Specification Process\n\nSpecs define features through user stories, keeping development focused on user value. Each spec lives in a numbered directory and serves as documentation for agents and developers.\n\n## Directory Structure\n\n```\nspecs/\n├── AGENTS.md              # This file\n├── .templates/            # Template files\n│   ├── spec.md\n│   ├── plan.md\n│   ├── quickstart.md\n│   ├── tasks.md\n│   └── research.md\n└── ###-spec-slug/         # Individual specs\n    ├── spec.md\n    ├── plan.md\n    ├── quickstart.md\n    ├── tasks.md\n    └── research*.md\n```\n\n## Workflow\n\n1. **spec.md** - Define user stories (P1/P2/P3), requirements (FR-###), success criteria (SC-###)\n2. **plan.md** - Design implementation: schema, actions, components, spikes\n3. **tasks.md** - Break down into phases, UI-first approach\n\n## Registering Specs\n\nSpecs must be referenced in the root `AGENTS.md`.\n",
+  "spec.md": "# Feature Specification: [FEATURE NAME]\n\n**Spec**: `###-feature-slug`\n**Status**: Draft\n\n## User Stories\n\n### US-1: [Title] (P1)\n[Description]\n\n**Acceptance Criteria**:\n1. **Given** [state], **When** [action], **Then** [outcome]\n",
+  "plan.md": "# Implementation Plan\n\n## Summary\n[Approach]\n\n## Data Model\n```typescript\n// Schema\n```\n",
+  "tasks.md": "# Tasks\n\n## Phase 1: Setup\n- [ ] T001 Task\n",
+  "quickstart.md": "# Quickstart\n\n## Setup\n```bash\nnpm install\n```\n",
+  "research.md": "# Research\n"
 };
 
 export async function analyzeRepoForSpecs(projectId: string): Promise<SpecAnalysisProposal> {
@@ -115,11 +42,9 @@ export async function analyzeRepoForSpecs(projectId: string): Promise<SpecAnalys
   const repo = project.repositories[0]?.repo;
   if (!repo) throw new Error("Repository not found");
 
-  // Check if specs folder exists
   const specsDir = await listDirectory(repo.fullName, "specs");
   const existingSpecs = specsDir.success && specsDir.entries.length > 0;
 
-  // Check for project type indicators
   let projectType = "Unknown";
   const packageJson = await readFile(repo.fullName, "package.json");
   const goMod = await readFile(repo.fullName, "go.mod");
@@ -130,32 +55,13 @@ export async function analyzeRepoForSpecs(projectId: string): Promise<SpecAnalys
     projectType = "Go";
   }
 
-  // Propose files
   const proposedFiles = [
-    {
-      path: "specs/AGENTS.md",
-      description: "Root spec index and documentation for agents"
-    },
-    {
-      path: "specs/.templates/spec.md",
-      description: "Feature specification template"
-    },
-    {
-      path: "specs/.templates/plan.md",
-      description: "Implementation plan template"
-    },
-    {
-      path: "specs/.templates/tasks.md",
-      description: "Task breakdown template"
-    },
-    {
-      path: "specs/.templates/quickstart.md",
-      description: "Developer onboarding template"
-    },
-    {
-      path: "specs/.templates/research.md",
-      description: "Research documentation template"
-    }
+    { path: "specs/AGENTS.md", description: "Root spec index and documentation for agents" },
+    { path: "specs/.templates/spec.md", description: "Feature specification template" },
+    { path: "specs/.templates/plan.md", description: "Implementation plan template" },
+    { path: "specs/.templates/tasks.md", description: "Task breakdown template" },
+    { path: "specs/.templates/quickstart.md", description: "Developer onboarding template" },
+    { path: "specs/.templates/research.md", description: "Research documentation template" }
   ];
 
   return {
@@ -185,15 +91,13 @@ export async function bootstrapSpecs(
   const branchName = `chore/bootstrap-specs-${Date.now()}`;
 
   try {
-    // Create branch
     await createBranch({
       owner,
       repo: repoName,
       name: branchName,
-      fromBranch: "main", // Assuming main
+      fromBranch: "main",
     });
 
-    // 1. Create AGENTS.md
     await updateFile({
       owner,
       repo: repoName,
@@ -203,7 +107,6 @@ export async function bootstrapSpecs(
       branch: branchName,
     });
 
-    // 2. Create templates
     const templates = [
       { name: "spec.md", content: TEMPLATES["spec.md"] },
       { name: "plan.md", content: TEMPLATES["plan.md"] },
@@ -223,14 +126,13 @@ export async function bootstrapSpecs(
       });
     }
 
-    // 3. Create PR
     const pr = await createPullRequest({
       owner,
       repo: repoName,
       title: "chore: bootstrap spec-driven development",
       head: branchName,
       base: "main",
-      body: "This PR sets up the directory structure and templates for Spec-Driven Development.\n\nSee \`specs/AGENTS.md\` for details on the workflow.",
+      body: "This PR sets up the directory structure and templates for Spec-Driven Development.\n\nSee `specs/AGENTS.md` for details on the workflow.",
     });
 
     revalidatePath(`/projects/${project.slug}/specs/workflow`);
@@ -259,7 +161,6 @@ export async function distillSpec(
   const repo = project.repositories[0]?.repo;
   if (!repo) return { success: false, error: "Repository not found" };
 
-  // 1. Read files
   const fileContents: { path: string; content: string }[] = [];
   for (const path of filePaths) {
     const result = await readFile(repo.fullName, path);
@@ -271,7 +172,6 @@ export async function distillSpec(
     }
   }
 
-  // 2. Prepare Prompt
   const prompt = `
 You are an expert software architect. Your task is to write a Feature Specification (spec.md) based on existing code.
 
@@ -295,7 +195,6 @@ Keep it concise and high-quality. Return ONLY the markdown content.
 `;
 
   try {
-    // 3. Call LLM
     const model = process.env.ANTHROPIC_API_KEY 
       ? anthropic("claude-3-5-sonnet-20240620")
       : process.env.OPENAI_API_KEY 
@@ -387,7 +286,6 @@ export async function amendSpec(
   const repo = project.repositories[0]?.repo;
   if (!repo) return { success: false, error: "Repository not found" };
 
-  // 1. Read existing spec
   const currentSpec = await readFile(repo.fullName, specPath);
   if (!currentSpec.success || !currentSpec.file) {
     return { success: false, error: "Could not read existing spec." };
@@ -446,15 +344,9 @@ export async function addCodeAnnotations(
   const repo = project.repositories[0]?.repo;
   if (!repo) return { success: false, error: "Repository not found" };
 
-  // 1. Read spec to get FR IDs
   const specRes = await readFile(repo.fullName, specPath);
   if (!specRes.success || !specRes.file) return { success: false, error: "Could not read spec." };
 
-  // 2. Scan codebase (simplified: just root files for now)
-  const files = await listDirectory(repo.fullName, "");
-  
-  // TODO: Implement real code analysis to find implementations
-  // Mock results
   return {
     success: true,
     annotations: [
