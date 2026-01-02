@@ -1,5 +1,5 @@
 // eslint-disable-next-line storybook/no-renderer-packages
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { SpecTaskList, type SpecTask } from "./SpecTaskList";
 
 const meta: Meta<typeof SpecTaskList> = {
@@ -55,7 +55,7 @@ const mockTasks: SpecTask[] = [
 export const Default: Story = {
   args: {
     tasks: mockTasks,
-    onTaskClick: (id) => console.log(`Task clicked: ${id}`),
+    onTaskClick: (_id: string) => console.log(`Task clicked: ${_id}`),
   },
 };
 

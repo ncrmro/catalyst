@@ -1,34 +1,34 @@
-import type { Meta, StoryObj } from '@storybook/react-vite';
-import { ApplicationLayout } from './ApplicationLayout';
-import { ApplicationLayoutNav } from './ApplicationLayoutNav';
-import { GlassCard } from './GlassCard';
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { ApplicationLayout } from "./ApplicationLayout";
+import { ApplicationLayoutNav } from "./ApplicationLayoutNav";
+import { GlassCard } from "./GlassCard";
 
 const meta: Meta<typeof ApplicationLayout> = {
-  title: 'Glass Components/ApplicationLayout',
+  title: "Glass Components/ApplicationLayout",
   component: ApplicationLayout,
   parameters: {
-    layout: 'fullscreen',
+    layout: "fullscreen",
   },
-  tags: ['autodocs'],
+  tags: ["autodocs"],
 };
 
 export default meta;
 type Story = StoryObj<typeof ApplicationLayout>;
 
 const navOptions = [
-  { value: 'dashboard', label: 'Dashboard' },
-  { value: 'settings', label: 'Settings' },
-  { value: 'profile', label: 'Profile' },
+  { value: "dashboard", label: "Dashboard" },
+  { value: "settings", label: "Settings" },
+  { value: "profile", label: "Profile" },
 ];
 
 export const Default: Story = {
   args: {
-    header: 'My Application',
+    header: "My Application",
     nav: (
       <ApplicationLayoutNav
         options={navOptions}
         activeValue="dashboard"
-        onSelect={(val) => console.log('Selected:', val)}
+        onSelect={(val) => console.log("Selected:", val)}
       />
     ),
     children: (

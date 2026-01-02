@@ -1,17 +1,17 @@
-import type { Meta, StoryObj } from '@storybook/react-vite';
-import { GlassInput } from './GlassInput';
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { GlassInput } from "./GlassInput";
 
 const meta: Meta<typeof GlassInput> = {
-  title: 'Glass Components/GlassInput',
+  title: "Glass Components/GlassInput",
   component: GlassInput,
-  tags: ['autodocs'],
+  tags: ["autodocs"],
   argTypes: {
     intensity: {
-      control: { type: 'select' },
-      options: ['light', 'medium', 'strong'],
+      control: { type: "select" },
+      options: ["light", "medium", "strong"],
     },
     disabled: {
-      control: 'boolean',
+      control: "boolean",
     },
   },
 };
@@ -21,20 +21,20 @@ type Story = StoryObj<typeof GlassInput>;
 
 export const Default: Story = {
   args: {
-    placeholder: 'Enter text...',
+    placeholder: "Enter text...",
   },
 };
 
 export const LightIntensity: Story = {
   args: {
-    placeholder: 'Light intensity',
-    intensity: 'light',
+    placeholder: "Light intensity",
+    intensity: "light",
   },
 };
 
 export const Disabled: Story = {
   args: {
-    placeholder: 'Disabled input',
+    placeholder: "Disabled input",
     disabled: true,
   },
 };

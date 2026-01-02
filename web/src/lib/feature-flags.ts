@@ -1,6 +1,6 @@
 /**
  * Feature Flag System
- * 
+ *
  * Reads environment variables prefixed with FF_ and creates an FF object
  * where FF_FOO becomes FF.FOO
  */
@@ -16,28 +16,28 @@ interface FeatureFlags {
  */
 function parseFeatureFlags(): FeatureFlags {
   const flags: FeatureFlags = {};
-  const isDevelopment = process.env.NODE_ENV !== 'production';
-  
+  const isDevelopment = process.env.NODE_ENV !== "production";
+
   // Server-side: access process.env directly
-  if (typeof window === 'undefined') {
-    Object.keys(process.env).forEach(key => {
-      if (key.startsWith('FF_')) {
+  if (typeof window === "undefined") {
+    Object.keys(process.env).forEach((key) => {
+      if (key.startsWith("FF_")) {
         // Convert FF_FOO to FOO
         const flagName = key.slice(3);
         const value = process.env[key];
-        
+
         if (isDevelopment) {
           // In development: default to true unless explicitly set to "0"
           // If not set at all (undefined), default to true
-          flags[flagName] = value === undefined ? true : value !== '0';
+          flags[flagName] = value === undefined ? true : value !== "0";
         } else {
           // In production: only "1" = true, anything else = false
-          flags[flagName] = value === '1';
+          flags[flagName] = value === "1";
         }
       }
     });
   }
-  
+
   return flags;
 }
 
@@ -61,8 +61,8 @@ export function isFeatureEnabled(flagName: string): boolean {
   if (flagName in FF) {
     return FF[flagName] === true;
   }
-  
+
   // If the flag doesn't exist, use default behavior
-  const isDevelopment = process.env.NODE_ENV !== 'production';
+  const isDevelopment = process.env.NODE_ENV !== "production";
   return isDevelopment;
 }

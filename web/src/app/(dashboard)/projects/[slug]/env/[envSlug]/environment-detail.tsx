@@ -119,7 +119,6 @@ export default function EnvironmentDetailView({
     <>
       {/* Header */}
       <GlassCard>
-
         howdy partner!
         <div className="flex items-start justify-between">
           <div>

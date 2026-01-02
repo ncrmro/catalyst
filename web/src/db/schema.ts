@@ -208,6 +208,7 @@ export const repos = pgTable("repo", {
   ownerLogin: text("owner_login").notNull(),
   ownerType: text("owner_type").notNull(), // 'User' | 'Organization'
   ownerAvatarUrl: text("owner_avatar_url"),
+  defaultBranch: text("default_branch").notNull().default("main"),
   teamId: text("team_id")
     .notNull()
     .references(() => teams.id, { onDelete: "cascade" }),

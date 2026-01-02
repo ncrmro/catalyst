@@ -41,7 +41,10 @@ export {
   determinePRPriority,
   determinePRStatus,
 } from "./providers/github/client";
-export type { EnrichedPullRequest, EnrichedIssue } from "./providers/github/client";
+export type {
+  EnrichedPullRequest,
+  EnrichedIssue,
+} from "./providers/github/client";
 export {
   refreshTokenIfNeeded,
   invalidateTokens,

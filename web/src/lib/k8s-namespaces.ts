@@ -141,9 +141,7 @@ export async function namespaceExists(
 /**
  * List all namespaces for a specific cluster
  */
-export async function listNamespaces(
-  clusterName?: string,
-): Promise<
+export async function listNamespaces(clusterName?: string): Promise<
   {
     name: string;
     labels?: { [key: string]: string };

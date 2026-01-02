@@ -1,18 +1,18 @@
-'use server'
+"use server";
 
-import { auth } from "@/auth"
-import { db } from "@/db"
-import { teams, teamsMemberships } from "@/db/schema"
-import { eq, and } from "drizzle-orm"
+import { auth } from "@/auth";
+import { db } from "@/db";
+import { teams, teamsMemberships } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
 
 /**
  * Get all team IDs that the current user is a member of
  */
 export async function getUserTeamIds(): Promise<string[]> {
-  const session = await auth()
-  
+  const session = await auth();
+
   if (!session?.user?.id) {
-    return []
+    return [];
   }
 
   try {
@@ -21,18 +21,18 @@ export async function getUserTeamIds(): Promise<string[]> {
         teamId: teamsMemberships.teamId,
       })
       .from(teamsMemberships)
-      .where(eq(teamsMemberships.userId, session.user.id))
+      .where(eq(teamsMemberships.userId, session.user.id));
 
     // Ensure we always return an array
     if (!Array.isArray(userTeams)) {
-      console.warn('getUserTeamIds: userTeams is not an array:', userTeams)
-      return []
+      console.warn("getUserTeamIds: userTeams is not an array:", userTeams);
+      return [];
     }
 
-    return userTeams.map(team => team.teamId)
+    return userTeams.map((team) => team.teamId);
   } catch (error) {
-    console.error('Error fetching user team IDs:', error)
-    return []
+    console.error("Error fetching user team IDs:", error);
+    return [];
   }
 }
 
@@ -40,26 +40,28 @@ export async function getUserTeamIds(): Promise<string[]> {
  * Check if the current user is a member of a specific team
  */
 export async function isUserTeamMember(teamId: string): Promise<boolean> {
-  const session = await auth()
-  
+  const session = await auth();
+
   if (!session?.user?.id) {
-    return false
+    return false;
   }
 
   try {
     const membership = await db
       .select()
       .from(teamsMemberships)
-      .where(and(
-        eq(teamsMemberships.userId, session.user.id),
-        eq(teamsMemberships.teamId, teamId)
-      ))
-      .limit(1)
+      .where(
+        and(
+          eq(teamsMemberships.userId, session.user.id),
+          eq(teamsMemberships.teamId, teamId),
+        ),
+      )
+      .limit(1);
 
-    return membership.length > 0
+    return membership.length > 0;
   } catch (error) {
-    console.error('Error checking team membership:', error)
-    return false
+    console.error("Error checking team membership:", error);
+    return false;
   }
 }
 
@@ -67,10 +69,10 @@ export async function isUserTeamMember(teamId: string): Promise<boolean> {
  * Check if the current user has admin or owner role in a specific team
  */
 export async function isUserTeamAdminOrOwner(teamId: string): Promise<boolean> {
-  const session = await auth()
-  
+  const session = await auth();
+
   if (!session?.user?.id) {
-    return false
+    return false;
   }
 
   try {
@@ -79,21 +81,23 @@ export async function isUserTeamAdminOrOwner(teamId: string): Promise<boolean> {
         role: teamsMemberships.role,
       })
       .from(teamsMemberships)
-      .where(and(
-        eq(teamsMemberships.userId, session.user.id),
-        eq(teamsMemberships.teamId, teamId)
-      ))
-      .limit(1)
+      .where(
+        and(
+          eq(teamsMemberships.userId, session.user.id),
+          eq(teamsMemberships.teamId, teamId),
+        ),
+      )
+      .limit(1);
 
     if (membership.length === 0) {
-      return false
+      return false;
     }
 
-    const role = membership[0].role
-    return role === 'admin' || role === 'owner'
+    const role = membership[0].role;
+    return role === "admin" || role === "owner";
   } catch (error) {
-    console.error('Error checking team admin/owner status:', error)
-    return false
+    console.error("Error checking team admin/owner status:", error);
+    return false;
   }
 }
 
@@ -101,10 +105,10 @@ export async function isUserTeamAdminOrOwner(teamId: string): Promise<boolean> {
  * Get team details for teams that the current user is a member of
  */
 export async function getUserTeamsWithDetails() {
-  const session = await auth()
-  
+  const session = await auth();
+
   if (!session?.user?.id) {
-    return []
+    return [];
   }
 
   try {
@@ -117,12 +121,12 @@ export async function getUserTeamsWithDetails() {
       })
       .from(teamsMemberships)
       .innerJoin(teams, eq(teamsMemberships.teamId, teams.id))
-      .where(eq(teamsMemberships.userId, session.user.id))
+      .where(eq(teamsMemberships.userId, session.user.id));
 
-    return userTeams
+    return userTeams;
   } catch (error) {
-    console.error('Error fetching user teams with details:', error)
-    return []
+    console.error("Error fetching user teams with details:", error);
+    return [];
   }
 }
 
@@ -130,10 +134,10 @@ export async function getUserTeamsWithDetails() {
  * Get the user's primary team ID (first team they're a member of)
  */
 export async function getUserPrimaryTeamId(): Promise<string | null> {
-  const session = await auth()
-  
+  const session = await auth();
+
   if (!session?.user?.id) {
-    return null
+    return null;
   }
 
   try {
@@ -143,11 +147,11 @@ export async function getUserPrimaryTeamId(): Promise<string | null> {
       })
       .from(teamsMemberships)
       .where(eq(teamsMemberships.userId, session.user.id))
-      .limit(1)
+      .limit(1);
 
-    return userTeam.length > 0 ? userTeam[0].teamId : null
+    return userTeam.length > 0 ? userTeam[0].teamId : null;
   } catch (error) {
-    console.error('Error fetching user primary team ID:', error)
-    return null
+    console.error("Error fetching user primary team ID:", error);
+    return null;
   }
 }

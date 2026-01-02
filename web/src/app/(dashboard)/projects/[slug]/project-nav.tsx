@@ -15,7 +15,11 @@ export function ProjectNav({ slug }: ProjectNavProps) {
   const options = [
     { value: "features", label: "Features", href: basePath },
     { value: "platform", label: "Platform", href: `${basePath}/platform` },
-    { value: "conventions", label: "Conventions", href: `${basePath}/platform/conventions` },
+    {
+      value: "conventions",
+      label: "Conventions",
+      href: `${basePath}/platform/conventions`,
+    },
   ];
 
   // Determine active value based on pathname

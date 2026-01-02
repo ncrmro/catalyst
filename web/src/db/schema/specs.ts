@@ -1,4 +1,12 @@
-import { pgTable, text, integer, timestamp, varchar, boolean } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  integer,
+  timestamp,
+  varchar,
+  boolean,
+} from "drizzle-orm/pg-core";
+import { relations, type InferSelectModel } from "drizzle-orm";
 import { projects } from "../schema";
 
 export const specFolders = pgTable("spec_folders", {
@@ -34,3 +42,21 @@ export const specTasks = pgTable("spec_tasks", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+export type SpecTask = InferSelectModel<typeof specTasks>;
+export type SpecFolder = InferSelectModel<typeof specFolders>;
+
+export const specFoldersRelations = relations(specFolders, ({ one, many }) => ({
+  project: one(projects, {
+    fields: [specFolders.projectId],
+    references: [projects.id],
+  }),
+  tasks: many(specTasks),
+}));
+
+export const specTasksRelations = relations(specTasks, ({ one }) => ({
+  specFolder: one(specFolders, {
+    fields: [specTasks.specFolderId],
+    references: [specFolders.id],
+  }),
+}));

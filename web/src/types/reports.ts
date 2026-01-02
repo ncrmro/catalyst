@@ -1,20 +1,20 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 /**
  * Shared schema for periodic reports - moved from agents/periodic-report.ts
  * This schema is used for both runtime validation and TypeScript type inference
  */
 export const reportSchema = z.object({
-  title: z.string().describe('Title of the periodic report'),
-  summary: z.string().describe('Executive summary of the current state'),
+  title: z.string().describe("Title of the periodic report"),
+  summary: z.string().describe("Executive summary of the current state"),
   projectsAnalysis: z.object({
     totalProjects: z.number(),
     activeEnvironments: z.number(),
     inactiveEnvironments: z.number(),
-    insights: z.array(z.string()).describe('Key insights about projects')
+    insights: z.array(z.string()).describe("Key insights about projects"),
   }),
-  recommendations: z.array(z.string()).describe('Actionable recommendations'),
-  nextSteps: z.array(z.string()).describe('Suggested next steps')
+  recommendations: z.array(z.string()).describe("Actionable recommendations"),
+  nextSteps: z.array(z.string()).describe("Suggested next steps"),
 });
 
 export type ReportData = z.infer<typeof reportSchema>;
@@ -31,12 +31,12 @@ export interface PullRequest {
   created_at: string;
   updated_at: string;
   comments_count: number;
-  priority: 'high' | 'medium' | 'low';
-  status: 'draft' | 'ready' | 'changes_requested';
+  priority: "high" | "medium" | "low";
+  status: "draft" | "ready" | "changes_requested";
   // Preview environment fields
   previewEnvironmentId?: string;
   previewUrl?: string;
-  previewStatus?: 'pending' | 'deploying' | 'running' | 'failed' | 'deleting';
+  previewStatus?: "pending" | "deploying" | "running" | "failed" | "deleting";
   body?: string; // PR description
   headBranch?: string; // Source branch name
   headSha?: string; // Head commit SHA
@@ -51,10 +51,10 @@ export interface Issue {
   created_at: string;
   updated_at: string;
   labels: string[];
-  priority: 'high' | 'medium' | 'low';
-  effort_estimate: 'small' | 'medium' | 'large';
-  type: 'bug' | 'feature' | 'improvement' | 'idea';
-  state: 'open' | 'closed';
+  priority: "high" | "medium" | "low";
+  effort_estimate: "small" | "medium" | "large";
+  type: "bug" | "feature" | "improvement" | "idea";
+  state: "open" | "closed";
 }
 
 export interface RepoNarrative {

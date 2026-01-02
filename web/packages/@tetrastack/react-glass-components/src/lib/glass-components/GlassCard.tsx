@@ -1,9 +1,11 @@
-import * as React from 'react';
-import { cn } from './utils';
-import { GlassSurface, GlassSurfaceProps } from './GlassSurface';
+import * as React from "react";
+import { cn } from "./utils";
+import { GlassSurface, GlassSurfaceProps } from "./GlassSurface";
 
-export interface GlassCardProps
-  extends Omit<GlassSurfaceProps, 'bordered' | 'shadowed'> {
+export interface GlassCardProps extends Omit<
+  GlassSurfaceProps,
+  "bordered" | "shadowed"
+> {
   /**
    * Enable glass-morphism effect (backdrop-filter blur + semi-transparent background)
    * Set to false to disable glass effect for performance when nesting components
@@ -19,13 +21,13 @@ export interface GlassCardProps
   /**
    * Corner radius variant
    */
-  rounded?: 'sm' | 'md' | 'lg' | 'xl';
+  rounded?: "sm" | "md" | "lg" | "xl";
 
   /**
    * Color variant for the card
    * @default 'default'
    */
-  variant?: 'default' | 'primary' | 'secondary' | 'tertiary' | 'error';
+  variant?: "default" | "primary" | "secondary" | "tertiary" | "error";
 }
 
 /**
@@ -35,17 +37,17 @@ export function GlassCard({
   className,
   glass = true,
   padded = true,
-  rounded = 'xl',
-  intensity = 'medium',
-  variant = 'default',
+  rounded = "xl",
+  intensity = "medium",
+  variant = "default",
   children,
   ...props
 }: GlassCardProps) {
   const roundedClasses = {
-    sm: 'rounded-sm',
-    md: 'rounded-md',
-    lg: 'rounded-lg',
-    xl: 'rounded-xl',
+    sm: "rounded-sm",
+    md: "rounded-md",
+    lg: "rounded-lg",
+    xl: "rounded-xl",
   };
 
   return (
@@ -55,7 +57,7 @@ export function GlassCard({
       variant={variant}
       bordered
       shadowed
-      className={cn(roundedClasses[rounded], padded && 'p-6', className)}
+      className={cn(roundedClasses[rounded], padded && "p-6", className)}
       {...props}
     >
       {children}
@@ -63,10 +65,10 @@ export function GlassCard({
   );
 }
 
-export type GlassCardHeaderProps = React.ComponentProps<'div'>;
+export type GlassCardHeaderProps = React.ComponentProps<"div">;
 
 export function GlassCardHeader({ className, ...props }: GlassCardHeaderProps) {
-  return <div className={cn('mb-4', className)} {...props} />;
+  return <div className={cn("mb-4", className)} {...props} />;
 }
 
 type GlassCardTitleOwnProps = {
@@ -77,25 +79,25 @@ type GlassCardTitleOwnProps = {
   as?: React.ElementType;
 };
 
-export type GlassCardTitleProps<T extends React.ElementType = 'h3'> =
+export type GlassCardTitleProps<T extends React.ElementType = "h3"> =
   GlassCardTitleOwnProps &
     Omit<React.ComponentPropsWithoutRef<T>, keyof GlassCardTitleOwnProps>;
 
-export function GlassCardTitle<T extends React.ElementType = 'h3'>({
+export function GlassCardTitle<T extends React.ElementType = "h3">({
   as,
   className,
   ...props
 }: GlassCardTitleProps<T>) {
-  const Component = as || 'h3';
+  const Component = as || "h3";
   return (
     <Component
-      className={cn('text-2xl font-semibold text-on-surface', className)}
+      className={cn("text-2xl font-semibold text-on-surface", className)}
       {...props}
     />
   );
 }
 
-export type GlassCardDescriptionProps = React.ComponentProps<'p'>;
+export type GlassCardDescriptionProps = React.ComponentProps<"p">;
 
 export function GlassCardDescription({
   className,
@@ -103,27 +105,27 @@ export function GlassCardDescription({
 }: GlassCardDescriptionProps) {
   return (
     <p
-      className={cn('text-sm text-on-surface-variant mt-1', className)}
+      className={cn("text-sm text-on-surface-variant mt-1", className)}
       {...props}
     />
   );
 }
 
-export type GlassCardContentProps = React.ComponentProps<'div'>;
+export type GlassCardContentProps = React.ComponentProps<"div">;
 
 export function GlassCardContent({
   className,
   ...props
 }: GlassCardContentProps) {
-  return <div className={cn('', className)} {...props} />;
+  return <div className={cn("", className)} {...props} />;
 }
 
-export type GlassCardFooterProps = React.ComponentProps<'div'>;
+export type GlassCardFooterProps = React.ComponentProps<"div">;
 
 export function GlassCardFooter({ className, ...props }: GlassCardFooterProps) {
   return (
     <div
-      className={cn('mt-auto pt-4 flex items-center gap-2', className)}
+      className={cn("mt-auto pt-4 flex items-center gap-2", className)}
       {...props}
     />
   );

@@ -34,20 +34,24 @@ The Catalyst web application provides endpoints for registering and managing a p
 Set the following permissions based on your needs:
 
 #### Repository permissions:
+
 - **Contents**: Read & Write (to access repository files)
 - **Issues**: Read & Write (if working with issues)
 - **Pull requests**: Read & Write (if working with PRs)
 - **Metadata**: Read (basic repository info)
 
 #### Organization permissions:
+
 - **Members**: Read (if needed)
 
 #### Account permissions:
+
 - **Email addresses**: Read (if needed)
 
 ### Step 3: Subscribe to Events
 
 Subscribe to relevant webhook events:
+
 - [x] Installation
 - [x] Installation repositories
 - [x] Push
@@ -57,6 +61,7 @@ Subscribe to relevant webhook events:
 ### Step 4: Installation Options
 
 Choose who can install the app:
+
 - **Only on this account**: Limits installation to your account/organization
 - **Any account**: Allows public installation
 
@@ -95,16 +100,19 @@ AUTH_SECRET=123 # openssl rand -base64 33
 The application provides the following endpoints:
 
 ### Registration Endpoint
+
 - **URL**: `/api/github/register`
 - **Methods**: GET, POST
 - **Description**: Initiates GitHub App installation process
 
 **GET Example**:
+
 ```bash
 curl https://your-domain.com/api/github/register?state=user123
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -115,11 +123,13 @@ curl https://your-domain.com/api/github/register?state=user123
 ```
 
 ### Webhook Endpoint
+
 - **URL**: `/api/github/webhook`
 - **Method**: POST
 - **Description**: Receives GitHub webhook events
 
 ### OAuth Callback Endpoint
+
 - **URL**: `/api/github/callback`
 - **Method**: GET
 - **Description**: Handles OAuth callbacks after app installation
@@ -146,6 +156,7 @@ curl https://your-domain.com/api/github/register?state=user123
 ### Installation URL Parameters
 
 When redirected back from GitHub, the callback will receive:
+
 - `installation_id`: Unique ID for this installation
 - `setup_action`: Type of action (install, update, request)
 - `state`: Optional state parameter for tracking
@@ -181,7 +192,7 @@ ngrok http 3000
 ### 3. Manual Testing
 
 1. Navigate to your GitHub App's public page
-2. Click "Install" 
+2. Click "Install"
 3. Select repositories
 4. Verify the callback is received
 5. Check application logs for successful processing
@@ -233,6 +244,7 @@ DEBUG=github:*
 ## Support
 
 For issues or questions:
+
 1. Check the application logs
 2. Verify GitHub App configuration
 3. Test webhook connectivity

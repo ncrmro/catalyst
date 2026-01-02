@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useState, useRef, useCallback, type KeyboardEvent } from 'react';
+import { useState, useRef, useCallback, type KeyboardEvent } from "react";
 
 export interface ChatInputProps {
   /** Callback when user submits a message */
@@ -39,7 +39,7 @@ export interface ChatInputProps {
  */
 export function ChatInput({
   onSubmit,
-  placeholder = 'Type a message...',
+  placeholder = "Type a message...",
   disabled = false,
   multiline = false,
   maxRows = 5,
@@ -47,7 +47,7 @@ export function ChatInput({
   inputClassName,
   buttonClassName,
 }: ChatInputProps) {
-  const [value, setValue] = useState('');
+  const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -56,17 +56,17 @@ export function ChatInput({
     if (!trimmed || disabled) return;
 
     onSubmit(trimmed);
-    setValue('');
+    setValue("");
 
     // Reset textarea height
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = "auto";
     }
   }, [value, disabled, onSubmit]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
+      if (e.key === "Enter") {
         if (multiline && e.shiftKey) {
           // Allow newline in multiline mode with Shift+Enter
           return;
@@ -85,7 +85,7 @@ export function ChatInput({
 
       // Auto-resize
       const textarea = e.target;
-      textarea.style.height = 'auto';
+      textarea.style.height = "auto";
       const lineHeight = parseInt(getComputedStyle(textarea).lineHeight) || 20;
       const maxHeight = lineHeight * maxRows;
       textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;

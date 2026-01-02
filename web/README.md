@@ -85,6 +85,7 @@ GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----..."
 ## Development Commands
 
 ### Services
+
 ```bash
 make up               # Start all services with mocked data
 make up-real          # Start all services with real GitHub
@@ -94,6 +95,7 @@ npm run dev           # Next.js dev server only
 ```
 
 ### Testing
+
 ```bash
 npm test              # All tests
 npm run test:unit     # Unit tests
@@ -105,12 +107,14 @@ make ci               # Full CI suite
 ```
 
 ### Code Quality
+
 ```bash
 npm run lint          # Linting
 npm run typecheck     # TypeScript checking
 ```
 
 ### Database
+
 ```bash
 npm run db:generate   # Generate migrations
 npm run db:migrate    # Apply migrations
@@ -121,36 +125,40 @@ make dbshell          # PostgreSQL shell
 
 ## Development Modes
 
-| Mode | Command | Data Source | Best For |
-|------|---------|-------------|----------|
-| **Mocked** | `make up` | YAML files | Development, testing, offline work |
-| **Real** | `make up-real` | GitHub API | GitHub integration testing |
+| Mode       | Command        | Data Source | Best For                           |
+| ---------- | -------------- | ----------- | ---------------------------------- |
+| **Mocked** | `make up`      | YAML files  | Development, testing, offline work |
+| **Real**   | `make up-real` | GitHub API  | GitHub integration testing         |
 
 **Recommendation:** Start with mocked mode for most development, switch to real mode when testing GitHub features.
 
 ## Troubleshooting
 
 **KUBECONFIG_PRIMARY not set**
+
 ```bash
 ./scripts/kubeconfig-to-base64.sh ~/.kube/config
 ```
 
 **GitHub API rate limit**
+
 ```bash
 make down && make up  # Switch to mocked mode
 ```
 
 **Database connection failed**
+
 ```bash
 docker ps | grep postgres  # Check if running
 make down && make up        # Restart services
 ```
 
 **yq command not found**
+
 ```bash
 # macOS
 brew install yq
-# Ubuntu/Debian  
+# Ubuntu/Debian
 sudo apt-get install yq
 ```
 

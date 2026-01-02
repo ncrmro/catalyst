@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { AlertList, type Alert } from "./AlertList";
 
 const meta: Meta<typeof AlertList> = {
@@ -47,7 +47,7 @@ const mockAlerts: Alert[] = [
 export const Default: Story = {
   args: {
     alerts: mockAlerts,
-    onAlertClick: (id) => console.log(`Alert clicked: ${id}`),
+    onAlertClick: (_id: string) => console.log(`Alert clicked: ${_id}`),
   },
 };
 

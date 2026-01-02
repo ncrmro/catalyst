@@ -14,7 +14,7 @@ export {
   getInstallationOctokit,
   getAllInstallations,
   fetchPullRequests, // Renamed from fetchRealPullRequests
-  fetchIssues,       // Renamed from fetchRealIssues
+  fetchIssues, // Renamed from fetchRealIssues
   fetchPullRequestById,
   fetchCIStatus,
   fetchUserRepositoryPullRequests,

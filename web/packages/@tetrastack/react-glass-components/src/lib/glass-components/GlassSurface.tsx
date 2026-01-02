@@ -1,5 +1,5 @@
-import * as React from 'react';
-import { cn } from './utils';
+import * as React from "react";
+import { cn } from "./utils";
 
 type GlassSurfaceOwnProps = {
   /**
@@ -21,13 +21,13 @@ type GlassSurfaceOwnProps = {
    * - 'medium': Balanced glass effect (20% opacity)
    * - 'strong': Intense glass effect with strong blur (30% opacity)
    */
-  intensity?: 'light' | 'medium' | 'strong';
+  intensity?: "light" | "medium" | "strong";
 
   /**
    * Color variant for tinting
    * @default 'default'
    */
-  variant?: 'default' | 'primary' | 'secondary' | 'tertiary' | 'error';
+  variant?: "default" | "primary" | "secondary" | "tertiary" | "error";
 
   /**
    * Whether to show a border
@@ -40,7 +40,7 @@ type GlassSurfaceOwnProps = {
   shadowed?: boolean;
 };
 
-export type GlassSurfaceProps<T extends React.ElementType = 'div'> =
+export type GlassSurfaceProps<T extends React.ElementType = "div"> =
   GlassSurfaceOwnProps &
     Omit<React.ComponentPropsWithoutRef<T>, keyof GlassSurfaceOwnProps>;
 
@@ -61,38 +61,38 @@ export type GlassSurfaceProps<T extends React.ElementType = 'div'> =
  * </GlassSurface>
  * ```
  */
-export function GlassSurface<T extends React.ElementType = 'div'>({
+export function GlassSurface<T extends React.ElementType = "div">({
   as,
   className,
   glass = true,
-  intensity = 'light',
-  variant = 'default',
+  intensity = "light",
+  variant = "default",
   bordered = true,
   shadowed = true,
   children,
   ...props
 }: GlassSurfaceProps<T>) {
-  const Component = as || 'div';
+  const Component = as || "div";
 
   // Intensity controls both blur and opacity
   const intensityClasses = {
-    light: 'backdrop-blur-sm',
-    medium: 'backdrop-blur-md',
-    strong: 'backdrop-blur-lg',
+    light: "backdrop-blur-sm",
+    medium: "backdrop-blur-md",
+    strong: "backdrop-blur-lg",
   };
 
   const opacityMap = {
-    light: '10',
-    medium: '20',
-    strong: '30',
+    light: "10",
+    medium: "20",
+    strong: "30",
   };
 
   const variantColorMap = {
-    default: 'surface',
-    primary: 'primary',
-    secondary: 'secondary',
-    tertiary: 'tertiary',
-    error: 'error',
+    default: "surface",
+    primary: "primary",
+    secondary: "secondary",
+    tertiary: "tertiary",
+    error: "error",
   };
 
   // Combine variant color with intensity-based opacity for glass effect
@@ -108,9 +108,9 @@ export function GlassSurface<T extends React.ElementType = 'div'>({
         glass && intensityClasses[intensity],
         variantClass,
         // Border
-        bordered && 'border border-white/30 dark:border-gray-500/30',
+        bordered && "border border-white/30 dark:border-gray-500/30",
         // Shadow
-        shadowed && 'shadow-xl',
+        shadowed && "shadow-xl",
         // Custom classes
         className,
       )}

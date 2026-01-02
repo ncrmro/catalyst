@@ -1,17 +1,17 @@
-'use server';
+"use server";
 
-import { listNamespaces } from '@/lib/k8s-namespaces';
-import { NamespaceInfo } from '@/actions/namespaces';
+import { listNamespaces } from "@/lib/k8s-namespaces";
+import { NamespaceInfo } from "@/actions/namespaces";
 
 /**
  * System namespaces that are accessible to all authenticated users
  */
 const SYSTEM_NAMESPACES = [
-  'default',
-  'kube-system',
-  'kube-public',
-  'kube-node-lease',
-  'catalyst-system'
+  "default",
+  "kube-system",
+  "kube-public",
+  "kube-node-lease",
+  "catalyst-system",
 ];
 
 /**
@@ -20,14 +20,14 @@ const SYSTEM_NAMESPACES = [
 export async function getNamespacesForUser(
   userId: string,
   userTeamIds: string[],
-  clusterName?: string
+  clusterName?: string,
 ): Promise<NamespaceInfo[]> {
   try {
     // Get all namespaces
     const allNamespaces = await listNamespaces(clusterName);
 
     // Filter namespaces based on user's team memberships
-    const filteredNamespaces = allNamespaces.filter(ns => {
+    const filteredNamespaces = allNamespaces.filter((ns) => {
       // Allow access to system namespaces
       if (SYSTEM_NAMESPACES.includes(ns.name)) {
         return true;
@@ -35,14 +35,14 @@ export async function getNamespacesForUser(
 
       // Check for 'catalyst/team' label that matches user's team IDs
       const labels = ns.labels || {};
-      const namespaceTeam = labels['catalyst/team'];
-      
+      const namespaceTeam = labels["catalyst/team"];
+
       return namespaceTeam && userTeamIds.includes(namespaceTeam);
     });
 
     return filteredNamespaces;
   } catch (error) {
-    console.error('Error fetching namespaces for user:', error);
+    console.error("Error fetching namespaces for user:", error);
     throw error;
   }
 }
@@ -54,21 +54,25 @@ export async function getNamespaceDetails(
   namespace: string,
   userTeamIds: string[],
   resources?: string[],
-  clusterName?: string
+  clusterName?: string,
 ): Promise<NamespaceInfo | null> {
   try {
     // First check if user has access to this namespace
-    const accessibleNamespaces = await getNamespacesForUser('', userTeamIds, clusterName);
-    const hasAccess = accessibleNamespaces.some(ns => ns.name === namespace);
-    
+    const accessibleNamespaces = await getNamespacesForUser(
+      "",
+      userTeamIds,
+      clusterName,
+    );
+    const hasAccess = accessibleNamespaces.some((ns) => ns.name === namespace);
+
     if (!hasAccess) {
       return null;
     }
 
     // Get all namespaces and find the specific one
     const allNamespaces = await listNamespaces(clusterName);
-    const namespaceInfo = allNamespaces.find(ns => ns.name === namespace);
-    
+    const namespaceInfo = allNamespaces.find((ns) => ns.name === namespace);
+
     if (!namespaceInfo) {
       return null;
     }
@@ -80,7 +84,7 @@ export async function getNamespaceDetails(
       // Add additional details here based on resources parameter
     };
   } catch (error) {
-    console.error('Error fetching namespace details:', error);
+    console.error("Error fetching namespace details:", error);
     throw error;
   }
 }

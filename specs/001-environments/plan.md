@@ -234,3 +234,18 @@ This ensures local development works without GitHub App installation, using `GIT
 ### Future Work
 
 All DB operations have TODOs for re-enablement when caching layer is implemented. See Phase 6 in tasks.md.
+
+---
+
+## [FR-ENV-006 through FR-ENV-011] Automatic Project Type Detection
+
+See [research.project-detection.md](./research.project-detection.md) for full implementation details including:
+
+- Detection module architecture and TypeScript interfaces
+- Node.js/package manager detection logic
+- Monorepo detection patterns (FR-ENV-009)
+- CRD extensions for `spec.devCommand` and `spec.workdir`
+- Failure recovery with `Degraded` status (FR-ENV-010)
+- Override persistence in database (FR-ENV-011)
+- UI integration for detection preview
+- Testing strategy and performance considerations

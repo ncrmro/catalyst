@@ -1,17 +1,17 @@
-import type { Meta, StoryObj } from '@storybook/react-vite';
-import { GlassSelect } from './GlassSelect';
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { GlassSelect } from "./GlassSelect";
 
 const meta: Meta<typeof GlassSelect> = {
-  title: 'Glass Components/GlassSelect',
+  title: "Glass Components/GlassSelect",
   component: GlassSelect,
-  tags: ['autodocs'],
+  tags: ["autodocs"],
   argTypes: {
     intensity: {
-      control: { type: 'select' },
-      options: ['light', 'medium', 'strong'],
+      control: { type: "select" },
+      options: ["light", "medium", "strong"],
     },
     disabled: {
-      control: 'boolean',
+      control: "boolean",
     },
   },
 };
@@ -33,7 +33,7 @@ export const Default: Story = {
 
 export const LightIntensity: Story = {
   args: {
-    intensity: 'light',
+    intensity: "light",
     children: (
       <>
         <option value="">Select an option</option>

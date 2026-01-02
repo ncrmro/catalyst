@@ -1,7 +1,5 @@
 import Link from "next/link";
-import {
-  getPreviewEnvironmentsWithMetrics,
-} from "@/actions/preview-environments";
+import { getPreviewEnvironmentsWithMetrics } from "@/actions/preview-environments";
 import {
   RESOURCE_QUOTA_LIMITS,
   type PreviewPodWithMetrics,

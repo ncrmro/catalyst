@@ -57,10 +57,11 @@ async function ensureNamespace(namespace: string): Promise<void> {
       await coreApi.readNamespace({ name: namespace });
     } catch (error: unknown) {
       // Check for 404 Not Found
-      const isNotFound = 
-        (error as { response?: { statusCode?: number } })?.response?.statusCode === 404 || 
-        (error instanceof Error && error.message.includes('not found'));
-        
+      const isNotFound =
+        (error as { response?: { statusCode?: number } })?.response
+          ?.statusCode === 404 ||
+        (error instanceof Error && error.message.includes("not found"));
+
       if (isNotFound) {
         console.log(`Namespace ${namespace} not found, creating...`);
         await coreApi.createNamespace({
@@ -71,7 +72,7 @@ async function ensureNamespace(namespace: string): Promise<void> {
               name: namespace,
               labels: {
                 "created-by": "catalyst",
-                "purpose": "preview-environment",
+                purpose: "preview-environment",
               },
             },
           },
@@ -311,7 +312,7 @@ export async function watchDeploymentUntilReady(
   namespace: string,
   deploymentName: string,
   timeoutMs: number = 180000,
-  onProgress?: (message: string) => void
+  onProgress?: (message: string) => void,
 ): Promise<DeploymentStatus> {
   const startTime = Date.now();
   const pollInterval = 5000; // 5 seconds
@@ -355,9 +356,9 @@ export async function watchDeploymentUntilReady(
 
         // Report progress
         if (onProgress) {
-            const ready = status?.readyReplicas || 0;
-            const desired = spec?.replicas || 0;
-            onProgress(`Waiting for pods: ${ready}/${desired} ready...`);
+          const ready = status?.readyReplicas || 0;
+          const desired = spec?.replicas || 0;
+          onProgress(`Waiting for pods: ${ready}/${desired} ready...`);
         }
 
         // Check for failure conditions

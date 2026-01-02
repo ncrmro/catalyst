@@ -56,7 +56,9 @@ export function AlertList({ alerts, onAlertClick }: AlertListProps) {
             d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
           />
         </svg>
-        <h3 className="text-lg font-medium text-on-surface">No Active Alerts</h3>
+        <h3 className="text-lg font-medium text-on-surface">
+          No Active Alerts
+        </h3>
         <p className="text-on-surface-variant">System is operating normally.</p>
       </GlassCard>
     );
@@ -80,7 +82,9 @@ export function AlertList({ alerts, onAlertClick }: AlertListProps) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-1">
                 {getStatusIcon(alert.status)}
-                <h4 className="font-semibold text-on-surface truncate">{alert.name}</h4>
+                <h4 className="font-semibold text-on-surface truncate">
+                  {alert.name}
+                </h4>
                 <span
                   className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${getSeverityStyles(
                     alert.severity,
@@ -89,8 +93,10 @@ export function AlertList({ alerts, onAlertClick }: AlertListProps) {
                   {alert.severity}
                 </span>
               </div>
-              <p className="text-sm text-on-surface-variant mb-3">{alert.summary}</p>
-              
+              <p className="text-sm text-on-surface-variant mb-3">
+                {alert.summary}
+              </p>
+
               <div className="flex flex-wrap gap-2">
                 {Object.entries(alert.labels).map(([key, value]) => (
                   <span
@@ -105,10 +111,13 @@ export function AlertList({ alerts, onAlertClick }: AlertListProps) {
 
             <div className="text-xs text-on-surface-variant whitespace-nowrap text-right">
               <div>Started: {alert.startsAt.toLocaleTimeString()}</div>
-              {alert.endsAt && <div>Resolved: {alert.endsAt.toLocaleTimeString()}</div>}
+              {alert.endsAt && (
+                <div>Resolved: {alert.endsAt.toLocaleTimeString()}</div>
+              )}
               {alert.status === "firing" && (
                 <div className="text-error font-medium mt-1">
-                  Active for {Math.round((Date.now() - alert.startsAt.getTime()) / 60000)}m
+                  Active for{" "}
+                  {Math.round((Date.now() - alert.startsAt.getTime()) / 60000)}m
                 </div>
               )}
             </div>

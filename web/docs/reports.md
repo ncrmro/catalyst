@@ -9,6 +9,7 @@ Reports are periodic summaries generated for users that provide insights into pr
 Each report contains:
 
 ### Latest Pull Requests Awaiting Review
+
 - Summary of open pull requests that require attention
 - Priority ordering based on factors like:
   - Age of the PR
@@ -17,6 +18,7 @@ Each report contains:
   - Author and reviewer activity
 
 ### Top Priority Issues
+
 - Existing issues and ideas prioritized by:
   - Business impact
   - Development effort required
@@ -24,6 +26,7 @@ Each report contains:
   - Strategic alignment with project goals
 
 ### Goal-Focused Recommendations
+
 - Next steps and recommendations focused on specific project goals
 - Actionable items for improving development velocity
 - Suggestions for addressing technical debt or process improvements

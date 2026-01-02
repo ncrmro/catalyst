@@ -1,10 +1,14 @@
-import { generateObject } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
-import { openai } from '@ai-sdk/openai';
-import { z } from 'zod';
-import { fetchProjects } from '@/actions/projects';
-import { reportSchema } from '@/types/reports';
-import { getGitHubMCPClient, createGitHubMCPClient, GitHubMCPClient } from '@/lib/mcp-clients';
+import { generateObject } from "ai";
+import { anthropic } from "@ai-sdk/anthropic";
+import { openai } from "@ai-sdk/openai";
+import { z } from "zod";
+import { fetchProjects } from "@/actions/projects";
+import { reportSchema } from "@/types/reports";
+import {
+  getGitHubMCPClient,
+  createGitHubMCPClient,
+  GitHubMCPClient,
+} from "@/lib/mcp-clients";
 
 // System prompt for the periodic report agent
 const SYSTEM_PROMPT = `You are a Project Report Generator Agent for the Catalyst platform. Your role is to analyze pull requests and issues to generate comprehensive project reports.
@@ -27,7 +31,7 @@ When generating reports:
 The user will provide you with project data including merged and open pull requests to analyze.`;
 
 export interface PeriodicReportOptions {
-  provider?: 'anthropic' | 'openai';
+  provider?: "anthropic" | "openai";
   model?: string;
   enableGitHubMCP?: boolean;
   gitHubMCPApiKey?: string;
@@ -35,16 +39,20 @@ export interface PeriodicReportOptions {
 }
 
 export class PeriodicReportAgent {
-  private provider: 'anthropic' | 'openai';
+  private provider: "anthropic" | "openai";
   private model: string;
   private enableGitHubMCP: boolean;
   private gitHubMCPClient?: GitHubMCPClient;
 
   constructor(options: PeriodicReportOptions = {}) {
-    this.provider = options.provider || 'openai';
-    this.model = options.model || (this.provider === 'anthropic' ? 'claude-3-sonnet-20240229' : 'gpt-5-mini');
+    this.provider = options.provider || "openai";
+    this.model =
+      options.model ||
+      (this.provider === "anthropic"
+        ? "claude-3-sonnet-20240229"
+        : "gpt-5-mini");
     this.enableGitHubMCP = options.enableGitHubMCP ?? true;
-    
+
     if (this.enableGitHubMCP) {
       // Prefer session access token over API key for user-specific GitHub access
       if (options.accessToken) {
@@ -69,22 +77,29 @@ export class PeriodicReportAgent {
     // Check GitHub MCP availability for enhanced reporting context
     let gitHubToolsAvailable = false;
     let gitHubToolsCount = 0;
-    
+
     if (this.enableGitHubMCP && this.gitHubMCPClient) {
       try {
         const gitHubTools = await this.gitHubMCPClient.getTools();
-        gitHubToolsAvailable = this.gitHubMCPClient.isAvailable() && Object.keys(gitHubTools).length > 0;
+        gitHubToolsAvailable =
+          this.gitHubMCPClient.isAvailable() &&
+          Object.keys(gitHubTools).length > 0;
         gitHubToolsCount = Object.keys(gitHubTools).length;
-        
+
         if (gitHubToolsAvailable) {
-          console.log(`GitHub MCP integration enabled with ${gitHubToolsCount} tools available`);
+          console.log(
+            `GitHub MCP integration enabled with ${gitHubToolsCount} tools available`,
+          );
         }
       } catch (error) {
-        console.warn('Failed to load GitHub MCP tools:', error);
+        console.warn("Failed to load GitHub MCP tools:", error);
       }
     }
 
-    const model = this.provider === 'anthropic' ? anthropic(this.model) : openai(this.model);
+    const model =
+      this.provider === "anthropic"
+        ? anthropic(this.model)
+        : openai(this.model);
 
     // Enhanced prompt focused on PR analysis and prioritization
     const prompt = `Generate a comprehensive project report based on the following data:
@@ -92,9 +107,13 @@ export class PeriodicReportAgent {
 PROJECTS DATA:
 ${JSON.stringify(projectsData.data, null, 2)}
 
-${gitHubToolsAvailable ? `
+${
+  gitHubToolsAvailable
+    ? `
 GITHUB INTEGRATION:
-GitHub MCP tools are available (${gitHubToolsCount} tools) and can provide additional repository insights, issue tracking, PR analysis, and code metrics to enhance the report with real GitHub data.` : ''}
+GitHub MCP tools are available (${gitHubToolsCount} tools) and can provide additional repository insights, issue tracking, PR analysis, and code metrics to enhance the report with real GitHub data.`
+    : ""
+}
 
 Analyze this data to create a detailed report covering:
 
@@ -104,7 +123,7 @@ Analyze this data to create a detailed report covering:
 4. Identification of PRs that should be reviewed first for maximum impact
 5. Recommendations for development priorities and next steps
 
-Focus on connecting merged work to open work, identifying patterns, and providing clear PR review priorities based on strategic value and user impact.${gitHubToolsAvailable ? ' Consider leveraging GitHub data for deeper PR relationship analysis.' : ''}`;
+Focus on connecting merged work to open work, identifying patterns, and providing clear PR review priorities based on strategic value and user impact.${gitHubToolsAvailable ? " Consider leveraging GitHub data for deeper PR relationship analysis." : ""}`;
 
     const result = await generateObject({
       model,
@@ -122,24 +141,23 @@ Focus on connecting merged work to open work, identifying patterns, and providin
       const projectsData = await fetchProjects();
       return {
         success: true,
-        data: projectsData
+        data: projectsData,
       };
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        data: null
+        error: error instanceof Error ? error.message : "Unknown error",
+        data: null,
       };
     }
   }
-
 
   async getGitHubTools() {
     if (!this.enableGitHubMCP || !this.gitHubMCPClient) {
       return {
         success: false,
-        error: 'GitHub MCP is not enabled',
-        data: {}
+        error: "GitHub MCP is not enabled",
+        data: {},
       };
     }
 
@@ -148,13 +166,13 @@ Focus on connecting merged work to open work, identifying patterns, and providin
       return {
         success: true,
         data: tools,
-        available: this.gitHubMCPClient.isAvailable()
+        available: this.gitHubMCPClient.isAvailable(),
       };
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        data: {}
+        error: error instanceof Error ? error.message : "Unknown error",
+        data: {},
       };
     }
   }

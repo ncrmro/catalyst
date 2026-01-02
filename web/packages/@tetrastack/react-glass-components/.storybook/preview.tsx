@@ -1,6 +1,6 @@
-import type { Preview } from '@storybook/react-vite';
-import '../src/styles/globals.css'; // Import the global CSS
-import * as React from 'react';
+import type { Preview } from "@storybook/react-vite";
+import "../src/styles/globals.css"; // Import the global CSS
+import * as React from "react";
 
 const preview: Preview = {
   parameters: {
@@ -10,7 +10,7 @@ const preview: Preview = {
         date: /Date$/,
       },
     },
-    layout: 'fullscreen', // Allow background to cover full screen
+    layout: "fullscreen", // Allow background to cover full screen
   },
   decorators: [
     (Story) => (

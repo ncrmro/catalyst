@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { MetricExplorer, type QueryResult } from "./MetricExplorer";
 
 const meta: Meta<typeof MetricExplorer> = {
@@ -37,7 +37,7 @@ const mockResults: QueryResult[] = [
 export const Default: Story = {
   args: {
     initialQuery: 'sum(rate(http_requests_total{job="api"}[5m])) by (status)',
-    onRunQuery: (q) => console.log(`Run query: ${q}`),
+    onRunQuery: (_q: string) => console.log(`Run query: ${_q}`),
     results: mockResults,
   },
 };

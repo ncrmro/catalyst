@@ -18,7 +18,9 @@ export function AgentContextViewer({
     <GlassCard className="h-full flex flex-col">
       <div className="flex items-center justify-between mb-6 pb-4 border-b border-outline/30">
         <div>
-          <h2 className="text-lg font-semibold text-on-surface">Agent Context</h2>
+          <h2 className="text-lg font-semibold text-on-surface">
+            Agent Context
+          </h2>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-sm text-on-surface-variant">
               Generated {lastGeneratedAt.toLocaleString()}
@@ -30,7 +32,7 @@ export function AgentContextViewer({
             )}
           </div>
         </div>
-        
+
         {onRefresh && (
           <button
             onClick={onRefresh}

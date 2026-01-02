@@ -5,7 +5,6 @@
  * with Jest and other CommonJS-based tooling.
  */
 
- 
 let k8sModule: typeof import("@kubernetes/client-node") | null = null;
 
 /**

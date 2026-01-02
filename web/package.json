@@ -103,6 +103,7 @@
     "node-mocks-http": "^1.17.2",
     "pino-pretty": "^13.1.1",
     "playwright": "1.56.0",
+    "prettier": "^3.7.4",
     "storybook": "^10.1.10",
     "supertest": "^7.1.4",
     "tailwindcss": "^4",
