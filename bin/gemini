@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+
+import os
+import subprocess
+import sys
+
+def get_project_root():
+    """Get the project root directory (parent of bin/)."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.dirname(script_dir)
+
+def main():
+    """Run Gemini with worktree support."""
+    project_root = get_project_root()
+
+    # Process arguments to handle --worktree flag
+    args = sys.argv[1:]
+    processed_args = []
+    worktree_path = None
+    initial_prompt = None
+
+    i = 0
+    while i < len(args):
+        if args[i] == "--worktree":
+            # Get the branch/spec name
+            if i + 1 >= len(args):
+                print("Error: --worktree requires a branch/spec name argument", file=sys.stderr)
+                sys.exit(1)
+
+            branch_input = args[i + 1]
+            
+            # Resolve worktree path using the same logic as bin/worktree
+            if branch_input.startswith("specs/") or branch_input.startswith("spec/"):
+                if branch_input.startswith("specs/"):
+                    sub_path = branch_input[len("specs/"):]
+                else:
+                    sub_path = branch_input[len("spec/"):]
+                worktree_rel_path = os.path.join("specs", sub_path)
+            else:
+                worktree_rel_path = branch_input.replace('/', '-')
+
+            # Construct the full worktree path
+            worktree_path = os.path.join(project_root, "worktree", worktree_rel_path)
+
+            # Check if worktree exists, create it if not
+            if not os.path.exists(worktree_path):
+                print(f"Worktree not found at {worktree_path}", file=sys.stderr)
+                print(f"Creating worktree for '{branch_input}'...", file=sys.stderr)
+
+                # Call bin/worktree to create the worktree
+                worktree_script = os.path.join(project_root, "bin", "worktree")
+                try:
+                    subprocess.run([worktree_script, branch_input], check=True)
+                except subprocess.CalledProcessError as e:
+                    print(f"Error creating worktree: {e}", file=sys.stderr)
+                    sys.exit(1)
+                except FileNotFoundError:
+                    print(f"Error: bin/worktree script not found at {worktree_script}", file=sys.stderr)
+                    sys.exit(1)
+
+            # Construct the prompt for the LLM
+            initial_prompt = (
+                f"I am working in the worktree located at: {worktree_path}. "
+                f"Please acknowledge this by confirming you will change your working directory to this path "
+                f"and only create, read, update, or delete files within this directory. "
+                f"Refocus on the spec '{branch_input}' which should now be available inside this worktree."
+            )
+
+            # Skip the worktree flag and its argument
+            i += 2
+        else:
+            processed_args.append(args[i])
+            i += 1
+
+    # Construct the final command
+    cmd = ["gemini"]
+
+    if worktree_path:
+        cmd.extend(["--include-directories", worktree_path])
+        
+    if initial_prompt:
+        # Use --prompt-interactive to pass the initial instruction
+        cmd.extend(["--prompt-interactive", initial_prompt])
+    
+    # Add remaining arguments
+    cmd.extend(processed_args)
+
+    # Execute the command
+    try:
+        # Debug output to see what's being executed (optional, but helpful)
+        # print(f"Executing: {' '.join(cmd)}", file=sys.stderr)
+        os.execvp("gemini", cmd)
+    except OSError as e:
+        print(f"Error executing gemini: {e}", file=sys.stderr)
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

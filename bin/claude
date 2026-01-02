@@ -61,29 +61,35 @@ def main():
 
     while i < len(args):
         if args[i] == "--worktree":
-            # Get the worktree branch name
+            # Get the branch/spec name
             if i + 1 >= len(args):
                 print("Error: --worktree requires a branch name argument", file=sys.stderr)
                 sys.exit(1)
 
-            branch_name = args[i + 1]
+            branch_input = args[i + 1]
 
-            # Strip "worktree/" prefix if present (for UX flexibility)
-            if branch_name.startswith("worktree/"):
-                branch_name = branch_name[len("worktree/"):]
+            # Resolve worktree path using the same logic as bin/worktree
+            if branch_input.startswith("specs/") or branch_input.startswith("spec/"):
+                if branch_input.startswith("specs/"):
+                    sub_path = branch_input[len("specs/"):]
+                else:
+                    sub_path = branch_input[len("spec/"):]
+                worktree_rel_path = os.path.join("specs", sub_path)
+            else:
+                worktree_rel_path = branch_input.replace('/', '-')
 
             # Construct the full worktree path
-            worktree_path = os.path.join(project_root, "worktree", branch_name)
+            worktree_path = os.path.join(project_root, "worktree", worktree_rel_path)
 
             # Check if worktree exists, create it if not
             if not os.path.exists(worktree_path):
                 print(f"Worktree not found at {worktree_path}", file=sys.stderr)
-                print(f"Creating worktree for branch '{branch_name}'...", file=sys.stderr)
+                print(f"Creating worktree for '{branch_input}'...", file=sys.stderr)
 
                 # Call bin/worktree to create the worktree
                 worktree_script = os.path.join(project_root, "bin", "worktree")
                 try:
-                    subprocess.run([worktree_script, branch_name], check=True)
+                    subprocess.run([worktree_script, branch_input], check=True)
                 except subprocess.CalledProcessError as e:
                     print(f"Error creating worktree: {e}", file=sys.stderr)
                     sys.exit(1)
