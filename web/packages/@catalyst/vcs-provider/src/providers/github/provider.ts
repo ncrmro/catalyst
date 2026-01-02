@@ -571,6 +571,31 @@ export class GitHubProvider implements VCSProvider {
   /**
    * List pull requests for a repository
    */
+  /**
+   * Create a pull request
+   */
+  async createPullRequest(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+    title: string,
+    head: string,
+    base: string,
+    body?: string,
+  ): Promise<PullRequest> {
+    const octokit = client.raw as Octokit;
+    const { data: pr } = await octokit.rest.pulls.create({
+      owner,
+      repo,
+      title,
+      head,
+      base,
+      body,
+    });
+
+    return this.mapPullRequest(pr);
+  }
+
   async listPullRequests(
     client: AuthenticatedClient,
     owner: string,

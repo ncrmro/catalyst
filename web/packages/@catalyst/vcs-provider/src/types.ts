@@ -263,6 +263,16 @@ export interface VCSProvider {
   ): Promise<FileContent>;
 
   // Pull/Merge Requests
+  createPullRequest(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+    title: string,
+    head: string,
+    base: string,
+    body?: string
+  ): Promise<PullRequest>;
+
   listPullRequests(
     client: AuthenticatedClient,
     owner: string,

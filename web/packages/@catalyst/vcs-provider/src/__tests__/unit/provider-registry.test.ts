@@ -44,6 +44,7 @@ class MockProvider implements VCSProvider {
   getDirectoryContent = vi.fn().mockResolvedValue([]);
 
   listPullRequests = vi.fn().mockResolvedValue([]);
+  createPullRequest = vi.fn().mockResolvedValue({} as PullRequest);
   getPullRequest = vi.fn().mockResolvedValue({} as PullRequest);
   createPullRequest = vi.fn().mockResolvedValue({} as PullRequest);
   listPullRequestReviews = vi.fn().mockResolvedValue([]);

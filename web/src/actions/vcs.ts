@@ -91,3 +91,31 @@ export async function updateFile(params: UpdateFileParams) {
 
   return result;
 }
+
+/**
+ * Create a pull request
+ */
+export async function createPullRequest(params: CreatePullRequestParams) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized");
+  }
+
+  const client = await getVCSClient(session.user.id);
+  const provider = getProvider(client.providerId);
+
+  // Check if provider supports creating PRs
+  if (!provider.createPullRequest) {
+     throw new Error("Provider does not support creating PRs");
+  }
+
+  return await provider.createPullRequest(
+    client,
+    params.owner,
+    params.repo,
+    params.title,
+    params.head,
+    params.base,
+    params.body
+  );
+}
