@@ -45,6 +45,16 @@ specs/
     └── research*.md
 \`\`\`
 
+## Spec Folder Contents
+
+| File            | Purpose                                                                                 |
+| --------------- | --------------------------------------------------------------------------------------- |
+| \`spec.md\`       | User stories, functional requirements, success criteria. **No implementation details.** |
+| \`plan.md\`       | Technical approach, code examples, data models, spike work.                             |
+| \`quickstart.md\` | How to start developing the spec.                                                       |
+| \`tasks.md\`      | Phased task breakdown. UI mocks before backend.                                         |
+| \`research*.md\`  | Library comparisons, method evaluations. Keeps other docs terse.                        |
+
 ## Workflow
 
 1. **spec.md** - Define user stories (P1/P2/P3), requirements (FR-###), success criteria (SC-###)
@@ -53,14 +63,11 @@ specs/
 
 ## Registering Specs
 
-Specs must be referenced in the root 
-AGENTS.md
-.
+Specs must be referenced in the root \`AGENTS.md\`.
 `,
-  "spec.md": `# Feature Specification: [FEATURE NAME]
+  "spec.md": `# Feature Specification: [FEATURE NAME]`
 
-**Spec**: 
-###-feature-slug
+**Spec**: \`###-feature-slug\`
 **Status**: Draft
 
 ## User Stories
@@ -71,7 +78,7 @@ AGENTS.md
 **Acceptance Criteria**:
 1. **Given** [state], **When** [action], **Then** [outcome]
 `,
-  "plan.md": `# Implementation Plan
+  "plan.md": `# Implementation Plan`
 
 ## Summary
 [Approach]
@@ -81,20 +88,19 @@ AGENTS.md
 // Schema
 \`\`\`
 `,
-  "tasks.md": `# Tasks
+  "tasks.md": `# Tasks`
 
 ## Phase 1: Setup
 - [ ] T001 Task
 `,
-  "quickstart.md": `# Quickstart
+  "quickstart.md": `# Quickstart`
 
 ## Setup
 \`\`\`bash
 npm install
 \`\`\`
 `,
-  "research.md": `# Research
-`
+  "research.md": `# Research`
 };
 
 export async function analyzeRepoForSpecs(projectId: string): Promise<SpecAnalysisProposal> {
@@ -224,7 +230,7 @@ export async function bootstrapSpecs(
       title: "chore: bootstrap spec-driven development",
       head: branchName,
       base: "main",
-      body: "This PR sets up the directory structure and templates for Spec-Driven Development.\n\nSee `specs/AGENTS.md` for details on the workflow.",
+      body: "This PR sets up the directory structure and templates for Spec-Driven Development.\n\nSee \`specs/AGENTS.md\` for details on the workflow.",
     });
 
     revalidatePath(`/projects/${project.slug}/specs/workflow`);
@@ -313,4 +319,147 @@ Keep it concise and high-quality. Return ONLY the markdown content.
     console.error("AI Generation failed:", error);
     return { success: false, error: "Failed to generate spec. Check API keys and logs." };
   }
+}
+
+export async function generateSpecFromDescription(
+  projectId: string,
+  description: string
+): Promise<{ success: boolean; specContent?: string; error?: string }> {
+  const session = await auth();
+  if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+  const project = await fetchProjectById(projectId);
+  if (!project) return { success: false, error: "Project not found" };
+
+  const prompt = `
+You are an expert software architect. Your task is to write a Feature Specification (spec.md) for a new feature.
+
+**Feature Description:**
+${description}
+
+**Output Format:**
+Please generate a standard spec.md using the following structure:
+- Title & Summary
+- User Stories
+- Functional Requirements
+- Success Criteria
+
+Keep it concise and high-quality. Return ONLY the markdown content.
+`;
+
+  try {
+    const model = process.env.ANTHROPIC_API_KEY 
+      ? anthropic("claude-3-5-sonnet-20240620")
+      : process.env.OPENAI_API_KEY 
+        ? openai("gpt-4o") 
+        : null;
+
+    if (!model) {
+      return { success: false, error: "No AI provider configured" };
+    }
+
+    const { text } = await generateText({
+      model,
+      prompt,
+    });
+
+    return {
+      success: true,
+      specContent: text
+    };
+  } catch (error) {
+    console.error("AI Generation failed:", error);
+    return { success: false, error: "Failed to generate spec." };
+  }
+}
+
+export async function amendSpec(
+  projectId: string,
+  specPath: string,
+  changes: string
+): Promise<{ success: boolean; specContent?: string; error?: string }> {
+  const session = await auth();
+  if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+  const project = await fetchProjectById(projectId);
+  if (!project) return { success: false, error: "Project not found" };
+
+  const repo = project.repositories[0]?.repo;
+  if (!repo) return { success: false, error: "Repository not found" };
+
+  // 1. Read existing spec
+  const currentSpec = await readFile(repo.fullName, specPath);
+  if (!currentSpec.success || !currentSpec.file) {
+    return { success: false, error: "Could not read existing spec." };
+  }
+
+  const prompt = `
+You are an expert software architect. Your task is to update an existing Feature Specification (spec.md).
+
+**Current Spec:**
+${currentSpec.file.content}
+
+**Requested Changes:**
+${changes}
+
+**Instructions:**
+Apply the requested changes to the current spec while maintaining its structure and quality.
+Return ONLY the updated markdown content.
+`;
+
+  try {
+    const model = process.env.ANTHROPIC_API_KEY 
+      ? anthropic("claude-3-5-sonnet-20240620")
+      : process.env.OPENAI_API_KEY 
+        ? openai("gpt-4o") 
+        : null;
+
+    if (!model) {
+      return { success: false, error: "No AI provider configured" };
+    }
+
+    const { text } = await generateText({
+      model,
+      prompt,
+    });
+
+    return {
+      success: true,
+      specContent: text
+    };
+  } catch (error) {
+    console.error("AI Amendment failed:", error);
+    return { success: false, error: "Failed to amend spec." };
+  }
+}
+
+export async function addCodeAnnotations(
+  projectId: string,
+  specPath: string
+): Promise<{ success: boolean; annotations?: { filePath: string; line: number; frId: string; suggestion: string }[]; error?: string }> {
+  const session = await auth();
+  if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+  const project = await fetchProjectById(projectId);
+  if (!project) return { success: false, error: "Project not found" };
+
+  const repo = project.repositories[0]?.repo;
+  if (!repo) return { success: false, error: "Repository not found" };
+
+  // 1. Read spec to get FR IDs
+  const specRes = await readFile(repo.fullName, specPath);
+  if (!specRes.success || !specRes.file) return { success: false, error: "Could not read spec." };
+
+  // 2. Scan codebase (simplified: just root files for now)
+  const files = await listDirectory(repo.fullName, "");
+  
+  // TODO: Implement real code analysis to find implementations
+  // Mock results
+  return {
+    success: true,
+    annotations: [
+      { filePath: "src/lib/auth.ts", line: 12, frId: "FR-001", suggestion: "// FR-001: Implements user authentication logic" },
+      { filePath: "src/db/schema.ts", line: 45, frId: "FR-004", suggestion: "// FR-004: Defines the user table schema" }
+    ]
+  };
 }
