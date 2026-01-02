@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "spec_folders_project_id_slug_unique" ON "spec_folders" USING btree ("project_id","slug");

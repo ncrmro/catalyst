@@ -40,6 +40,7 @@ We use a specification-first approach to define features through user stories an
 - **[006-cli-codeing-agents-harness](specs/006-cli-codeing-agents-harness/)**: Provides an environment for running and managing CLI-based coding agents.
 - **[007-user-agent-interfaces](specs/007-user-agent-interfaces/)**: Defines the interaction patterns across Web, TUI, MCP, and ChatOps.
 - **[009-projects](specs/009-projects/)**: Groups repositories into projects to enable centralized CI, release management, and spec-driven workflows.
+- **[010-platform](specs/010-platform/)**: Automates project conventions, enables spec-driven development, and provides unified observability.
 
 ## Component-Specific Guidance
 
