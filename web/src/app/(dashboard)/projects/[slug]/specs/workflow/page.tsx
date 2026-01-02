@@ -1,8 +1,10 @@
 import { fetchProjectBySlug } from "@/actions/projects";
+import { analyzeRepoForSpecs } from "@/actions/spec-workflow";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import Link from "next/link";
 import { SpecWorkflowClient } from "./SpecWorkflowClient";
+import type { WorkflowStep } from "@/components/specs/workflow/SpecWorkflowLayout";
 
 interface SpecWorkflowPageProps {
   params: Promise<{
@@ -36,6 +38,18 @@ export default async function SpecWorkflowPage({
 
   const repo = project.repositories[0]?.repo;
 
+  // Check for existing specs to determine initial step
+  let initialStep: WorkflowStep = "bootstrap";
+  try {
+    const analysis = await analyzeRepoForSpecs(project.id);
+    // If specs folder exists and has content (implied by existingSpecs logic), we skip bootstrap
+    if (analysis.existingSpecs) {
+      initialStep = "distill";
+    }
+  } catch (e) {
+    console.warn("Failed to analyze repo for specs on page load:", e);
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -59,6 +73,7 @@ export default async function SpecWorkflowPage({
         projectId={project.id} 
         projectSlug={project.slug}
         repoFullName={repo?.fullName} 
+        initialStep={initialStep}
       />
     </div>
   );
