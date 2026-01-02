@@ -11,8 +11,11 @@ import {
   fetchPullRequests,
   fetchIssues,
   fetchPullRequestById,
+  getVCSClient,
+  getProvider,
 } from "@/lib/vcs-providers";
 import type { PullRequest, Issue } from "@/types/reports";
+import { Branch } from "@/lib/vcs-providers";
 import { db } from "@/db";
 import { pullRequestPods } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -210,6 +213,48 @@ export async function fetchProjectIssues(projectId: string): Promise<Issue[]> {
     return await fetchIssues(userId, repoNames);
   } catch (error) {
     console.error("Error fetching project issues:", error);
+    return [];
+  }
+}
+
+/**
+ * Fetch branches for a specific project across all its repositories
+ */
+export async function fetchProjectBranches(
+  projectId: string,
+): Promise<Branch[]> {
+  try {
+    const project = await fetchProjectById(projectId);
+    if (!project) {
+      return [];
+    }
+
+    const session = await auth();
+    const userId = session?.user?.id;
+    if (!userId) {
+      return [];
+    }
+
+    const client = await getVCSClient(userId);
+    const provider = getProvider(client.providerId);
+
+    const allBranches: Branch[] = [];
+
+    for (const relation of project.repositories) {
+      const [owner, repoName] = relation.repo.fullName.split("/");
+      if (!owner || !repoName) continue;
+
+      const branches = await provider.listBranches(
+        client,
+        owner,
+        repoName,
+      );
+      allBranches.push(...branches);
+    }
+
+    return allBranches;
+  } catch (error) {
+    console.error("Error fetching project branches:", error);
     return [];
   }
 }
