@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { conventionRules } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 export type ConventionRule = typeof conventionRules.$inferSelect;
 export type NewConventionRule = typeof conventionRules.$inferInsert;

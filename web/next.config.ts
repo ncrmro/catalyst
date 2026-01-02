@@ -25,6 +25,10 @@ const nextConfig: NextConfig = {
     ],
   },
   output: "standalone",
+  // Disable ESLint during production builds since linting is done in CI
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default nextConfig;

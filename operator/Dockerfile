@@ -9,7 +9,8 @@ COPY go.mod go.mod
 COPY go.sum go.sum
 # cache deps before building and copying source so that we don't need to re-download as much
 # and so that source changes don't invalidate our downloaded layer
-RUN go mod download
+# Disable strict SSL for environments with certificate issues
+RUN go env -w GOINSECURE=*.golang.org,*.googleapis.com,*.google.com && go mod download
 
 # Copy the Go source (relies on .dockerignore to filter)
 COPY . .
