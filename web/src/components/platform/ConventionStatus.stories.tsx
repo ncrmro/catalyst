@@ -1,5 +1,5 @@
 // eslint-disable-next-line storybook/no-renderer-packages
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { ConventionStatus, type ConventionRule } from "./ConventionStatus";
 
 const meta: Meta<typeof ConventionStatus> = {
@@ -58,7 +58,11 @@ export const HighCompliance: Story = {
   args: {
     projectName: "catalyst-operator",
     complianceScore: 100,
-    rules: mockRules.map((r) => ({ ...r, status: "pass", message: "Compliant" })),
+    rules: mockRules.map((r) => ({
+      ...r,
+      status: "pass",
+      message: "Compliant",
+    })),
   },
 };
 
@@ -66,6 +70,10 @@ export const LowCompliance: Story = {
   args: {
     projectName: "legacy-app",
     complianceScore: 25,
-    rules: mockRules.map((r) => ({ ...r, status: "fail", message: "Drift detected" })),
+    rules: mockRules.map((r) => ({
+      ...r,
+      status: "fail",
+      message: "Drift detected",
+    })),
   },
 };

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 export interface ClarifyingQuestionsSkeletonProps {
   className?: string;

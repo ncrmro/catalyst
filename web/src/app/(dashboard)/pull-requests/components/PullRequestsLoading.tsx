@@ -7,10 +7,13 @@ export function PullRequestsLoading() {
       <div className="flex items-center justify-between">
         <div className="h-7 bg-surface-variant rounded animate-pulse w-48"></div>
       </div>
-      
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="bg-surface border border-outline rounded-lg p-6 shadow-sm">
+          <div
+            key={i}
+            className="bg-surface border border-outline rounded-lg p-6 shadow-sm"
+          >
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-surface-variant rounded-full animate-pulse"></div>

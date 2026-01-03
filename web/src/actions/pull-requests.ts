@@ -19,7 +19,6 @@ import {
   GITHUB_CONFIG,
 } from "@/lib/vcs-providers";
 
-
 /**
  * GitHub provider - fetches real pull requests from GitHub API using GitHub App tokens or PAT
  * Gets user's repositories and then fetches open pull requests from them

@@ -47,11 +47,7 @@ export function CIStatusBadge({ state, className = "" }: CIStatusBadgeProps) {
         );
       case "pending":
         return (
-          <svg
-            className="w-4 h-4 animate-spin"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
+          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
             <circle
               className="opacity-25"
               cx="12"
@@ -69,7 +65,12 @@ export function CIStatusBadge({ state, className = "" }: CIStatusBadgeProps) {
         );
       case "cancelled":
         return (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -80,7 +81,12 @@ export function CIStatusBadge({ state, className = "" }: CIStatusBadgeProps) {
         );
       case "skipped":
         return (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"

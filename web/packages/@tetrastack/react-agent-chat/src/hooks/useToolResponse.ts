@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useCallback } from 'react';
-import type { ToolResponseHandler, AddToolOutputOptions } from '../types';
+import { useCallback } from "react";
+import type { ToolResponseHandler, AddToolOutputOptions } from "../types";
 
 /**
  * Options for useToolResponse hook

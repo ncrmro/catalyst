@@ -93,7 +93,11 @@ export function CreatePreviewCard({ onClose }: CreatePreviewCardProps) {
     }
 
     try {
-      const { success, data, error: actionError } = await createManualPreview({
+      const {
+        success,
+        data,
+        error: actionError,
+      } = await createManualPreview({
         repoId,
         imageUri,
         branchName: branchName || undefined,
@@ -101,7 +105,8 @@ export function CreatePreviewCard({ onClose }: CreatePreviewCardProps) {
 
       if (!success || actionError || !data) {
         setError(
-          actionError || "Failed to create preview environment. Please try again.",
+          actionError ||
+            "Failed to create preview environment. Please try again.",
         );
         setIsSubmitting(false);
         setProgress("");
@@ -116,7 +121,9 @@ export function CreatePreviewCard({ onClose }: CreatePreviewCardProps) {
       setProgress("");
       setIsSubmitting(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+      setError(
+        err instanceof Error ? err.message : "An unexpected error occurred",
+      );
       setIsSubmitting(false);
       setProgress("");
     }

@@ -19,15 +19,15 @@ The PeriodicReportAgent generates comprehensive periodic reports about the curre
 #### Basic Usage
 
 ```typescript
-import { PeriodicReportAgent, generatePeriodicReport } from '@/agents';
+import { PeriodicReportAgent, generatePeriodicReport } from "@/agents";
 
 // Using the convenience function
 const report = await generatePeriodicReport();
 
 // Using the agent class with custom options
 const agent = new PeriodicReportAgent({
-  provider: 'openai', // or 'anthropic'
-  model: 'gpt-4' // or 'claude-3-sonnet-20240229'
+  provider: "openai", // or 'anthropic'
+  model: "gpt-4", // or 'claude-3-sonnet-20240229'
 });
 
 const report = await agent.generateReport();

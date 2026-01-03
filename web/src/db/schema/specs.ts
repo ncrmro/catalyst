@@ -1,4 +1,11 @@
-import { pgTable, text, integer, timestamp, varchar, boolean } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  integer,
+  timestamp,
+  varchar,
+  boolean,
+} from "drizzle-orm/pg-core";
 import { projects } from "../schema";
 
 export const specFolders = pgTable("spec_folders", {

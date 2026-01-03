@@ -2,7 +2,7 @@
 
 /**
  * CI Checks Server Actions
- * 
+ *
  * Fetches and normalizes CI check status from GitHub Checks API and Commit Statuses API
  */
 
@@ -44,13 +44,17 @@ export async function getCIStatus(
     // Call provider function via generic interface
     const client = await getVCSClient(session.user.id);
     const provider = getProvider(client.providerId);
-    
-    // Cast result to match local type definition if needed, 
+
+    // Cast result to match local type definition if needed,
     // though ideally types should be shared or mapped
-    return (await provider.getCIStatus(client, owner, repoName, prNumber)) as unknown as CIStatusSummary;
+    return (await provider.getCIStatus(
+      client,
+      owner,
+      repoName,
+      prNumber,
+    )) as unknown as CIStatusSummary;
   } catch (error) {
     console.error(`Error fetching CI status for PR ${prNumber}:`, error);
     return null;
   }
 }
-

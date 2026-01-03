@@ -118,30 +118,30 @@ _State for resumable streaming._
 ### 4.1 Message Parts (AI SDK Compatible)
 
 ```typescript
-type TextPart = { type: 'text'; text: string };
+type TextPart = { type: "text"; text: string };
 
 type ImagePart = {
-  type: 'image';
+  type: "image";
   image: string | Uint8Array; // Base64 or URL
   mimeType?: string;
 };
 
 type FilePart = {
-  type: 'file';
+  type: "file";
   data: string; // URL or identifier
   mimeType: string;
   name?: string;
 };
 
 type ToolCallPart = {
-  type: 'tool-call';
+  type: "tool-call";
   toolCallId: string;
   toolName: string;
   args: unknown;
 };
 
 type ToolResultPart = {
-  type: 'tool-result';
+  type: "tool-result";
   toolCallId: string;
   result: unknown;
   isError?: boolean;
@@ -159,28 +159,28 @@ type MessagePart =
 
 ```typescript
 const ROLES = {
-  USER: 'user',
-  ASSISTANT: 'assistant',
-  SYSTEM: 'system',
-  TOOL: 'tool',
+  USER: "user",
+  ASSISTANT: "assistant",
+  SYSTEM: "system",
+  TOOL: "tool",
 } as const;
 
 const VISIBILITY = {
-  VISIBLE: 'visible',
-  HIDDEN: 'hidden',
-  ARCHIVED: 'archived',
+  VISIBLE: "visible",
+  HIDDEN: "hidden",
+  ARCHIVED: "archived",
 } as const;
 
 const EDGE_TYPES = {
-  DEPENDS_ON: 'depends_on',
-  CAUSED_BY: 'caused_by',
+  DEPENDS_ON: "depends_on",
+  CAUSED_BY: "caused_by",
 } as const;
 
 const STREAM_STATUSES = {
-  ACTIVE: 'active',
-  COMPLETED: 'completed',
-  ABORTED: 'aborted',
-  EXPIRED: 'expired',
+  ACTIVE: "active",
+  COMPLETED: "completed",
+  ABORTED: "aborted",
+  EXPIRED: "expired",
 } as const;
 ```
 
@@ -193,7 +193,7 @@ const STREAM_STATUSES = {
 For comment sections, activity feeds, or simple logging.
 
 ```typescript
-import { useThread } from '@tetrastack/threads/hooks';
+import { useThread } from "@tetrastack/threads/hooks";
 
 const {
   items, // ThreadItem[]
@@ -201,9 +201,9 @@ const {
   status, // 'loading' | 'ready' | 'error'
   isSyncing, // boolean (background revalidation)
 } = useThread({
-  projectId: 'proj_123',
-  scope: { type: 'ticket', id: 'T-101' },
-  sort: 'asc',
+  projectId: "proj_123",
+  scope: { type: "ticket", id: "T-101" },
+  sort: "asc",
 });
 ```
 
@@ -217,7 +217,7 @@ const {
 A wrapper around Vercel AI SDK's `useChat` that adapts the thread schema.
 
 ```typescript
-import { useChatThread } from '@tetrastack/threads/hooks';
+import { useChatThread } from "@tetrastack/threads/hooks";
 
 const {
   messages, // Mapped to AI SDK UI format
@@ -228,9 +228,9 @@ const {
   reload, // Re-generate last assistant response
   runId, // Current active agent run ID
 } = useChatThread({
-  projectId: 'proj_123',
-  scope: { type: 'deal', id: 'D-500' },
-  api: '/api/universal-chat',
+  projectId: "proj_123",
+  scope: { type: "deal", id: "D-500" },
+  api: "/api/universal-chat",
 });
 ```
 
@@ -239,7 +239,7 @@ const {
 For visualizing Agent Runs (DAGs), specifically for "Glass" style interfaces.
 
 ```typescript
-import { useAgentThread } from '@tetrastack/threads/hooks';
+import { useAgentThread } from "@tetrastack/threads/hooks";
 
 const {
   runs, // Array of Run Objects
@@ -248,8 +248,8 @@ const {
   structure, // { nodes, edges } for DAG visualization
   trigger, // Function to start a new workflow run
 } = useAgentThread({
-  projectId: 'proj_123',
-  scope: { type: 'report_generator', id: 'R-20' },
+  projectId: "proj_123",
+  scope: { type: "report_generator", id: "R-20" },
 });
 
 // structure.nodes = [{ id: 'span_1', label: 'Planner' }, ...]
@@ -287,16 +287,16 @@ export function App() {
 Following the codebase convention, all CRUD operations work with arrays:
 
 ```typescript
-import { insertThreads, selectThreads } from '@tetrastack/threads/models';
-import { insertItems, selectItems } from '@tetrastack/threads/models';
+import { insertThreads, selectThreads } from "@tetrastack/threads/models";
+import { insertItems, selectItems } from "@tetrastack/threads/models";
 
 // Create threads
 const [thread] = await insertThreads([
   {
-    projectId: 'proj_123',
-    scopeType: 'ticket',
-    scopeId: 'T-101',
-    title: 'Support Discussion',
+    projectId: "proj_123",
+    scopeType: "ticket",
+    scopeId: "T-101",
+    title: "Support Discussion",
   },
 ]);
 
@@ -304,9 +304,9 @@ const [thread] = await insertThreads([
 const [item] = await insertItems([
   {
     threadId: thread.id,
-    role: 'user',
-    parts: [{ type: 'text', text: 'Hello, I need help.' }],
-    requestId: 'req_abc',
+    role: "user",
+    parts: [{ type: "text", text: "Hello, I need help." }],
+    requestId: "req_abc",
   },
 ]);
 
@@ -353,16 +353,16 @@ const items = await selectItems([eq(items.threadId, thread.id)]);
 
 ```typescript
 // Main barrel
-import { sqlite, postgres } from '@tetrastack/threads/database';
-import { insertThreads, insertItems } from '@tetrastack/threads/models';
-import { MessagePart, Role, Visibility } from '@tetrastack/threads/types';
+import { sqlite, postgres } from "@tetrastack/threads/database";
+import { insertThreads, insertItems } from "@tetrastack/threads/models";
+import { MessagePart, Role, Visibility } from "@tetrastack/threads/types";
 
 // React (future)
 import {
   useThread,
   useChatThread,
   ThreadsProvider,
-} from '@tetrastack/threads/hooks';
+} from "@tetrastack/threads/hooks";
 ```
 
 ---

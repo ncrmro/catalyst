@@ -11,11 +11,11 @@ import {
   timestamp,
   integer,
   uuid,
-} from 'drizzle-orm/pg-core';
-import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
-import { uuidv7 } from '@tetrastack/backend/utils';
+} from "drizzle-orm/pg-core";
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import { uuidv7 } from "@tetrastack/backend/utils";
 
-import type { MessagePart } from '../../../types';
+import type { MessagePart } from "../../../types";
 
 /**
  * Factory function to create thread tables with custom metadata types.
@@ -35,31 +35,31 @@ export const createThreadTables = <
    * Polymorphically scoped via scopeType + scopeId.
    */
   const threads = pgTable(
-    'threads',
+    "threads",
     {
-      id: uuid('id')
+      id: uuid("id")
         .notNull()
         .primaryKey()
         .$defaultFn(() => uuidv7()),
-      projectId: uuid('project_id').notNull(),
-      scopeType: text('scope_type'),
-      scopeId: text('scope_id'),
-      title: text('title'),
-      metadata: jsonb('metadata').$type<TThreadMetadata>(),
-      createdAt: timestamp('created_at', { mode: 'date' })
+      projectId: uuid("project_id").notNull(),
+      scopeType: text("scope_type"),
+      scopeId: text("scope_id"),
+      title: text("title"),
+      metadata: jsonb("metadata").$type<TThreadMetadata>(),
+      createdAt: timestamp("created_at", { mode: "date" })
         .notNull()
         .defaultNow(),
-      updatedAt: timestamp('updated_at', { mode: 'date' })
+      updatedAt: timestamp("updated_at", { mode: "date" })
         .notNull()
         .defaultNow(),
     },
     (table) => [
-      index('idx_threads_scope').on(
+      index("idx_threads_scope").on(
         table.projectId,
         table.scopeType,
         table.scopeId,
       ),
-      index('idx_threads_project').on(table.projectId),
+      index("idx_threads_project").on(table.projectId),
     ],
   );
 
@@ -68,38 +68,38 @@ export const createThreadTables = <
    * UUIDv7 IDs provide natural time-ordering.
    */
   const items = pgTable(
-    'items',
+    "items",
     {
-      id: uuid('id')
+      id: uuid("id")
         .notNull()
         .primaryKey()
         .$defaultFn(() => uuidv7()),
-      threadId: uuid('thread_id')
+      threadId: uuid("thread_id")
         .notNull()
-        .references(() => threads.id, { onDelete: 'cascade' }),
-      role: text('role', { enum: ['user', 'assistant', 'system', 'tool'] })
+        .references(() => threads.id, { onDelete: "cascade" }),
+      role: text("role", { enum: ["user", "assistant", "system", "tool"] })
         .notNull()
-        .default('user'),
-      parts: jsonb('parts').notNull().$type<MessagePart[]>().default([]),
-      runId: uuid('run_id'),
-      spanId: uuid('span_id'),
-      parentId: uuid('parent_id'),
-      visibility: text('visibility', {
-        enum: ['visible', 'hidden', 'archived'],
+        .default("user"),
+      parts: jsonb("parts").notNull().$type<MessagePart[]>().default([]),
+      runId: uuid("run_id"),
+      spanId: uuid("span_id"),
+      parentId: uuid("parent_id"),
+      visibility: text("visibility", {
+        enum: ["visible", "hidden", "archived"],
       })
         .notNull()
-        .default('visible'),
-      attempt: integer('attempt').notNull().default(1),
-      requestId: text('request_id').notNull(),
-      metadata: jsonb('metadata').$type<TItemMetadata>(),
-      createdAt: timestamp('created_at', { mode: 'date' })
+        .default("visible"),
+      attempt: integer("attempt").notNull().default(1),
+      requestId: text("request_id").notNull(),
+      metadata: jsonb("metadata").$type<TItemMetadata>(),
+      createdAt: timestamp("created_at", { mode: "date" })
         .notNull()
         .defaultNow(),
     },
     (table) => [
-      index('idx_items_thread').on(table.threadId, table.id),
-      index('idx_items_run').on(table.threadId, table.runId),
-      index('idx_items_span').on(table.threadId, table.spanId),
+      index("idx_items_thread").on(table.threadId, table.id),
+      index("idx_items_run").on(table.threadId, table.runId),
+      index("idx_items_span").on(table.threadId, table.spanId),
     ],
   );
 
@@ -108,33 +108,33 @@ export const createThreadTables = <
    * Enables map-reduce and other parallel execution patterns.
    */
   const edges = pgTable(
-    'edges',
+    "edges",
     {
-      id: uuid('id')
+      id: uuid("id")
         .notNull()
         .primaryKey()
         .$defaultFn(() => uuidv7()),
-      threadId: uuid('thread_id')
+      threadId: uuid("thread_id")
         .notNull()
-        .references(() => threads.id, { onDelete: 'cascade' }),
-      fromItemId: uuid('from_item_id')
+        .references(() => threads.id, { onDelete: "cascade" }),
+      fromItemId: uuid("from_item_id")
         .notNull()
-        .references(() => items.id, { onDelete: 'cascade' }),
-      toItemId: uuid('to_item_id')
+        .references(() => items.id, { onDelete: "cascade" }),
+      toItemId: uuid("to_item_id")
         .notNull()
-        .references(() => items.id, { onDelete: 'cascade' }),
-      type: text('type', { enum: ['depends_on', 'caused_by'] })
+        .references(() => items.id, { onDelete: "cascade" }),
+      type: text("type", { enum: ["depends_on", "caused_by"] })
         .notNull()
-        .default('depends_on'),
-      requestId: text('request_id').notNull(),
-      createdAt: timestamp('created_at', { mode: 'date' })
+        .default("depends_on"),
+      requestId: text("request_id").notNull(),
+      createdAt: timestamp("created_at", { mode: "date" })
         .notNull()
         .defaultNow(),
     },
     (table) => [
-      index('idx_edges_thread').on(table.threadId),
-      index('idx_edges_from').on(table.fromItemId),
-      index('idx_edges_to').on(table.toItemId),
+      index("idx_edges_thread").on(table.threadId),
+      index("idx_edges_from").on(table.fromItemId),
+      index("idx_edges_to").on(table.toItemId),
     ],
   );
 
@@ -143,38 +143,38 @@ export const createThreadTables = <
    * Tracks active streams and allows reconnection.
    */
   const streams = pgTable(
-    'streams',
+    "streams",
     {
-      id: uuid('id')
+      id: uuid("id")
         .notNull()
         .primaryKey()
         .$defaultFn(() => uuidv7()),
-      threadId: uuid('thread_id')
+      threadId: uuid("thread_id")
         .notNull()
-        .references(() => threads.id, { onDelete: 'cascade' }),
-      runId: uuid('run_id'),
-      status: text('status', {
-        enum: ['active', 'completed', 'aborted', 'expired'],
+        .references(() => threads.id, { onDelete: "cascade" }),
+      runId: uuid("run_id"),
+      status: text("status", {
+        enum: ["active", "completed", "aborted", "expired"],
       })
         .notNull()
-        .default('active'),
-      resumeToken: text('resume_token'),
-      lastEventId: text('last_event_id'),
-      snapshot: jsonb('snapshot').$type<{
+        .default("active"),
+      resumeToken: text("resume_token"),
+      lastEventId: text("last_event_id"),
+      snapshot: jsonb("snapshot").$type<{
         parts: MessagePart[];
         metadata?: Record<string, unknown>;
       }>(),
-      expiresAt: timestamp('expires_at', { mode: 'date' }),
-      createdAt: timestamp('created_at', { mode: 'date' })
+      expiresAt: timestamp("expires_at", { mode: "date" }),
+      createdAt: timestamp("created_at", { mode: "date" })
         .notNull()
         .defaultNow(),
-      updatedAt: timestamp('updated_at', { mode: 'date' })
+      updatedAt: timestamp("updated_at", { mode: "date" })
         .notNull()
         .defaultNow(),
     },
     (table) => [
-      index('idx_streams_thread').on(table.threadId),
-      index('idx_streams_status').on(table.status),
+      index("idx_streams_thread").on(table.threadId),
+      index("idx_streams_status").on(table.status),
     ],
   );
 

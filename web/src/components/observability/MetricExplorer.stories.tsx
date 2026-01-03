@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { MetricExplorer, type QueryResult } from "./MetricExplorer";
 
 const meta: Meta<typeof MetricExplorer> = {

@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import type { ClarifyingQuestion } from '../../types';
-import { QuestionOption } from './QuestionOption';
+import type { ClarifyingQuestion } from "../../types";
+import { QuestionOption } from "./QuestionOption";
 
 export interface QuestionPanelProps {
   question: ClarifyingQuestion;
@@ -50,7 +50,7 @@ export function QuestionPanel({
 
   const hasAnswer =
     (Array.isArray(answer) && answer.length > 0) ||
-    (typeof answer === 'string' && answer.length > 0);
+    (typeof answer === "string" && answer.length > 0);
 
   return (
     <div
@@ -65,7 +65,7 @@ export function QuestionPanel({
 
       {/* Options */}
       <div
-        role={question.multiSelect ? 'group' : 'radiogroup'}
+        role={question.multiSelect ? "group" : "radiogroup"}
         aria-label={question.question}
         data-options-group
       >
@@ -83,7 +83,7 @@ export function QuestionPanel({
         {/* "Other" option */}
         <button
           type="button"
-          role={question.multiSelect ? 'checkbox' : 'radio'}
+          role={question.multiSelect ? "checkbox" : "radio"}
           aria-checked={showOther}
           onClick={onToggleOther}
           data-question-option

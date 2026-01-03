@@ -20,7 +20,7 @@ npm install @tetrastack/react-markdown
 
 Import the component and the styles (if not already included globally).
 
-```tsx
+````tsx
 import { MarkdownRenderer } from "@tetrastack/react-markdown";
 import "@tetrastack/react-markdown/src/styles.css"; // Or import in layout
 
@@ -32,11 +32,13 @@ This is a **markdown** example.
 
 ```typescript
 const x = 1;
-```
-  `;
+````
 
-  return <MarkdownRenderer content={content} />;
+`;
+
+return <MarkdownRenderer content={content} />;
 }
+
 ```
 
 ## Props

@@ -1,6 +1,9 @@
 // eslint-disable-next-line storybook/no-renderer-packages
-import type { Meta, StoryObj } from "@storybook/nextjs";
-import { GoldenSignalDashboard, type GoldenSignal } from "./GoldenSignalDashboard";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import {
+  GoldenSignalDashboard,
+  type GoldenSignal,
+} from "./GoldenSignalDashboard";
 
 const meta: Meta<typeof GoldenSignalDashboard> = {
   title: "Observability/GoldenSignalDashboard",
@@ -51,7 +54,10 @@ const mockSignals: GoldenSignal[] = [
     unit: "%",
     status: "warning",
     trend: "up",
-    history: generateHistory(60, 5).map((h, i) => ({ ...h, value: h.value + i })), // Increasing trend
+    history: generateHistory(60, 5).map((h, i) => ({
+      ...h,
+      value: h.value + i,
+    })), // Increasing trend
   },
 ];
 
@@ -65,7 +71,12 @@ export const CriticalState: Story = {
   args: {
     signals: mockSignals.map((s) =>
       s.type === "errors"
-        ? { ...s, status: "critical" as const, currentValue: 5.2, history: generateHistory(5, 1) }
+        ? {
+            ...s,
+            status: "critical" as const,
+            currentValue: 5.2,
+            history: generateHistory(5, 1),
+          }
         : s,
     ),
   },

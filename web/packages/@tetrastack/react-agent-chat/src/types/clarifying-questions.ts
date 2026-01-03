@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 /**
  * Schema for a single option in a clarifying question
@@ -53,7 +53,7 @@ export type ClarifyingQuestionsOutput = z.infer<
  * Tool state for clarifying questions (maps to AI SDK tool states)
  */
 export type ClarifyingQuestionsToolState =
-  | 'input-streaming'
-  | 'input-available'
-  | 'output-available'
-  | 'output-error';
+  | "input-streaming"
+  | "input-available"
+  | "output-available"
+  | "output-error";

@@ -3,14 +3,14 @@
  * Provides CRUD operations for thread containers.
  */
 
-import { eq } from 'drizzle-orm';
-import { createModelFactory, type DrizzleDb } from './factory';
+import { eq } from "drizzle-orm";
+import { createModelFactory, type DrizzleDb } from "./factory";
 import {
   threads,
   insertThreadSchema,
   type Thread,
   type NewThread,
-} from '../database/schema/sqlite';
+} from "../database/schema/sqlite";
 
 /**
  * Creates a threads model instance bound to the given database.
@@ -94,7 +94,7 @@ export function createThreadsModel(db: DrizzleDb) {
      */
     async updateThread(
       id: string,
-      data: Partial<Pick<NewThread, 'title' | 'metadata'>>,
+      data: Partial<Pick<NewThread, "title" | "metadata">>,
     ): Promise<Thread> {
       const [updated] = await base.update([eq(threads.id, id)], {
         ...data,

@@ -1,6 +1,6 @@
-import { auth } from '@/auth';
-import { fetchUserTeams } from '@/actions/teams';
-import { fetchProjects } from '@/actions/projects';
+import { auth } from "@/auth";
+import { fetchUserTeams } from "@/actions/teams";
+import { fetchProjects } from "@/actions/projects";
 
 export interface McpUser {
   id: string;
@@ -19,15 +19,15 @@ export interface McpUser {
 }
 
 // Static API key for authorization
-const STATIC_API_KEY = process.env.MCP_API_KEY || 'catalyst-mcp-key-2024';
+const STATIC_API_KEY = process.env.MCP_API_KEY || "catalyst-mcp-key-2024";
 
 /**
  * Validate API key from request (not a server action)
  */
 export function validateApiKey(authHeader: string | null): boolean {
   if (!authHeader) return false;
-  
-  const token = authHeader.replace('Bearer ', '');
+
+  const token = authHeader.replace("Bearer ", "");
   return token === STATIC_API_KEY;
 }
 
@@ -35,8 +35,8 @@ export function validateApiKey(authHeader: string | null): boolean {
  * Get authenticated user with teams and projects for MCP context
  */
 export async function getAuthenticatedUser(): Promise<McpUser | null> {
-  'use server';
-  
+  "use server";
+
   try {
     const session = await auth();
     if (!session?.user) {
@@ -46,26 +46,26 @@ export async function getAuthenticatedUser(): Promise<McpUser | null> {
     // Fetch user's teams and projects
     const [teams, projectsData] = await Promise.all([
       fetchUserTeams(),
-      fetchProjects()
+      fetchProjects(),
     ]);
 
     return {
       id: session.user.id,
       email: session.user.email || null,
       name: session.user.name || null,
-      teams: teams.map(team => ({
+      teams: teams.map((team) => ({
         id: team.id,
         name: team.name,
-        role: team.role
+        role: team.role,
       })),
-      projects: projectsData.projects.map(project => ({
+      projects: projectsData.projects.map((project) => ({
         id: project.id,
         name: project.name,
-        full_name: project.fullName
-      }))
+        full_name: project.fullName,
+      })),
     };
   } catch (error) {
-    console.error('Error getting authenticated user:', error);
+    console.error("Error getting authenticated user:", error);
     return null;
   }
 }

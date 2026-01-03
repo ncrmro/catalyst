@@ -36,7 +36,7 @@
  */
 
 // Types
-export * from './types';
+export * from "./types";
 
 // Re-export commonly used types for convenience
 export type {
@@ -48,4 +48,4 @@ export type {
   NewEdge,
   Stream,
   NewStream,
-} from './models';
+} from "./models";

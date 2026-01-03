@@ -7,13 +7,15 @@ This document describes the database schema implementation for Teams, Repos, and
 ### Tables Created
 
 #### 1. `repos` Table
+
 Stores repository information with GitHub metadata.
 
 **Columns:**
+
 - `id` (text, PK) - UUID primary key
 - `github_id` (integer, unique) - GitHub repository ID
 - `name` (text) - Repository name (e.g., "foo-frontend")
-- `full_name` (text) - Full repository name (e.g., "jdoe/foo-frontend") 
+- `full_name` (text) - Full repository name (e.g., "jdoe/foo-frontend")
 - `description` (text, nullable) - Repository description
 - `url` (text) - Repository URL
 - `is_private` (boolean, default false) - Private repository flag
@@ -29,9 +31,11 @@ Stores repository information with GitHub metadata.
 - `pushed_at` (timestamp, nullable) - Last push to repository
 
 #### 2. `projects` Table
+
 Stores project information with owner details.
 
 **Columns:**
+
 - `id` (text, PK) - UUID primary key
 - `name` (text) - Project name (e.g., "foo")
 - `full_name` (text, unique) - Full project name (e.g., "jdoe/foo")
@@ -44,9 +48,11 @@ Stores project information with owner details.
 - `updated_at` (timestamp) - Record last update time
 
 #### 3. `projects_repos` Table
+
 Junction table for many-to-many relationship between projects and repositories.
 
 **Columns:**
+
 - `project_id` (text, FK) - References projects.id
 - `repo_id` (text, FK) - References repos.id
 - `is_primary` (boolean, default false) - Primary repository flag
@@ -73,10 +79,11 @@ The `fetchProjects()` function now:
 4. **Environments**: Currently uses mock environments (ready for future implementation)
 
 **Query Structure:**
+
 ```sql
 SELECT p.*, r.*, pr.*
 FROM project p
-LEFT JOIN projects_repos pr ON p.id = pr.project_id  
+LEFT JOIN projects_repos pr ON p.id = pr.project_id
 LEFT JOIN repo r ON pr.repo_id = r.id
 ```
 
@@ -85,11 +92,13 @@ LEFT JOIN repo r ON pr.repo_id = r.id
 The database is seeded with sample data including:
 
 **Projects:**
+
 - `jdoe/foo` - Sample project with 3 repositories, 7 preview environments
-- `jdoe/bar` - Microservices project with 2 repositories, 3 preview environments  
+- `jdoe/bar` - Microservices project with 2 repositories, 3 preview environments
 - `awesome-org/baz` - Enterprise project, 12 preview environments
 
 **Repositories:**
+
 - `jdoe/foo-frontend` (TypeScript, primary for foo project)
 - `jdoe/foo-backend` (Python)
 - `jdoe/foo-shared` (JavaScript)
@@ -99,6 +108,7 @@ The database is seeded with sample data including:
 ## Testing
 
 ### Test Coverage
+
 - **Unit Tests**: Existing projects tests continue to pass
 - **Integration Tests**: New database integration tests validate:
   - Data fetching from database
@@ -107,6 +117,7 @@ The database is seeded with sample data including:
   - Data structure validation
 
 ### Running Tests
+
 ```bash
 npm run test                                    # All tests
 npm run test __tests__/actions/projects.test.ts # Original projects tests
@@ -116,6 +127,7 @@ npm run test __tests__/database/                # Database integration tests
 ## Development Workflow
 
 ### Setting Up Database
+
 ```bash
 # Start PostgreSQL
 docker compose up -d db
@@ -127,9 +139,10 @@ npm run db:migrate
 ```
 
 ### Database Commands
+
 ```bash
 npm run db:generate  # Generate new migrations
-npm run db:migrate   # Apply migrations  
+npm run db:migrate   # Apply migrations
 npm run db:push      # Push schema changes (dev only)
 npm run db:studio    # Open Drizzle Studio
 ```

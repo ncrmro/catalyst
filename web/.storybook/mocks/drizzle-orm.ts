@@ -14,4 +14,3 @@ export const sql = {
 };
 
 export default {};
-

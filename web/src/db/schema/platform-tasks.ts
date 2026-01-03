@@ -1,4 +1,10 @@
-import { pgTable, text, varchar, integer, timestamp } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  varchar,
+  integer,
+  timestamp,
+} from "drizzle-orm/pg-core";
 import { projects } from "../schema";
 
 export const platformTasks = pgTable("platform_tasks", {

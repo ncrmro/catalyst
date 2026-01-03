@@ -32,18 +32,16 @@ class MockProvider implements VCSProvider {
 
   listUserRepositories = vi.fn().mockResolvedValue([]);
   listOrgRepositories = vi.fn().mockResolvedValue([]);
-  getRepository = vi
-    .fn()
-    .mockImplementation(async (_client, owner, repo) => ({
-      id: "1",
-      name: repo,
-      fullName: `${owner}/${repo}`,
-      owner,
-      private: false,
-      defaultBranch: "main",
-      htmlUrl: "",
-      updatedAt: new Date(),
-    }));
+  getRepository = vi.fn().mockImplementation(async (_client, owner, repo) => ({
+    id: "1",
+    name: repo,
+    fullName: `${owner}/${repo}`,
+    owner,
+    private: false,
+    defaultBranch: "main",
+    htmlUrl: "",
+    updatedAt: new Date(),
+  }));
   getFileContent = vi.fn().mockResolvedValue(null);
   getDirectoryContent = vi.fn().mockResolvedValue([]);
 
@@ -66,15 +64,13 @@ class MockProvider implements VCSProvider {
   listBranches = vi
     .fn()
     .mockResolvedValue([{ name: "main", sha: "sha" }] as Branch[]);
-  updateFile = vi
-    .fn()
-    .mockResolvedValue({
-      name: "file",
-      path: "path",
-      content: "content",
-      sha: "sha",
-      htmlUrl: "url",
-    } as FileContent);
+  updateFile = vi.fn().mockResolvedValue({
+    name: "file",
+    path: "path",
+    content: "content",
+    sha: "sha",
+    htmlUrl: "url",
+  } as FileContent);
 
   // CI/CD
   getCIStatus = vi.fn().mockResolvedValue(null);

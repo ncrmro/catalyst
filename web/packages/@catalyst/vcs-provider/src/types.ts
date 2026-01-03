@@ -119,8 +119,19 @@ export interface WebhookEvent {
 }
 
 // CI/CD types
-export type CICheckState = "passing" | "failing" | "pending" | "running" | "skipped" | "cancelled";
-export type CICheckSource = "github-actions" | "cloudflare" | "vercel" | "catalyst" | "external";
+export type CICheckState =
+  | "passing"
+  | "failing"
+  | "pending"
+  | "running"
+  | "skipped"
+  | "cancelled";
+export type CICheckSource =
+  | "github-actions"
+  | "cloudflare"
+  | "vercel"
+  | "catalyst"
+  | "external";
 
 export interface CICheck {
   id: string;
@@ -188,16 +199,16 @@ export interface VCSProvider {
     path: string,
     ref?: string,
   ): Promise<DirectoryEntry[]>;
-  
+
   // Git Operations
   createBranch(
     client: AuthenticatedClient,
     owner: string,
     repo: string,
     name: string,
-    fromBranch?: string
+    fromBranch?: string,
   ): Promise<Branch>;
-  
+
   updateFile(
     client: AuthenticatedClient,
     owner: string,
@@ -205,7 +216,7 @@ export interface VCSProvider {
     path: string,
     content: string,
     message: string,
-    branch: string
+    branch: string,
   ): Promise<FileContent>;
 
   // Pull/Merge Requests
@@ -228,7 +239,7 @@ export interface VCSProvider {
     title: string,
     head: string,
     base: string,
-    body?: string
+    body?: string,
   ): Promise<PullRequest>;
   listPullRequestReviews(
     client: AuthenticatedClient,

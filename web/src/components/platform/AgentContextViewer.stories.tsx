@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { AgentContextViewer } from "./AgentContextViewer";
 
 const meta: Meta<typeof AgentContextViewer> = {
@@ -46,4 +46,3 @@ export const Outdated: Story = {
     needsRefresh: true,
   },
 };
-

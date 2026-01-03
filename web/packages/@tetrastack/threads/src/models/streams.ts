@@ -3,15 +3,15 @@
  * Streams track state for resumable streaming.
  */
 
-import { eq } from 'drizzle-orm';
-import { createModelFactory, type DrizzleDb } from './factory';
+import { eq } from "drizzle-orm";
+import { createModelFactory, type DrizzleDb } from "./factory";
 import {
   streams,
   insertStreamSchema,
   type Stream,
   type NewStream,
-} from '../database/schema/sqlite';
-import type { MessagePart } from '../types';
+} from "../database/schema/sqlite";
+import type { MessagePart } from "../types";
 
 /**
  * Creates a streams model instance bound to the given database.
@@ -58,7 +58,7 @@ export function createStreamsModel(db: DrizzleDb) {
     async getActive(threadId: string): Promise<Stream | undefined> {
       const result = await base.select([
         eq(streams.threadId, threadId),
-        eq(streams.status, 'active'),
+        eq(streams.status, "active"),
       ]);
       return result[0];
     },
@@ -89,7 +89,7 @@ export function createStreamsModel(db: DrizzleDb) {
         {
           threadId,
           runId,
-          status: 'active',
+          status: "active",
           expiresAt: new Date(Date.now() + expiresInMs),
         },
       ]);
@@ -131,7 +131,7 @@ export function createStreamsModel(db: DrizzleDb) {
      */
     async complete(id: string): Promise<Stream> {
       const [updated] = await base.update([eq(streams.id, id)], {
-        status: 'completed',
+        status: "completed",
         updatedAt: new Date(),
       });
       return updated;
@@ -142,7 +142,7 @@ export function createStreamsModel(db: DrizzleDb) {
      */
     async abort(id: string): Promise<Stream> {
       const [updated] = await base.update([eq(streams.id, id)], {
-        status: 'aborted',
+        status: "aborted",
         updatedAt: new Date(),
       });
       return updated;
@@ -154,12 +154,12 @@ export function createStreamsModel(db: DrizzleDb) {
      */
     async expireStale(): Promise<number> {
       const now = new Date();
-      const active = await base.select([eq(streams.status, 'active')]);
+      const active = await base.select([eq(streams.status, "active")]);
       const expired = active.filter((s) => s.expiresAt && s.expiresAt < now);
 
       for (const stream of expired) {
         await base.update([eq(streams.id, stream.id)], {
-          status: 'expired',
+          status: "expired",
           updatedAt: now,
         });
       }
@@ -181,7 +181,7 @@ export function createStreamsModel(db: DrizzleDb) {
     async canResume(id: string): Promise<boolean> {
       const stream = await base.selectById(id);
       if (!stream) return false;
-      if (stream.status !== 'active') return false;
+      if (stream.status !== "active") return false;
       if (stream.expiresAt && stream.expiresAt < new Date()) return false;
       return true;
     },

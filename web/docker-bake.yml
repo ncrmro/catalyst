@@ -4,7 +4,7 @@
 #   docker buildx bake development         # Build only development variant
 #   docker buildx bake runner              # Build only runner/production variant
 
-version: '3.8'
+version: "3.8"
 
 # Web application build targets
 services:

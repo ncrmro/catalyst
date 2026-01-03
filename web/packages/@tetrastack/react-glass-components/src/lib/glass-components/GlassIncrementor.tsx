@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import type React from 'react';
-import { useState, useTransition } from 'react';
-import { cn } from './utils';
-import { GlassSurface } from './GlassSurface';
+import type React from "react";
+import { useState, useTransition } from "react";
+import { cn } from "./utils";
+import { GlassSurface } from "./GlassSurface";
 
 export interface GlassIncrementorProps {
   value: number;
@@ -38,7 +38,7 @@ export function GlassIncrementor({
       try {
         await onChange(clampedValue);
       } catch (error) {
-        console.error('Error updating value:', error);
+        console.error("Error updating value:", error);
       } finally {
         setIsUpdating(false);
       }
@@ -61,11 +61,11 @@ export function GlassIncrementor({
     return (
       <button
         className={cn(
-          'h-10 w-10 p-0 rounded-md transition-all',
-          'hover:bg-primary/20 active:bg-primary/30',
-          'text-primary',
-          'disabled:opacity-50 disabled:cursor-not-allowed',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+          "h-10 w-10 p-0 rounded-md transition-all",
+          "hover:bg-primary/20 active:bg-primary/30",
+          "text-primary",
+          "disabled:opacity-50 disabled:cursor-not-allowed",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
         )}
         onClick={handleIncrement}
         disabled={isDisabled}
@@ -100,11 +100,11 @@ export function GlassIncrementor({
     >
       <button
         className={cn(
-          'h-8 w-8 p-0 rounded-md transition-all',
-          'hover:bg-primary/20 active:bg-primary/30',
-          'text-primary',
-          'disabled:opacity-50 disabled:cursor-not-allowed',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+          "h-8 w-8 p-0 rounded-md transition-all",
+          "hover:bg-primary/20 active:bg-primary/30",
+          "text-primary",
+          "disabled:opacity-50 disabled:cursor-not-allowed",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
         )}
         onClick={handleDecrement}
         disabled={isDisabled || value <= min}
@@ -124,17 +124,17 @@ export function GlassIncrementor({
 
       <div className="flex items-center justify-center min-w-[2rem] px-2">
         <span className="text-sm font-medium text-primary">
-          {isUpdating ? '...' : value}
+          {isUpdating ? "..." : value}
         </span>
       </div>
 
       <button
         className={cn(
-          'h-8 w-8 p-0 rounded-md transition-all',
-          'hover:bg-primary/20 active:bg-primary/30',
-          'text-primary',
-          'disabled:opacity-50 disabled:cursor-not-allowed',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+          "h-8 w-8 p-0 rounded-md transition-all",
+          "hover:bg-primary/20 active:bg-primary/30",
+          "text-primary",
+          "disabled:opacity-50 disabled:cursor-not-allowed",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
         )}
         onClick={handleIncrement}
         disabled={isDisabled || value >= max}

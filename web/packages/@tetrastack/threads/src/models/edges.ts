@@ -3,15 +3,15 @@
  * Edges define DAG dependencies for complex agent workflows.
  */
 
-import { eq } from 'drizzle-orm';
-import { createModelFactory, type DrizzleDb } from './factory';
+import { eq } from "drizzle-orm";
+import { createModelFactory, type DrizzleDb } from "./factory";
 import {
   edges,
   insertEdgeSchema,
   type Edge,
   type NewEdge,
-} from '../database/schema/sqlite';
-import type { EdgeType } from '../types';
+} from "../database/schema/sqlite";
+import type { EdgeType } from "../types";
 
 /**
  * Creates an edges model instance bound to the given database.
@@ -77,7 +77,7 @@ export function createEdgesModel(db: DrizzleDb) {
       fromItemId: string,
       toItemId: string,
       requestId: string,
-      type: EdgeType = 'depends_on',
+      type: EdgeType = "depends_on",
     ): Promise<Edge> {
       const [edge] = await base.insert([
         { threadId, fromItemId, toItemId, type, requestId },

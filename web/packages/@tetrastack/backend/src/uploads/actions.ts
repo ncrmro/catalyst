@@ -3,11 +3,11 @@ import {
   ListObjectsV2Command,
   PutObjectCommand,
   GetObjectCommand,
-} from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { r2Client, R2_BUCKET_NAME, R2_PUBLIC_URL } from './client';
-import { uuidv7 } from '../utils/uuidv7';
-import { eq } from 'drizzle-orm';
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { r2Client, R2_BUCKET_NAME, R2_PUBLIC_URL } from "./client";
+import { uuidv7 } from "../utils/uuidv7";
+import { eq } from "drizzle-orm";
 
 interface CreatePresignedUploadOptions {
   filename: string;
@@ -65,8 +65,8 @@ export const createUploads = (
     entityId,
     entityType,
   }: CreatePresignedUploadOptions) => {
-    const fileExtension = filename.split('.').pop();
-    const key = `uploads/${entityType || 'misc'}/${entityId || 'anonymous'}/${uuidv7()}.${fileExtension}`;
+    const fileExtension = filename.split(".").pop();
+    const key = `uploads/${entityType || "misc"}/${entityId || "anonymous"}/${uuidv7()}.${fileExtension}`;
 
     const putObjectCommand = new PutObjectCommand({
       Bucket: R2_BUCKET_NAME,

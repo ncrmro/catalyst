@@ -9,6 +9,7 @@ This document describes the pull requests table and database operations that ena
 The `pull_requests` table stores pull request information from various git providers (GitHub, GitLab, etc.) with a provider-agnostic design.
 
 **Key Features:**
+
 - Provider-agnostic design (supports GitHub, GitLab, etc.)
 - Belongs to a repository via foreign key relationship
 - Comprehensive pull request metadata storage
@@ -16,6 +17,7 @@ The `pull_requests` table stores pull request information from various git provi
 - Automatic timestamps for creation and updates
 
 **Columns:**
+
 - `id` (text, PK) - UUID primary key
 - `repo_id` (text, FK) - References repos.id with cascade delete
 - `provider` (text) - Git provider ('github', 'gitlab', 'gitea', etc.)
@@ -45,9 +47,11 @@ The `pull_requests` table stores pull request information from various git provi
 - `updated_at` (timestamp) - Record last update time
 
 **Constraints:**
+
 - Unique constraint on `(repo_id, provider, provider_pr_id)` ensures no duplicate PRs per provider per repo
 
 **Indexes:**
+
 - `idx_pull_requests_repo_id` - For efficient queries by repository
 - `idx_pull_requests_state` - For filtering by state (open/closed/merged)
 - `idx_pull_requests_status` - For filtering by status (draft/ready/changes_requested)
@@ -62,18 +66,23 @@ The `pull_requests` table stores pull request information from various git provi
 Located in `src/actions/pull-requests-db.ts`:
 
 #### `upsertPullRequest(data: CreatePullRequestData)`
+
 Creates or updates a pull request record. Uses the unique constraint to handle both create and update operations automatically.
 
 #### `findPullRequestByProviderData(repoId, provider, providerPrId)`
+
 Finds a pull request by repository, provider, and provider-specific PR ID.
 
 #### `getPullRequestsByRepo(repoId, limit?)`
+
 Gets all pull requests for a specific repository, ordered by last update.
 
 #### `getOpenPullRequests(limit?)`
+
 Gets open pull requests across all repositories with repository information.
 
 #### `findRepoByGitHubData(githubId)`
+
 Helper function to find a repository by GitHub ID for webhook operations.
 
 ## Webhook Integration
@@ -111,6 +120,7 @@ The webhook handler maps GitHub webhook data to our provider-agnostic schema:
 ## Migration
 
 The table was created via migration `0009_sleepy_pet_avengers.sql` which includes:
+
 - Table creation with all columns and constraints
 - Foreign key relationship to repos table
 - Performance indexes
@@ -119,31 +129,36 @@ The table was created via migration `0009_sleepy_pet_avengers.sql` which include
 ## Usage Examples
 
 ### Creating a Pull Request Record
+
 ```typescript
-import { upsertPullRequest } from '@/actions/pull-requests-db';
+import { upsertPullRequest } from "@/actions/pull-requests-db";
 
 const result = await upsertPullRequest({
-  repoId: 'repo-uuid-1',
-  provider: 'github',
-  providerPrId: '123',
+  repoId: "repo-uuid-1",
+  provider: "github",
+  providerPrId: "123",
   number: 42,
-  title: 'Feature: Add new functionality',
-  state: 'open',
-  status: 'ready',
-  url: 'https://github.com/owner/repo/pull/42',
-  authorLogin: 'developer',
-  headBranch: 'feature/new-functionality',
-  baseBranch: 'main',
+  title: "Feature: Add new functionality",
+  state: "open",
+  status: "ready",
+  url: "https://github.com/owner/repo/pull/42",
+  authorLogin: "developer",
+  headBranch: "feature/new-functionality",
+  baseBranch: "main",
   // ... other fields
 });
 ```
 
 ### Querying Pull Requests
+
 ```typescript
-import { getPullRequestsByRepo, getOpenPullRequests } from '@/actions/pull-requests-db';
+import {
+  getPullRequestsByRepo,
+  getOpenPullRequests,
+} from "@/actions/pull-requests-db";
 
 // Get all PRs for a specific repo
-const repoPRs = await getPullRequestsByRepo('repo-uuid-1');
+const repoPRs = await getPullRequestsByRepo("repo-uuid-1");
 
 // Get all open PRs across repositories
 const openPRs = await getOpenPullRequests(50);
@@ -169,6 +184,7 @@ The table is designed to support multiple git providers:
 ## Testing
 
 Comprehensive test coverage includes:
+
 - Unit tests for database operations (`__tests__/unit/actions/pull-requests-db.test.ts`)
 - Webhook integration tests (`__tests__/unit/api/github/webhook.test.ts`)
 - Mock implementations for all external dependencies

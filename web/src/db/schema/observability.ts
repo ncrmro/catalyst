@@ -1,4 +1,11 @@
-import { pgTable, text, varchar, decimal, boolean, timestamp } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  varchar,
+  decimal,
+  boolean,
+  timestamp,
+} from "drizzle-orm/pg-core";
 import { projects } from "../schema";
 
 export const alertRules = pgTable("alert_rules", {

@@ -1,19 +1,18 @@
 #!/usr/bin/env tsx
 
-import 'dotenv/config';
-import * as fs from 'fs';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import { parse } from 'yaml';
-import { generateObject } from 'ai';
-import { openai } from '@ai-sdk/openai';
-import { z } from 'zod';
-import { PullRequest, Issue } from '../../src/types/reports.js';
+import "dotenv/config";
+import * as fs from "fs";
+import * as path from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+import { parse } from "yaml";
+import { generateObject } from "ai";
+import { openai } from "@ai-sdk/openai";
+import { z } from "zod";
+import { PullRequest, Issue } from "../../src/types/reports.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
 
 interface Project {
   repos: string[];
@@ -28,28 +27,38 @@ interface ProjectsConfig {
 }
 
 const projectReportSchema = z.object({
-  projectName: z.string().describe('Name of the project'),
-  title: z.string().describe('Title of the project report'),
-  summary: z.string().describe('Executive summary of the project state'),
+  projectName: z.string().describe("Name of the project"),
+  title: z.string().describe("Title of the project report"),
+  summary: z.string().describe("Executive summary of the project state"),
   repositoryAnalysis: z.object({
     totalRepositories: z.number(),
-    repositories: z.array(z.string()).describe('List of repositories in the project'),
-    insights: z.array(z.string()).describe('Key insights about repository activity')
+    repositories: z
+      .array(z.string())
+      .describe("List of repositories in the project"),
+    insights: z
+      .array(z.string())
+      .describe("Key insights about repository activity"),
   }),
   issuesAnalysis: z.object({
     totalIssues: z.number(),
     openIssues: z.number(),
     closedIssues: z.number(),
-    issuesByLabel: z.record(z.number()).describe('Count of issues by label'),
-    issuesByRepository: z.record(z.number()).describe('Count of issues by repository'),
-    oldestIssues: z.array(z.object({
-      title: z.string(),
-      repository: z.string(),
-      age_days: z.number(),
-      url: z.string(),
-      labels: z.array(z.string())
-    })).describe('Oldest unresolved issues'),
-    insights: z.array(z.string()).describe('Key insights about issues')
+    issuesByLabel: z.record(z.number()).describe("Count of issues by label"),
+    issuesByRepository: z
+      .record(z.number())
+      .describe("Count of issues by repository"),
+    oldestIssues: z
+      .array(
+        z.object({
+          title: z.string(),
+          repository: z.string(),
+          age_days: z.number(),
+          url: z.string(),
+          labels: z.array(z.string()),
+        }),
+      )
+      .describe("Oldest unresolved issues"),
+    insights: z.array(z.string()).describe("Key insights about issues"),
   }),
   pullRequestsAnalysis: z.object({
     totalPRs: z.number(),
@@ -57,20 +66,30 @@ const projectReportSchema = z.object({
     closedPRs: z.number(),
     draftPRs: z.number(),
     readyPRs: z.number(),
-    prsByAuthor: z.record(z.number()).describe('Count of PRs by author'),
-    prsByRepository: z.record(z.number()).describe('Count of PRs by repository'),
-    stalePRs: z.array(z.object({
-      title: z.string(),
-      repository: z.string(),
-      author: z.string(),
-      age_days: z.number(),
-      url: z.string(),
-      isDraft: z.boolean()
-    })).describe('PRs that may need attention'),
-    insights: z.array(z.string()).describe('Key insights about pull requests')
+    prsByAuthor: z.record(z.number()).describe("Count of PRs by author"),
+    prsByRepository: z
+      .record(z.number())
+      .describe("Count of PRs by repository"),
+    stalePRs: z
+      .array(
+        z.object({
+          title: z.string(),
+          repository: z.string(),
+          author: z.string(),
+          age_days: z.number(),
+          url: z.string(),
+          isDraft: z.boolean(),
+        }),
+      )
+      .describe("PRs that may need attention"),
+    insights: z.array(z.string()).describe("Key insights about pull requests"),
   }),
-  recommendations: z.array(z.string()).describe('Actionable recommendations for the project'),
-  nextSteps: z.array(z.string()).describe('Suggested next steps for project maintainers')
+  recommendations: z
+    .array(z.string())
+    .describe("Actionable recommendations for the project"),
+  nextSteps: z
+    .array(z.string())
+    .describe("Suggested next steps for project maintainers"),
 });
 
 const SYSTEM_PROMPT = `You are a Project Report Generator that analyzes GitHub repository data to provide insights about development activity, issues, and pull requests for a specific project.
@@ -93,13 +112,13 @@ When generating reports:
 The user will provide you with data for a specific project including its repositories, issues, and pull requests.`;
 
 async function loadProjectsConfig(): Promise<ProjectsConfig> {
-  const configPath = path.join(__dirname, 'projects.yml');
-  
+  const configPath = path.join(__dirname, "projects.yml");
+
   if (!fs.existsSync(configPath)) {
     throw new Error(`Projects config file not found at ${configPath}`);
   }
-  
-  const yamlContent = fs.readFileSync(configPath, 'utf-8');
+
+  const yamlContent = fs.readFileSync(configPath, "utf-8");
   return parse(yamlContent) as ProjectsConfig;
 }
 
@@ -111,48 +130,54 @@ function calculateAge(dateString: string): number {
 }
 
 async function generateProjectReport(projectName: string, project: Project) {
-  const model = openai('gpt-4o-mini');
+  const model = openai("gpt-4o-mini");
 
   // Calculate statistics using reducers for efficiency
-  const prStats = project.pullRequests.reduce((acc, pr) => {
-    switch (pr.status) {
-      case 'draft':
-        acc.draft.push(pr);
-        break;
-      case 'ready':
-        acc.ready.push(pr);
-        break;
-      case 'changes_requested':
-        acc.changesRequested.push(pr);
-        break;
-    }
-    return acc;
-  }, {
-    draft: [] as PullRequest[],
-    ready: [] as PullRequest[],
-    changesRequested: [] as PullRequest[]
-  });
+  const prStats = project.pullRequests.reduce(
+    (acc, pr) => {
+      switch (pr.status) {
+        case "draft":
+          acc.draft.push(pr);
+          break;
+        case "ready":
+          acc.ready.push(pr);
+          break;
+        case "changes_requested":
+          acc.changesRequested.push(pr);
+          break;
+      }
+      return acc;
+    },
+    {
+      draft: [] as PullRequest[],
+      ready: [] as PullRequest[],
+      changesRequested: [] as PullRequest[],
+    },
+  );
 
-  const issueStats = project.issues.reduce((acc, issue) => {
-    switch (issue.state) {
-      case 'open':
-        acc.open.push(issue);
-        break;
-      case 'closed':
-        acc.closed.push(issue);
-        break;
-    }
-    return acc;
-  }, {
-    open: [] as Issue[],
-    closed: [] as Issue[]
-  });
+  const issueStats = project.issues.reduce(
+    (acc, issue) => {
+      switch (issue.state) {
+        case "open":
+          acc.open.push(issue);
+          break;
+        case "closed":
+          acc.closed.push(issue);
+          break;
+      }
+      return acc;
+    },
+    {
+      open: [] as Issue[],
+      closed: [] as Issue[],
+    },
+  );
 
   const prompt = `Generate a comprehensive project report for the "${projectName}" project based on the following data:
 
 PROJECT OVERVIEW:
 - Project Name: ${projectName}
-- Repositories: ${project.repos.join(', ')}
+- Repositories: ${project.repos.join(", ")}
 - Total Issues: ${project.issues.length} (${issueStats.open.length} open, ${issueStats.closed.length} closed)
 - Total Pull Requests: ${project.pullRequests.length} (${prStats.draft.length} drafts, ${prStats.ready.length} ready, ${prStats.changesRequested.length} changes requested)
 
@@ -188,13 +213,22 @@ Consider this project as a cohesive unit and provide recommendations that take i
 }
 
 function formatProjectReport(report: any): string {
-  const formatList = (items: string[]) => items.map(item => `  - ${item}`).join('\n');
-  const formatIssueTable = (items: any[]) => items.map(item => 
-    `  - **${item.title}** (${item.repository}) - ${item.age_days} days old - [Link](${item.url})\n    Labels: ${item.labels.join(', ')}`
-  ).join('\n');
-  const formatPRTable = (items: any[]) => items.map(item => 
-    `  - **${item.title}** by ${item.author} (${item.repository}) - ${item.age_days} days old${item.isDraft ? ' [DRAFT]' : ''} - [Link](${item.url})`
-  ).join('\n');
+  const formatList = (items: string[]) =>
+    items.map((item) => `  - ${item}`).join("\n");
+  const formatIssueTable = (items: any[]) =>
+    items
+      .map(
+        (item) =>
+          `  - **${item.title}** (${item.repository}) - ${item.age_days} days old - [Link](${item.url})\n    Labels: ${item.labels.join(", ")}`,
+      )
+      .join("\n");
+  const formatPRTable = (items: any[]) =>
+    items
+      .map(
+        (item) =>
+          `  - **${item.title}** by ${item.author} (${item.repository}) - ${item.age_days} days old${item.isDraft ? " [DRAFT]" : ""} - [Link](${item.url})`,
+      )
+      .join("\n");
 
   return `
 # ${report.title}
@@ -219,10 +253,14 @@ ${formatList(report.repositoryAnalysis.insights)}
 **Closed Issues:** ${report.issuesAnalysis.closedIssues}
 
 **Issues by Label:**
-${Object.entries(report.issuesAnalysis.issuesByLabel).map(([label, count]) => `  - ${label}: ${count}`).join('\n')}
+${Object.entries(report.issuesAnalysis.issuesByLabel)
+  .map(([label, count]) => `  - ${label}: ${count}`)
+  .join("\n")}
 
 **Issues by Repository:**
-${Object.entries(report.issuesAnalysis.issuesByRepository).map(([repo, count]) => `  - ${repo}: ${count}`).join('\n')}
+${Object.entries(report.issuesAnalysis.issuesByRepository)
+  .map(([repo, count]) => `  - ${repo}: ${count}`)
+  .join("\n")}
 
 **Oldest Issues Needing Attention:**
 ${formatIssueTable(report.issuesAnalysis.oldestIssues)}
@@ -238,10 +276,14 @@ ${formatList(report.issuesAnalysis.insights)}
 **Ready PRs:** ${report.pullRequestsAnalysis.readyPRs}
 
 **PRs by Author:**
-${Object.entries(report.pullRequestsAnalysis.prsByAuthor).map(([author, count]) => `  - ${author}: ${count}`).join('\n')}
+${Object.entries(report.pullRequestsAnalysis.prsByAuthor)
+  .map(([author, count]) => `  - ${author}: ${count}`)
+  .join("\n")}
 
 **PRs by Repository:**
-${Object.entries(report.pullRequestsAnalysis.prsByRepository).map(([repo, count]) => `  - ${repo}: ${count}`).join('\n')}
+${Object.entries(report.pullRequestsAnalysis.prsByRepository)
+  .map(([repo, count]) => `  - ${repo}: ${count}`)
+  .join("\n")}
 
 **Stale PRs Needing Attention:**
 ${formatPRTable(report.pullRequestsAnalysis.stalePRs)}
@@ -262,33 +304,36 @@ ${formatList(report.nextSteps)}
 
 async function main() {
   try {
-    console.log('Loading projects configuration...');
+    console.log("Loading projects configuration...");
     const config = await loadProjectsConfig();
-    
-    console.log('Generating project reports...\n');
-    
+
+    console.log("Generating project reports...\n");
+
     for (const [projectName, project] of Object.entries(config.projects)) {
       console.log(`Generating report for project: ${projectName}`);
-      
+
       if (project.issues.length === 0 && project.pullRequests.length === 0) {
-        console.log(`  Skipping ${projectName} - no data available. Run fetch script first.`);
+        console.log(
+          `  Skipping ${projectName} - no data available. Run fetch script first.`,
+        );
         continue;
       }
-      
+
       const report = await generateProjectReport(projectName, project);
       const formattedReport = formatProjectReport(report);
-      
+
       const outputPath = path.join(__dirname, `${projectName}-report.md`);
-      fs.writeFileSync(outputPath, formattedReport, 'utf-8');
-      
+      fs.writeFileSync(outputPath, formattedReport, "utf-8");
+
       console.log(`  Report saved to: ${outputPath}`);
-      console.log(`  Summary: ${project.issues.length} issues, ${project.pullRequests.length} PRs analyzed\n`);
+      console.log(
+        `  Summary: ${project.issues.length} issues, ${project.pullRequests.length} PRs analyzed\n`,
+      );
     }
-    
-    console.log('All project reports generated successfully!');
-    
+
+    console.log("All project reports generated successfully!");
   } catch (error) {
-    console.error('Failed to generate project reports:', error);
+    console.error("Failed to generate project reports:", error);
     process.exit(1);
   }
 }

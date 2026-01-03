@@ -103,8 +103,7 @@ export function PullRequestCard({ pr, projectSlug }: PullRequestCardProps) {
                 <span>{pr.author}</span>
               </div>
               <span>
-                Updated{" "}
-                {new Date(pr.updated_at).toLocaleDateString()}
+                Updated {new Date(pr.updated_at).toLocaleDateString()}
               </span>
               {pr.previewUrl && (
                 <a

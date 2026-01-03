@@ -37,19 +37,19 @@ src/
 
 ```tsx
 // ❌ BAD: Direct import in application code
-import { GlassButton } from '@/lib/glass-components';
+import { GlassButton } from "@/lib/glass-components";
 
 // ✅ GOOD: Import through project wrapper
-import { Button } from '@/components/ui/Button';
+import { Button } from "@/components/ui/Button";
 ```
 
 **components/ui/Button.tsx:**
 
 ```tsx
-import { GlassButton, type GlassButtonProps } from '@/lib/glass-components';
+import { GlassButton, type GlassButtonProps } from "@/lib/glass-components";
 
 // Re-export with project-specific defaults or customizations
-export function Button({ variant = 'primary', ...props }: GlassButtonProps) {
+export function Button({ variant = "primary", ...props }: GlassButtonProps) {
   return <GlassButton variant={variant} {...props} />;
 }
 
@@ -190,9 +190,9 @@ To adopt `@tetrastack/react-glass-components` without publishing to npm (e.g., i
 4.  **Install/Link**: Run `npm install` (or `yarn install`, `pnpm install`) in the root of your monorepo. The package manager will detect the workspace and create a symbolic link in `node_modules/@tetrastack/react-glass-components` pointing to your local source folder.
 5.  **Usage**: You can then import components directly from the package name in your application code, as if it were an installed npm package:
     ```tsx
-    import { GlassButton } from '@tetrastack/react-glass-components';
+    import { GlassButton } from "@tetrastack/react-glass-components";
     // or subpath imports if defined in exports map
-    import { GlassSurface } from '@tetrastack/react-glass-components/GlassSurface';
+    import { GlassSurface } from "@tetrastack/react-glass-components/GlassSurface";
     ```
 
 ### Workflow
@@ -241,19 +241,19 @@ cp -r src/lib/glass-components new-project/src/lib/
 
 ```tsx
 // components/ui/Button.tsx
-export { GlassButton as Button } from '@/lib/glass-components';
-export type { GlassButtonProps as ButtonProps } from '@/lib/glass-components';
+export { GlassButton as Button } from "@/lib/glass-components";
+export type { GlassButtonProps as ButtonProps } from "@/lib/glass-components";
 
 // components/ui/Card.tsx
-export { GlassCard as Card } from '@/lib/glass-components';
-export type { GlassCardProps as CardProps } from '@/lib/glass-components';
+export { GlassCard as Card } from "@/lib/glass-components";
+export type { GlassCardProps as CardProps } from "@/lib/glass-components";
 ```
 
 **Step 3: Use in application**
 
 ```tsx
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 
 export function MyComponent() {
   return (

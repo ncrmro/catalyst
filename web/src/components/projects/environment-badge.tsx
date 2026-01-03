@@ -14,36 +14,42 @@ type Environment = {
   url?: string;
 };
 
-export function EnvironmentBadge({ environment }: { environment: Environment }) {
+export function EnvironmentBadge({
+  environment,
+}: {
+  environment: Environment;
+}) {
   const getStatusColor = (status?: string) => {
     switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'deploying':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'inactive':
-        return 'bg-gray-100 text-gray-800';
+      case "active":
+        return "bg-green-100 text-green-800";
+      case "deploying":
+        return "bg-yellow-100 text-yellow-800";
+      case "inactive":
+        return "bg-gray-100 text-gray-800";
       default:
-        return 'bg-green-100 text-green-800'; // Default to active
+        return "bg-green-100 text-green-800"; // Default to active
     }
   };
 
   const getTypeIcon = (type?: string) => {
-    if (!type) return '🔄';
-    return type === 'branch_push' ? '🔄' : '⏰';
+    if (!type) return "🔄";
+    return type === "branch_push" ? "🔄" : "⏰";
   };
 
   const getTypeDescription = (env: Environment) => {
-    if (env.type === 'branch_push') {
-      return env.branch ? `on ${env.branch}` : 'branch push';
+    if (env.type === "branch_push") {
+      return env.branch ? `on ${env.branch}` : "branch push";
     } else {
-      return env.cronSchedule ? `cron: ${env.cronSchedule}` : 'scheduled';
+      return env.cronSchedule ? `cron: ${env.cronSchedule}` : "scheduled";
     }
   };
 
   return (
     <div className="flex items-center gap-2 text-sm">
-      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(environment.status)}`}>
+      <span
+        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(environment.status)}`}
+      >
         {getTypeIcon(environment.type)}
         {environment.name || environment.environment}
       </span>

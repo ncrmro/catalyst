@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import { useClarifyingQuestions } from '../../hooks';
+import { useClarifyingQuestions } from "../../hooks";
 import type {
   ClarifyingQuestion,
   ClarifyingQuestionsOutput,
   ClarifyingQuestionsToolState,
-} from '../../types';
-import { QuestionTab } from './QuestionTab';
-import { QuestionPanel } from './QuestionPanel';
-import { AnsweredQuestions } from './AnsweredQuestions';
-import { ClarifyingQuestionsSkeleton } from './ClarifyingQuestionsSkeleton';
+} from "../../types";
+import { QuestionTab } from "./QuestionTab";
+import { QuestionPanel } from "./QuestionPanel";
+import { AnsweredQuestions } from "./AnsweredQuestions";
+import { ClarifyingQuestionsSkeleton } from "./ClarifyingQuestionsSkeleton";
 
 export interface ClarifyingQuestionsCardProps {
   /** Array of questions to present */
@@ -73,12 +73,12 @@ export function ClarifyingQuestionsCard({
   skeletonClassName,
 }: ClarifyingQuestionsCardProps) {
   // Show skeleton while streaming
-  if (state === 'input-streaming') {
+  if (state === "input-streaming") {
     return <ClarifyingQuestionsSkeleton className={skeletonClassName} />;
   }
 
   // Show answered view if complete
-  if (state === 'output-available' && result) {
+  if (state === "output-available" && result) {
     return (
       <AnsweredQuestions
         questions={questions}
@@ -89,7 +89,7 @@ export function ClarifyingQuestionsCard({
   }
 
   // Show error state
-  if (state === 'output-error') {
+  if (state === "output-error") {
     return (
       <div data-clarifying-questions-error className={className}>
         <p>An error occurred while processing your answers.</p>
@@ -172,7 +172,7 @@ function InteractiveClarifyingQuestions({
         question={hook.currentQuestion}
         questionIndex={hook.activeTab}
         answer={hook.getAnswer(hook.activeTab)}
-        otherText={hook.otherText[String(hook.activeTab)] || ''}
+        otherText={hook.otherText[String(hook.activeTab)] || ""}
         showOther={hook.showOther[String(hook.activeTab)] || false}
         onSelectOption={(label) => hook.selectOption(hook.activeTab, label)}
         onSetOtherText={(text) => hook.setOtherAnswer(hook.activeTab, text)}

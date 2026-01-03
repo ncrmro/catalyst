@@ -1,10 +1,10 @@
-import type { Meta } from '@storybook/react-vite';
-import { GlassCard } from './GlassCard';
+import type { Meta } from "@storybook/react-vite";
+import { GlassCard } from "./GlassCard";
 
 const meta: Meta = {
-  title: 'Glass Components/Introduction',
+  title: "Glass Components/Introduction",
   parameters: {
-    layout: 'padded',
+    layout: "padded",
     controls: { hideNoControlsWarning: true },
   },
 };

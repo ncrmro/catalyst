@@ -9,6 +9,7 @@ This document describes the `project_manifests` table that tracks manifest files
 The `project_manifests` table stores information about manifest files found in repositories that indicate how projects should be set up for development and deployment environments.
 
 **Columns:**
+
 - `project_id` (text, FK) - References projects.id with cascade delete
 - `repo_id` (text, FK) - References repos.id with cascade delete
 - `path` (text) - File path within the repository pointing to a manifest file
@@ -16,6 +17,7 @@ The `project_manifests` table stores information about manifest files found in r
 - `updated_at` (timestamp) - Record last update time
 
 **Constraints:**
+
 - Primary Key: Composite key on `(project_id, repo_id, path)` - Ensures unique manifest file paths per project-repository combination
 - Foreign Keys:
   - `project_id` → `projects.id` (CASCADE DELETE)
@@ -39,6 +41,7 @@ Examples of manifest files and their purposes:
 ### Multiple Manifests Support
 
 Projects can have multiple manifest files in different locations within the repository:
+
 - Root-level manifests: `Dockerfile`, `package.json`, `Chart.yaml`
 - Nested manifests: `apps/frontend/package.json`, `services/api/Dockerfile`
 - Monorepo support: Multiple manifests across different directories
@@ -68,6 +71,7 @@ VALUES ('proj-2', 'repo-2', 'services/frontend/package.json');
 ## Relationships
 
 This table enables:
+
 - Automatic project type detection based on manifest files
 - Deployment strategy suggestions based on available manifests
 - Support for complex project structures with multiple deployment targets
@@ -76,6 +80,7 @@ This table enables:
 ## Schema Migration
 
 The table was created via migration `0007_ambitious_iron_man.sql` which includes:
+
 - Table creation with composite primary key
 - Foreign key constraints with cascade delete
 - Proper indexes for efficient queries
@@ -83,6 +88,7 @@ The table was created via migration `0007_ambitious_iron_man.sql` which includes
 ## Future Enhancements
 
 This table provides the foundation for:
+
 1. **Automatic Project Detection** - Scan repositories to populate manifest data
 2. **Deployment Strategy Suggestions** - Recommend deployment approaches based on manifests
 3. **Build Pipeline Configuration** - Auto-configure CI/CD based on manifest types
@@ -92,6 +98,7 @@ This table provides the foundation for:
 ## API Integration
 
 The table structure supports:
+
 - Repository scanning workflows to detect and catalog manifest files
 - Project setup wizards that suggest deployment options
 - Automated deployment configuration based on available manifests

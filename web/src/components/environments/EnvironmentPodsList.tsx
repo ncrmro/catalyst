@@ -60,10 +60,7 @@ export function EnvironmentPodsList({ namespace }: EnvironmentPodsListProps) {
     return (
       <div className="space-y-3 animate-pulse">
         {[1, 2].map((i) => (
-          <div
-            key={i}
-            className="h-20 bg-surface-container rounded-lg"
-          />
+          <div key={i} className="h-20 bg-surface-container rounded-lg" />
         ))}
       </div>
     );
@@ -181,7 +178,9 @@ function PodCard({ pod }: { pod: PodInfo }) {
                     container.ready ? "bg-success" : "bg-error"
                   }`}
                 />
-                <span className="text-on-surface-variant">{container.name}</span>
+                <span className="text-on-surface-variant">
+                  {container.name}
+                </span>
               </div>
               <span className="text-on-surface-variant font-mono truncate max-w-[200px]">
                 {container.image.split("/").pop()}

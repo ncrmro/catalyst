@@ -1,6 +1,6 @@
-import * as React from 'react';
-import { cn } from './utils';
-import { GlassCard, type GlassCardProps } from './GlassCard';
+import * as React from "react";
+import { cn } from "./utils";
+import { GlassCard, type GlassCardProps } from "./GlassCard";
 
 /**
  * Tab definition for the entity card tab selector
@@ -15,8 +15,10 @@ export interface EntityCardTab {
 /**
  * Props for the GlassEntityCard component
  */
-export interface GlassEntityCardProps
-  extends Omit<GlassCardProps, 'onClick' | 'padded'> {
+export interface GlassEntityCardProps extends Omit<
+  GlassCardProps,
+  "onClick" | "padded"
+> {
   /**
    * Image element to display on the left side of the card.
    * Should be a React element (e.g., an Image component or img tag).
@@ -89,7 +91,7 @@ export interface GlassEntityCardProps
    * Size variant affecting image size and padding
    * @default 'md'
    */
-  size?: 'sm' | 'md' | 'lg';
+  size?: "sm" | "md" | "lg";
 
   /**
    * Optional href for making the main content area a link
@@ -163,13 +165,13 @@ export function GlassEntityCard({
   loading = false,
   expandedContent,
   loadingContent,
-  size = 'md',
+  size = "md",
   href,
-  LinkComponent = 'a',
+  LinkComponent = "a",
   testId,
   dataAttributes,
   className,
-  rounded = 'lg',
+  rounded = "lg",
   ...cardProps
 }: GlassEntityCardProps) {
   const isInteractive = expandable || onToggle !== undefined;
@@ -177,22 +179,22 @@ export function GlassEntityCard({
   // Size-based classes
   const sizeClasses = {
     sm: {
-      padding: 'p-2 sm:p-3',
-      gap: 'gap-2 sm:gap-3',
-      image: 'w-16 h-14 sm:w-20 sm:h-16',
-      title: 'text-sm sm:text-base',
+      padding: "p-2 sm:p-3",
+      gap: "gap-2 sm:gap-3",
+      image: "w-16 h-14 sm:w-20 sm:h-16",
+      title: "text-sm sm:text-base",
     },
     md: {
-      padding: 'p-3 sm:p-4',
-      gap: 'gap-3 sm:gap-4',
-      image: 'w-24 h-20 sm:w-32 sm:h-24',
-      title: 'text-base sm:text-lg',
+      padding: "p-3 sm:p-4",
+      gap: "gap-3 sm:gap-4",
+      image: "w-24 h-20 sm:w-32 sm:h-24",
+      title: "text-base sm:text-lg",
     },
     lg: {
-      padding: 'p-4 sm:p-6',
-      gap: 'gap-4 sm:gap-6',
-      image: 'w-32 h-24 sm:w-40 sm:h-32',
-      title: 'text-lg sm:text-xl',
+      padding: "p-4 sm:p-6",
+      gap: "gap-4 sm:gap-6",
+      image: "w-32 h-24 sm:w-40 sm:h-32",
+      title: "text-lg sm:text-xl",
     },
   };
 
@@ -205,7 +207,7 @@ export function GlassEntityCard({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if ((e.key === 'Enter' || e.key === ' ') && isInteractive) {
+    if ((e.key === "Enter" || e.key === " ") && isInteractive) {
       e.preventDefault();
       handleClick();
     }
@@ -222,7 +224,7 @@ export function GlassEntityCard({
       {image && (
         <div
           className={cn(
-            'relative flex-shrink-0 rounded-lg overflow-hidden bg-surface-container',
+            "relative flex-shrink-0 rounded-lg overflow-hidden bg-surface-container",
             sizes.image,
           )}
         >
@@ -234,7 +236,7 @@ export function GlassEntityCard({
       <div className="flex-1 min-w-0 flex flex-col justify-center">
         <h4
           className={cn(
-            'font-semibold text-on-surface leading-tight',
+            "font-semibold text-on-surface leading-tight",
             sizes.title,
           )}
         >
@@ -266,7 +268,7 @@ export function GlassEntityCard({
     <LinkComponent
       href={href}
       className={cn(
-        'flex-1 min-w-0 flex hover:opacity-90 transition-opacity',
+        "flex-1 min-w-0 flex hover:opacity-90 transition-opacity",
         sizes.gap,
       )}
     >
@@ -275,7 +277,7 @@ export function GlassEntityCard({
   ) : isInteractive ? (
     <div
       className={cn(
-        'flex-1 min-w-0 flex cursor-pointer hover:opacity-90 transition-opacity',
+        "flex-1 min-w-0 flex cursor-pointer hover:opacity-90 transition-opacity",
         sizes.gap,
       )}
       role="button"
@@ -284,7 +286,7 @@ export function GlassEntityCard({
       onKeyDown={handleKeyDown}
       aria-label={
         expandable
-          ? `${expanded ? 'Collapse' : 'Expand'} ${title}`
+          ? `${expanded ? "Collapse" : "Expand"} ${title}`
           : `Select ${title}`
       }
       aria-expanded={expandable ? expanded : undefined}
@@ -292,7 +294,7 @@ export function GlassEntityCard({
       {mainContent}
     </div>
   ) : (
-    <div className={cn('flex-1 min-w-0 flex', sizes.gap)}>{mainContent}</div>
+    <div className={cn("flex-1 min-w-0 flex", sizes.gap)}>{mainContent}</div>
   );
 
   // Default loading content
@@ -309,7 +311,7 @@ export function GlassEntityCard({
 
   // Build data attributes for the card
   const dataAttrs: Record<string, string> = {
-    'data-testid': testId || 'glass-entity-card',
+    "data-testid": testId || "glass-entity-card",
     ...dataAttributes,
   };
 
@@ -319,16 +321,16 @@ export function GlassEntityCard({
       padded={false}
       className={cn(
         sizes.padding,
-        'transition-all duration-200',
-        (selected || expanded) && 'ring-2 ring-primary',
-        isInteractive && !href && 'hover:shadow-lg',
+        "transition-all duration-200",
+        (selected || expanded) && "ring-2 ring-primary",
+        isInteractive && !href && "hover:shadow-lg",
         className,
       )}
       {...dataAttrs}
       {...cardProps}
     >
       {/* Header Row */}
-      <div className={cn('flex', sizes.gap)}>
+      <div className={cn("flex", sizes.gap)}>
         {wrappedContent}
 
         {/* Controls (right side) */}
@@ -374,7 +376,7 @@ export function EntityCardTabSelector({
   className,
 }: EntityCardTabSelectorProps) {
   return (
-    <div className={cn('flex gap-1', className)}>
+    <div className={cn("flex gap-1", className)}>
       {tabs.map((tab) => (
         <button
           key={tab.value}
@@ -386,10 +388,10 @@ export function EntityCardTabSelector({
             onTabChange(tab.value);
           }}
           className={cn(
-            'px-2 py-1 text-xs font-medium rounded-md transition-colors',
+            "px-2 py-1 text-xs font-medium rounded-md transition-colors",
             activeTab === tab.value
-              ? 'bg-primary text-on-primary'
-              : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface',
+              ? "bg-primary text-on-primary"
+              : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface",
           )}
         >
           {tab.label}

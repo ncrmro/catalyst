@@ -1,19 +1,19 @@
-'use client';
+"use client";
 
-import { useMemo } from 'react';
+import { useMemo } from "react";
 import type {
   AgentMessage,
   MessagePart,
   TextPart,
   DynamicToolPart,
-} from '../types';
+} from "../types";
 import {
   isTextPart,
   isToolPart,
   getToolState,
   getToolCallId,
   getToolInput,
-} from '../utils';
+} from "../utils";
 
 /**
  * Extracted text content from a message
@@ -82,8 +82,8 @@ export function useMessageParts(message: AgentMessage): UseMessagePartsReturn {
   const text = useMemo<ExtractedText>(() => {
     const textParts = parts.filter(isTextPart) as TextPart[];
     return {
-      text: textParts.map((p) => p.text).join(''),
-      isStreaming: textParts.some((p) => p.state === 'streaming'),
+      text: textParts.map((p) => p.text).join(""),
+      isStreaming: textParts.some((p) => p.state === "streaming"),
     };
   }, [parts]);
 
@@ -93,14 +93,14 @@ export function useMessageParts(message: AgentMessage): UseMessagePartsReturn {
       .map((part) => {
         const toolPart = part as DynamicToolPart;
         return {
-          toolCallId: getToolCallId(part) || '',
+          toolCallId: getToolCallId(part) || "",
           toolName:
-            toolPart.type === 'dynamic-tool'
+            toolPart.type === "dynamic-tool"
               ? toolPart.toolName
               : part.type.slice(5), // Remove 'tool-' prefix
-          state: getToolState(part) || 'unknown',
+          state: getToolState(part) || "unknown",
           input: getToolInput(part),
-          output: 'output' in part ? part.output : undefined,
+          output: "output" in part ? part.output : undefined,
           part,
         };
       });
@@ -115,7 +115,7 @@ export function useMessageParts(message: AgentMessage): UseMessagePartsReturn {
   const hasTools = tools.length > 0;
   const hasText = text.text.length > 0;
   const isStreaming =
-    text.isStreaming || tools.some((t) => t.state === 'input-streaming');
+    text.isStreaming || tools.some((t) => t.state === "input-streaming");
 
   return {
     text,

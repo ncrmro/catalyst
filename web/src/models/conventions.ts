@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { conventionRules } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 export type ConventionRule = typeof conventionRules.$inferSelect;
 export type NewConventionRule = typeof conventionRules.$inferInsert;
@@ -16,7 +16,10 @@ export async function createConventionRule(rule: NewConventionRule) {
   return created;
 }
 
-export async function updateConventionRule(id: string, updates: Partial<ConventionRule>) {
+export async function updateConventionRule(
+  id: string,
+  updates: Partial<ConventionRule>,
+) {
   const [updated] = await db
     .update(conventionRules)
     .set({ ...updates, updatedAt: new Date() })
