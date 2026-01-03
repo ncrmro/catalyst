@@ -1,0 +1,1 @@
+ALTER TABLE "project_environments" RENAME COLUMN "deployment_config" TO "config";

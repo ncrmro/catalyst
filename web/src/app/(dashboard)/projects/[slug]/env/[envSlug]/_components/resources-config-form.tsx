@@ -1,6 +1,5 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
 import type { ResourceConfig } from "@/types/project-config";
 
 interface ResourcesConfigFormProps {
@@ -33,17 +32,7 @@ export function ResourcesConfigForm({
   };
 
   return (
-    <Card className="p-6 space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold text-on-surface mb-1">
-          Default Resources
-        </h2>
-        <p className="text-sm text-on-surface-variant">
-          Set the default compute resources allocated to your application
-          containers.
-        </p>
-      </div>
-
+    <div className="space-y-6">
       <div className="grid gap-6 sm:grid-cols-2">
         <div className="space-y-4">
           <h3 className="text-sm font-medium text-on-surface">
@@ -115,6 +104,6 @@ export function ResourcesConfigForm({
           Number of pods to run by default.
         </p>
       </div>
-    </Card>
+    </div>
   );
 }

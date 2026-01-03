@@ -1,4 +1,3 @@
-// eslint-disable-next-line storybook/no-renderer-packages
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { ConventionStatus, type ConventionRule } from "./ConventionStatus";
 
@@ -50,7 +49,7 @@ export const Default: Story = {
     projectName: "catalyst-web",
     complianceScore: 75,
     rules: mockRules,
-    onFix: (id) => console.log(`Fixing rule ${id}`),
+    onFix: (id: string) => console.log(`Fixing rule ${id}`),
   },
 };
 

@@ -14,7 +14,7 @@ import {
   createEnvironmentClient,
   type EnvironmentInput,
 } from "@catalyst/kubernetes-client";
-import type { DeploymentConfig } from "@/types/deployment";
+import type { EnvironmentConfig } from "@/types/environment-config";
 import type { ProjectConfig } from "@/types/project-config";
 
 // Use 'default' namespace since Environment CRs are watched there
@@ -60,17 +60,16 @@ const CATALYST_PROJECT_CONFIG: ProjectConfig = {
 };
 
 /**
- * Default deployment configuration for Catalyst self-deployment
+ * Default environment configuration for Catalyst self-deployment.
+ * Uses the manifests deployment method with the local K3s manifests directory.
  */
-const CATALYST_DEPLOYMENT_CONFIG: DeploymentConfig = {
+const CATALYST_ENVIRONMENT_CONFIG: EnvironmentConfig = {
   method: "manifests",
-  manifests: {
-    directory: ".k3s-vm/manifests",
-  },
+  directory: ".k3s-vm/manifests",
   managedServices: {
-    postgres: true,
-    redis: false,
-    opensearch: false,
+    postgres: { enabled: true },
+    redis: { enabled: false },
+    opensearch: { enabled: false },
   },
 };
 
@@ -160,12 +159,12 @@ async function ensureEnvironmentRecords(projectId: string, repoId: string) {
     {
       environment: "development",
       subType: "development" as const,
-      deploymentConfig: CATALYST_DEPLOYMENT_CONFIG,
+      config: CATALYST_ENVIRONMENT_CONFIG,
     },
     {
       environment: "production",
       subType: "production" as const,
-      deploymentConfig: CATALYST_DEPLOYMENT_CONFIG,
+      config: CATALYST_ENVIRONMENT_CONFIG,
     },
   ];
 
@@ -198,7 +197,7 @@ async function ensureEnvironmentRecords(projectId: string, repoId: string) {
         repoId,
         environment: env.environment,
         subType: env.subType,
-        deploymentConfig: env.deploymentConfig,
+        config: env.config,
       })
       .returning();
 

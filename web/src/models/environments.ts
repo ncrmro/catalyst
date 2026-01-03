@@ -113,3 +113,27 @@ export async function updateEnvironments(
     .where(inArray(projectEnvironments.id, ids))
     .returning();
 }
+
+/**
+ * Get a single environment by project slug and environment name
+ * Used for fetching config on environment detail pages
+ */
+export async function getEnvironmentByName(
+  projectSlug: string,
+  environmentName: string,
+) {
+  // Join with projects to match by slug
+  const result = await db.query.projectEnvironments.findFirst({
+    where: eq(projectEnvironments.environment, environmentName),
+    with: {
+      project: true,
+    },
+  });
+
+  // Filter by project slug (needs post-query since we can't join on slug directly in where)
+  if (result?.project?.slug === projectSlug) {
+    return result;
+  }
+
+  return null;
+}
