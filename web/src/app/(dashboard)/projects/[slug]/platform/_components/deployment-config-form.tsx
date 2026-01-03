@@ -3,9 +3,9 @@
 import { useReducer, useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateProjectConfig } from "@/actions/project-config";
-import { ImageConfigForm } from "../../configure/image-config-form";
-import { ResourcesConfigForm } from "../../configure/resources-config-form";
-import { ManagedServicesForm } from "../../configure/managed-services-form";
+import { ImageConfigForm } from "./forms/image-config-form";
+import { ResourcesConfigForm } from "./forms/resources-config-form";
+import { ManagedServicesForm } from "./forms/managed-services-form";
 import type {
   ProjectConfig,
   ResourceConfig,
