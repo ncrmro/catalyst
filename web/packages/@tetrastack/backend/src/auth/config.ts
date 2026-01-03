@@ -1,9 +1,9 @@
-import NextAuth, { NextAuthConfig } from 'next-auth';
-import { sqlite } from '../database';
-import { providers } from './providers';
-import { uuidv7 } from '../utils';
-import { eq } from 'drizzle-orm';
-import type { Provider } from 'next-auth/providers';
+import NextAuth, { NextAuthConfig } from "next-auth";
+import { sqlite } from "../database";
+import { providers } from "./providers";
+import { uuidv7 } from "../utils";
+import { eq } from "drizzle-orm";
+import type { Provider } from "next-auth/providers";
 
 const { users } = sqlite;
 
@@ -39,7 +39,7 @@ interface AuthDatabase {
 export interface CreateAuthConfig<TDatabase = unknown> {
   database?: TDatabase;
   providers?: Provider[];
-  callbacks?: NextAuthConfig['callbacks'];
+  callbacks?: NextAuthConfig["callbacks"];
 }
 
 /**
@@ -54,7 +54,7 @@ const createAuthConfigNode = <TDatabase extends AuthDatabase>(
   return {
     providers: customProviders ?? providers,
     session: {
-      strategy: 'jwt',
+      strategy: "jwt",
     },
     callbacks: {
       async signIn({ user }) {
@@ -103,7 +103,7 @@ const createAuthConfigEdge = (
 ): NextAuthConfig => ({
   providers: customProviders ?? providers,
   session: {
-    strategy: 'jwt',
+    strategy: "jwt",
   },
   callbacks: {
     jwt: async ({ token, user }) => {

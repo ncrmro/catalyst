@@ -81,12 +81,8 @@
           "name": "account_userId_user_id_fk",
           "tableFrom": "account",
           "tableTo": "user",
-          "columnsFrom": [
-            "userId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["userId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -156,12 +152,8 @@
           "name": "authenticator_userId_user_id_fk",
           "tableFrom": "authenticator",
           "tableTo": "user",
-          "columnsFrom": [
-            "userId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["userId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -171,9 +163,7 @@
         "authenticator_credentialID_unique": {
           "name": "authenticator_credentialID_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "credentialID"
-          ]
+          "columns": ["credentialID"]
         }
       },
       "policies": {},
@@ -265,12 +255,8 @@
           "name": "github_user_tokens_user_id_user_id_fk",
           "tableFrom": "github_user_tokens",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -336,12 +322,8 @@
           "name": "project_environments_project_id_project_id_fk",
           "tableFrom": "project_environments",
           "tableTo": "project",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -349,12 +331,8 @@
           "name": "project_environments_repo_id_repo_id_fk",
           "tableFrom": "project_environments",
           "tableTo": "repo",
-          "columnsFrom": [
-            "repo_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["repo_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -408,12 +386,8 @@
           "name": "project_manifests_project_id_project_id_fk",
           "tableFrom": "project_manifests",
           "tableTo": "project",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -421,12 +395,8 @@
           "name": "project_manifests_repo_id_repo_id_fk",
           "tableFrom": "project_manifests",
           "tableTo": "repo",
-          "columnsFrom": [
-            "repo_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["repo_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -434,11 +404,7 @@
       "compositePrimaryKeys": {
         "project_manifests_project_id_repo_id_path_pk": {
           "name": "project_manifests_project_id_repo_id_path_pk",
-          "columns": [
-            "project_id",
-            "repo_id",
-            "path"
-          ]
+          "columns": ["project_id", "repo_id", "path"]
         }
       },
       "uniqueConstraints": {},
@@ -575,12 +541,8 @@
           "name": "project_team_id_teams_id_fk",
           "tableFrom": "project",
           "tableTo": "teams",
-          "columnsFrom": [
-            "team_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["team_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -628,12 +590,8 @@
           "name": "projects_repos_project_id_project_id_fk",
           "tableFrom": "projects_repos",
           "tableTo": "project",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -641,12 +599,8 @@
           "name": "projects_repos_repo_id_repo_id_fk",
           "tableFrom": "projects_repos",
           "tableTo": "repo",
-          "columnsFrom": [
-            "repo_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["repo_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -840,12 +794,8 @@
           "name": "pull_request_pods_pull_request_id_pull_requests_id_fk",
           "tableFrom": "pull_request_pods",
           "tableTo": "pull_requests",
-          "columnsFrom": [
-            "pull_request_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["pull_request_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -853,12 +803,8 @@
           "name": "pull_request_pods_created_by_user_id_fk",
           "tableFrom": "pull_request_pods",
           "tableTo": "user",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -868,10 +814,7 @@
         "unique_pr_commit": {
           "name": "unique_pr_commit",
           "nullsNotDistinct": false,
-          "columns": [
-            "pull_request_id",
-            "commit_sha"
-          ]
+          "columns": ["pull_request_id", "commit_sha"]
         }
       },
       "policies": {},
@@ -1059,12 +1002,8 @@
           "name": "pull_requests_repo_id_repo_id_fk",
           "tableFrom": "pull_requests",
           "tableTo": "repo",
-          "columnsFrom": [
-            "repo_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["repo_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1074,11 +1013,7 @@
         "pull_requests_repo_id_provider_provider_pr_id_unique": {
           "name": "pull_requests_repo_id_provider_provider_pr_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "repo_id",
-            "provider",
-            "provider_pr_id"
-          ]
+          "columns": ["repo_id", "provider", "provider_pr_id"]
         }
       },
       "policies": {},
@@ -1249,12 +1184,8 @@
           "name": "repo_team_id_teams_id_fk",
           "tableFrom": "repo",
           "tableTo": "teams",
-          "columnsFrom": [
-            "team_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["team_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1264,9 +1195,7 @@
         "repo_github_id_unique": {
           "name": "repo_github_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "github_id"
-          ]
+          "columns": ["github_id"]
         }
       },
       "policies": {},
@@ -1302,12 +1231,8 @@
           "name": "session_userId_user_id_fk",
           "tableFrom": "session",
           "tableTo": "user",
-          "columnsFrom": [
-            "userId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["userId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1365,12 +1290,8 @@
           "name": "teams_ownerId_user_id_fk",
           "tableFrom": "teams",
           "tableTo": "user",
-          "columnsFrom": [
-            "ownerId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ownerId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1423,12 +1344,8 @@
           "name": "teams_memberships_teamId_teams_id_fk",
           "tableFrom": "teams_memberships",
           "tableTo": "teams",
-          "columnsFrom": [
-            "teamId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["teamId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1436,12 +1353,8 @@
           "name": "teams_memberships_userId_user_id_fk",
           "tableFrom": "teams_memberships",
           "tableTo": "user",
-          "columnsFrom": [
-            "userId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["userId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1501,9 +1414,7 @@
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},

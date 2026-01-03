@@ -28,15 +28,16 @@ The following integration test files mock `GITHUB_CONFIG` to provide a mock PAT:
 - `webhook-database.test.ts` - Webhook processing with PR pod creation
 
 **Example Setup:**
+
 ```typescript
-import { vi } from 'vitest';
+import { vi } from "vitest";
 
 // Mock the VCS providers configuration
-vi.mock('@/lib/vcs-providers', () => ({
+vi.mock("@/lib/vcs-providers", () => ({
   GITHUB_CONFIG: {
-    PAT: 'mock-github-pat-for-integration-tests',
-    GHCR_PAT: 'mock-ghcr-pat-for-integration-tests'
-  }
+    PAT: "mock-github-pat-for-integration-tests",
+    GHCR_PAT: "mock-ghcr-pat-for-integration-tests",
+  },
 }));
 ```
 
@@ -71,14 +72,18 @@ When moving from static PATs to GitHub App tokens:
 ## Test Structure
 
 ### k8s-pull-request-pod.test.ts
+
 Tests basic Kubernetes job creation and execution:
+
 - Service account creation with RBAC permissions
 - Job manifest generation and deployment
 - Pod creation and status monitoring
 - Resource cleanup
 
 ### k8s-pull-request-pod-docker-build.test.ts
+
 Tests complete Docker build workflow:
+
 - Real repository cloning from GitHub
 - Docker buildx setup and configuration
 - Image building with proper build context
@@ -86,7 +91,9 @@ Tests complete Docker build workflow:
 - Error scenarios (missing Dockerfile, etc.)
 
 ### webhook-database.test.ts
+
 Tests webhook integration with database operations:
+
 - Pull request record creation/updates
 - Repository lookup and validation
 - Database transaction handling

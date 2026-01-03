@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
 export interface MessageBubbleProps {
   /** Message role */
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   /** Message content */
   children: ReactNode;
   /** Optional timestamp */
@@ -70,7 +70,7 @@ export function MessageBubble({
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString(undefined, {
-    hour: 'numeric',
-    minute: '2-digit',
+    hour: "numeric",
+    minute: "2-digit",
   });
 }

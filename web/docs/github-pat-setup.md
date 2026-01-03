@@ -36,7 +36,7 @@ GITHUB_PAT=your_personal_access_token_here
 When a PAT is detected in the environment variables, the pull requests page will:
 
 1. **Prioritize PAT over GitHub App tokens** - PAT is checked first
-2. **Show authentication method** - The UI displays "🔑 Auth: Personal Access Token" 
+2. **Show authentication method** - The UI displays "🔑 Auth: Personal Access Token"
 3. **Fetch all your pull requests** - Uses your PAT to access GitHub API
 4. **Log PAT usage** - Console shows "Using GitHub Personal Access Token for pull requests"
 
@@ -57,6 +57,7 @@ When a PAT is detected in the environment variables, the pull requests page will
 ## Troubleshooting
 
 If you're not seeing pull requests:
+
 1. Verify PAT has correct scopes (especially `repo`)
 2. Check console logs for "Using GitHub Personal Access Token" message
 3. Ensure you have open pull requests in your repositories

@@ -1,5 +1,5 @@
 // eslint-disable-next-line storybook/no-renderer-packages
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { SpecBrowser, type SpecFolder } from "./SpecBrowser";
 
 const meta: Meta<typeof SpecBrowser> = {

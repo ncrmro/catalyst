@@ -17,7 +17,7 @@ When users authenticate with GitHub OAuth, their access token is automatically u
 ```typescript
 // Session token is automatically used when available
 const agent = new PeriodicReportAgent({
-  provider: 'anthropic',
+  provider: "anthropic",
   accessToken: session.accessToken, // From user's GitHub OAuth session
 });
 ```
@@ -37,13 +37,13 @@ GITHUB_MCP_API_KEY=your_github_mcp_api_key_here
 #### Session-Based Usage (Recommended)
 
 ```typescript
-import { PeriodicReportAgent } from '@/agents/periodic-report';
-import { auth } from '@/auth';
+import { PeriodicReportAgent } from "@/agents/periodic-report";
+import { auth } from "@/auth";
 
 // In a server action or API route
 const session = await auth();
 const agent = new PeriodicReportAgent({
-  provider: 'anthropic',
+  provider: "anthropic",
   enableGitHubMCP: true, // This is the default
   accessToken: session?.accessToken, // Uses current user's GitHub token
 });
@@ -56,7 +56,7 @@ const report = await agent.generateReport();
 
 ```typescript
 const agent = new PeriodicReportAgent({
-  provider: 'anthropic',
+  provider: "anthropic",
   enableGitHubMCP: false,
 });
 ```
@@ -65,9 +65,9 @@ const agent = new PeriodicReportAgent({
 
 ```typescript
 const agent = new PeriodicReportAgent({
-  provider: 'anthropic',
+  provider: "anthropic",
   enableGitHubMCP: true,
-  gitHubMCPApiKey: 'your-custom-api-key',
+  gitHubMCPApiKey: "your-custom-api-key",
 });
 ```
 
@@ -75,8 +75,8 @@ const agent = new PeriodicReportAgent({
 
 ```typescript
 const toolsResult = await agent.getGitHubTools();
-console.log('GitHub MCP available:', toolsResult.available);
-console.log('Tools count:', Object.keys(toolsResult.data).length);
+console.log("GitHub MCP available:", toolsResult.available);
+console.log("Tools count:", Object.keys(toolsResult.data).length);
 ```
 
 ## Features
@@ -91,6 +91,7 @@ console.log('Tools count:', Object.keys(toolsResult.data).length);
 ## GitHub MCP Server Configuration
 
 The client connects to the GitHub Copilot MCP server at:
+
 ```
 https://api.githubcopilot.com/mcp/
 ```
@@ -121,6 +122,7 @@ Using Server-Sent Events (SSE) transport with Bearer token authentication (eithe
 ### Error Handling
 
 The integration includes comprehensive error handling:
+
 - Network connectivity issues
 - Authentication failures
 - Invalid API keys or session tokens
@@ -154,7 +156,7 @@ For production use, ensure you have:
 
 ### Common Issues
 
-1. **401 Unauthorized**: 
+1. **401 Unauthorized**:
    - For session authentication: Ensure user is logged in with GitHub OAuth
    - For API key authentication: Check your `GITHUB_MCP_API_KEY` environment variable
 2. **Network Errors**: Verify connectivity to `api.githubcopilot.com`
@@ -164,6 +166,7 @@ For production use, ensure you have:
 ### Debug Mode
 
 Enable debug logging by checking the console output for GitHub MCP-related messages:
+
 - Initialization success/failure
 - Tool availability
 - Error details

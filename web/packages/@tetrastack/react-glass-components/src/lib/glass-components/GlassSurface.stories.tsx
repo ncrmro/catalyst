@@ -1,30 +1,30 @@
-import type { Meta, StoryObj } from '@storybook/react-vite';
-import { GlassSurface } from './GlassSurface';
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { GlassSurface } from "./GlassSurface";
 
 const meta: Meta<typeof GlassSurface> = {
-  title: 'Glass Components/GlassSurface',
+  title: "Glass Components/GlassSurface",
   component: GlassSurface,
-  tags: ['autodocs'],
+  tags: ["autodocs"],
   argTypes: {
     intensity: {
-      control: { type: 'select' },
-      options: ['light', 'medium', 'strong'],
+      control: { type: "select" },
+      options: ["light", "medium", "strong"],
     },
     variant: {
-      control: { type: 'select' },
-      options: ['default', 'primary', 'secondary', 'tertiary', 'error'],
+      control: { type: "select" },
+      options: ["default", "primary", "secondary", "tertiary", "error"],
     },
     glass: {
-      control: 'boolean',
+      control: "boolean",
     },
     bordered: {
-      control: 'boolean',
+      control: "boolean",
     },
     shadowed: {
-      control: 'boolean',
+      control: "boolean",
     },
     as: {
-      control: { type: 'text' },
+      control: { type: "text" },
     },
   },
 };
@@ -45,7 +45,7 @@ export const Default: Story = {
 
 export const LightIntensity: Story = {
   args: {
-    intensity: 'light',
+    intensity: "light",
     children: (
       <div className="p-4">
         <h3 className="text-lg font-bold mb-2">Light Intensity</h3>
@@ -57,7 +57,7 @@ export const LightIntensity: Story = {
 
 export const StrongIntensity: Story = {
   args: {
-    intensity: 'strong',
+    intensity: "strong",
     children: (
       <div className="p-4">
         <h3 className="text-lg font-bold mb-2">Strong Intensity</h3>
@@ -69,7 +69,7 @@ export const StrongIntensity: Story = {
 
 export const PrimaryVariant: Story = {
   args: {
-    variant: 'primary',
+    variant: "primary",
     children: (
       <div className="p-4">
         <h3 className="text-lg font-bold mb-2 text-primary">Primary Variant</h3>
@@ -81,7 +81,7 @@ export const PrimaryVariant: Story = {
 
 export const SecondaryVariant: Story = {
   args: {
-    variant: 'secondary',
+    variant: "secondary",
     children: (
       <div className="p-4">
         <h3 className="text-lg font-bold mb-2 text-secondary">

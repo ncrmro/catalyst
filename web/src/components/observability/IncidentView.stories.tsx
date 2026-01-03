@@ -1,5 +1,9 @@
-import type { Meta, StoryObj } from "@storybook/react";
-import { IncidentView, type LogEntry, type MetricSnapshot } from "./IncidentView";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import {
+  IncidentView,
+  type LogEntry,
+  type MetricSnapshot,
+} from "./IncidentView";
 import { type Alert } from "./AlertList";
 
 const meta: Meta<typeof IncidentView> = {

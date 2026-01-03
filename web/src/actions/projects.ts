@@ -244,11 +244,7 @@ export async function fetchProjectBranches(
       const [owner, repoName] = relation.repo.fullName.split("/");
       if (!owner || !repoName) continue;
 
-      const branches = await provider.listBranches(
-        client,
-        owner,
-        repoName,
-      );
+      const branches = await provider.listBranches(client, owner, repoName);
       allBranches.push(...branches);
     }
 

@@ -5,11 +5,13 @@ This project uses [Drizzle ORM](https://orm.drizzle.team/) with PostgreSQL.
 ## Quick Start
 
 1. **Start the database**:
+
    ```bash
    docker-compose up -d db
    ```
 
 2. **Copy environment variables**:
+
    ```bash
    cp .env.example .env.local
    ```
@@ -46,6 +48,7 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/catalyst
 The database runs in Docker with PostgreSQL 17 Alpine. Data is persisted in a named volume `postgres_data`.
 
 To reset the database:
+
 ```bash
 docker-compose down -v
 docker-compose up -d db

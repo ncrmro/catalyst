@@ -1,4 +1,4 @@
-import { Page, Locator, expect } from '@playwright/test';
+import { Page, Locator, expect } from "@playwright/test";
 
 /**
  * Base Page Object Model that contains common functionality and UI elements
@@ -6,7 +6,7 @@ import { Page, Locator, expect } from '@playwright/test';
  */
 export class BasePage {
   readonly page: Page;
-  
+
   // Navigation elements
   readonly logo: Locator;
   readonly sidebar: Locator;
@@ -16,18 +16,18 @@ export class BasePage {
   readonly teamsNavLink: Locator;
   readonly reportNavLink: Locator;
   readonly userMenu: Locator;
-  
+
   constructor(page: Page) {
     this.page = page;
-    
+
     // Initialize navigation elements
-    this.logo = page.getByRole('link', { name: 'Catalyst' });
+    this.logo = page.getByRole("link", { name: "Catalyst" });
     this.sidebar = page.locator('[data-testid="sidebar"]');
-    this.projectsNavLink = page.getByRole('link', { name: 'Projects' });
-    this.clustersNavLink = page.getByRole('link', { name: 'Clusters' });
-    this.reposNavLink = page.getByRole('link', { name: 'Repositories' });
-    this.teamsNavLink = page.getByRole('link', { name: 'Teams' });
-    this.reportNavLink = page.getByRole('link', { name: 'Reports' });
+    this.projectsNavLink = page.getByRole("link", { name: "Projects" });
+    this.clustersNavLink = page.getByRole("link", { name: "Clusters" });
+    this.reposNavLink = page.getByRole("link", { name: "Repositories" });
+    this.teamsNavLink = page.getByRole("link", { name: "Teams" });
+    this.reportNavLink = page.getByRole("link", { name: "Reports" });
     this.userMenu = page.locator('[data-testid="user-menu"]');
   }
 
@@ -35,7 +35,7 @@ export class BasePage {
    * Navigate to the home page of the application
    */
   async goHome() {
-    await this.page.goto('/');
+    await this.page.goto("/");
   }
 
   /**
@@ -43,7 +43,7 @@ export class BasePage {
    */
   async gotoProjects() {
     await this.projectsNavLink.click();
-    await expect(this.page).toHaveURL('/projects');
+    await expect(this.page).toHaveURL("/projects");
   }
 
   /**
@@ -51,7 +51,7 @@ export class BasePage {
    */
   async gotoClusters() {
     await this.clustersNavLink.click();
-    await expect(this.page).toHaveURL('/clusters');
+    await expect(this.page).toHaveURL("/clusters");
   }
 
   /**
@@ -59,7 +59,7 @@ export class BasePage {
    */
   async gotoRepositories() {
     await this.reposNavLink.click();
-    await expect(this.page).toHaveURL('/repos');
+    await expect(this.page).toHaveURL("/repos");
   }
 
   /**
@@ -67,7 +67,7 @@ export class BasePage {
    */
   async gotoTeams() {
     await this.teamsNavLink.click();
-    await expect(this.page).toHaveURL('/teams');
+    await expect(this.page).toHaveURL("/teams");
   }
 
   /**
@@ -75,7 +75,7 @@ export class BasePage {
    */
   async gotoReports() {
     await this.reportNavLink.click();
-    await expect(this.page).toHaveURL('/reports');
+    await expect(this.page).toHaveURL("/reports");
   }
 
   /**
@@ -91,7 +91,7 @@ export class BasePage {
    */
   async logout() {
     await this.userMenu.click();
-    await this.page.getByRole('button', { name: 'Sign out' }).click();
-    await expect(this.page).toHaveURL('/login');
+    await this.page.getByRole("button", { name: "Sign out" }).click();
+    await expect(this.page).toHaveURL("/login");
   }
 }

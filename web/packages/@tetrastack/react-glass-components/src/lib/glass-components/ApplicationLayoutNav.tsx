@@ -1,6 +1,6 @@
-import React from 'react';
-import { GlassCard } from './GlassCard';
-import { cn } from './utils';
+import React from "react";
+import { GlassCard } from "./GlassCard";
+import { cn } from "./utils";
 
 export interface ApplicationLayoutNavOption {
   /** Unique value identifier for the option */
@@ -75,8 +75,8 @@ export function ApplicationLayoutNav({
   options,
   activeValue,
   onSelect,
-  ariaLabel = 'View selection',
-  linkComponent: LinkComponent = 'a',
+  ariaLabel = "View selection",
+  linkComponent: LinkComponent = "a",
 }: ApplicationLayoutNavProps) {
   return (
     <div role="tablist" aria-label={ariaLabel}>
@@ -84,10 +84,10 @@ export function ApplicationLayoutNav({
         {options.map((option) => {
           const isActive = option.value === activeValue;
           const className = cn(
-            'px-4 py-2 rounded-md text-sm font-medium transition-colors',
+            "px-4 py-2 rounded-md text-sm font-medium transition-colors",
             isActive
-              ? 'bg-primary text-on-primary'
-              : 'text-on-surface-variant hover:text-on-surface',
+              ? "bg-primary text-on-primary"
+              : "text-on-surface-variant hover:text-on-surface",
           );
 
           // Use LinkComponent if the option has an href

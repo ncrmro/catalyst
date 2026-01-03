@@ -1,4 +1,8 @@
-import { fetchProjectBySlug, fetchProjectPullRequests, fetchProjectIssues } from "@/actions/projects";
+import {
+  fetchProjectBySlug,
+  fetchProjectPullRequests,
+  fetchProjectIssues,
+} from "@/actions/projects";
 import { WorkItemsList } from "@/components/work-items/WorkItemsList";
 import { GlassCard } from "@tetrastack/react-glass-components";
 import { notFound } from "next/navigation";
@@ -49,9 +53,9 @@ export default async function WorkPage({ params }: WorkPageProps) {
       </div>
 
       <GlassCard>
-        <WorkItemsList 
-          prs={prs} 
-          issues={issues} 
+        <WorkItemsList
+          prs={prs}
+          issues={issues}
           projectSlug={slug}
           emptyMessage="No open pull requests or issues found."
         />

@@ -5,48 +5,48 @@
 /**
  * Chat message role
  */
-export type MessageRole = 'system' | 'user' | 'assistant';
+export type MessageRole = "system" | "user" | "assistant";
 
 /**
  * Chat status from AI SDK
  */
-export type ChatStatus = 'submitted' | 'streaming' | 'ready' | 'error';
+export type ChatStatus = "submitted" | "streaming" | "ready" | "error";
 
 /**
  * Tool invocation state from AI SDK
  */
 export type ToolState =
-  | 'input-streaming'
-  | 'input-available'
-  | 'approval-requested'
-  | 'approval-responded'
-  | 'output-available'
-  | 'output-error'
-  | 'output-denied';
+  | "input-streaming"
+  | "input-available"
+  | "approval-requested"
+  | "approval-responded"
+  | "output-available"
+  | "output-error"
+  | "output-denied";
 
 /**
  * Text message part
  */
 export interface TextPart {
-  type: 'text';
+  type: "text";
   text: string;
-  state?: 'streaming' | 'done';
+  state?: "streaming" | "done";
 }
 
 /**
  * Reasoning message part
  */
 export interface ReasoningPart {
-  type: 'reasoning';
+  type: "reasoning";
   text: string;
-  state?: 'streaming' | 'done';
+  state?: "streaming" | "done";
 }
 
 /**
  * File message part
  */
 export interface FilePart {
-  type: 'file';
+  type: "file";
   mediaType: string;
   filename?: string;
   url: string;
@@ -56,7 +56,7 @@ export interface FilePart {
  * Dynamic tool invocation part (for tools not statically defined)
  */
 export interface DynamicToolPart {
-  type: 'dynamic-tool';
+  type: "dynamic-tool";
   toolName: string;
   toolCallId: string;
   title?: string;

@@ -3,7 +3,7 @@
  * These schemas are inferred from the database schema to ensure type safety
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 /**
  * Zod schema for creating a pull request
@@ -16,8 +16,8 @@ export const createPullRequestSchema = z.object({
   number: z.number().int().positive(),
   title: z.string().min(1),
   description: z.string().optional(),
-  state: z.enum(['open', 'closed', 'merged']),
-  status: z.enum(['draft', 'ready', 'changes_requested']),
+  state: z.enum(["open", "closed", "merged"]),
+  status: z.enum(["draft", "ready", "changes_requested"]),
   url: z.string().url(),
   authorLogin: z.string().min(1),
   authorAvatarUrl: z.string().url().optional(),
@@ -28,7 +28,7 @@ export const createPullRequestSchema = z.object({
   changedFilesCount: z.number().int().nonnegative().optional().default(0),
   additionsCount: z.number().int().nonnegative().optional().default(0),
   deletionsCount: z.number().int().nonnegative().optional().default(0),
-  priority: z.enum(['high', 'medium', 'low']).optional().default('medium'),
+  priority: z.enum(["high", "medium", "low"]).optional().default("medium"),
   labels: z.array(z.string()).optional().default([]),
   assignees: z.array(z.string()).optional().default([]),
   reviewers: z.array(z.string()).optional().default([]),
@@ -43,8 +43,8 @@ export const createPullRequestSchema = z.object({
 export const updatePullRequestSchema = z.object({
   title: z.string().min(1).optional(),
   description: z.string().optional(),
-  state: z.enum(['open', 'closed', 'merged']).optional(),
-  status: z.enum(['draft', 'ready', 'changes_requested']).optional(),
+  state: z.enum(["open", "closed", "merged"]).optional(),
+  status: z.enum(["draft", "ready", "changes_requested"]).optional(),
   url: z.string().url().optional(),
   authorLogin: z.string().min(1).optional(),
   authorAvatarUrl: z.string().url().optional(),
@@ -55,7 +55,7 @@ export const updatePullRequestSchema = z.object({
   changedFilesCount: z.number().int().nonnegative().optional(),
   additionsCount: z.number().int().nonnegative().optional(),
   deletionsCount: z.number().int().nonnegative().optional(),
-  priority: z.enum(['high', 'medium', 'low']).optional(),
+  priority: z.enum(["high", "medium", "low"]).optional(),
   labels: z.array(z.string()).optional(),
   assignees: z.array(z.string()).optional(),
   reviewers: z.array(z.string()).optional(),

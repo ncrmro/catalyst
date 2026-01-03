@@ -1,7 +1,13 @@
 import { fetchProjectBySlug } from "@/actions/projects";
-import { detectConventionDrift, scaffoldProjectConventions } from "@/actions/conventions";
+import {
+  detectConventionDrift,
+  scaffoldProjectConventions,
+} from "@/actions/conventions";
 import { getProjectConventionRules } from "@/models/conventions";
-import { ConventionStatus, type ConventionRule } from "@/components/platform/ConventionStatus";
+import {
+  ConventionStatus,
+  type ConventionRule,
+} from "@/components/platform/ConventionStatus";
 import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
@@ -26,7 +32,7 @@ export default async function ConventionPage({ params }: ConventionPageProps) {
   // Map to UI component props
   const uiRules: ConventionRule[] = rules.map((rule) => {
     // Find matching issue if any
-    const issue = driftReport?.issues.find(i => i.ruleId === rule.id);
+    const issue = driftReport?.issues.find((i) => i.ruleId === rule.id);
     return {
       id: rule.id,
       name: rule.ruleName,

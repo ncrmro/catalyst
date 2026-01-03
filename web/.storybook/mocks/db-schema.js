@@ -5,7 +5,7 @@
 
 // Mock table structure that allows InferSelectModel to work
 const createMockTable = (columns) => ({
-  _: { columns }
+  _: { columns },
 });
 
 // Export mock tables - these will be used for type inference only

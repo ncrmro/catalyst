@@ -1,19 +1,22 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { useState } from 'react';
+import React from "react";
+import { useState } from "react";
 
 // Mock kubeconfig data that would be suitable for GitHub Actions and buildx
-const generateMockKubeconfig = (clusterName: string = 'catalyst-cluster') => {
-  const token = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.' + 
-    Buffer.from(JSON.stringify({
-      iss: `https://kubernetes.default.svc.cluster.local`,
-      sub: `system:serviceaccount:default:github-actions`,
-      aud: ['https://kubernetes.default.svc.cluster.local'],
-      exp: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60), // 1 year
-      iat: Math.floor(Date.now() / 1000),
-    })).toString('base64') + 
-    '.fake-signature-for-demo-purposes-only';
+const generateMockKubeconfig = (clusterName: string = "catalyst-cluster") => {
+  const token =
+    "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9." +
+    Buffer.from(
+      JSON.stringify({
+        iss: `https://kubernetes.default.svc.cluster.local`,
+        sub: `system:serviceaccount:default:github-actions`,
+        aud: ["https://kubernetes.default.svc.cluster.local"],
+        exp: Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60, // 1 year
+        iat: Math.floor(Date.now() / 1000),
+      }),
+    ).toString("base64") +
+    ".fake-signature-for-demo-purposes-only";
 
   return `apiVersion: v1
 clusters:
@@ -46,16 +49,16 @@ export default function KubeconfigCore() {
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
     } catch (err) {
-      console.error('Failed to copy to clipboard:', err);
+      console.error("Failed to copy to clipboard:", err);
     }
   };
 
   const handleDownload = () => {
-    const blob = new Blob([kubeconfig], { type: 'text/yaml' });
+    const blob = new Blob([kubeconfig], { type: "text/yaml" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'kubeconfig.yaml';
+    a.download = "kubeconfig.yaml";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -65,13 +68,13 @@ export default function KubeconfigCore() {
   return (
     <div data-testid="kubeconfig-core">
       <h1>Kubernetes Configurations</h1>
-      <p>Export kubeconfig for use in GitHub Actions, local development, or CI/CD pipelines</p>
-      
+      <p>
+        Export kubeconfig for use in GitHub Actions, local development, or CI/CD
+        pipelines
+      </p>
+
       <div>
-        <button
-          onClick={handleCopy}
-          data-testid="copy-button"
-        >
+        <button onClick={handleCopy} data-testid="copy-button">
           {copySuccess ? (
             <>
               <span>✓</span>
@@ -84,10 +87,7 @@ export default function KubeconfigCore() {
             </>
           )}
         </button>
-        <button
-          onClick={handleDownload}
-          data-testid="download-button"
-        >
+        <button onClick={handleDownload} data-testid="download-button">
           <span>⬇️</span>
           Download
         </button>

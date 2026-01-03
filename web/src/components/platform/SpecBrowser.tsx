@@ -36,7 +36,11 @@ export function SpecBrowser({ specs, projectSlug }: SpecBrowserProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {specs.map((spec) => (
-        <Link key={spec.id} href={`/projects/${projectSlug}/spec/${spec.slug}`} className="block group">
+        <Link
+          key={spec.id}
+          href={`/projects/${projectSlug}/spec/${spec.slug}`}
+          className="block group"
+        >
           <GlassCard className="h-full hover:bg-white/5 transition-colors relative overflow-hidden">
             {/* Progress bar background */}
             <div
@@ -46,7 +50,10 @@ export function SpecBrowser({ specs, projectSlug }: SpecBrowserProps) {
               aria-valuemin={0}
               aria-valuemax={100}
             >
-              <div className="h-full bg-primary" style={{ width: `${spec.completionPercentage}%` }} />
+              <div
+                className="h-full bg-primary"
+                style={{ width: `${spec.completionPercentage}%` }}
+              />
             </div>
 
             <div className="flex justify-between items-start mb-4">
@@ -79,8 +86,18 @@ export function SpecBrowser({ specs, projectSlug }: SpecBrowserProps) {
       {/* New Spec Button Placeholder */}
       <button className="h-full min-h-[160px] border-2 border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center text-on-surface-variant hover:text-on-surface hover:border-white/20 hover:bg-white/5 transition-all group">
         <div className="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center mb-3 group-hover:bg-primary/20 group-hover:text-primary transition-colors">
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          <svg
+            className="w-6 h-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 4v16m8-8H4"
+            />
           </svg>
         </div>
         <span className="font-medium">Create New Spec</span>

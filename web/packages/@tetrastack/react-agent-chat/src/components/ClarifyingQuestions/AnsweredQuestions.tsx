@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import type { ClarifyingQuestion } from '../../types';
+import type { ClarifyingQuestion } from "../../types";
 
 export interface AnsweredQuestionsProps {
   questions: ClarifyingQuestion[];
@@ -25,13 +25,13 @@ export function AnsweredQuestions({
         {questions.map((question, index) => {
           const answer = answers[String(index)];
           const displayAnswer = Array.isArray(answer)
-            ? answer.join(', ')
+            ? answer.join(", ")
             : answer;
 
           return (
             <div key={index} data-answered-item>
               <span data-answered-header>{question.header}</span>
-              <span data-answered-value>{displayAnswer || 'No answer'}</span>
+              <span data-answered-value>{displayAnswer || "No answer"}</span>
             </div>
           );
         })}

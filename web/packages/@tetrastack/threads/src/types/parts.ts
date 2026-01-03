@@ -5,13 +5,13 @@
 
 /** Plain text content */
 export type TextPart = {
-  type: 'text';
+  type: "text";
   text: string;
 };
 
 /** Image content */
 export type ImagePart = {
-  type: 'image';
+  type: "image";
   /** Base64 encoded data or URL */
   image: string | Uint8Array;
   mimeType?: string;
@@ -19,7 +19,7 @@ export type ImagePart = {
 
 /** File attachment */
 export type FilePart = {
-  type: 'file';
+  type: "file";
   /** URL or identifier */
   data: string;
   mimeType: string;
@@ -28,7 +28,7 @@ export type FilePart = {
 
 /** Tool call request */
 export type ToolCallPart = {
-  type: 'tool-call';
+  type: "tool-call";
   toolCallId: string;
   toolName: string;
   args: unknown;
@@ -36,7 +36,7 @@ export type ToolCallPart = {
 
 /** Tool call result */
 export type ToolResultPart = {
-  type: 'tool-result';
+  type: "tool-result";
   toolCallId: string;
   result: unknown;
   isError?: boolean;
@@ -44,7 +44,7 @@ export type ToolResultPart = {
 
 /** MCP server call request */
 export type McpCallPart = {
-  type: 'mcp-call';
+  type: "mcp-call";
   server: string;
   method: string;
   params: unknown;
@@ -53,7 +53,7 @@ export type McpCallPart = {
 
 /** MCP server call result */
 export type McpResultPart = {
-  type: 'mcp-result';
+  type: "mcp-result";
   correlationId: string;
   result: unknown;
   isError?: boolean;
@@ -61,7 +61,7 @@ export type McpResultPart = {
 
 /** Source/citation reference */
 export type SourcePart = {
-  type: 'source';
+  type: "source";
   url?: string;
   title?: string;
   data?: unknown;
@@ -69,7 +69,7 @@ export type SourcePart = {
 
 /** Error information */
 export type ErrorPart = {
-  type: 'error';
+  type: "error";
   message: string;
   code?: string;
 };

@@ -11,6 +11,8 @@ Avoid importing components directly from `tetrastack-react-glass-components` els
 
 Storybook is a first-class citizen for design iteration. We aim for structured, easily testable components.
 
+**IMPORTANT**: Always use `@storybook/nextjs-vite` for Storybook types and imports (e.g., `Meta`, `StoryObj`). Avoid importing from `@storybook/react` or `@storybook/nextjs` directly.
+
 ### File Structure
 
 ```text

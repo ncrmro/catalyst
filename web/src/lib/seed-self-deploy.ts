@@ -37,7 +37,12 @@ const CATALYST_PROJECT_CONFIG: ProjectConfig = {
     },
   },
   defaultManagedServices: {
-    postgres: { enabled: true, version: "16", storageSize: "1Gi", database: "catalyst" },
+    postgres: {
+      enabled: true,
+      version: "16",
+      storageSize: "1Gi",
+      database: "catalyst",
+    },
     redis: { enabled: false, version: "7", storageSize: "256Mi" },
   },
   defaultResources: {
@@ -50,8 +55,8 @@ const CATALYST_PROJECT_CONFIG: ProjectConfig = {
       requests: { cpu: "100m", memory: "128Mi" },
       limits: { cpu: "500m", memory: "512Mi" },
       replicas: 1,
-    }
-  }
+    },
+  },
 };
 
 /**

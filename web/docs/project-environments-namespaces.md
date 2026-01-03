@@ -11,11 +11,13 @@ The feature allows creating Kubernetes namespaces for different project environm
 Namespaces are created with the format: `{team}-{project}-{environment}`
 
 ### Supported Environments
+
 - `production`
-- `staging` 
+- `staging`
 - `pr-1`
 
 ### Example Namespace Names
+
 - `myteam-myproject-production`
 - `myteam-myproject-staging`
 - `myteam-myproject-pr-1`
@@ -23,6 +25,7 @@ Namespaces are created with the format: `{team}-{project}-{environment}`
 ## Required Labels
 
 All created namespaces include the following labels:
+
 ```yaml
 catalyst/team: "{team}"
 catalyst/project: "{project}"
@@ -36,15 +39,17 @@ catalyst/environment: "{environment}"
 **Endpoint:** `POST /api/kubernetes/namespaces`
 
 **Request Body:**
+
 ```json
 {
   "team": "myteam",
-  "project": "myproject", 
+  "project": "myproject",
   "environment": "production"
 }
 ```
 
 **Success Response:**
+
 ```json
 {
   "success": true,
@@ -62,6 +67,7 @@ catalyst/environment: "{environment}"
 ```
 
 **Existing Namespace Response:**
+
 ```json
 {
   "success": true,
@@ -70,7 +76,7 @@ catalyst/environment: "{environment}"
     "name": "myteam-myproject-production",
     "labels": {
       "catalyst/team": "myteam",
-      "catalyst/project": "myproject", 
+      "catalyst/project": "myproject",
       "catalyst/environment": "production"
     },
     "created": false
@@ -79,6 +85,7 @@ catalyst/environment: "{environment}"
 ```
 
 **Error Response:**
+
 ```json
 {
   "success": false,
@@ -91,12 +98,12 @@ catalyst/environment: "{environment}"
 You can also use the namespace creation function directly in code:
 
 ```typescript
-import { createProjectNamespace } from '@/lib/k8s-namespaces';
+import { createProjectNamespace } from "@/lib/k8s-namespaces";
 
 const result = await createProjectNamespace({
-  team: 'myteam',
-  project: 'myproject',
-  environment: 'production'
+  team: "myteam",
+  project: "myproject",
+  environment: "production",
 });
 ```
 
@@ -105,11 +112,13 @@ const result = await createProjectNamespace({
 The feature includes comprehensive testing:
 
 ### Unit Tests
+
 - API endpoint validation and error handling
 - Mocked Kubernetes client interactions
 - Input validation testing
 
-### Integration Tests  
+### Integration Tests
+
 - E2E tests that create real namespaces in Kind cluster
 - Verification that namespaces exist in Kubernetes
 - Proper label application testing
@@ -121,7 +130,7 @@ The feature includes comprehensive testing:
 # Run unit tests
 npm run test
 
-# Run E2E tests  
+# Run E2E tests
 npm run test:e2e
 
 # Run specific namespace tests
@@ -131,12 +140,14 @@ npm run test:e2e -- --grep "should create project namespaces"
 ## Implementation Details
 
 ### Files Created
+
 - `src/lib/k8s-namespaces.ts` - Core namespace creation functionality
 - `src/app/api/kubernetes/namespaces/route.ts` - API endpoint
 - `__tests__/api/kubernetes/namespaces.test.ts` - Unit tests
 - `__tests__/e2e/kubernetes.spec.ts` - E2E integration test (updated)
 
 ### Key Functions
+
 - `createProjectNamespace()` - Creates namespace with proper labels
 - `generateNamespaceName()` - Generates valid namespace names
 - `namespaceExists()` - Checks if namespace exists

@@ -19,6 +19,7 @@ The Pull Request Pod Manifest functionality provides a way to deploy Kubernetes 
 Creates a Kubernetes job with a service account that has permissions to create pods for buildx.
 
 **Parameters:**
+
 - `name`: Unique identifier for the PR job
 - `namespace`: Kubernetes namespace (default: 'default')
 - `image`: Container image to use (default: 'docker:24-dind')
@@ -27,13 +28,14 @@ Creates a Kubernetes job with a service account that has permissions to create p
 **Returns:** `PullRequestPodResult` containing job details
 
 **Example:**
+
 ```typescript
-import { createPullRequestPodJob } from '@/lib/k8s-pull-request-pod';
+import { createPullRequestPodJob } from "@/lib/k8s-pull-request-pod";
 
 const result = await createPullRequestPodJob({
-  name: 'pr-123-build',
-  namespace: 'default',
-  image: 'docker:24-dind'
+  name: "pr-123-build",
+  namespace: "default",
+  image: "docker:24-dind",
 });
 
 console.log(`Created job: ${result.jobName}`);
@@ -44,6 +46,7 @@ console.log(`Created job: ${result.jobName}`);
 Creates a service account with the necessary permissions for buildx kubernetes driver.
 
 **Permissions Created:**
+
 - `pods`: create, get, list, watch, delete
 - `pods/log`: get
 - `configmaps, secrets`: get, list
@@ -53,6 +56,7 @@ Creates a service account with the necessary permissions for buildx kubernetes d
 Retrieves the current status of a pull request pod job.
 
 **Returns:**
+
 - `jobName`: Name of the job
 - `status`: Current job status
 - `succeeded`, `failed`, `active`: Job execution counters
@@ -61,6 +65,7 @@ Retrieves the current status of a pull request pod job.
 ### `cleanupPullRequestPodJob(name, namespace, clusterName)`
 
 Cleans up all resources created for a pull request pod job including:
+
 - Jobs with matching labels
 - Service account
 - Role and role binding
@@ -84,15 +89,15 @@ The service account created has these specific permissions:
 
 ```yaml
 rules:
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["create", "get", "list", "watch", "delete"]
-- apiGroups: [""]
-  resources: ["pods/log"]
-  verbs: ["get"]
-- apiGroups: [""]
-  resources: ["configmaps", "secrets"]
-  verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list"]
 ```
 
 ## Resource Labels
@@ -146,6 +151,7 @@ This functionality is designed to work with GitHub Actions workflows:
 The functionality is exposed via `/api/kubernetes/pr-jobs` endpoint:
 
 **Create a job:**
+
 ```bash
 curl -X POST /api/kubernetes/pr-jobs \
   -H "Content-Type: application/json" \
@@ -158,6 +164,7 @@ curl -X POST /api/kubernetes/pr-jobs \
 ```
 
 **Check job status:**
+
 ```bash
 curl -X POST /api/kubernetes/pr-jobs \
   -H "Content-Type: application/json" \
@@ -169,6 +176,7 @@ curl -X POST /api/kubernetes/pr-jobs \
 ```
 
 **Clean up resources:**
+
 ```bash
 curl -X POST /api/kubernetes/pr-jobs \
   -H "Content-Type: application/json" \

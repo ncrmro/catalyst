@@ -5,19 +5,23 @@ This document demonstrates how the Kubernetes integration would work in a real e
 ## Available Kubernetes Features
 
 ### Pull Request Pod Manifests
+
 For creating jobs with buildx kubernetes driver support, see [Pull Request Pod Manifest Documentation](./pull-request-pod-manifest.md).
 
 ### Deployment Management
+
 The following demonstrates basic deployment operations:
 
 ## API Endpoint Usage
 
 Call the deployment endpoint:
+
 ```bash
 curl http://localhost:3000/api/kubernetes/deploy-nginx
 ```
 
 ### Expected Success Response
+
 ```json
 {
   "success": true,
@@ -96,17 +100,20 @@ Conditions:
 ## Integration Test Scenarios
 
 ### Scenario 1: Successful Deployment
+
 1. Call API endpoint
 2. Verify deployment exists with kubectl
 3. Check pod is running
 4. Clean up deployment
 
 ### Scenario 2: No Kubernetes Access
+
 1. Call API endpoint
 2. Receive error response about missing configuration
 3. Verify graceful error handling
 
 ### Scenario 3: Insufficient Permissions
+
 1. Call API endpoint with limited RBAC
 2. Receive unauthorized error
 3. Verify appropriate error message
@@ -114,6 +121,7 @@ Conditions:
 ## Clean Up
 
 To clean up created deployments:
+
 ```bash
 # Delete specific deployment
 kubectl delete deployment nginx-deployment-1754966001914 -n default
@@ -125,6 +133,7 @@ kubectl delete deployments -l created-by=catalyst-web-app -n default
 ## Environment Requirements
 
 For the integration tests to work properly:
+
 - Kubernetes cluster (kind, minikube, or real cluster)
 - kubectl configured and accessible
 - Appropriate RBAC permissions for deployment creation

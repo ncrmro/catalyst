@@ -24,13 +24,29 @@ export function GoldenSignalDashboard({ signals }: GoldenSignalDashboardProps) {
   const getSignalConfig = (type: SignalType) => {
     switch (type) {
       case "latency":
-        return { label: "Latency (p99)", color: "text-blue-400", bg: "bg-blue-400/10" };
+        return {
+          label: "Latency (p99)",
+          color: "text-blue-400",
+          bg: "bg-blue-400/10",
+        };
       case "traffic":
-        return { label: "Traffic", color: "text-green-400", bg: "bg-green-400/10" };
+        return {
+          label: "Traffic",
+          color: "text-green-400",
+          bg: "bg-green-400/10",
+        };
       case "errors":
-        return { label: "Error Rate", color: "text-red-400", bg: "bg-red-400/10" };
+        return {
+          label: "Error Rate",
+          color: "text-red-400",
+          bg: "bg-red-400/10",
+        };
       case "saturation":
-        return { label: "Saturation", color: "text-orange-400", bg: "bg-orange-400/10" };
+        return {
+          label: "Saturation",
+          color: "text-orange-400",
+          bg: "bg-orange-400/10",
+        };
     }
   };
 
@@ -50,12 +66,17 @@ export function GoldenSignalDashboard({ signals }: GoldenSignalDashboardProps) {
       {signals.map((signal) => {
         const config = getSignalConfig(signal.type);
         return (
-          <GlassCard key={signal.type} className="flex flex-col h-32 justify-between">
+          <GlassCard
+            key={signal.type}
+            className="flex flex-col h-32 justify-between"
+          >
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-on-surface-variant uppercase tracking-wider">
                 {config.label}
               </span>
-              <span className={`text-xs font-bold uppercase ${getStatusColor(signal.status)}`}>
+              <span
+                className={`text-xs font-bold uppercase ${getStatusColor(signal.status)}`}
+              >
                 {signal.status}
               </span>
             </div>
@@ -64,7 +85,9 @@ export function GoldenSignalDashboard({ signals }: GoldenSignalDashboardProps) {
               <span className="text-3xl font-bold text-on-surface">
                 {signal.currentValue.toLocaleString()}
               </span>
-              <span className="text-sm text-on-surface-variant mb-1">{signal.unit}</span>
+              <span className="text-sm text-on-surface-variant mb-1">
+                {signal.unit}
+              </span>
             </div>
 
             {/* Sparkline Placeholder */}
@@ -73,7 +96,9 @@ export function GoldenSignalDashboard({ signals }: GoldenSignalDashboardProps) {
                 <div
                   key={i}
                   className={`flex-1 ${config.bg.replace("/10", "/30")}`}
-                  style={{ height: `${Math.min(100, (pt.value / Math.max(...signal.history.map(h => h.value))) * 100)}%` }}
+                  style={{
+                    height: `${Math.min(100, (pt.value / Math.max(...signal.history.map((h) => h.value))) * 100)}%`,
+                  }}
                 />
               ))}
             </div>

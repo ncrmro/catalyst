@@ -3,23 +3,23 @@
  * Uses the many-first design pattern.
  */
 
-import { createThreadsModel, type Thread } from './threads';
-import { createItemsModel, type Item } from './items';
-import { createEdgesModel } from './edges';
-import { createStreamsModel } from './streams';
-import type { DrizzleDb } from './factory';
+import { createThreadsModel, type Thread } from "./threads";
+import { createItemsModel, type Item } from "./items";
+import { createEdgesModel } from "./edges";
+import { createStreamsModel } from "./streams";
+import type { DrizzleDb } from "./factory";
 
 // Factory utilities
-export { createModelFactory, takeFirst } from './factory';
-export type { DrizzleDb, ModelSelect, ModelInsert } from './factory';
+export { createModelFactory, takeFirst } from "./factory";
+export type { DrizzleDb, ModelSelect, ModelInsert } from "./factory";
 
 // Thread model
-export { createThreadsModel } from './threads';
-export type { ThreadsModel, Thread, NewThread } from './threads';
+export { createThreadsModel } from "./threads";
+export type { ThreadsModel, Thread, NewThread } from "./threads";
 
 // Item model
-export { createItemsModel } from './items';
-export type { ItemsModel, Item, NewItem } from './items';
+export { createItemsModel } from "./items";
+export type { ItemsModel, Item, NewItem } from "./items";
 
 /**
  * Thread with its items (messages) included.
@@ -30,12 +30,12 @@ export interface ThreadWithItems extends Thread {
 }
 
 // Edge model
-export { createEdgesModel } from './edges';
-export type { EdgesModel, Edge, NewEdge } from './edges';
+export { createEdgesModel } from "./edges";
+export type { EdgesModel, Edge, NewEdge } from "./edges";
 
 // Stream model
-export { createStreamsModel } from './streams';
-export type { StreamsModel, Stream, NewStream } from './streams';
+export { createStreamsModel } from "./streams";
+export type { StreamsModel, Stream, NewStream } from "./streams";
 
 /**
  * Create all thread-related models bound to a database instance.

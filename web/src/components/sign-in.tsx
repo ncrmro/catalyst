@@ -1,19 +1,27 @@
-import { signIn } from "@/auth"
- 
+import { signIn } from "@/auth";
+
 export default function SignIn() {
   return (
     <form
       action={async (formData) => {
-        "use server"
-        await signIn(process.env.NODE_ENV === "development" ? "password" : "github", {
-          password: formData.get("password"),
-          redirectTo: "/",
-        });
+        "use server";
+        await signIn(
+          process.env.NODE_ENV === "development" ? "password" : "github",
+          {
+            password: formData.get("password"),
+            redirectTo: "/",
+          },
+        );
       }}
     >
       {process.env.NODE_ENV === "development" && (
         <div className="mb-4">
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700">Development Password</label>
+          <label
+            htmlFor="password"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Development Password
+          </label>
           <input
             id="password"
             name="password"
@@ -23,12 +31,14 @@ export default function SignIn() {
           />
         </div>
       )}
-      <button 
+      <button
         type="submit"
         className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-primary text-on-primary gap-2 hover:opacity-90 font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
       >
-        {process.env.NODE_ENV === "development" ? "Sign in (dev password)" : "Sign in with GitHub"}
+        {process.env.NODE_ENV === "development"
+          ? "Sign in (dev password)"
+          : "Sign in with GitHub"}
       </button>
     </form>
-  )
+  );
 }

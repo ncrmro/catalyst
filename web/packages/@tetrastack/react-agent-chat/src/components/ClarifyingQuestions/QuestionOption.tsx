@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import type { QuestionOption as QuestionOptionType } from '../../types';
+import type { QuestionOption as QuestionOptionType } from "../../types";
 
 export interface QuestionOptionProps {
   option: QuestionOptionType;
@@ -26,7 +26,7 @@ export function QuestionOption({
   return (
     <button
       type="button"
-      role={isMultiSelect ? 'checkbox' : 'radio'}
+      role={isMultiSelect ? "checkbox" : "radio"}
       aria-checked={isSelected}
       onClick={onClick}
       data-question-option

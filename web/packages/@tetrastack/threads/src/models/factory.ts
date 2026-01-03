@@ -7,7 +7,7 @@
  * database connections.
  */
 
-import { and, eq, inArray, type SQL } from 'drizzle-orm';
+import { and, eq, inArray, type SQL } from "drizzle-orm";
 
 /**
  * Database interface that both SQLite and PostgreSQL clients implement.
@@ -36,7 +36,7 @@ interface ValidationSchema {
  */
 export function takeFirst<T>(items: T[], errorMsg?: string): T {
   if (!items[0]) {
-    throw new Error(errorMsg || 'Record not found');
+    throw new Error(errorMsg || "Record not found");
   }
   return items[0];
 }
@@ -167,11 +167,11 @@ export function createModelFactory<
  */
 export type ModelSelect<
   T extends { select: (...args: never[]) => Promise<unknown[]> },
-> = Awaited<ReturnType<T['select']>>[number];
+> = Awaited<ReturnType<T["select"]>>[number];
 
 /**
  * Type helper to infer Insert type from a model CRUD instance.
  */
 export type ModelInsert<
   T extends { insert: (...args: never[]) => Promise<unknown> },
-> = Parameters<T['insert']>[0] extends (infer U)[] ? U : never;
+> = Parameters<T["insert"]>[0] extends (infer U)[] ? U : never;

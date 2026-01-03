@@ -3,15 +3,15 @@
  * Items are the append-only event log within a thread.
  */
 
-import { eq } from 'drizzle-orm';
-import { createModelFactory, type DrizzleDb } from './factory';
+import { eq } from "drizzle-orm";
+import { createModelFactory, type DrizzleDb } from "./factory";
 import {
   items,
   insertItemSchema,
   type Item,
   type NewItem,
-} from '../database/schema/sqlite';
-import type { Visibility } from '../types';
+} from "../database/schema/sqlite";
+import type { Visibility } from "../types";
 
 /**
  * Creates an items model instance bound to the given database.
@@ -54,13 +54,13 @@ export function createItemsModel(db: DrizzleDb) {
      */
     async listByThread(
       threadId: string,
-      order: 'asc' | 'desc' = 'asc',
+      order: "asc" | "desc" = "asc",
     ): Promise<Item[]> {
       const result = await base.select([eq(items.threadId, threadId)]);
       // Sort by ID since UUIDv7 is time-sortable
       return result.sort((a, b) => {
         const cmp = a.id.localeCompare(b.id);
-        return order === 'asc' ? cmp : -cmp;
+        return order === "asc" ? cmp : -cmp;
       });
     },
 
@@ -91,7 +91,7 @@ export function createItemsModel(db: DrizzleDb) {
      */
     async listVisible(threadId: string): Promise<Item[]> {
       const all = await this.listByThread(threadId);
-      return all.filter((item) => item.visibility === 'visible');
+      return all.filter((item) => item.visibility === "visible");
     },
 
     /**
@@ -99,7 +99,7 @@ export function createItemsModel(db: DrizzleDb) {
      */
     async listForContext(threadId: string): Promise<Item[]> {
       const all = await this.listByThread(threadId);
-      return all.filter((item) => item.visibility !== 'archived');
+      return all.filter((item) => item.visibility !== "archived");
     },
 
     /**
@@ -123,14 +123,14 @@ export function createItemsModel(db: DrizzleDb) {
      * Archive an item (soft delete - removes from both UI and LLM context).
      */
     async archive(id: string): Promise<Item> {
-      return this.setVisibility(id, 'archived');
+      return this.setVisibility(id, "archived");
     },
 
     /**
      * Hide an item from UI but keep in LLM context.
      */
     async hide(id: string): Promise<Item> {
-      return this.setVisibility(id, 'hidden');
+      return this.setVisibility(id, "hidden");
     },
 
     /**
@@ -144,7 +144,7 @@ export function createItemsModel(db: DrizzleDb) {
      * Get the latest item in a thread.
      */
     async getLatest(threadId: string): Promise<Item | undefined> {
-      const all = await this.listByThread(threadId, 'desc');
+      const all = await this.listByThread(threadId, "desc");
       return all[0];
     },
 

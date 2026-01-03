@@ -233,7 +233,6 @@ export const IconOnly: Story = {
  * All variants comparison
  */
 export const AllVariants: Story = {
-
   args: { icon: null },
   render: () => (
     <div className="flex flex-wrap items-center gap-4">
@@ -261,7 +260,6 @@ export const AllVariants: Story = {
  * All sizes comparison
  */
 export const AllSizes: Story = {
-
   args: { icon: null },
   render: () => (
     <div className="flex flex-wrap items-center gap-6">
@@ -285,7 +283,6 @@ export const AllSizes: Story = {
  * Icon only - all sizes
  */
 export const IconOnlySizes: Story = {
-
   args: { icon: null },
   render: () => (
     <div className="flex flex-wrap items-center gap-6">
@@ -309,7 +306,6 @@ export const IconOnlySizes: Story = {
  * In context example - container actions
  */
 export const InContextContainerActions: Story = {
-
   args: { icon: null },
   render: () => (
     <div className="w-80 rounded-lg bg-surface p-4">
@@ -346,7 +342,6 @@ export const InContextContainerActions: Story = {
  * In context example - toolbar
  */
 export const InContextToolbar: Story = {
-
   args: { icon: null },
   render: () => (
     <div className="flex items-center gap-2 rounded-lg bg-surface p-3 border border-outline/50">
@@ -368,7 +363,6 @@ export const InContextToolbar: Story = {
  * In context example - agent actions
  */
 export const InContextAgentActions: Story = {
-
   args: { icon: null },
   render: () => (
     <div className="w-full max-w-md rounded-lg bg-surface p-4 border border-outline/50">

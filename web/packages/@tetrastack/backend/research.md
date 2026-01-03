@@ -64,10 +64,10 @@ Traditional ID strategies have limitations:
 
 ```typescript
 // Works in both SQLite (as text) and PostgreSQL (as native uuid)
-id: text('id')
+id: text("id")
   .primaryKey()
   .$defaultFn(() => uuidv7());
-id: uuid('id')
+id: uuid("id")
   .primaryKey()
   .$defaultFn(() => uuidv7());
 ```

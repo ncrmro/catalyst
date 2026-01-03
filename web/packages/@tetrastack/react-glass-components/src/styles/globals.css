@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 :root {
   color-scheme: light dark;
@@ -378,7 +378,7 @@ html.dark.theme-background {
   color: hsl(var(--on-surface-variant));
   border-left-width: 0.25rem;
   border-left-color: hsl(var(--outline));
-  quotes: '\201C' '\201D' '\2018' '\2019';
+  quotes: "\201C" "\201D" "\2018" "\2019";
   margin-top: 1.5rem;
   margin-bottom: 1.5rem;
   padding-left: 1rem;

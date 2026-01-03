@@ -2,7 +2,6 @@
  * @vitest-environment node
  */
 
- 
 import {
   describe,
   it,
@@ -30,7 +29,9 @@ vi.mock("@/lib/vcs-providers", () => ({
 // Mock the preview environments model (not needed for database integration tests)
 vi.mock("@/models/preview-environments", () => ({
   createPreviewDeployment: vi.fn().mockResolvedValue({ success: true }),
-  deletePreviewDeploymentOrchestrated: vi.fn().mockResolvedValue({ success: true }),
+  deletePreviewDeploymentOrchestrated: vi
+    .fn()
+    .mockResolvedValue({ success: true }),
 }));
 
 // Mock Kubernetes operations (not needed for database integration tests)
