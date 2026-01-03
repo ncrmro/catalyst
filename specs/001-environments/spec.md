@@ -12,6 +12,7 @@ Catalyst manages two types of environments: **Deployment Environments** (product
 - [research.nginx-ingress.md](./research.nginx-ingress.md) - NGINX ingress controller for routing to preview environments
 - [research.web-terminal.md](./research.web-terminal.md) - Web terminal implementation approaches (WebSocket, SSE, polling, custom servers)
 - [research.local-url-testing.md](./research.local-url-testing.md) - Local development URL testing approaches (nip.io, hosts, dnsmasq, tunnels)
+- [research.project-detection.md](./research.project-detection.md) - Automatic project type detection implementation (FR-ENV-006 through FR-ENV-011)
 
 ## Child Specifications
 
