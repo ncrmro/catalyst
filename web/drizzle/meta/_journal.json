@@ -127,6 +127,13 @@
       "when": 1767318114950,
       "tag": "0017_striped_hiroim",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1767411326316,
+      "tag": "0018_classy_joshua_kane",
+      "breakpoints": true
     }
   ]
 }

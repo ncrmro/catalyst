@@ -145,7 +145,7 @@ export function EnvironmentCardClient({
     if (needsConfiguration) {
       return (
         <Link
-          href={`/projects/${projectSlug}/configure`}
+          href={`/projects/${projectSlug}/platform`}
           onClick={(e) => e.stopPropagation()}
         >
           <GlassButton size="small" variant="primary">

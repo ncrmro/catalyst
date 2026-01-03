@@ -1,10 +1,15 @@
+import { Suspense } from "react";
 import { fetchProjectBySlug } from "@/actions/projects";
 import { GlassCard } from "@tetrastack/react-glass-components";
 import { listEnvironmentCRs } from "@/lib/k8s-operator";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
-import Link from "next/link";
-import { EnvironmentRow } from "@/components/environment-row";
+import {
+  DeploymentEnvironmentsCard,
+  DevelopmentEnvironmentsCard,
+} from "./_components/environment-cards";
+import { DetectionWrapper } from "./_components/detection-wrapper";
+import { DetectionLoading } from "./_components/detection-loading";
 
 interface PlatformPageProps {
   params: Promise<{
@@ -35,6 +40,10 @@ export default async function PlatformPage({ params }: PlatformPageProps) {
     notFound();
   }
 
+  // Get the primary repository for detection
+  const primaryRepoRelation = project.repositories.find((r) => r.isPrimary);
+  const primaryRepo = primaryRepoRelation?.repo;
+
   // Get environments from K8s
   const sanitizedProjectName = project.name
     .toLowerCase()
@@ -64,25 +73,53 @@ export default async function PlatformPage({ params }: PlatformPageProps) {
   const domainLabel = isLocalDev ? "Local Path" : "Domain";
   const domainStatus = isLocalDev ? "Path-based" : "Auto-assigned";
 
+  // Build config content for cards with Suspense boundaries
+  const deploymentConfigContent = primaryRepo ? (
+    <Suspense fallback={<DetectionLoading />}>
+      <DetectionWrapper
+        projectId={project.id}
+        repoId={primaryRepo.id}
+        repoFullName={primaryRepo.fullName}
+        environmentName="production"
+        environmentType="deployment"
+        projectConfig={project.projectConfig}
+      />
+    </Suspense>
+  ) : (
+    <div className="text-sm text-on-surface-variant">
+      No repository connected. Connect a repository to configure deployments.
+    </div>
+  );
+
+  const developmentConfigContent = primaryRepo ? (
+    <Suspense fallback={<DetectionLoading />}>
+      <DetectionWrapper
+        projectId={project.id}
+        repoId={primaryRepo.id}
+        repoFullName={primaryRepo.fullName}
+        environmentName="development"
+        environmentType="development"
+      />
+    </Suspense>
+  ) : (
+    <div className="text-sm text-on-surface-variant">
+      No repository connected. Connect a repository to configure development
+      environments.
+    </div>
+  );
+
   return (
     <>
       {/* Platform Overview */}
       <GlassCard>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-semibold text-on-surface">
-              Platform Configuration
-            </h2>
-            <p className="text-sm text-on-surface-variant mt-1">
-              Manage deployment environments and infrastructure settings
-            </p>
-          </div>
-          <Link
-            href={`/projects/${slug}/configure`}
-            className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-on-primary bg-primary rounded-lg hover:opacity-90 transition-opacity"
-          >
-            Configure
-          </Link>
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-on-surface">
+            Platform Configuration
+          </h2>
+          <p className="text-sm text-on-surface-variant mt-1">
+            View and manage deployment environments. Select an environment below
+            to configure its deployment method and settings.
+          </p>
         </div>
 
         {/* Quick Stats */}
@@ -112,105 +149,19 @@ export default async function PlatformPage({ params }: PlatformPageProps) {
         </div>
       </GlassCard>
 
-      {/* Deployment Environments */}
-      <GlassCard>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-on-surface">
-            Deployment Environments
-          </h2>
-          <Link
-            href={`/environments/${slug}`}
-            className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-primary hover:underline"
-          >
-            Add Environment
-          </Link>
-        </div>
+      {/* Deployment Environments Card with Tabs */}
+      <DeploymentEnvironmentsCard
+        environments={deploymentEnvironments}
+        projectSlug={slug}
+        configContent={deploymentConfigContent}
+      />
 
-        <div className="divide-y divide-outline/50 -mx-6">
-          {deploymentEnvironments.length > 0 ? (
-            deploymentEnvironments.map((env) => (
-              <EnvironmentRow
-                key={env.metadata.name}
-                environment={env}
-                projectSlug={slug}
-              />
-            ))
-          ) : (
-            <div className="px-6 py-8 text-center">
-              <svg
-                className="w-12 h-12 mx-auto text-on-surface-variant/50 mb-3"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"
-                />
-              </svg>
-              <p className="text-on-surface-variant">
-                No deployment environments configured
-              </p>
-              <p className="text-sm text-on-surface-variant/70 mt-1">
-                Set up staging and production environments to deploy your
-                application
-              </p>
-              <Link
-                href={`/environments/${slug}`}
-                className="inline-flex items-center mt-4 px-4 py-2 text-sm font-medium text-on-primary bg-primary rounded-lg hover:opacity-90 transition-opacity"
-              >
-                Create Environment
-              </Link>
-            </div>
-          )}
-        </div>
-      </GlassCard>
-
-      {/* Development Environments */}
-      <GlassCard>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-on-surface">
-            Development Environments
-          </h2>
-        </div>
-
-        <div className="divide-y divide-outline/50 -mx-6">
-          {developmentEnvironments.length > 0 ? (
-            developmentEnvironments.map((env) => (
-              <EnvironmentRow
-                key={env.metadata.name}
-                environment={env}
-                projectSlug={slug}
-              />
-            ))
-          ) : (
-            <div className="px-6 py-8 text-center">
-              <svg
-                className="w-12 h-12 mx-auto text-on-surface-variant/50 mb-3"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-              <p className="text-on-surface-variant">
-                No development environments active
-              </p>
-              <p className="text-sm text-on-surface-variant/70 mt-1">
-                Development environments are created automatically from pull
-                requests
-              </p>
-            </div>
-          )}
-        </div>
-      </GlassCard>
+      {/* Development Environments Card with Tabs */}
+      <DevelopmentEnvironmentsCard
+        environments={developmentEnvironments}
+        projectSlug={slug}
+        configContent={developmentConfigContent}
+      />
 
       {/* Infrastructure Settings */}
       <GlassCard>

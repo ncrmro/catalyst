@@ -82,14 +82,12 @@ export const Step2_WithHelmConfig: Story = {
       },
       deployment: {
         method: "helm",
-        helm: {
-          chartPath: "./charts/app",
-          valuesPath: "./values.yaml",
-        },
+        chartPath: "./charts/app",
+        valuesPath: "./values.yaml",
         managedServices: {
-          postgres: true,
-          redis: false,
-          opensearch: false,
+          postgres: { enabled: true },
+          redis: { enabled: false },
+          opensearch: { enabled: false },
         },
       },
     },
@@ -112,13 +110,11 @@ export const Step3_CreateEnvironment: Story = {
       },
       deployment: {
         method: "helm",
-        helm: {
-          chartPath: "./charts/app",
-        },
+        chartPath: "./charts/app",
         managedServices: {
-          postgres: true,
-          redis: true,
-          opensearch: false,
+          postgres: { enabled: true },
+          redis: { enabled: true },
+          opensearch: { enabled: false },
         },
       },
     },
@@ -141,14 +137,12 @@ export const Step3_WithDevelopmentEnv: Story = {
       },
       deployment: {
         method: "docker",
-        docker: {
-          dockerfilePath: "./Dockerfile",
-          context: ".",
-        },
+        dockerfilePath: "./Dockerfile",
+        context: ".",
         managedServices: {
-          postgres: true,
-          redis: false,
-          opensearch: false,
+          postgres: { enabled: true },
+          redis: { enabled: false },
+          opensearch: { enabled: false },
         },
       },
       environment: {
@@ -176,14 +170,12 @@ export const Complete: Story = {
       },
       deployment: {
         method: "helm",
-        helm: {
-          chartPath: "./charts/nextjs",
-          valuesPath: "./values/production.yaml",
-        },
+        chartPath: "./charts/nextjs",
+        valuesPath: "./values/production.yaml",
         managedServices: {
-          postgres: true,
-          redis: true,
-          opensearch: true,
+          postgres: { enabled: true },
+          redis: { enabled: true },
+          opensearch: { enabled: true },
         },
       },
       environment: {

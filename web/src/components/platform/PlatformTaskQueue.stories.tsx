@@ -52,9 +52,9 @@ const mockTasks: PlatformTask[] = [
 export const Default: Story = {
   args: {
     tasks: mockTasks,
-    onRetry: (id) => console.log(`Retry ${id}`),
-    onApprove: (id) => console.log(`Approve ${id}`),
-    onDismiss: (id) => console.log(`Dismiss ${id}`),
+    onRetry: (id: string) => console.log(`Retry ${id}`),
+    onApprove: (id: string) => console.log(`Approve ${id}`),
+    onDismiss: (id: string) => console.log(`Dismiss ${id}`),
   },
 };
 
