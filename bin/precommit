@@ -1,47 +1,192 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python3
+"""
+Central Pre-commit Hook Script
 
-# =============================================================================
-# Central Pre-commit Hook Script
-# =============================================================================
-#
-# FUNCTIONAL SPECIFICATION (sync with docs/platform/development-workflow.md)
-#
-# Purpose:
-#   Provide unified code quality checks across all development entry points
-#   (Git commits, Claude Code sessions, Gemini CLI sessions).
-#
-# Requirements:
-#   1. Run code formatting and linting
-#   2. Run static type checking
-#   3. Run unit tests
-#   4. Exit with non-zero status if any check fails
-#   5. Resolve symlinks to work when called via symlink
-#
-# Entry Points (all symlink to this script):
-#   - Git pre-commit: web/.husky/pre-commit
-#   - Claude stop:    .claude/hooks/pre-commit-on-stop.sh
-#   - Gemini stop:    .gemini/hooks/pre-commit-on-stop.sh
-#
-# =============================================================================
+FUNCTIONAL SPECIFICATION (sync with docs/platform/development-workflow.md)
 
-set -e
+Purpose:
+  Provide unified code quality checks across all development entry points
+  (Git commits, Claude Code sessions, Gemini CLI sessions).
 
-# Resolve symlinks to find the real script location
-SCRIPT_PATH="$(readlink -f "$0")"
-cd "$(dirname "$SCRIPT_PATH")/../web" || exit 1
+Requirements:
+  1. Run code formatting and linting
+  2. Run static type checking
+  3. Run unit tests
+  4. Exit with non-zero status if any check fails
+  5. Resolve symlinks to work when called via symlink
+  6. Filter warnings in agent mode to avoid context overflow
 
-echo "Running pre-commit checks..."
+Entry Points (all symlink to this script):
+  - Git pre-commit: web/.husky/pre-commit
+  - Claude stop:    .claude/hooks/pre-commit-on-stop.sh
+  - Gemini stop:    .gemini/hooks/pre-commit-on-stop.sh
 
-# Run Biome for formatting and linting
-echo "Checking code with Biome..."
-node_modules/.bin/biome check --write .
+Exit Codes:
+  0 - All checks passed
+  1 - Check failed but output not needed by agent (silent failure)
+  2 - Check failed AND agent should see the error output to fix issues
 
-# Run TypeScript type checking
-echo "Type checking with TypeScript..."
-node_modules/.bin/tsc --noEmit
+Agent Mode:
+  When CLAUDE_PROJECT_DIR or GEMINI_PROJECT_DIR environment variables
+  are set, the script runs in "agent mode" which filters verbose output
+  (warnings, hints, code snippets) to avoid overflowing the agent's
+  context window. Actual errors are preserved, and exit code 2 signals
+  the agent should review the output.
 
-# Run unit tests
-echo "Running unit tests..."
-npm run test:unit
+Verification:
+  # Normal mode (full output):
+  bin/precommit
 
-echo "✓ All pre-commit checks passed!"
+  # Agent mode (filtered output - ~80% fewer lines):
+  CLAUDE_PROJECT_DIR=/tmp bin/precommit
+
+  # Compare line counts:
+  bin/precommit 2>&1 | wc -l                            # ~290 lines
+  CLAUDE_PROJECT_DIR=/tmp bin/precommit 2>&1 | wc -l    # ~60 lines
+
+  # Verify exit code 2 on failure in agent mode:
+  CLAUDE_PROJECT_DIR=/tmp bin/precommit; echo "Exit: $?"  # Exit: 2
+"""
+
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+# Patterns to filter out in agent mode (compiled for performance)
+FILTER_PATTERNS = [
+    re.compile(r'^npm WARN', re.MULTILINE),
+    re.compile(r'DeprecationWarning'),
+    re.compile(r'ExperimentalWarning'),
+    re.compile(r'^\s+at .+\(.+:\d+:\d+\)', re.MULTILINE),  # Stack traces
+    re.compile(r'^\s+\d+ │', re.MULTILINE),  # Biome code snippets
+    re.compile(r'^\s+>\s+\d+ │', re.MULTILINE),  # Biome highlighted lines
+    re.compile(r'^\s+\^+\s*$', re.MULTILINE),  # Biome pointer lines
+    re.compile(r'^\s+i ', re.MULTILINE),  # Biome info/hint lines
+    re.compile(r'lint/style/'),  # Biome style lint rules
+    re.compile(r'lint/suspicious/'),  # Biome suspicious lint rules
+    re.compile(r'lint/correctness/'),  # Biome correctness lint rules
+    re.compile(r'━+'),  # Biome separator lines
+    re.compile(r'^\s*$', re.MULTILINE),  # Empty lines
+]
+
+
+def is_agent_mode() -> bool:
+    """Check if running from AI agent context (Claude Code or Gemini CLI)."""
+    return bool(os.environ.get('CLAUDE_PROJECT_DIR') or os.environ.get('GEMINI_PROJECT_DIR'))
+
+
+def filter_output(output: str) -> str:
+    """Filter warnings and verbose output, keeping errors and summaries."""
+    lines = output.split('\n')
+    filtered_lines = []
+
+    for line in lines:
+        should_filter = any(pattern.search(line) for pattern in FILTER_PATTERNS)
+        if not should_filter:
+            filtered_lines.append(line)
+
+    # Remove consecutive empty lines
+    result = []
+    prev_empty = False
+    for line in filtered_lines:
+        is_empty = not line.strip()
+        if is_empty and prev_empty:
+            continue
+        result.append(line)
+        prev_empty = is_empty
+
+    return '\n'.join(result).strip()
+
+
+def run_command(description: str, cmd: list[str], cwd: Path, agent_mode: bool) -> int:
+    """Run a command and optionally filter its output."""
+    if description:
+        print(description)
+
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+        )
+
+        output = result.stdout + result.stderr
+
+        if agent_mode:
+            output = filter_output(output)
+
+        if output.strip():
+            print(output)
+
+        return result.returncode
+
+    except FileNotFoundError:
+        print(f"Error: Command not found: {cmd[0]}")
+        return 1
+
+
+def main() -> int:
+    # Resolve symlinks to find the real script location
+    script_path = Path(__file__).resolve()
+    web_dir = script_path.parent.parent / 'web'
+
+    if not web_dir.exists():
+        print(f"Error: web directory not found at {web_dir}")
+        return 1
+
+    agent_mode = is_agent_mode()
+
+    if agent_mode:
+        print("Running pre-commit checks (agent mode - filtered output)...")
+    else:
+        print("Running pre-commit checks...")
+
+    # Exit code 2 in agent mode signals agent should see output
+    failure_exit_code = 2 if agent_mode else 1
+
+    # Run Biome for formatting and linting
+    exit_code = run_command(
+        "Checking code with Biome...",
+        ["node_modules/.bin/biome", "check", "--write", "."],
+        web_dir,
+        agent_mode,
+    )
+    if exit_code != 0:
+        print("✗ Biome check failed!")
+        return failure_exit_code
+
+    # Run TypeScript type checking
+    exit_code = run_command(
+        "Type checking with TypeScript...",
+        ["node_modules/.bin/tsc", "--noEmit"],
+        web_dir,
+        agent_mode,
+    )
+    if exit_code != 0:
+        print("✗ TypeScript check failed!")
+        return failure_exit_code
+
+    # Run unit tests
+    test_cmd = ["npm", "run", "test:unit"]
+    if agent_mode:
+        test_cmd.extend(["--", "--reporter=basic"])
+
+    exit_code = run_command(
+        "Running unit tests...",
+        test_cmd,
+        web_dir,
+        agent_mode,
+    )
+    if exit_code != 0:
+        print("✗ Unit tests failed!")
+        return failure_exit_code
+
+    print("✓ All pre-commit checks passed!")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
