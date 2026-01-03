@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import {
-  DeploymentConfigForm,
-  DeploymentConfig,
-} from "./deployment-config-form";
+import { DeploymentConfigForm } from "./deployment-config-form";
+import type { EnvironmentConfig as DeploymentConfig } from "@/types/environment-config";
 
 export interface WizardStep {
   id: string;

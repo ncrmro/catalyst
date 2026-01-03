@@ -50,7 +50,7 @@ export const Default: Story = {
     projectName: "catalyst-web",
     complianceScore: 75,
     rules: mockRules,
-    onFix: (id) => console.log(`Fixing rule ${id}`),
+    onFix: (id: string) => console.log(`Fixing rule ${id}`),
   },
 };
 

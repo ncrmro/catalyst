@@ -3,14 +3,17 @@
 import { useReducer, useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateProjectConfig } from "@/actions/project-config";
+import { EntityCard } from "@/components/ui/entity-card";
 import type {
   ProjectConfig,
   ResourceConfig,
   ManagedServicesConfig,
 } from "@/types/project-config";
+import type { EnvironmentConfig } from "@/types/environment-config";
 import { ImageConfigForm } from "./image-config-form";
 import { ResourcesConfigForm } from "./resources-config-form";
 import { ManagedServicesForm } from "./managed-services-form";
+import { DevelopmentEnvironmentSection } from "./development-environment-section";
 
 // Action Types
 type Action =
@@ -83,11 +86,16 @@ const DEFAULT_CONFIG: ProjectConfig = {
 interface ProjectConfigFormProps {
   projectId: string;
   initialConfig?: ProjectConfig | null;
+  developmentEnvironment?: {
+    id: string;
+    config: EnvironmentConfig | null;
+  };
 }
 
 export function ProjectConfigForm({
   projectId,
   initialConfig,
+  developmentEnvironment,
 }: ProjectConfigFormProps) {
   const router = useRouter();
   const [state, dispatch] = useReducer(
@@ -96,6 +104,11 @@ export function ProjectConfigForm({
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Collapse state for each section (all collapsed by default)
+  const [imageExpanded, setImageExpanded] = useState(false);
+  const [resourcesExpanded, setResourcesExpanded] = useState(false);
+  const [servicesExpanded, setServicesExpanded] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,28 +164,66 @@ export function ProjectConfigForm({
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-8">
-        <ImageConfigForm
-          config={state.defaultImage}
-          onChange={(updates) =>
-            dispatch({ type: "UPDATE_IMAGE", payload: updates })
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* 1. Development Environment - always visible, not collapsible */}
+        <DevelopmentEnvironmentSection
+          environmentId={developmentEnvironment?.id}
+          config={developmentEnvironment?.config}
+        />
+
+        {/* 2. Image Configuration - collapsible */}
+        <EntityCard
+          title="Image Configuration"
+          subtitle="Configure how your Docker image is built and tagged"
+          expandable
+          expanded={imageExpanded}
+          onToggle={() => setImageExpanded(!imageExpanded)}
+          expandedContent={
+            <ImageConfigForm
+              config={state.defaultImage}
+              onChange={(updates) =>
+                dispatch({ type: "UPDATE_IMAGE", payload: updates })
+              }
+            />
           }
         />
 
-        <ResourcesConfigForm
-          config={state.defaultResources || DEFAULT_CONFIG.defaultResources!}
-          onChange={(updates) =>
-            dispatch({ type: "UPDATE_RESOURCES", payload: updates })
+        {/* 3. Resource Limits - collapsible */}
+        <EntityCard
+          title="Resource Limits"
+          subtitle="Set CPU, memory, and replica defaults"
+          expandable
+          expanded={resourcesExpanded}
+          onToggle={() => setResourcesExpanded(!resourcesExpanded)}
+          expandedContent={
+            <ResourcesConfigForm
+              config={
+                state.defaultResources || DEFAULT_CONFIG.defaultResources!
+              }
+              onChange={(updates) =>
+                dispatch({ type: "UPDATE_RESOURCES", payload: updates })
+              }
+            />
           }
         />
 
-        <ManagedServicesForm
-          config={
-            state.defaultManagedServices ||
-            DEFAULT_CONFIG.defaultManagedServices!
-          }
-          onChange={(updates) =>
-            dispatch({ type: "UPDATE_MANAGED_SERVICES", payload: updates })
+        {/* 4. Managed Services - collapsible */}
+        <EntityCard
+          title="Managed Services"
+          subtitle="Enable PostgreSQL, Redis, or other services"
+          expandable
+          expanded={servicesExpanded}
+          onToggle={() => setServicesExpanded(!servicesExpanded)}
+          expandedContent={
+            <ManagedServicesForm
+              config={
+                state.defaultManagedServices ||
+                DEFAULT_CONFIG.defaultManagedServices!
+              }
+              onChange={(updates) =>
+                dispatch({ type: "UPDATE_MANAGED_SERVICES", payload: updates })
+              }
+            />
           }
         />
       </form>

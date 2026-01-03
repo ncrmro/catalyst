@@ -1,69 +1,139 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import type {
+  EnvironmentConfig,
+  HelmConfig,
+  DockerConfig,
+  ManifestsConfig,
+  DetectionConfidence,
+  ProjectType,
+  PackageManager,
+} from "@/types/environment-config";
+import {
+  isHelmConfig,
+  isDockerConfig,
+  isManifestsConfig,
+  DEFAULT_MANAGED_SERVICES,
+} from "@/types/environment-config";
 
-export interface DeploymentConfig {
-  method: "helm" | "docker" | "manifests";
-  helm?: {
-    chartPath: string;
-    valuesPath?: string;
-  };
-  docker?: {
-    dockerfilePath: string;
-    context?: string;
-  };
-  manifests?: {
-    directory: string;
-  };
-  managedServices: {
-    postgres: boolean;
-    redis: boolean;
-    opensearch: boolean;
-  };
+/**
+ * Get human-readable label for project type
+ */
+function getProjectTypeLabel(projectType: ProjectType): string {
+  switch (projectType) {
+    case "docker-compose":
+      return "Docker Compose";
+    case "dockerfile":
+      return "Dockerfile";
+    case "nodejs":
+      return "Node.js";
+    case "makefile":
+      return "Makefile";
+    case "unknown":
+      return "Unknown";
+  }
+}
+
+/**
+ * Get badge color classes for confidence level
+ */
+function getConfidenceBadgeClasses(confidence: DetectionConfidence): string {
+  switch (confidence) {
+    case "high":
+      return "bg-success-container text-on-success-container";
+    case "medium":
+      return "bg-warning-container text-on-warning-container";
+    case "low":
+      return "bg-error-container text-on-error-container";
+  }
+}
+
+/**
+ * Format package manager for display
+ */
+function formatPackageManager(pm: PackageManager): string {
+  switch (pm) {
+    case "pnpm":
+      return "pnpm";
+    case "yarn":
+      return "Yarn";
+    case "bun":
+      return "Bun";
+    case "npm":
+      return "npm";
+  }
 }
 
 export interface DeploymentConfigFormProps {
-  initialConfig?: Partial<DeploymentConfig>;
-  onSubmit?: (config: DeploymentConfig) => void;
+  initialConfig?: Partial<EnvironmentConfig>;
+  onSubmit?: (config: EnvironmentConfig) => void;
   onBack?: () => void;
 }
 
-const DEFAULT_CONFIG: DeploymentConfig = {
+const DEFAULT_HELM_CONFIG: HelmConfig = {
   method: "helm",
-  helm: {
-    chartPath: "./charts/app",
-    valuesPath: "",
-  },
-  docker: {
-    dockerfilePath: "./Dockerfile",
-    context: ".",
-  },
-  manifests: {
-    directory: "./k8s",
-  },
-  managedServices: {
-    postgres: false,
-    redis: false,
-    opensearch: false,
-  },
+  chartPath: "./charts/app",
+  valuesPath: "",
+  managedServices: DEFAULT_MANAGED_SERVICES,
 };
+
+const DEFAULT_DOCKER_CONFIG: DockerConfig = {
+  method: "docker",
+  dockerfilePath: "./Dockerfile",
+  context: ".",
+  managedServices: DEFAULT_MANAGED_SERVICES,
+};
+
+const DEFAULT_MANIFESTS_CONFIG: ManifestsConfig = {
+  method: "manifests",
+  directory: "./k8s",
+  managedServices: DEFAULT_MANAGED_SERVICES,
+};
+
+function getDefaultConfigForMethod(
+  method: EnvironmentConfig["method"],
+): EnvironmentConfig {
+  switch (method) {
+    case "helm":
+      return DEFAULT_HELM_CONFIG;
+    case "docker":
+      return DEFAULT_DOCKER_CONFIG;
+    case "manifests":
+      return DEFAULT_MANIFESTS_CONFIG;
+  }
+}
 
 export function DeploymentConfigForm({
   initialConfig,
   onSubmit,
   onBack,
 }: DeploymentConfigFormProps) {
-  const [config, setConfig] = useState<DeploymentConfig>({
-    ...DEFAULT_CONFIG,
-    ...initialConfig,
-    managedServices: {
-      ...DEFAULT_CONFIG.managedServices,
-      ...initialConfig?.managedServices,
-    },
-  });
+  // Initialize with the appropriate default config based on method
+  const getInitialConfig = (): EnvironmentConfig => {
+    const method = initialConfig?.method ?? "helm";
+    const baseConfig = getDefaultConfigForMethod(method);
 
-  const handleMethodChange = (method: DeploymentConfig["method"]) => {
-    setConfig((prev) => ({ ...prev, method }));
+    // Merge initial config with defaults
+    return {
+      ...baseConfig,
+      ...initialConfig,
+      managedServices: {
+        ...baseConfig.managedServices,
+        ...initialConfig?.managedServices,
+      },
+    } as EnvironmentConfig;
+  };
+
+  const [config, setConfig] = useState<EnvironmentConfig>(getInitialConfig);
+
+  const handleMethodChange = (method: EnvironmentConfig["method"]) => {
+    // Switch to the default config for the new method, preserving managed services
+    const newConfig = getDefaultConfigForMethod(method);
+    setConfig({
+      ...newConfig,
+      managedServices: config.managedServices,
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -84,6 +154,122 @@ export function DeploymentConfigForm({
           production environments.
         </p>
       </Card>
+
+      {/* Auto-Detection Status */}
+      {config.autoDetect !== false &&
+        config.projectType &&
+        config.projectType !== "unknown" && (
+          <Card className="mb-6 p-4 border-primary/30 bg-primary/5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/20">
+                  <svg
+                    className="w-4 h-4 text-primary"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-on-surface">
+                      Auto-detected: {getProjectTypeLabel(config.projectType)}
+                    </span>
+                    {config.packageManager && (
+                      <span className="text-sm text-on-surface-variant">
+                        with {formatPackageManager(config.packageManager)}
+                      </span>
+                    )}
+                    {config.confidence && (
+                      <span
+                        className={cn(
+                          "px-2 py-0.5 text-xs rounded-full",
+                          getConfidenceBadgeClasses(config.confidence),
+                        )}
+                      >
+                        {config.confidence} confidence
+                      </span>
+                    )}
+                  </div>
+                  {config.devCommand && (
+                    <p className="text-sm text-on-surface-variant mt-0.5">
+                      Dev command:{" "}
+                      <code className="px-1.5 py-0.5 bg-surface rounded text-xs font-mono">
+                        {config.devCommand}
+                      </code>
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setConfig((prev) => ({
+                    ...prev,
+                    autoDetect: false,
+                    overriddenAt: new Date().toISOString(),
+                  }))
+                }
+                className="px-3 py-1.5 text-sm font-medium text-on-surface-variant hover:text-on-surface border border-outline/50 rounded-md hover:bg-surface transition-colors"
+              >
+                Override
+              </button>
+            </div>
+          </Card>
+        )}
+
+      {/* Manual Override Notice */}
+      {config.autoDetect === false && config.overriddenAt && (
+        <Card className="mb-6 p-4 border-outline/30 bg-surface">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-secondary-container">
+                <svg
+                  className="w-4 h-4 text-on-secondary-container"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <span className="font-medium text-on-surface">
+                  Manual configuration
+                </span>
+                <p className="text-sm text-on-surface-variant">
+                  Auto-detection has been overridden
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setConfig((prev) => ({
+                  ...prev,
+                  autoDetect: true,
+                  overriddenAt: undefined,
+                }))
+              }
+              className="px-3 py-1.5 text-sm font-medium text-primary hover:text-primary/80 border border-primary/50 rounded-md hover:bg-primary/5 transition-colors"
+            >
+              Re-enable auto-detect
+            </button>
+          </div>
+        </Card>
+      )}
 
       <form onSubmit={handleSubmit}>
         {/* Deployment Method Selection */}
@@ -124,7 +310,7 @@ export function DeploymentConfigForm({
                     Deploy using Helm charts with configurable values. Best for
                     complex applications with multiple components.
                   </p>
-                  {config.method === "helm" && (
+                  {isHelmConfig(config) && (
                     <div className="mt-4 space-y-3">
                       <div>
                         <label className="block text-sm font-medium text-on-surface mb-1">
@@ -132,15 +318,13 @@ export function DeploymentConfigForm({
                         </label>
                         <input
                           type="text"
-                          value={config.helm?.chartPath || ""}
+                          value={config.chartPath}
                           onChange={(e) =>
-                            setConfig((prev) => ({
-                              ...prev,
-                              helm: {
-                                ...prev.helm,
-                                chartPath: e.target.value,
-                              },
-                            }))
+                            setConfig((prev) =>
+                              isHelmConfig(prev)
+                                ? { ...prev, chartPath: e.target.value }
+                                : prev,
+                            )
                           }
                           placeholder="./charts/app"
                           className="w-full px-3 py-2 border border-outline/50 rounded-lg bg-surface text-on-surface placeholder:text-on-surface-variant/50"
@@ -152,16 +336,13 @@ export function DeploymentConfigForm({
                         </label>
                         <input
                           type="text"
-                          value={config.helm?.valuesPath || ""}
+                          value={config.valuesPath || ""}
                           onChange={(e) =>
-                            setConfig((prev) => ({
-                              ...prev,
-                              helm: {
-                                ...prev.helm,
-                                chartPath: prev.helm?.chartPath || "",
-                                valuesPath: e.target.value,
-                              },
-                            }))
+                            setConfig((prev) =>
+                              isHelmConfig(prev)
+                                ? { ...prev, valuesPath: e.target.value }
+                                : prev,
+                            )
                           }
                           placeholder="./values.yaml"
                           className="w-full px-3 py-2 border border-outline/50 rounded-lg bg-surface text-on-surface placeholder:text-on-surface-variant/50"
@@ -198,7 +379,7 @@ export function DeploymentConfigForm({
                     Build and deploy from a Dockerfile. Simple setup for
                     containerized applications.
                   </p>
-                  {config.method === "docker" && (
+                  {isDockerConfig(config) && (
                     <div className="mt-4 space-y-3">
                       <div>
                         <label className="block text-sm font-medium text-on-surface mb-1">
@@ -206,16 +387,13 @@ export function DeploymentConfigForm({
                         </label>
                         <input
                           type="text"
-                          value={config.docker?.dockerfilePath || ""}
+                          value={config.dockerfilePath}
                           onChange={(e) =>
-                            setConfig((prev) => ({
-                              ...prev,
-                              docker: {
-                                ...prev.docker,
-                                dockerfilePath: e.target.value,
-                                context: prev.docker?.context || ".",
-                              },
-                            }))
+                            setConfig((prev) =>
+                              isDockerConfig(prev)
+                                ? { ...prev, dockerfilePath: e.target.value }
+                                : prev,
+                            )
                           }
                           placeholder="./Dockerfile"
                           className="w-full px-3 py-2 border border-outline/50 rounded-lg bg-surface text-on-surface placeholder:text-on-surface-variant/50"
@@ -227,17 +405,13 @@ export function DeploymentConfigForm({
                         </label>
                         <input
                           type="text"
-                          value={config.docker?.context || ""}
+                          value={config.context || ""}
                           onChange={(e) =>
-                            setConfig((prev) => ({
-                              ...prev,
-                              docker: {
-                                ...prev.docker,
-                                dockerfilePath:
-                                  prev.docker?.dockerfilePath || "./Dockerfile",
-                                context: e.target.value,
-                              },
-                            }))
+                            setConfig((prev) =>
+                              isDockerConfig(prev)
+                                ? { ...prev, context: e.target.value }
+                                : prev,
+                            )
                           }
                           placeholder="."
                           className="w-full px-3 py-2 border border-outline/50 rounded-lg bg-surface text-on-surface placeholder:text-on-surface-variant/50"
@@ -276,19 +450,20 @@ export function DeploymentConfigForm({
                     Apply raw Kubernetes YAML manifests. Full control over
                     resource definitions.
                   </p>
-                  {config.method === "manifests" && (
+                  {isManifestsConfig(config) && (
                     <div className="mt-4">
                       <label className="block text-sm font-medium text-on-surface mb-1">
                         Manifests Directory
                       </label>
                       <input
                         type="text"
-                        value={config.manifests?.directory || ""}
+                        value={config.directory}
                         onChange={(e) =>
-                          setConfig((prev) => ({
-                            ...prev,
-                            manifests: { directory: e.target.value },
-                          }))
+                          setConfig((prev) =>
+                            isManifestsConfig(prev)
+                              ? { ...prev, directory: e.target.value }
+                              : prev,
+                          )
                         }
                         placeholder="./k8s"
                         className="w-full px-3 py-2 border border-outline/50 rounded-lg bg-surface text-on-surface placeholder:text-on-surface-variant/50"
@@ -315,20 +490,20 @@ export function DeploymentConfigForm({
             <label
               className={cn(
                 "flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors",
-                config.managedServices.postgres
+                config.managedServices?.postgres?.enabled
                   ? "border-primary bg-primary/5"
                   : "border-outline/50 hover:border-outline",
               )}
             >
               <input
                 type="checkbox"
-                checked={config.managedServices.postgres}
+                checked={config.managedServices?.postgres?.enabled ?? false}
                 onChange={(e) =>
                   setConfig((prev) => ({
                     ...prev,
                     managedServices: {
                       ...prev.managedServices,
-                      postgres: e.target.checked,
+                      postgres: { enabled: e.target.checked },
                     },
                   }))
                 }
@@ -353,20 +528,20 @@ export function DeploymentConfigForm({
             <label
               className={cn(
                 "flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors",
-                config.managedServices.redis
+                config.managedServices?.redis?.enabled
                   ? "border-primary bg-primary/5"
                   : "border-outline/50 hover:border-outline",
               )}
             >
               <input
                 type="checkbox"
-                checked={config.managedServices.redis}
+                checked={config.managedServices?.redis?.enabled ?? false}
                 onChange={(e) =>
                   setConfig((prev) => ({
                     ...prev,
                     managedServices: {
                       ...prev.managedServices,
-                      redis: e.target.checked,
+                      redis: { enabled: e.target.checked },
                     },
                   }))
                 }
@@ -389,20 +564,20 @@ export function DeploymentConfigForm({
             <label
               className={cn(
                 "flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors",
-                config.managedServices.opensearch
+                config.managedServices?.opensearch?.enabled
                   ? "border-primary bg-primary/5"
                   : "border-outline/50 hover:border-outline",
               )}
             >
               <input
                 type="checkbox"
-                checked={config.managedServices.opensearch}
+                checked={config.managedServices?.opensearch?.enabled ?? false}
                 onChange={(e) =>
                   setConfig((prev) => ({
                     ...prev,
                     managedServices: {
                       ...prev.managedServices,
-                      opensearch: e.target.checked,
+                      opensearch: { enabled: e.target.checked },
                     },
                   }))
                 }

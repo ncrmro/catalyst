@@ -6,15 +6,28 @@
  *
  * @example
  * ```tsx
- * import { EntityCard } from "@/components/ui/entity-card";
+ * import { EntityCard, EntityCardTabSelector } from "@/components/ui/entity-card";
  *
  * <EntityCard
  *   title="Pod Name"
  *   subtitle="Node info"
  *   metadata="2 days old"
- *   trailingContent={<StatusBadge />}
+ *   trailingContent={
+ *     <EntityCardTabSelector
+ *       tabs={[{ value: "status", label: "Status" }, { value: "config", label: "Config" }]}
+ *       activeTab="status"
+ *       onTabChange={setActiveTab}
+ *     />
+ *   }
  * />
  * ```
  */
-export { GlassEntityCard as EntityCard } from "@tetrastack/react-glass-components";
-export type { GlassEntityCardProps as EntityCardProps } from "@tetrastack/react-glass-components";
+export {
+  GlassEntityCard as EntityCard,
+  EntityCardTabSelector,
+} from "@tetrastack/react-glass-components";
+export type {
+  GlassEntityCardProps as EntityCardProps,
+  EntityCardTab,
+  EntityCardTabSelectorProps,
+} from "@tetrastack/react-glass-components";

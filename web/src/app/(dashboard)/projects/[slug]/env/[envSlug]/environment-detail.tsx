@@ -1,10 +1,16 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { GlassCard } from "@tetrastack/react-glass-components";
+import {
+  GlassCard,
+  GlassEntityCard,
+  EntityCardTabSelector,
+} from "@tetrastack/react-glass-components";
 import { TerminalModal } from "@/components/terminal";
 import { execCommand } from "@/actions/pod-exec";
 import { EnvironmentCR } from "@/types/crd";
+import type { EnvironmentConfig } from "@/types/environment-config";
+import { EnvironmentConfigTab } from "./_components";
 
 interface EnvironmentDetailProps {
   environment: EnvironmentCR;
