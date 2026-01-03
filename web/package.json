@@ -57,11 +57,7 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-xtermjs": "^1.0.10",
-    "remark": "^15.0.1",
-    "remark-gfm": "^4.0.1",
-    "remark-parse": "^11.0.0",
     "tailwind-merge": "^2.4.0",
-    "unified": "^11.0.5",
     "ws": "^8.18.3",
     "yaml": "^2.8.1",
     "zod": "^4.2.1"
