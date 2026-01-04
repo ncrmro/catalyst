@@ -14,7 +14,7 @@ import {
   ReposDataFailed,
   ReposDataWithReason,
 } from "@/mocks/github";
-import { GITHUB_CONFIG } from "@/lib/vcs-providers";
+import { getGitHubAccessToken, GITHUB_CONFIG } from "@/lib/vcs-providers";
 
 /**
  * Server action to fetch repositories for the current user from the database
@@ -23,13 +23,12 @@ import { GITHUB_CONFIG } from "@/lib/vcs-providers";
 
 /**
  * Fetch real GitHub repositories for the current user and organizations
- * Falls back to GITHUB_PAT if user doesn't have OAuth token
+ * Uses PAT first (for local dev), then session token, then database tokens
  */
 async function fetchRealGitHubRepos(): Promise<ReposData | ReposDataFailed> {
   const session = await auth();
 
-  // Try OAuth token first, then fall back to PAT for development
-  const token = session?.accessToken || GITHUB_CONFIG.PAT;
+  const token = await getGitHubAccessToken(session);
 
   if (!token) {
     return { github_integration_enabled: false, reason: "no_access_token" };

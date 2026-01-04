@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/../web"
+
+node_modules/.bin/prettier --write --cache --log-level error .
+node_modules/.bin/eslint --cache --quiet
+node_modules/.bin/tsc --noEmit

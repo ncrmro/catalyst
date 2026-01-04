@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface ContainerInfo {
   name: string;
@@ -33,7 +33,7 @@ export function EnvironmentPodsList({ namespace }: EnvironmentPodsListProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchPods = async () => {
+  const fetchPods = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -50,11 +50,11 @@ export function EnvironmentPodsList({ namespace }: EnvironmentPodsListProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [namespace]);
 
   useEffect(() => {
     fetchPods();
-  }, [namespace]);
+  }, [fetchPods]);
 
   if (loading) {
     return (

@@ -6,7 +6,7 @@
  */
 
 import { db } from "@/db";
-import { projectEnvironments } from "@/db/schema";
+import { projectEnvironments, projects } from "@/db/schema";
 import { eq, inArray, and } from "drizzle-orm";
 import type { InferInsertModel } from "drizzle-orm";
 
@@ -112,4 +112,26 @@ export async function updateEnvironments(
     })
     .where(inArray(projectEnvironments.id, ids))
     .returning();
+}
+
+/**
+ * Get a single environment by project slug and environment name
+ * Used for fetching config on environment detail pages
+ */
+export async function getEnvironmentByName(
+  projectSlug: string,
+  environmentName: string,
+) {
+  const [result] = await db
+    .select({ environment: projectEnvironments, project: projects })
+    .from(projectEnvironments)
+    .innerJoin(projects, eq(projects.id, projectEnvironments.projectId))
+    .where(
+      and(
+        eq(projectEnvironments.environment, environmentName),
+        eq(projects.slug, projectSlug),
+      ),
+    )
+    .limit(1);
+  return result ? { ...result.environment, project: result.project } : null;
 }

@@ -204,6 +204,19 @@ export async function GET(request: NextRequest) {
 
 For programmatic session creation (used in the callback above), see the [Programmatic Session Creation](../../../packages/@tetrastack/backend/README.md#programmatic-session-creation) section in the `@tetrastack/backend` README.
 
+### GitHub App Permissions
+
+GitHub Apps use **permissions** instead of OAuth scopes. The following permissions must be configured in your GitHub App settings:
+
+| Permission        | Level        | Purpose                                    |
+| ----------------- | ------------ | ------------------------------------------ |
+| **Emails**        | Read-only    | Required to access private email addresses |
+| **Contents**      | Read-only    | Read repository files and content          |
+| **Pull requests** | Read & write | Create/update PR comments                  |
+| **Metadata**      | Read-only    | Required (always enabled)                  |
+
+> **Important**: The **Emails** permission is critical. Without it, `fetchGitHubUser()` cannot retrieve the user's email when they have their email set to private. This results in the "no_email" error during OAuth. Configure this at **Settings → Permissions & events → User permissions → Emails → Read-only**.
+
 ### Environment Variables
 
 ```bash
@@ -249,6 +262,50 @@ Tokens are stored encrypted in the `github_user_tokens` table:
 | ------------- | -------- | ------------------------------------ |
 | Access Token  | 8 hours  | Auto-refresh 5 minutes before expiry |
 | Refresh Token | 6 months | Replaced on each refresh             |
+
+### Retrieving Access Tokens
+
+When fetching GitHub data, tokens can come from multiple sources depending on how the user authenticated. Implement a helper function in your application to handle this:
+
+```typescript
+// src/lib/vcs-providers.ts (or similar)
+import { GITHUB_CONFIG, getGitHubTokens } from "@catalyst/vcs-provider";
+
+interface Session {
+  accessToken?: string;
+  user: { id: string };
+}
+
+/**
+ * Get a GitHub access token for the current user.
+ *
+ * Token priority:
+ * 1. PAT - for local development when GITHUB_PAT env var is set
+ * 2. Session token - populated by Auth.js JWT callback when user signs in via GitHub OAuth
+ *    (see src/auth.ts jwt callback: token.accessToken = account.access_token)
+ * 3. Database - for programmatic sessions (e.g., GitHub App OAuth installation flow)
+ *    where tokens are stored in github_user_tokens but not in the JWT
+ */
+export async function getGitHubAccessToken(
+  session: Session,
+): Promise<string | undefined> {
+  // 1. PAT for local development, 2. Session token from Auth.js
+  const token = GITHUB_CONFIG.PAT || session.accessToken;
+  if (token) return token;
+
+  // 3. Database lookup for programmatic sessions
+  const dbTokens = await getGitHubTokens(session.user.id);
+  return dbTokens?.accessToken;
+}
+```
+
+**Why is this needed?**
+
+- **Auth.js OAuth flow**: Token is stored in the JWT session (`session.accessToken`)
+- **GitHub App installation with OAuth**: Token is stored in the database (`github_user_tokens` table) but NOT in the JWT, because the session is created programmatically via `createSessionToken()`
+- **Local development**: PAT takes priority to avoid OAuth complexity
+
+Each application should implement this pattern with their own Auth.js session type and database setup.
 
 ### Cookie Configuration
 

@@ -5,11 +5,14 @@ import { GlassCard } from "@tetrastack/react-glass-components";
 import { TerminalModal } from "@/components/terminal";
 import { execCommand } from "@/actions/pod-exec";
 import { EnvironmentCR } from "@/types/crd";
+import type { EnvironmentConfig } from "@/types/environment-config";
 
 interface EnvironmentDetailProps {
   environment: EnvironmentCR;
   targetNamespace: string;
   podName: string;
+  environmentId?: string;
+  environmentConfig?: EnvironmentConfig | null;
 }
 
 // Mock data for agents and logs as they are not yet in the CR
@@ -85,6 +88,8 @@ export default function EnvironmentDetailView({
   environment,
   targetNamespace,
   podName,
+  environmentId: _environmentId,
+  environmentConfig: _environmentConfig,
 }: EnvironmentDetailProps) {
   const [selectedContainer, setSelectedContainer] = useState<string | null>(
     "workspace",
