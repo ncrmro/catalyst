@@ -26,8 +26,37 @@ The database is organized in a single schema file (`schema.ts`) with related tab
 - `repos`: GitHub repository metadata synced from GitHub API
 - `projects`: Projects that group repositories and environments
 - `projectsRepos`: Many-to-many relationship between projects and repos
-- `projectEnvironments`: Environment configurations per project/repo
+- `projectEnvironments`: Environment configurations per project/repo (see below)
 - `projectManifests`: Detected manifest files (Dockerfile, Chart.yaml, etc.) that hint at deployment strategies
+
+#### Project Environments & Configuration
+
+The `projectEnvironments` table stores environment configurations for each project/repo combination. Each environment has a `config` JSONB column using a discriminated union on the `method` field:
+
+```typescript
+// Method determines deployment strategy
+type EnvironmentConfig =
+  | { method: "helm"; chartPath: string; valuesPath?: string; ... }
+  | { method: "docker"; dockerfilePath: string; context?: string; ... }
+  | { method: "manifests"; directory: string; ... }
+```
+
+**Development Environment as Template**: The "development" environment's config serves as the template for PR preview environments. When a PR is opened:
+
+1. System reads the development environment's `config`
+2. Auto-detection may update detection fields (`devCommand`, `workdir`, `packageManager`, `projectType`)
+3. Preview environment is created with the combined configuration
+
+**Detection Fields**: Each method config includes optional detection fields that are auto-populated:
+
+- `devCommand`: Command to run for development (e.g., "npm run dev")
+- `workdir`: Working directory for monorepos (e.g., "web")
+- `packageManager`: Detected from lockfiles (npm, pnpm, yarn, bun)
+- `projectType`: Detected project type (nodejs, docker-compose, dockerfile, makefile)
+- `autoDetect`: Whether auto-detection is enabled (false = user override)
+- `confidence`: Detection confidence level (high, medium, low)
+
+See `src/types/environment-config.ts` for the full schema definition.
 
 ### GitHub Integration
 
