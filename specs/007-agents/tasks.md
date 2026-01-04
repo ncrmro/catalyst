@@ -14,7 +14,7 @@
 ## Phase 1: Setup (Shared Infrastructure)
 
 - [ ] T001 [P] Add `@tetrastack/threads` PostgreSQL schema to Catalyst database migrations in `web/src/db/migrations/`
-- [ ] T002 [P] Create `external_agent_tasks` table migration in `web/src/db/schema.ts`
+- [ ] T002 [P] Register `external-agent-task` document type in `web/src/schemas/documents/registry.ts` and ensure `documents` table exists
 - [ ] T003 [P] Configure threads model factory with Catalyst database in `web/src/models/threads.ts`
 
 ---
@@ -81,8 +81,8 @@
 - [ ] T035 [P] [US4] Create `assign_to_copilot` tool in `web/packages/@catalyst/vcs-provider/src/agents/tools/assign-to-copilot.ts`
 - [ ] T036 [P] [US4] Create `mention_external_agent` tool in `web/packages/@catalyst/vcs-provider/src/agents/tools/mention-external-agent.ts`
 - [ ] T037 [US4] Add external agent tools to package export in `web/packages/@catalyst/vcs-provider/src/agents/index.ts`
-- [ ] T038 [P] [US4] Create `ExternalAgentTask` model in `web/src/models/external-agent-tasks.ts`
-- [ ] T039 [US4] Implement task creation and handle bot handle prompt via chat in `web/src/agents/project-agent/index.ts`
+- [ ] T038 [P] [US4] Define `ExternalAgentTaskSchema` Zod schema in `web/src/schemas/documents/external-agent-task.ts`
+- [ ] T039 [US4] Implement task creation via document registry and handle bot handle prompt via chat in `web/src/agents/project-agent/index.ts`
 - [ ] T040 [US4] Add webhook handler for external agent PR creation in `web/src/app/api/github/webhook/route.ts`
 - [ ] T041 [US4] Link external agent PRs to originating issues/tasks
 - [ ] T042 [US4] Add external agent task status to spec view

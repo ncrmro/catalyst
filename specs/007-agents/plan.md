@@ -144,18 +144,16 @@ interface SpecContext {
   };
 }
 
-// ExternalAgentTask - Delegated work tracking
-interface ExternalAgentTask {
-  id: string;
-  projectId: string;
-  specSlug?: string;
+// ExternalAgentTask - Delegated work tracking (Document Type)
+// Schema defined in web/src/schemas/documents/external-agent-task.ts
+interface ExternalAgentTaskContent {
   externalAgent: "copilot" | "gitlab-duo" | string;
   issueId: string;
   issueNumber: number;
   status: "pending" | "assigned" | "in_progress" | "completed" | "failed";
   resultPrNumber?: number;
-  createdAt: Date;
-  updatedAt: Date;
+  error?: string;
+  specSlug?: string;
 }
 ```
 
@@ -334,22 +332,14 @@ Already defined in package - no changes needed. Uses:
 - `scopeType` = "project" | "spec"
 - `scopeId` = projectId or `${projectId}:${specSlug}`
 
-### external_agent_tasks table (NEW)
+### external-agent-task (Document Type)
 
-```sql
-CREATE TABLE external_agent_tasks (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID NOT NULL REFERENCES projects(id),
-  spec_slug TEXT,
-  external_agent TEXT NOT NULL,  -- 'copilot', 'gitlab-duo', etc.
-  issue_id TEXT NOT NULL,        -- VCS issue ID
-  issue_number INTEGER NOT NULL,
-  status TEXT NOT NULL DEFAULT 'pending',
-  result_pr_number INTEGER,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
+Instead of a separate SQL table, we use the `@tetrastack/documents` system.
+
+- **Registry**: Registered in `web/src/schemas/documents/registry.ts`
+- **Schema**: Defined in `web/src/schemas/documents/external-agent-task.ts`
+- **Storage**: Stored in `documents` table with `type_id` corresponding to `external-agent-task`
+- **Scoping**: `project_id` column in `documents` table used for project scoping
 
 ## Implementation Phases
 
@@ -379,7 +369,7 @@ CREATE TABLE external_agent_tasks (
 
 1. Implement assign_to_copilot tool (GitHub API)
 2. Add mention_external_agent tool
-3. Create external_agent_tasks table and tracking
+3. Register external-agent-task document type and tracking
 4. Build UI for monitoring delegated work
 
 ### Phase 5: TUI Interface (P5 User Story)
