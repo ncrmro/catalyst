@@ -1,0 +1,157 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      operator_changed: ${{ steps.changed-files-yaml.outputs.operator_any_changed }}
+      web_changed: ${{ steps.changed-files-yaml.outputs.web_any_changed }}
+      dockerfiles_changed: ${{ steps.changed-files-yaml.outputs.dockerfiles_any_changed }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for accurate change detection
+
+      - name: Get all changed files
+        id: changed-files-yaml
+        uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62 # v47
+        with:
+          files_yaml: |
+            operator:
+              - operator/**
+              - .github/workflows/operator.yml
+            web:
+              - web/**
+              - .github/workflows/web.release.yml
+            dockerfiles:
+              - dockerfiles/**
+              - .github/workflows/dockerfiles.release.yaml
+
+      - name: Show changed components
+        run: |
+          echo "Operator changed: ${{ steps.changed-files-yaml.outputs.operator_any_changed }}"
+          echo "Web changed: ${{ steps.changed-files-yaml.outputs.web_any_changed }}"
+          echo "Dockerfiles changed: ${{ steps.changed-files-yaml.outputs.dockerfiles_any_changed }}"
+
+  release-operator:
+    name: Release Operator
+    needs: detect-changes
+    if: needs.detect-changes.outputs.operator_changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    defaults:
+      run:
+        working-directory: ./operator
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/operator
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./operator
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ghcr.io/${{ github.repository }}/operator
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+  release-web:
+    name: Release Web
+    needs: detect-changes
+    if: needs.detect-changes.outputs.web_changed == 'true'
+    uses: ./.github/workflows/web.release.yml
+    secrets: inherit
+
+  release-dockerfiles:
+    name: Release Dockerfiles
+    needs: detect-changes
+    if: needs.detect-changes.outputs.dockerfiles_changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/ncrmro/catalyst/pr-job-pod
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: dockerfiles
+          file: dockerfiles/pr-job-pod.Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=ghcr.io/ncrmro/catalyst/pr-job-pod:branch-${{ github.ref_name }}-cache
+          cache-to: type=registry,ref=ghcr.io/ncrmro/catalyst/pr-job-pod:branch-${{ github.ref_name }}-cache,mode=max
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ghcr.io/ncrmro/catalyst/pr-job-pod
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
