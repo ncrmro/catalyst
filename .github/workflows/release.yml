@@ -100,6 +100,11 @@ jobs:
     name: Release Web
     needs: detect-changes
     if: needs.detect-changes.outputs.web_changed == 'true'
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
     uses: ./.github/workflows/web.release.yml
     secrets: inherit
 

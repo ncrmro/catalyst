@@ -137,6 +137,28 @@ Different contexts use different Kubernetes cluster providers:
 
 Both environments support the same path-based ingress routing pattern (`http://localhost:8080/{namespace}/`), ensuring test parity between local development and CI.
 
+## CI/CD and Release Process
+
+The project uses a unified release workflow (`.github/workflows/release.yml`) that automatically detects and builds only the components that have changed:
+
+**Components:**
+- **Operator** (`operator/`): Kubernetes operator for managing environments
+- **Web** (`web/`): Next.js application
+- **Dockerfiles** (`dockerfiles/`): Support containers (e.g., pr-job-pod)
+
+**How it works:**
+1. On push to `main`, the release workflow runs
+2. Uses `tj-actions/changed-files` to detect which components changed
+3. Only builds and publishes images for components with changes
+4. Each component can also be released manually via `workflow_dispatch`
+
+**Individual workflows:**
+- `.github/workflows/web.release.yml` - Web application release (also deploys to Railway)
+- `.github/workflows/operator.yml` - Operator tests (on PRs)
+- `.github/workflows/dockerfiles.release.yaml` - Dockerfiles release (also runs weekly via cron)
+
+This approach minimizes unnecessary builds and reduces CI time while ensuring all changes are properly released.
+
 # User Story Happy Paths
 
 ### 1. Setting up a Project
