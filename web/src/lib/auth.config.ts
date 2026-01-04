@@ -19,27 +19,35 @@ const providers: Provider[] = [
   }),
 ];
 
+/**
+ * Custom cookie names for development only.
+ * This prevents cookie conflicts when running multiple projects locally
+ * (e.g., catalyst and other Next.js apps on localhost).
+ * In production, we use Auth.js defaults which have proper sameSite/secure settings.
+ */
+const devCookies = {
+  sessionToken: {
+    name: "catalyst.session-token",
+  },
+  callbackUrl: {
+    name: "catalyst.callback-url",
+  },
+  csrfToken: {
+    name: "catalyst.csrf-token",
+  },
+  pkceCodeVerifier: {
+    name: "catalyst.pkce.code_verifier",
+  },
+  state: {
+    name: "catalyst.state",
+  },
+  nonce: {
+    name: "catalyst.nonce",
+  },
+};
+
 // Notice this is only an object, not a full Auth.js instance
 export default {
   providers,
-  cookies: {
-    sessionToken: {
-      name: "catalyst.session-token",
-    },
-    callbackUrl: {
-      name: "catalyst.callback-url",
-    },
-    csrfToken: {
-      name: "catalyst.csrf-token",
-    },
-    pkceCodeVerifier: {
-      name: "catalyst.pkce.code_verifier",
-    },
-    state: {
-      name: "catalyst.state",
-    },
-    nonce: {
-      name: "catalyst.nonce",
-    },
-  },
+  cookies: process.env.NODE_ENV === "development" ? devCookies : undefined,
 } satisfies NextAuthConfig;
