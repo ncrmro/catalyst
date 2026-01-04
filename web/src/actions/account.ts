@@ -5,7 +5,10 @@
  */
 
 import { auth } from "@/auth";
+import { db } from "@/db";
+import { githubUserTokens } from "@/db/schema";
 import { getGitHubTokens, providerRegistry } from "@/lib/vcs-providers";
+import { eq } from "drizzle-orm";
 
 export interface GitHubConnectionStatus {
   connected: boolean;
@@ -117,15 +120,30 @@ export interface GitHubAppInstallationStatus {
 /**
  * Check if the current user has the GitHub App installed
  * Used by the dashboard banner to prompt users to install the app
+ *
+ * Note: This queries the database directly rather than using getGitHubTokens()
+ * because getGitHubTokens requires valid decryptable tokens. We just need to
+ * check if the record exists (connected via OAuth) and has an installationId.
  */
 export async function checkGitHubAppInstallation(): Promise<GitHubAppInstallationStatus> {
   const session = await auth();
 
   try {
-    const tokens = await getGitHubTokens(session.user.id);
+    const tokenRecord = await db
+      .select({
+        installationId: githubUserTokens.installationId,
+      })
+      .from(githubUserTokens)
+      .where(eq(githubUserTokens.userId, session.user.id))
+      .limit(1);
+
+    const record = tokenRecord[0];
+
     return {
-      hasAppInstalled: !!tokens?.installationId,
-      connected: !!tokens,
+      // User is connected if they have a token record (created during OAuth sign-in)
+      connected: !!record,
+      // App is installed if they have an installation ID
+      hasAppInstalled: !!record?.installationId,
     };
   } catch (error) {
     console.error("GitHub App installation check failed:", error);
