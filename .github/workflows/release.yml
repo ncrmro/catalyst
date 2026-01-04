@@ -1,4 +1,4 @@
-name: Release Web
+name: Release
 
 on:
   push:
@@ -6,7 +6,8 @@ on:
       - main
     paths:
       - "web/**"
-      - .github/workflows/web.release.yml
+      - "operator/**"
+      - .github/workflows/release.yml
   workflow_dispatch:
     inputs:
       platforms:
@@ -26,7 +27,7 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  build:
+  build-web:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -37,7 +38,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build and push containers with Docker Bake
+      - name: Build and push web containers with Docker Bake
         uses: ./.github/actions/build-container-bake
         with:
           registry: ${{ env.REGISTRY }}
@@ -46,10 +47,30 @@ jobs:
           workdir: "./web"
           files: "./docker-bake.yml"
 
-  release:
+  build-operator:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and push operator containers with Docker Bake
+        uses: ./.github/actions/build-container-bake
+        with:
+          registry: ${{ env.REGISTRY }}
+          image: ${{ github.repository }}/operator
+          platforms: ${{ inputs.platforms || 'linux/amd64' }}
+          workdir: "./operator"
+          files: "./docker-bake.yml"
+
+  deploy-web:
     runs-on: ubuntu-latest
     container: ghcr.io/railwayapp/cli:latest
-    needs: build
+    needs: build-web
     environment:
       name: production
       url: https://catalyst.ncrmro.com
