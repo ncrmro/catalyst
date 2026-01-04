@@ -12,7 +12,7 @@ import { ResourcesConfigForm } from "./resources-config-form";
 interface EnvironmentConfigTabProps {
   environmentId: string;
   config: EnvironmentConfig | null;
-  onConfigChange?: (config: EnvironmentConfig) => void;
+  onConfigChange?: (updates: Partial<EnvironmentConfig>) => void;
 }
 
 export function EnvironmentConfigTab({
@@ -56,12 +56,15 @@ export function EnvironmentConfigTab({
 
   // Get summary for managed services subtitle
   const enabledServices: string[] = [];
-  if (config.managedServices?.postgres?.enabled) enabledServices.push("PostgreSQL");
+  if (config.managedServices?.postgres?.enabled)
+    enabledServices.push("PostgreSQL");
   if (config.managedServices?.redis?.enabled) enabledServices.push("Redis");
-  if (config.managedServices?.opensearch?.enabled) enabledServices.push("OpenSearch");
-  const servicesSubtitle = enabledServices.length > 0
-    ? enabledServices.join(", ") + " enabled"
-    : "No services enabled";
+  if (config.managedServices?.opensearch?.enabled)
+    enabledServices.push("OpenSearch");
+  const servicesSubtitle =
+    enabledServices.length > 0
+      ? enabledServices.join(", ") + " enabled"
+      : "No services enabled";
 
   return (
     <div className="space-y-4">
@@ -69,7 +72,9 @@ export function EnvironmentConfigTab({
       <DetectionStatusCard
         config={config}
         onOverride={onConfigChange ? handleOverride : undefined}
-        onReEnableAutoDetect={onConfigChange ? handleReEnableAutoDetect : undefined}
+        onReEnableAutoDetect={
+          onConfigChange ? handleReEnableAutoDetect : undefined
+        }
       />
 
       {/* Deployment Method - collapsible */}
