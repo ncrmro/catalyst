@@ -145,7 +145,12 @@ GitHub App credentials provide several advantages over OAuth App credentials:
 
 ### Two Callback URLs
 
-The authentication system uses two separate callback routes:
+The authentication system uses two separate callback routes. **Both must be configured in your GitHub App settings** (one per line):
+
+```
+https://your-domain.com/api/auth/callback/github
+https://your-domain.com/api/github/callback
+```
 
 | Callback URL                | Purpose                 | Handler            |
 | --------------------------- | ----------------------- | ------------------ |
@@ -155,6 +160,8 @@ The authentication system uses two separate callback routes:
 **Sign-in Flow**: When users click "Sign in with GitHub", Auth.js handles the OAuth flow using the GitHub App's client ID and secret. Tokens are stored encrypted in the `github_user_tokens` table.
 
 **Installation Flow**: When users install the GitHub App on their repos, GitHub redirects to `/api/github/callback` with an `installation_id`. This ID is saved to link the user with their app installation.
+
+> **Note**: If the first callback URL is missing from your GitHub App settings, users will see "The redirect_uri is not associated with this application" when signing in.
 
 ### Environment Variables
 

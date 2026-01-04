@@ -110,12 +110,19 @@ GitHub App OAuth credentials work directly with Auth.js GitHub provider. No cust
 
 ### 2. Two Callback URLs
 
-The system requires two distinct callback URLs:
+The system requires two distinct callback URLs. **Both must be configured in your GitHub App settings** (one per line):
+
+```
+https://your-domain.com/api/auth/callback/github
+https://your-domain.com/api/github/callback
+```
 
 | Callback URL                | Purpose                 | Handler          |
 | --------------------------- | ----------------------- | ---------------- |
 | `/api/auth/callback/github` | OAuth sign-in (Auth.js) | Auth.js built-in |
 | `/api/github/callback`      | GitHub App installation | Custom route     |
+
+If the first URL is missing, users will see "The redirect_uri is not associated with this application" when signing in.
 
 ### 3. Token Storage
 
