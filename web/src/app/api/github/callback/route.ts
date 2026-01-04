@@ -15,6 +15,14 @@ import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
+ * Get the base URL for redirects.
+ * Uses AUTH_URL in production, falls back to request origin in development.
+ */
+function getBaseUrl(request: NextRequest): string {
+  return process.env.AUTH_URL || request.nextUrl.origin;
+}
+
+/**
  * GitHub App Installation Callback Endpoint
  *
  * Handles callbacks from GitHub after:
@@ -72,7 +80,7 @@ async function handleOAuthInstallation(
     if (!githubUser.email) {
       console.error("GitHub user has no email");
       return NextResponse.redirect(
-        new URL("/auth/signin?error=no_email", request.url),
+        new URL("/auth/signin?error=no_email", getBaseUrl(request)),
       );
     }
 
@@ -121,12 +129,12 @@ async function handleOAuthInstallation(
     });
 
     return NextResponse.redirect(
-      new URL("/account?highlight=github", request.url),
+      new URL("/account?highlight=github", getBaseUrl(request)),
     );
   } catch (error) {
     console.error("OAuth installation failed:", error);
     return NextResponse.redirect(
-      new URL("/auth/signin?error=oauth_failed", request.url),
+      new URL("/auth/signin?error=oauth_failed", getBaseUrl(request)),
     );
   }
 }
@@ -141,7 +149,7 @@ async function handleInstallationOnly(
   if (!installationId) {
     console.error("GitHub callback missing installation_id");
     return NextResponse.redirect(
-      new URL("/account?error=missing_installation", request.url),
+      new URL("/account?error=missing_installation", getBaseUrl(request)),
     );
   }
 
@@ -161,7 +169,7 @@ async function handleInstallationOnly(
         session.user.id,
       );
       return NextResponse.redirect(
-        new URL("/account?error=no_token_record", request.url),
+        new URL("/account?error=no_token_record", getBaseUrl(request)),
       );
     }
 
@@ -171,12 +179,12 @@ async function handleInstallationOnly(
     });
 
     return NextResponse.redirect(
-      new URL("/account?highlight=github", request.url),
+      new URL("/account?highlight=github", getBaseUrl(request)),
     );
   } catch (error) {
     console.error("GitHub callback error:", error);
     return NextResponse.redirect(
-      new URL("/account?error=callback_failed", request.url),
+      new URL("/account?error=callback_failed", getBaseUrl(request)),
     );
   }
 }
