@@ -145,7 +145,12 @@ GitHub App credentials provide several advantages over OAuth App credentials:
 
 ### Two Callback URLs
 
-The authentication system uses two separate callback routes:
+The authentication system uses two separate callback routes. **Both must be configured in your GitHub App settings** (one per line):
+
+```
+https://your-domain.com/api/auth/callback/github
+https://your-domain.com/api/github/callback
+```
 
 | Callback URL                | Purpose                 | Handler            |
 | --------------------------- | ----------------------- | ------------------ |
@@ -155,6 +160,49 @@ The authentication system uses two separate callback routes:
 **Sign-in Flow**: When users click "Sign in with GitHub", Auth.js handles the OAuth flow using the GitHub App's client ID and secret. Tokens are stored encrypted in the `github_user_tokens` table.
 
 **Installation Flow**: When users install the GitHub App on their repos, GitHub redirects to `/api/github/callback` with an `installation_id`. This ID is saved to link the user with their app installation.
+
+> **Note**: If the first callback URL is missing from your GitHub App settings, users will see "The redirect_uri is not associated with this application" when signing in.
+
+### OAuth During Installation
+
+When "Request user authorization (OAuth) during installation" is enabled in your GitHub App settings, the installation callback receives both OAuth credentials and the installation ID in one flow:
+
+```typescript
+// GitHub sends: ?code=xxx&installation_id=yyy&setup_action=install
+import {
+  exchangeAuthorizationCode,
+  fetchGitHubUser,
+  storeGitHubTokens,
+} from "@catalyst/vcs-provider";
+import { createAndSetSession } from "@/auth"; // From @tetrastack/backend/auth
+
+export async function GET(request: NextRequest) {
+  const code = searchParams.get("code");
+  const installationId = searchParams.get("installation_id");
+
+  // Exchange code for tokens
+  const tokens = await exchangeAuthorizationCode(code);
+
+  // Get user profile
+  const githubUser = await fetchGitHubUser(tokens.accessToken);
+
+  // Find or create user in your database
+  const user = await findOrCreateUser(githubUser);
+
+  // Store tokens with installation_id
+  await storeGitHubTokens(user.id, {
+    ...tokens,
+    installationId,
+  });
+
+  // Create session using helpers from @tetrastack/backend/auth
+  await createAndSetSession(user);
+
+  return NextResponse.redirect("/dashboard");
+}
+```
+
+For programmatic session creation (used in the callback above), see the [Programmatic Session Creation](../../../packages/@tetrastack/backend/README.md#programmatic-session-creation) section in the `@tetrastack/backend` README.
 
 ### Environment Variables
 

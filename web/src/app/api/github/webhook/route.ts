@@ -18,7 +18,7 @@ import {
   deletePreviewDeploymentOrchestrated,
 } from "@/models/preview-environments";
 import { db } from "@/db";
-import { pullRequestPods, pullRequests } from "@/db/schema";
+import { githubUserTokens, pullRequestPods, pullRequests } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export const runtime = "nodejs";
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
     // Handle different webhook events
     switch (event) {
       case "installation":
-        return handleInstallationEvent(payload);
+        return await handleInstallationEvent(payload);
       case "installation_repositories":
         return handleInstallationRepositoriesEvent(payload);
       case "push":
@@ -140,8 +140,11 @@ export async function POST(request: NextRequest) {
 
 /**
  * Handle GitHub App installation events
+ *
+ * When an installation is deleted, clear the installation_id from
+ * github_user_tokens so the banner prompts users to reinstall.
  */
-function handleInstallationEvent(payload: {
+async function handleInstallationEvent(payload: {
   action: string;
   installation: {
     id: number;
@@ -157,6 +160,20 @@ function handleInstallationEvent(payload: {
     account: installation.account.login,
     permissions: installation.permissions,
   });
+
+  // When app is uninstalled, clear the installation_id from user tokens
+  if (action === "deleted") {
+    const result = await db
+      .update(githubUserTokens)
+      .set({ installationId: null, updatedAt: new Date() })
+      .where(eq(githubUserTokens.installationId, String(installation.id)))
+      .returning({ userId: githubUserTokens.userId });
+
+    console.log(`Cleared installation_id for ${result.length} user(s)`, {
+      installation_id: installation.id,
+      affected_users: result.map((r) => r.userId),
+    });
+  }
 
   return NextResponse.json({
     success: true,

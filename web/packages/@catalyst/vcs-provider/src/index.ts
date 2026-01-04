@@ -59,7 +59,9 @@ export {
   exchangeRefreshToken,
   exchangeAuthorizationCode,
   generateAuthorizationUrl,
+  fetchGitHubUser,
 } from "./providers/github/auth";
+export type { GitHubUserProfile } from "./providers/github/auth";
 export {
   formatDeploymentComment,
   upsertDeploymentComment,

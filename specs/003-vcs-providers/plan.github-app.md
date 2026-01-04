@@ -195,6 +195,22 @@ TOKEN_ENCRYPTION_KEY=<64-char-hex-string>
 GITHUB_WEBHOOK_SECRET=xxxxx
 ```
 
+## GitHub App Configuration
+
+In your GitHub App settings, configure **both** callback URLs (one per line):
+
+```
+https://your-domain.com/api/auth/callback/github
+https://your-domain.com/api/github/callback
+```
+
+| Callback URL                | Purpose                          |
+| --------------------------- | -------------------------------- |
+| `/api/auth/callback/github` | Auth.js OAuth sign-in flow       |
+| `/api/github/callback`      | GitHub App installation callback |
+
+Both are required - the first handles user authentication, the second handles app installation.
+
 ## File Structure
 
 ```

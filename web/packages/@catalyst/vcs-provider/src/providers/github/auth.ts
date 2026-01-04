@@ -117,6 +117,68 @@ export async function exchangeAuthorizationCode(
   };
 }
 
+export interface GitHubUserProfile {
+  id: number;
+  login: string;
+  email: string | null;
+  name: string | null;
+  avatar_url: string;
+}
+
+/**
+ * Fetch the authenticated user's GitHub profile
+ * @param accessToken The OAuth access token
+ * @returns User profile information
+ */
+export async function fetchGitHubUser(
+  accessToken: string,
+): Promise<GitHubUserProfile> {
+  const response = await fetch("https://api.github.com/user", {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/vnd.github+json",
+      "User-Agent": "Catalyst-App",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch GitHub user: ${response.statusText}`);
+  }
+
+  const user = await response.json();
+
+  // If email is null, fetch from emails endpoint (private emails)
+  if (!user.email) {
+    const emailsResponse = await fetch("https://api.github.com/user/emails", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/vnd.github+json",
+        "User-Agent": "Catalyst-App",
+      },
+    });
+
+    if (emailsResponse.ok) {
+      const emails = await emailsResponse.json();
+      // Find primary email or first verified email
+      const primaryEmail = emails.find(
+        (e: { primary: boolean; verified: boolean }) => e.primary && e.verified,
+      );
+      const verifiedEmail = emails.find(
+        (e: { verified: boolean }) => e.verified,
+      );
+      user.email = primaryEmail?.email || verifiedEmail?.email || null;
+    }
+  }
+
+  return {
+    id: user.id,
+    login: user.login,
+    email: user.email,
+    name: user.name,
+    avatar_url: user.avatar_url,
+  };
+}
+
 /**
  * Generate GitHub App authorization URL for user authentication
  * @param state Optional state parameter for CSRF protection

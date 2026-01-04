@@ -4,6 +4,7 @@ import { users, teams, teamsMemberships } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import authConfig from "@/lib/auth.config";
 import Credentials from "next-auth/providers/credentials";
+import { createSessionHelpers } from "@tetrastack/backend/auth";
 
 declare module "next-auth" {
   interface Session {
@@ -275,3 +276,24 @@ export async function auth() {
   }
   return session;
 }
+
+// Export for use in GitHub App callback
+export { createUserWithPersonalTeam };
+
+/**
+ * Session helpers for programmatic session creation.
+ * Used by VCS webhook callbacks (e.g., GitHub App installation with OAuth).
+ *
+ * Cookie name matches Auth.js configuration from auth.config.ts
+ */
+const isProduction = process.env.NODE_ENV === "production";
+const sessionCookieName = isProduction
+  ? "__Secure-authjs.session-token"
+  : "catalyst.session-token";
+
+export const {
+  createSessionToken,
+  setSessionCookie,
+  createAndSetSession,
+  getCookieName,
+} = createSessionHelpers({ cookieName: sessionCookieName });
