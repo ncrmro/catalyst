@@ -100,6 +100,7 @@ jobs:
     name: Release Web
     needs: detect-changes
     if: needs.detect-changes.outputs.web_changed == 'true'
+    # Note: Permissions are inherited from web.release.yml, not specified here
     uses: ./.github/workflows/web.release.yml
     secrets: inherit
 
