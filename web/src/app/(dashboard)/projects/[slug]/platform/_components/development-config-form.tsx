@@ -182,13 +182,17 @@ export function DevelopmentConfigForm({
     if (!localConfig) return;
 
     const currentServices = localConfig.managedServices || {};
-    const currentServiceConfig = currentServices[service] || { enabled: false };
+    const currentServiceConfig = currentServices[service];
+    const normalizedServiceConfig =
+      currentServiceConfig && typeof currentServiceConfig === "object"
+        ? currentServiceConfig
+        : { enabled: Boolean(currentServiceConfig) };
 
     setLocalConfig({
       ...localConfig,
       managedServices: {
         ...currentServices,
-        [service]: { ...currentServiceConfig, enabled },
+        [service]: { ...normalizedServiceConfig, enabled },
       },
     } as EnvironmentConfig);
   };

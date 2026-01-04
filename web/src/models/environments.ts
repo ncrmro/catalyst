@@ -6,7 +6,7 @@
  */
 
 import { db } from "@/db";
-import { projectEnvironments } from "@/db/schema";
+import { projectEnvironments, projects } from "@/db/schema";
 import { eq, inArray, and } from "drizzle-orm";
 import type { InferInsertModel } from "drizzle-orm";
 
@@ -122,18 +122,16 @@ export async function getEnvironmentByName(
   projectSlug: string,
   environmentName: string,
 ) {
-  // Join with projects to match by slug
-  const result = await db.query.projectEnvironments.findFirst({
-    where: eq(projectEnvironments.environment, environmentName),
-    with: {
-      project: true,
-    },
-  });
-
-  // Filter by project slug (needs post-query since we can't join on slug directly in where)
-  if (result?.project?.slug === projectSlug) {
-    return result;
-  }
-
-  return null;
+  const [result] = await db
+    .select({ environment: projectEnvironments, project: projects })
+    .from(projectEnvironments)
+    .innerJoin(projects, eq(projects.id, projectEnvironments.projectId))
+    .where(
+      and(
+        eq(projectEnvironments.environment, environmentName),
+        eq(projects.slug, projectSlug),
+      ),
+    )
+    .limit(1);
+  return result ? { ...result.environment, project: result.project } : null;
 }
