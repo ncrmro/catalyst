@@ -1,10 +1,16 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
 const BANNER_DISMISSED_KEY = "github-app-banner-dismissed";
 
+/**
+ * GitHub App Installation Banner
+ *
+ * Prompts users to install the GitHub App if they haven't already.
+ * Links directly to GitHub's app installation page using NEXT_PUBLIC_GITHUB_APP_URL.
+ * Can be dismissed per-session via sessionStorage.
+ */
 export function GitHubAppBanner() {
   const [isDismissed, setIsDismissed] = useState(true); // Start hidden to avoid flash
 
@@ -19,7 +25,9 @@ export function GitHubAppBanner() {
     setIsDismissed(true);
   };
 
-  if (isDismissed) return null;
+  const githubAppUrl = process.env.NEXT_PUBLIC_GITHUB_APP_URL;
+
+  if (isDismissed || !githubAppUrl) return null;
 
   return (
     <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 mb-6 flex items-center justify-between">
@@ -43,12 +51,12 @@ export function GitHubAppBanner() {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <Link
-          href="/github"
+        <a
+          href={githubAppUrl}
           className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-on-primary hover:opacity-90 transition-opacity"
         >
           Install Now
-        </Link>
+        </a>
         <button
           onClick={handleDismiss}
           className="p-2 text-on-surface-variant hover:text-on-surface transition-colors"

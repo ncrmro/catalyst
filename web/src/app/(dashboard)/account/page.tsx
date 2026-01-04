@@ -165,9 +165,9 @@ function ProviderCard({
                       </svg>
                       GitHub App Installed
                     </span>
-                  ) : (
+                  ) : process.env.NEXT_PUBLIC_GITHUB_APP_URL ? (
                     <a
-                      href="/github"
+                      href={process.env.NEXT_PUBLIC_GITHUB_APP_URL}
                       className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-warning/10 text-warning hover:bg-warning/20 transition-colors"
                     >
                       <svg
@@ -183,9 +183,9 @@ function ProviderCard({
                           d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                         />
                       </svg>
-                      GitHub App not installed
+                      Install GitHub App
                     </a>
-                  )}
+                  ) : null}
                 </div>
               )}
             </div>

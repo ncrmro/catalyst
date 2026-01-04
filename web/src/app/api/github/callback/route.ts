@@ -1,153 +1,72 @@
+import { auth } from "@/auth";
+import { db } from "@/db";
+import { githubUserTokens } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * GitHub App OAuth Callback Endpoint
+ * GitHub App Installation Callback Endpoint
  *
- * Handles the OAuth callback from GitHub after app installation.
- * This endpoint receives the installation_id and setup_action parameters.
+ * Handles the callback from GitHub after a user installs the GitHub App.
+ * This is separate from the Auth.js OAuth callback (/api/auth/callback/github).
+ *
+ * Flow:
+ * 1. User clicks "Install GitHub App" button
+ * 2. User is redirected to GitHub to install the app
+ * 3. GitHub redirects back here with installation_id
+ * 4. We save the installation_id to the user's github_user_tokens record
+ * 5. User is redirected to /account with the GitHub provider highlighted
  */
 export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const installationId = searchParams.get("installation_id");
-    const setupAction = searchParams.get("setup_action");
-    const state = searchParams.get("state");
-    const code = searchParams.get("code");
+  const { searchParams } = new URL(request.url);
+  const installationId = searchParams.get("installation_id");
+  const setupAction = searchParams.get("setup_action");
 
-    // Validate required parameters
-    if (!installationId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Missing installation_id parameter",
-        },
-        { status: 400 },
+  // Log the callback for debugging
+  console.log("GitHub App callback received", {
+    installation_id: installationId,
+    setup_action: setupAction,
+  });
+
+  if (!installationId) {
+    console.error("GitHub callback missing installation_id");
+    return NextResponse.redirect(
+      new URL("/account?error=missing_installation", request.url),
+    );
+  }
+
+  try {
+    const session = await auth();
+
+    // Update the user's github_user_tokens with the installation_id
+    const result = await db
+      .update(githubUserTokens)
+      .set({ installationId, updatedAt: new Date() })
+      .where(eq(githubUserTokens.userId, session.user.id))
+      .returning();
+
+    if (result.length === 0) {
+      console.error(
+        "No github_user_tokens record found for user",
+        session.user.id,
+      );
+      return NextResponse.redirect(
+        new URL("/account?error=no_token_record", request.url),
       );
     }
 
-    // Handle different setup actions
-    switch (setupAction) {
-      case "install":
-        return handleInstallation(installationId, state);
-      case "request":
-        return handleInstallationRequest(installationId, state);
-      case "update":
-        return handleInstallationUpdate(installationId, state);
-      default:
-        return handleGenericCallback(installationId, setupAction, state, code);
-    }
+    console.log("GitHub App installation saved", {
+      userId: session.user.id,
+      installationId,
+    });
+
+    return NextResponse.redirect(
+      new URL("/account?highlight=github", request.url),
+    );
   } catch (error) {
-    console.error("OAuth callback error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to process OAuth callback",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
+    console.error("GitHub callback error:", error);
+    return NextResponse.redirect(
+      new URL("/account?error=callback_failed", request.url),
     );
   }
-}
-
-/**
- * Handle successful app installation
- */
-function handleInstallation(installationId: string, state: string | null) {
-  console.log("GitHub App installed successfully", {
-    installation_id: installationId,
-    state: state,
-  });
-
-  // In a real app, you would:
-  // 1. Store the installation_id in your database
-  // 2. Associate it with the current user
-  // 3. Set up any necessary configurations
-
-  return NextResponse.json({
-    success: true,
-    message: "GitHub App installed successfully",
-    installation_id: installationId,
-    state: state,
-    next_steps: [
-      "Installation recorded in system",
-      "App permissions configured",
-      "Ready to access repositories",
-    ],
-  });
-}
-
-/**
- * Handle installation request (when app needs approval)
- */
-function handleInstallationRequest(
-  installationId: string,
-  state: string | null,
-) {
-  console.log("GitHub App installation requested", {
-    installation_id: installationId,
-    state: state,
-  });
-
-  return NextResponse.json({
-    success: true,
-    message: "GitHub App installation requested",
-    installation_id: installationId,
-    state: state,
-    status: "pending_approval",
-    next_steps: [
-      "Installation request submitted",
-      "Waiting for organization approval",
-      "You will be notified when approved",
-    ],
-  });
-}
-
-/**
- * Handle installation update
- */
-function handleInstallationUpdate(
-  installationId: string,
-  state: string | null,
-) {
-  console.log("GitHub App installation updated", {
-    installation_id: installationId,
-    state: state,
-  });
-
-  return NextResponse.json({
-    success: true,
-    message: "GitHub App installation updated",
-    installation_id: installationId,
-    state: state,
-    next_steps: [
-      "Installation permissions updated",
-      "Changes applied successfully",
-    ],
-  });
-}
-
-/**
- * Handle generic callback scenarios
- */
-function handleGenericCallback(
-  installationId: string,
-  setupAction: string | null,
-  state: string | null,
-  code: string | null,
-) {
-  console.log("GitHub OAuth callback received", {
-    installation_id: installationId,
-    setup_action: setupAction,
-    state: state,
-    has_code: !!code,
-  });
-
-  return NextResponse.json({
-    success: true,
-    message: "OAuth callback processed",
-    installation_id: installationId,
-    setup_action: setupAction,
-    state: state,
-    has_authorization_code: !!code,
-  });
 }
