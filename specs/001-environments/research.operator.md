@@ -226,6 +226,73 @@ Environment variable `LOCAL_PREVIEW_ROUTING=true` enables `*.localhost` hostname
 | `operator/internal/controller/environment_controller.go` | Modify | Branch logic for deployment type    |
 | `operator/internal/controller/deployment.go`             | Create | Deployment/Service/Ingress creation |
 
+## Automated Deployment Workflow
+
+To automate the deployment of the operator to a Kubernetes cluster (e.g., a production or staging cluster) via GitHub Actions, we need to securely provide the kubeconfig and execute the deployment commands.
+
+### 1. Kubeconfig Secret Management
+
+The kubeconfig file, which grants access to the target cluster, should be stored as an **Environment Secret** in GitHub. This ensures it is protected and only accessible to workflows running in that specific environment.
+
+1.  **Create an Environment in GitHub**: Go to the repository settings -> Environments -> New Environment (e.g., `production`).
+2.  **Add Secret**: Add a secret named `KUBE_CONFIG` containing the base64-encoded or plain text kubeconfig content.
+    *   *Recommendation*: Use a service account with scoped permissions (RBAC) rather than a cluster-admin config if possible.
+
+### 2. Deployment Steps
+
+The GitHub Action workflow (e.g., `release.yml`) should include a job that runs after the image build and push steps.
+
+**Prerequisites:**
+- The Docker image must be built and pushed to a registry accessible by the cluster.
+- `kubectl` and `kustomize` tools must be available in the runner.
+
+**Workflow Logic:**
+1.  **Checkout Code**: To access the `operator/config` (CRDs and manifests) and `Makefile`.
+2.  **Authenticate**: Log in to the container registry if needed (though the cluster pulls the image, the workflow just pushes it).
+3.  **Setup Kubeconfig**:
+    - Retrieve the `KUBE_CONFIG` secret.
+    - Write it to a temporary file or set `KUBECONFIG` environment variable.
+4.  **Install CRDs**:
+    - Run `make install`. This applies the CRDs located in `config/crd`.
+5.  **Deploy Operator**:
+    - Run `make deploy IMG=<image-ref>`.
+    - This command uses `kustomize` to:
+        - Set the new image tag in the deployment manifest.
+        - Generate the final YAML.
+        - Apply it to the cluster (`kubectl apply -f -`).
+
+**Example Workflow Snippet:**
+
+```yaml
+  deploy-operator:
+    name: Deploy Operator
+    needs: release-operator
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: ./operator
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install kubectl & kustomize
+        run: |
+           # ... installation steps or use an action ...
+           
+      - name: Set Kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Deploy
+        env:
+          IMG: ghcr.io/${{ github.repository }}/operator:latest # Update tag logic as needed
+        run: |
+          make install
+          make deploy
+```
+
 ## References
 
 - [Kubernetes Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/)
