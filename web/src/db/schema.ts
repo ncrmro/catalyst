@@ -13,7 +13,7 @@ import {
 import { relations } from "drizzle-orm";
 import type { AdapterAccountType } from "@auth/core/adapters";
 import type { ReportData } from "@/types/reports";
-import type { DeploymentConfig } from "@/types/deployment";
+import type { EnvironmentConfig } from "@/types/environment-config";
 import type { ProjectConfig } from "@/types/project-config";
 
 export const users = pgTable("user", {
@@ -324,8 +324,8 @@ export const projectEnvironments = pgTable(
     environment: text("environment").notNull(),
     // Environment subtype: 'production', 'staging', etc. for deployment environments
     subType: text("sub_type"),
-    // Deployment configuration stored as JSONB (method, paths, managed services, env vars)
-    deploymentConfig: jsonb("deployment_config").$type<DeploymentConfig>(),
+    // Environment configuration stored as JSONB (method, paths, managed services, env vars, detection fields)
+    config: jsonb("config").$type<EnvironmentConfig>(),
     latestDeployment: text("latest_deployment"),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
