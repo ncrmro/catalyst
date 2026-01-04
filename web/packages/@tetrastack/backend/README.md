@@ -109,6 +109,8 @@ export async function GET(request: NextRequest) {
 }
 ```
 
+> **Note**: When using GitHub Apps, ensure the **Emails** permission is set to "Read-only" in your GitHub App settings. Without this permission, `fetchGitHubUser()` cannot retrieve private email addresses, resulting in authentication failures. See the [@catalyst/vcs-provider README](../../@catalyst/vcs-provider/README.md#github-app-permissions) for details.
+
 #### Playwright Test Example
 
 For programmatic login in E2E tests, you can create session tokens directly:

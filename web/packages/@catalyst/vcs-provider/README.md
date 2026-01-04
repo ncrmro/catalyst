@@ -204,6 +204,19 @@ export async function GET(request: NextRequest) {
 
 For programmatic session creation (used in the callback above), see the [Programmatic Session Creation](../../../packages/@tetrastack/backend/README.md#programmatic-session-creation) section in the `@tetrastack/backend` README.
 
+### GitHub App Permissions
+
+GitHub Apps use **permissions** instead of OAuth scopes. The following permissions must be configured in your GitHub App settings:
+
+| Permission        | Level        | Purpose                                    |
+| ----------------- | ------------ | ------------------------------------------ |
+| **Emails**        | Read-only    | Required to access private email addresses |
+| **Contents**      | Read-only    | Read repository files and content          |
+| **Pull requests** | Read & write | Create/update PR comments                  |
+| **Metadata**      | Read-only    | Required (always enabled)                  |
+
+> **Important**: The **Emails** permission is critical. Without it, `fetchGitHubUser()` cannot retrieve the user's email when they have their email set to private. This results in the "no_email" error during OAuth. Configure this at **Settings → Permissions & events → User permissions → Emails → Read-only**.
+
 ### Environment Variables
 
 ```bash
