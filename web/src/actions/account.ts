@@ -5,7 +5,7 @@
  */
 
 import { auth } from "@/auth";
-import { providerRegistry } from "@/lib/vcs-providers";
+import { getGitHubTokens, providerRegistry } from "@/lib/vcs-providers";
 
 export interface GitHubConnectionStatus {
   connected: boolean;
@@ -13,6 +13,7 @@ export interface GitHubConnectionStatus {
   avatarUrl?: string;
   error?: string;
   authMethod?: "oauth" | "pat";
+  hasGitHubApp?: boolean;
 }
 
 export interface ProviderStatus {
@@ -25,6 +26,7 @@ export interface ProviderStatus {
   error?: string;
   available: boolean; // Whether the provider integration is implemented
   authMethod?: "oauth" | "pat";
+  hasGitHubApp?: boolean;
 }
 
 /**
@@ -39,12 +41,17 @@ export async function checkGitHubConnection(): Promise<GitHubConnectionStatus> {
     const provider = providerRegistry.getDefault();
     const status = await provider.checkConnection(session.user.id);
 
+    // Check if GitHub App is installed by looking for installationId
+    const tokens = await getGitHubTokens(session.user.id);
+    const hasGitHubApp = !!tokens?.installationId;
+
     return {
       connected: status.connected,
       username: status.username,
       avatarUrl: status.avatarUrl,
       error: status.error,
       authMethod: status.authMethod === "app" ? "oauth" : status.authMethod, // Map "app" to "oauth" for UI
+      hasGitHubApp,
     };
   } catch (error) {
     console.error("GitHub connection check failed:", error);
@@ -76,6 +83,7 @@ export async function getProviderStatuses(): Promise<ProviderStatus[]> {
       error: githubStatus.error,
       available: true,
       authMethod: githubStatus.authMethod,
+      hasGitHubApp: githubStatus.hasGitHubApp,
     },
     {
       id: "gitlab",
@@ -99,4 +107,31 @@ export async function getProviderStatuses(): Promise<ProviderStatus[]> {
       available: false,
     },
   ];
+}
+
+export interface GitHubAppInstallationStatus {
+  hasAppInstalled: boolean;
+  connected: boolean;
+}
+
+/**
+ * Check if the current user has the GitHub App installed
+ * Used by the dashboard banner to prompt users to install the app
+ */
+export async function checkGitHubAppInstallation(): Promise<GitHubAppInstallationStatus> {
+  const session = await auth();
+
+  try {
+    const tokens = await getGitHubTokens(session.user.id);
+    return {
+      hasAppInstalled: !!tokens?.installationId,
+      connected: !!tokens,
+    };
+  } catch (error) {
+    console.error("GitHub App installation check failed:", error);
+    return {
+      hasAppInstalled: false,
+      connected: false,
+    };
+  }
 }

@@ -1,4 +1,6 @@
+import { checkGitHubAppInstallation } from "@/actions/account";
 import { _auth } from "@/auth";
+import { GitHubAppBanner } from "@/components/github-app-banner";
 import { redirect } from "next/navigation";
 
 export default async function DashboardLayout({
@@ -13,5 +15,15 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  return <>{children}</>;
+  // Check GitHub App installation status
+  const installationStatus = await checkGitHubAppInstallation();
+  const showBanner =
+    installationStatus.connected && !installationStatus.hasAppInstalled;
+
+  return (
+    <>
+      {showBanner && <GitHubAppBanner />}
+      {children}
+    </>
+  );
 }
