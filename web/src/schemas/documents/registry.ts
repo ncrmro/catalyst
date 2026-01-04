@@ -29,7 +29,7 @@ export type DocumentTypeId = keyof DocumentRegistry;
 export function validateDocument<TTypeId extends DocumentTypeId>(
   typeId: TTypeId,
   content: unknown,
-): z.infer<DocumentRegistry[TTypeId]["schema"]> {
+): any {
   const docType = documentRegistry[typeId];
   if (!docType) {
     throw new Error(`Unknown document type: ${typeId}`);
@@ -42,7 +42,7 @@ export function validateDocument<TTypeId extends DocumentTypeId>(
  */
 export function getDocumentSchema<TTypeId extends DocumentTypeId>(
   typeId: TTypeId,
-): DocumentRegistry[TTypeId]["schema"] {
+): any {
   const docType = documentRegistry[typeId];
   if (!docType) {
     throw new Error(`Unknown document type: ${typeId}`);
