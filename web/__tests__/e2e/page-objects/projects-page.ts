@@ -126,8 +126,8 @@ export class ProjectsPage extends BasePage {
    * Verify that the project details page has loaded correctly
    */
   async verifyProjectDetailsPageLoaded() {
-    // Feature Tasks section is always present on project details
-    await expect(this.featureTasksSection).toBeVisible({ timeout: 10000 });
+    // Agent Chat section is always present on project details
+    await expect(this.agentChatSection).toBeVisible({ timeout: 10000 });
   }
 
   /**

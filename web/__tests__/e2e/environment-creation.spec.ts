@@ -44,11 +44,20 @@ test.describe("Environment Creation and Kubernetes Verification", () => {
       page.getByRole("heading", { name: "Platform Configuration" }),
     ).toBeVisible();
 
-    // Look for the Add Environment link in the Deployment Environments section
-    const addEnvironmentLink = page.getByRole("link", {
-      name: "Add Environment",
+    // Verify the Deployment Environments section is visible with its tabs
+    const deploymentEnvironmentsButton = page.getByRole("button", {
+      name: /Deployment Environments/,
     });
-    await expect(addEnvironmentLink).toBeVisible();
+    await expect(deploymentEnvironmentsButton).toBeVisible();
+
+    // Verify the "New" tab exists in the Deployment Environments section (for creating new environments)
+    // Use first() to get the Deployment Environments "New" tab (appears before Development Environments)
+    const newEnvironmentTab = page
+      .getByRole("tab", {
+        name: "New",
+      })
+      .first();
+    await expect(newEnvironmentTab).toBeVisible();
 
     // Verify kubernetes cluster is accessible and can list namespaces
     const response = await k8s.coreApi.listNamespace();
