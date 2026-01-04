@@ -41,11 +41,14 @@ jobs:
           echo "Web changed: ${{ steps.changed-files-yaml.outputs.web_any_changed }}"
           echo "Dockerfiles changed: ${{ steps.changed-files-yaml.outputs.dockerfiles_any_changed }}"
 
-  release-operator:
-    name: Release Operator
+  build-operator:
+    name: Build Operator
     needs: detect-changes
     if: needs.detect-changes.outputs.operator_changed == 'true'
     runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+      image: ghcr.io/${{ github.repository }}/operator
     permissions:
       contents: read
       packages: write
@@ -96,14 +99,24 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
-  deploy-operator:
-    name: Deploy Operator
-    needs: release-operator
+  build-web:
+    name: Build Web
+    needs: detect-changes
+    if: needs.detect-changes.outputs.web_changed == 'true'
+    # Note: Permissions are inherited from web.release.yml, not specified here
+    uses: ./.github/workflows/web.release.yml
+    secrets: inherit
+
+  deploy:
+    name: Deploy
+    needs: [build-operator, build-web]
+    if: |
+      always() &&
+      (needs.build-operator.result == 'success' || needs.build-operator.result == 'skipped') &&
+      (needs.build-web.result == 'success' || needs.build-web.result == 'skipped') &&
+      (needs.build-operator.result == 'success' || needs.build-web.result == 'success')
     runs-on: ubuntu-latest
     environment: production
-    defaults:
-      run:
-        working-directory: ./operator
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -119,20 +132,21 @@ jobs:
           echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
           chmod 600 ~/.kube/config
 
-      - name: Deploy
+      - name: Deploy Operator to catalyst-system
+        if: needs.build-operator.result == 'success'
+        working-directory: ./operator
         run: |
           nix develop --command bash -c "
             make install
-            make deploy IMG=ghcr.io/${{ github.repository }}/operator:latest
+            make deploy IMG=ghcr.io/${{ github.repository }}/operator@${{ needs.build-operator.outputs.digest }}
           "
 
-  release-web:
-    name: Release Web
-    needs: detect-changes
-    if: needs.detect-changes.outputs.web_changed == 'true'
-    # Note: Permissions are inherited from web.release.yml, not specified here
-    uses: ./.github/workflows/web.release.yml
-    secrets: inherit
+      - name: Deploy Web to catalyst-system
+        if: needs.build-web.result == 'success'
+        run: |
+          echo "Web deployment would go here"
+          # TODO: Implement web deployment to catalyst-system namespace
+          # kubectl set image deployment/web web=ghcr.io/${{ github.repository }}/web@${{ needs.build-web.outputs.digest }} -n catalyst-system
 
   release-dockerfiles:
     name: Release Dockerfiles
