@@ -136,6 +136,49 @@ Tokens must be stored encrypted in the database because:
 
 Custom cookie names needed in development only to prevent conflicts when multiple Next.js apps run on localhost. Production uses Auth.js defaults.
 
+### 5. OAuth During Installation
+
+GitHub Apps support "Request user authorization (OAuth) during installation" which combines the OAuth flow with app installation:
+
+**GitHub App Settings:**
+
+- ✅ Check "Request user authorization (OAuth) during installation"
+- When enabled, "Setup URL" is disabled (OAuth callback is used instead)
+
+**Callback Parameters:**
+
+When enabled, GitHub sends to `/api/github/callback`:
+
+| Parameter         | Description              |
+| ----------------- | ------------------------ |
+| `code`            | OAuth authorization code |
+| `installation_id` | The app installation ID  |
+| `setup_action`    | "install" or "update"    |
+
+**Flow:**
+
+```
+User clicks "Install GitHub App"
+    ↓
+GitHub: Select repos → OAuth consent screen
+    ↓
+GitHub redirects to /api/github/callback?code=xxx&installation_id=yyy
+    ↓
+Callback:
+  1. Exchange code for tokens
+  2. Fetch GitHub user profile
+  3. Find or create user
+  4. Store tokens + installation_id
+  5. Create session cookie
+  6. Redirect to /account
+```
+
+**Benefits:**
+
+- Single flow for installation + authentication
+- New users get accounts created automatically
+- Tokens and installation ID stored in one operation
+
 ## References
 
 - [GitHub Docs: Authenticating with a GitHub App on behalf of a user](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/authenticating-with-a-github-app-on-behalf-of-a-user)

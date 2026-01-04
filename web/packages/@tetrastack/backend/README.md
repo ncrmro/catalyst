@@ -66,6 +66,114 @@ In development (`NODE_ENV=development`), you can log in without email verificati
 
 The package will automatically create these users in your database if they don't exist upon first login.
 
+### Programmatic Session Creation
+
+For scenarios where you need to create a session outside the normal Auth.js flow (e.g., VCS webhook callbacks, Playwright tests), use the `createSessionHelpers` factory:
+
+```typescript
+import { createSessionHelpers } from "@tetrastack/backend/auth";
+
+// Initialize with your cookie name (should match your Auth.js config)
+const isProduction = process.env.NODE_ENV === "production";
+const {
+  createSessionToken,
+  setSessionCookie,
+  createAndSetSession,
+  getCookieName,
+} = createSessionHelpers({
+  cookieName: isProduction
+    ? "__Secure-authjs.session-token"
+    : "myapp.session-token",
+});
+```
+
+#### VCS Webhook Callback Example
+
+When handling OAuth callbacks from VCS providers (e.g., GitHub App installation with OAuth):
+
+```typescript
+// In your webhook callback route handler
+export async function GET(request: NextRequest) {
+  const user = await findOrCreateUser(oauthProfile);
+
+  // Create session and set cookie in one call
+  await createAndSetSession({
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    image: user.image,
+    admin: user.admin,
+  });
+
+  return NextResponse.redirect("/dashboard");
+}
+```
+
+#### Playwright Test Example
+
+For programmatic login in E2E tests, you can create session tokens directly:
+
+```typescript
+import { encode } from "next-auth/jwt";
+
+async function generateSessionToken(user: TestUser): Promise<string> {
+  const secret = process.env.AUTH_SECRET || "test-secret";
+  const now = Math.floor(Date.now() / 1000);
+
+  const token = await encode({
+    token: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      admin: user.admin,
+      iat: now,
+      exp: now + 60 * 60, // 1 hour expiry
+    },
+    secret,
+    salt: "authjs.session-token", // Must match your cookie name
+  });
+
+  return token;
+}
+
+// Set cookie in Playwright test
+await page.context().addCookies([
+  {
+    name: "authjs.session-token",
+    value: await generateSessionToken(testUser),
+    domain: "localhost",
+    path: "/",
+    httpOnly: true,
+    secure: false,
+    sameSite: "Lax",
+  },
+]);
+```
+
+Or use the factory for cleaner tests:
+
+```typescript
+const { createSessionToken, getCookieName } = createSessionHelpers({
+  cookieName: "myapp.session-token",
+  secret: "test-secret",
+});
+
+async function loginAsUser(page: Page, user: TestUser) {
+  const token = await createSessionToken(user);
+  await page.context().addCookies([
+    {
+      name: getCookieName(),
+      value: token,
+      domain: "localhost",
+      path: "/",
+      httpOnly: true,
+      secure: false,
+      sameSite: "Lax",
+    },
+  ]);
+}
+```
+
 ## Uploads
 
 Initialize the uploads service with your database instance.

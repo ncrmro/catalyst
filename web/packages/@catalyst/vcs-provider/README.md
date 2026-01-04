@@ -163,6 +163,47 @@ https://your-domain.com/api/github/callback
 
 > **Note**: If the first callback URL is missing from your GitHub App settings, users will see "The redirect_uri is not associated with this application" when signing in.
 
+### OAuth During Installation
+
+When "Request user authorization (OAuth) during installation" is enabled in your GitHub App settings, the installation callback receives both OAuth credentials and the installation ID in one flow:
+
+```typescript
+// GitHub sends: ?code=xxx&installation_id=yyy&setup_action=install
+import {
+  exchangeAuthorizationCode,
+  fetchGitHubUser,
+  storeGitHubTokens,
+} from "@catalyst/vcs-provider";
+import { createAndSetSession } from "@/auth"; // From @tetrastack/backend/auth
+
+export async function GET(request: NextRequest) {
+  const code = searchParams.get("code");
+  const installationId = searchParams.get("installation_id");
+
+  // Exchange code for tokens
+  const tokens = await exchangeAuthorizationCode(code);
+
+  // Get user profile
+  const githubUser = await fetchGitHubUser(tokens.accessToken);
+
+  // Find or create user in your database
+  const user = await findOrCreateUser(githubUser);
+
+  // Store tokens with installation_id
+  await storeGitHubTokens(user.id, {
+    ...tokens,
+    installationId,
+  });
+
+  // Create session using helpers from @tetrastack/backend/auth
+  await createAndSetSession(user);
+
+  return NextResponse.redirect("/dashboard");
+}
+```
+
+For programmatic session creation (used in the callback above), see the [Programmatic Session Creation](../../../packages/@tetrastack/backend/README.md#programmatic-session-creation) section in the `@tetrastack/backend` README.
+
 ### Environment Variables
 
 ```bash
