@@ -1,0 +1,47 @@
+name: Release Operator
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "operator/**"
+      - .github/workflows/operator.release.yml
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: "Comma-separated list of platforms to build for (e.g., linux/amd64,linux/arm64)"
+        required: false
+        default: "linux/amd64,linux/arm64"
+        type: string
+  workflow_call:
+    inputs:
+      platforms:
+        description: "Comma-separated list of platforms to build for (e.g., linux/amd64,linux/arm64)"
+        required: false
+        default: "linux/amd64"
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and push containers with Docker Bake
+        uses: ./.github/actions/build-container-bake
+        with:
+          registry: ${{ env.REGISTRY }}
+          image: ${{ github.repository }}/operator
+          platforms: ${{ inputs.platforms || 'linux/amd64' }}
+          workdir: "./operator"
+          files: "./docker-bake.yml"

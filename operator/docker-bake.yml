@@ -1,0 +1,24 @@
+# Docker Bake file for operator builds
+# Usage examples:
+#   docker buildx bake                     # Build all targets (development + production)
+#   docker buildx bake development         # Build only development variant
+#   docker buildx bake production          # Build only production variant
+
+version: "3.8"
+
+# Operator build targets
+services:
+  development:
+    build:
+      dockerfile: Dockerfile
+      context: .
+      target: builder
+      platforms:
+        - linux/amd64
+
+  production:
+    build:
+      dockerfile: Dockerfile
+      context: .
+      platforms:
+        - linux/amd64
