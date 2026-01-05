@@ -15,10 +15,16 @@ import {
   getProvider,
 } from "@/lib/vcs-providers";
 import type { PullRequest, Issue } from "@/types/reports";
-import { Branch } from "@/lib/vcs-providers";
+import { Branch, isGitHubTokenError } from "@/lib/vcs-providers";
 import { db } from "@/db";
 import { pullRequestPods } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+
+export interface ProjectDataWithStatus<T> {
+  data: T;
+  hasGitHubError: boolean;
+  errorMessage?: string;
+}
 
 /**
  * Fetch projects data from database using Drizzle's relational queries
@@ -94,10 +100,21 @@ export async function fetchProjectBySlug(slug: string) {
 export async function fetchProjectPullRequests(
   projectId: string,
 ): Promise<PullRequest[]> {
+  const result = await fetchProjectPullRequestsWithStatus(projectId);
+  return result.data;
+}
+
+/**
+ * Fetch pull requests for a specific project with connection status
+ * Enriched with preview environment data
+ */
+export async function fetchProjectPullRequestsWithStatus(
+  projectId: string,
+): Promise<ProjectDataWithStatus<PullRequest[]>> {
   try {
     const project = await fetchProjectById(projectId);
     if (!project) {
-      return [];
+      return { data: [], hasGitHubError: false };
     }
 
     // Extract repositories from the project data
@@ -114,16 +131,24 @@ export async function fetchProjectPullRequests(
     const userId = session?.user?.id;
     if (!userId) {
       console.warn("No user ID found for fetching project pull requests");
-      return [];
+      return { data: [], hasGitHubError: false };
     }
     const repoNames = repositories.map((r) => r.full_name);
     const prs = await fetchPullRequests(userId, repoNames);
 
     // Enrich PRs with preview environment data
-    return enrichPullRequestsWithPreviewEnvs(prs);
+    const enrichedPRs = await enrichPullRequestsWithPreviewEnvs(prs);
+    return { data: enrichedPRs, hasGitHubError: false };
   } catch (error) {
     console.error("Error fetching project pull requests:", error);
-    return [];
+    const isTokenError = isGitHubTokenError(error);
+    return {
+      data: [],
+      hasGitHubError: isTokenError,
+      errorMessage: isTokenError
+        ? "GitHub connection error. Please reconnect your account."
+        : "Failed to fetch pull requests",
+    };
   }
 }
 
@@ -187,10 +212,20 @@ async function enrichPullRequestsWithPreviewEnvs(
  * Fetch priority issues for a specific project across all its repositories
  */
 export async function fetchProjectIssues(projectId: string): Promise<Issue[]> {
+  const result = await fetchProjectIssuesWithStatus(projectId);
+  return result.data;
+}
+
+/**
+ * Fetch priority issues for a specific project with connection status
+ */
+export async function fetchProjectIssuesWithStatus(
+  projectId: string,
+): Promise<ProjectDataWithStatus<Issue[]>> {
   try {
     const project = await fetchProjectById(projectId);
     if (!project) {
-      return [];
+      return { data: [], hasGitHubError: false };
     }
 
     // Extract repositories from the project data
@@ -207,13 +242,21 @@ export async function fetchProjectIssues(projectId: string): Promise<Issue[]> {
     const userId = session?.user?.id;
     if (!userId) {
       console.warn("No user ID found for fetching project issues");
-      return [];
+      return { data: [], hasGitHubError: false };
     }
     const repoNames = repositories.map((r) => r.full_name);
-    return await fetchIssues(userId, repoNames);
+    const issues = await fetchIssues(userId, repoNames);
+    return { data: issues, hasGitHubError: false };
   } catch (error) {
     console.error("Error fetching project issues:", error);
-    return [];
+    const isTokenError = isGitHubTokenError(error);
+    return {
+      data: [],
+      hasGitHubError: isTokenError,
+      errorMessage: isTokenError
+        ? "GitHub connection error. Please reconnect your account."
+        : "Failed to fetch issues",
+    };
   }
 }
 

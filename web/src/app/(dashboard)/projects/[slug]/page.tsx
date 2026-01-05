@@ -1,7 +1,7 @@
 import {
   fetchProjectBySlug,
-  fetchProjectPullRequests,
-  fetchProjectIssues,
+  fetchProjectPullRequestsWithStatus,
+  fetchProjectIssuesWithStatus,
 } from "@/actions/projects";
 import { fetchProjectSpecs } from "@/actions/specs";
 import { groupPRsBySpecAndType } from "@/lib/pr-spec-matching";
@@ -38,17 +38,23 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
 
   // TODO: Add caching for specs, PRs, and issues - consider unstable_cache or revalidate
   // Fetch specs, PRs, and issues in parallel for better performance
-  const [specs, pullRequests, issues] = await Promise.all([
+  const [specs, pullRequestsResult, issuesResult] = await Promise.all([
     fetchProjectSpecs(project.id, slug),
-    fetchProjectPullRequests(project.id),
-    fetchProjectIssues(project.id),
+    fetchProjectPullRequestsWithStatus(project.id),
+    fetchProjectIssuesWithStatus(project.id),
   ]);
 
   // Group PRs by type (feature vs platform/chore) and spec
   const { featurePRs, platformPRs } = groupPRsBySpecAndType(
-    pullRequests,
+    pullRequestsResult.data,
     specs,
   );
+
+  // Determine if there's a GitHub error (from either PRs or issues)
+  const hasGitHubError =
+    pullRequestsResult.hasGitHubError || issuesResult.hasGitHubError;
+  const errorMessage =
+    pullRequestsResult.errorMessage || issuesResult.errorMessage;
 
   return (
     <ProjectPageContent
@@ -61,7 +67,9 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       specs={specs}
       featurePRs={featurePRs}
       platformPRs={platformPRs}
-      issues={issues}
+      issues={issuesResult.data}
+      hasGitHubError={hasGitHubError}
+      errorMessage={errorMessage}
     />
   );
 }
