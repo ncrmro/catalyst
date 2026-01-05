@@ -7,7 +7,6 @@ import {
   listThreadsByProject,
   listThreadsByScope,
   getThreadItems,
-  addThreadItem,
 } from "@/models/threads";
 import { z } from "zod";
 

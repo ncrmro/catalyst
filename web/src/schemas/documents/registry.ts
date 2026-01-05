@@ -26,10 +26,10 @@ export type DocumentTypeId = keyof DocumentRegistry;
 /**
  * Validate document content against its registered schema
  */
-export function validateDocument<TTypeId extends DocumentTypeId>(
-  typeId: TTypeId,
+export function validateDocument(
+  typeId: DocumentTypeId,
   content: unknown,
-): any {
+): unknown {
   const docType = documentRegistry[typeId];
   if (!docType) {
     throw new Error(`Unknown document type: ${typeId}`);
@@ -40,9 +40,9 @@ export function validateDocument<TTypeId extends DocumentTypeId>(
 /**
  * Get schema for a document type
  */
-export function getDocumentSchema<TTypeId extends DocumentTypeId>(
-  typeId: TTypeId,
-): any {
+export function getDocumentSchema(
+  typeId: DocumentTypeId,
+): z.ZodType {
   const docType = documentRegistry[typeId];
   if (!docType) {
     throw new Error(`Unknown document type: ${typeId}`);

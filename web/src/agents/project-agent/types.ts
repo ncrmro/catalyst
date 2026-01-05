@@ -19,9 +19,9 @@ export interface SpecContext extends ProjectContext {
     tasks?: ParsedTasks; // Parsed tasks.md
   };
   relatedWork?: {
-    pullRequests?: any[]; // TODO: Type from VCS provider
-    issues?: any[];
-    branches?: any[];
+    pullRequests?: unknown[]; // TODO: Type from VCS provider
+    issues?: unknown[];
+    branches?: unknown[];
   };
 }
 
@@ -59,13 +59,13 @@ export interface AgentToolContext {
 
 export interface ToolResult {
   success: boolean;
-  data?: any;
+  data?: unknown;
   error?: string;
 }
 
 export type AgentTool = {
   name: string;
   description: string;
-  parameters: Record<string, any>; // JSON Schema for parameters
-  execute: (params: any, context: AgentToolContext) => Promise<ToolResult>;
+  parameters: Record<string, unknown>; // JSON Schema for parameters
+  execute: (params: unknown, context: AgentToolContext) => Promise<ToolResult>;
 };

@@ -18,7 +18,8 @@ export interface CreateThreadParams extends ThreadScope {
   metadata?: Record<string, unknown>;
 }
 
-export interface GetThreadParams extends ThreadScope {}
+// Type alias for thread scope parameters
+export type GetThreadParams = ThreadScope;
 
 /**
  * Get or create a thread for a given scope.

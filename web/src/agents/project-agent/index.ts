@@ -76,7 +76,7 @@ export const agentTools: Record<string, AgentTool> = {
 /**
  * Get available tools for the current context
  */
-export function getAvailableTools(context: AgentToolContext): AgentTool[] {
+export function getAvailableTools(_context: AgentToolContext): AgentTool[] {
   // For now, return empty array - tools will be added in Phase 3
   // Filter tools based on context (e.g., spec-specific tools only available in spec context)
   return Object.values(agentTools);
