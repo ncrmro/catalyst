@@ -1,0 +1,117 @@
+# Default values for catalyst chart
+# This is a YAML-formatted file.
+
+# Values for ingress-nginx subchart
+ingress-nginx:
+  controller:
+    service:
+      type: LoadBalancer
+    ingressClassResource:
+      default: true
+
+# Values for cert-manager subchart
+cert-manager:
+  installCRDs: true
+
+# Values for CloudNativePG subchart
+cloudnative-pg:
+  {}
+
+# PostgreSQL Cluster configuration for the web database
+postgresql:
+  enabled: true
+  name: catalyst-db
+  instances: 1
+  storage:
+    size: 10Gi
+    storageClass: ""
+  database: catalyst
+  owner: catalyst
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 1Gi
+      cpu: 500m
+
+# Operator configuration
+operator:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: ghcr.io/ncrmro/catalyst/operator
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  imagePullSecrets: []
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 128Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Web application configuration
+web:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: ghcr.io/ncrmro/catalyst/web
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  imagePullSecrets: []
+
+  service:
+    type: ClusterIP
+    port: 3000
+
+  ingress:
+    enabled: false
+    className: nginx
+    annotations: {}
+    hosts:
+      - host: catalyst.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  env: []
+
+  envFrom: []
+
+  livenessProbe:
+    httpGet:
+      path: /api/health/readiness
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+
+  readinessProbe:
+    httpGet:
+      path: /api/health/readiness
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}

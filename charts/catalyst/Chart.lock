@@ -1,0 +1,12 @@
+dependencies:
+- name: ingress-nginx
+  repository: https://kubernetes.github.io/ingress-nginx
+  version: 4.11.3
+- name: cert-manager
+  repository: oci://quay.io/jetstack/charts
+  version: v1.18.2
+- name: cloudnative-pg
+  repository: https://cloudnative-pg.github.io/charts
+  version: 0.23.0
+digest: sha256:ffcb165ce0dff1f68a43055e719eb94a519fc661c833491c1a1d0277e23adc96
+generated: "2026-01-04T21:26:30.347801181-06:00"

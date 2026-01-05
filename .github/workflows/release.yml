@@ -13,6 +13,7 @@ jobs:
     outputs:
       operator_changed: ${{ steps.changed-files-yaml.outputs.operator_any_changed }}
       web_changed: ${{ steps.changed-files-yaml.outputs.web_any_changed }}
+      charts_changed: ${{ steps.changed-files-yaml.outputs.charts_any_changed }}
       dockerfiles_changed: ${{ steps.changed-files-yaml.outputs.dockerfiles_any_changed }}
     steps:
       - name: Checkout repository
@@ -31,6 +32,9 @@ jobs:
             web:
               - web/**
               - .github/workflows/release.yml
+            charts:
+              - charts/catalyst/**
+              - .github/workflows/release.yml
             dockerfiles:
               - dockerfiles/**
               - .github/workflows/dockerfiles.release.yaml
@@ -39,6 +43,7 @@ jobs:
         run: |
           echo "Operator changed: ${{ steps.changed-files-yaml.outputs.operator_any_changed }}"
           echo "Web changed: ${{ steps.changed-files-yaml.outputs.web_any_changed }}"
+          echo "Charts changed: ${{ steps.changed-files-yaml.outputs.charts_any_changed }}"
           echo "Dockerfiles changed: ${{ steps.changed-files-yaml.outputs.dockerfiles_any_changed }}"
 
   build-operator:
@@ -128,22 +133,22 @@ jobs:
 
   deploy:
     name: Deploy
-    needs: [build-operator, build-web]
+    needs: [detect-changes, build-operator, build-web]
     if: |
       always() &&
       (needs.build-operator.result == 'success' || needs.build-operator.result == 'skipped') &&
       (needs.build-web.result == 'success' || needs.build-web.result == 'skipped') &&
-      (needs.build-operator.result == 'success' || needs.build-web.result == 'success')
+      (needs.build-operator.result == 'success' || needs.build-web.result == 'success' || needs.detect-changes.outputs.charts_changed == 'true')
     runs-on: ubuntu-latest
     environment: production
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Nix
-        uses: cachix/install-nix-action@v31
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
         with:
-          nix_path: nixpkgs=channel:nixos-unstable
+          version: v3.14.0
 
       - name: Set Kubeconfig
         run: |
@@ -151,25 +156,43 @@ jobs:
           echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
           chmod 600 ~/.kube/config
 
-      - name: Deploy Web to Railway
-        if: needs.build-web.result == 'success'
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      - name: Determine image tags
+        id: image-tags
+        # When a component wasn't rebuilt, we use 'latest' as a fallback.
+        # TODO: Replace 'latest' with the actual previously deployed SHA256 digest
+        # by querying the current deployment's image or storing it as a GitHub variable.
+        # Using 'latest' assumes the registry tag points to the last successful build.
         run: |
-          npm install -g @railway/cli
-          railway redeploy --service=web --yes
+          if [ "${{ needs.build-web.result }}" == "success" ]; then
+            echo "web_tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+          else
+            echo "web_tag=latest" >> $GITHUB_OUTPUT
+          fi
+          if [ "${{ needs.build-operator.result }}" == "success" ]; then
+            echo "operator_tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+          else
+            echo "operator_tag=latest" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Deploy Operator to catalyst-system
-        if: needs.build-operator.result == 'success'
+      - name: Update Helm dependencies
+        run: helm dependency update ./charts/catalyst
+
+      - name: Deploy Catalyst chart
         run: |
-          kubectl apply -f operator/config/crd/bases/
-          kubectl set image deployment/catalyst-controller-manager manager=ghcr.io/${{ github.repository }}/operator@${{ needs.build-operator.outputs.digest }} -n catalyst-system
+          helm upgrade --install catalyst ./charts/catalyst \
+            --namespace catalyst-system \
+            --create-namespace \
+            --set operator.image.repository=ghcr.io/${{ github.repository }}/operator \
+            --set operator.image.tag=${{ steps.image-tags.outputs.operator_tag }} \
+            --set web.image.repository=ghcr.io/${{ github.repository }}/web \
+            --set web.image.tag=${{ steps.image-tags.outputs.web_tag }} \
+            --wait --timeout 10m
 
-      # TODO: No web deployment exists yet in catalyst-system. Update to use Helm chart when ready.
-      # - name: Deploy Web to catalyst-system
-      #   if: needs.build-web.result == 'success'
-      #   run: |
-      #     kubectl set image deployment/web nextjs=ghcr.io/${{ github.repository }}/web@${{ needs.build-web.outputs.digest }} -n catalyst-system
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n catalyst-system
+          kubectl get services -n catalyst-system
+          kubectl get crds | grep catalyst || true
 
 
 
