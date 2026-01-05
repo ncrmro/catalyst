@@ -19,7 +19,7 @@ interface GitHubConnectionErrorBannerProps {
 export function GitHubConnectionErrorBanner({
   errorMessage = "Unable to connect to GitHub. Your authentication may have expired or requires additional permissions.",
 }: GitHubConnectionErrorBannerProps) {
-  const [isDismissed, setIsDismissed] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(true); // Start hidden to avoid flash
 
   useEffect(() => {
     // Check sessionStorage on mount
