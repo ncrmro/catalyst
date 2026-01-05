@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
 
 interface CopyButtonProps {
   text: string;
@@ -34,34 +35,23 @@ export function CopyButton({
       setCopied(true);
     } catch (err) {
       console.error("Failed to copy to clipboard:", err);
-      // Fallback for environments without clipboard API
-      try {
-        const textArea = document.createElement("textarea");
-        textArea.value = text;
-        textArea.style.position = "fixed";
-        textArea.style.left = "-999999px";
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textArea);
-        setCopied(true);
-      } catch (fallbackErr) {
-        console.error("Fallback copy also failed:", fallbackErr);
-      }
     }
   };
 
   return (
     <button
       onClick={handleCopy}
-      className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-on-surface-variant hover:text-on-surface transition-colors ${className}`}
+      className={cn(
+        "inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-on-surface-variant hover:text-on-surface transition-colors",
+        className,
+      )}
       aria-label={copied ? "Copied to clipboard" : `${label} to clipboard`}
       title={copied ? "Copied!" : label}
     >
       {copied ? (
         <>
           <svg
-            className={`w-4 h-4 text-success ${iconClassName}`}
+            className={cn("w-4 h-4 text-success", iconClassName)}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -79,7 +69,7 @@ export function CopyButton({
       ) : (
         <>
           <svg
-            className={`w-4 h-4 ${iconClassName}`}
+            className={cn("w-4 h-4", iconClassName)}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
