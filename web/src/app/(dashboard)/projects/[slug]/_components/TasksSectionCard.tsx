@@ -189,9 +189,8 @@ export function TasksSectionCard({
     label: `${tab.label} (${counts[tab.value as TabValue]})`,
   }));
 
-  // Always render if there are specs (even without items)
-  const hasContent = specs.length > 0 || allPRs.length > 0 || issues.length > 0;
-  if (!hasContent) return null;
+  // Always render the card, even with zero content
+  // This ensures the Feature Tasks and Platform Tasks cards are always visible
 
   const specLookup = new Map(specs.map((s) => [s.id, s]));
 
