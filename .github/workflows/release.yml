@@ -1,0 +1,225 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      operator_changed: ${{ steps.changed-files-yaml.outputs.operator_any_changed }}
+      web_changed: ${{ steps.changed-files-yaml.outputs.web_any_changed }}
+      dockerfiles_changed: ${{ steps.changed-files-yaml.outputs.dockerfiles_any_changed }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for accurate change detection
+
+      - name: Get all changed files
+        id: changed-files-yaml
+        uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62 # v47
+        with:
+          files_yaml: |
+            operator:
+              - operator/**
+              - .github/workflows/operator.yml
+            web:
+              - web/**
+              - .github/workflows/release.yml
+            dockerfiles:
+              - dockerfiles/**
+              - .github/workflows/dockerfiles.release.yaml
+
+      - name: Show changed components
+        run: |
+          echo "Operator changed: ${{ steps.changed-files-yaml.outputs.operator_any_changed }}"
+          echo "Web changed: ${{ steps.changed-files-yaml.outputs.web_any_changed }}"
+          echo "Dockerfiles changed: ${{ steps.changed-files-yaml.outputs.dockerfiles_any_changed }}"
+
+  build-operator:
+    name: Build Operator
+    needs: detect-changes
+    if: needs.detect-changes.outputs.operator_changed == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+      image: ghcr.io/${{ github.repository }}/operator
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    defaults:
+      run:
+        working-directory: ./operator
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/operator
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./operator
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ghcr.io/${{ github.repository }}/operator
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+  build-web:
+    name: Build Web
+    needs: detect-changes
+    if: needs.detect-changes.outputs.web_changed == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.bake.outputs.digest }}
+      production-image: ${{ steps.bake.outputs.production-image }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and push containers with Docker Bake
+        id: bake
+        uses: ./.github/actions/build-container-bake
+        with:
+          registry: ghcr.io
+          image: ${{ github.repository }}/web
+          platforms: linux/amd64
+          workdir: "./web"
+          files: "./docker-bake.yml"
+
+  deploy:
+    name: Deploy
+    needs: [build-operator, build-web]
+    if: |
+      always() &&
+      (needs.build-operator.result == 'success' || needs.build-operator.result == 'skipped') &&
+      (needs.build-web.result == 'success' || needs.build-web.result == 'skipped') &&
+      (needs.build-operator.result == 'success' || needs.build-web.result == 'success')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Set Kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Deploy Web to Railway
+        if: needs.build-web.result == 'success'
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          npm install -g @railway/cli
+          railway redeploy --service=web --yes
+
+      - name: Deploy Operator to catalyst-system
+        if: needs.build-operator.result == 'success'
+        run: |
+          kubectl set image deployment/operator-controller-manager manager=ghcr.io/${{ github.repository }}/operator@${{ needs.build-operator.outputs.digest }} -n catalyst-system
+
+      - name: Deploy Web to catalyst-system
+        if: needs.build-web.result == 'success'
+        run: |
+          kubectl set image deployment/web nextjs=ghcr.io/${{ github.repository }}/web@${{ needs.build-web.outputs.digest }} -n catalyst-system
+
+
+
+  release-dockerfiles:
+    name: Release Dockerfiles
+    needs: detect-changes
+    if: needs.detect-changes.outputs.dockerfiles_changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/ncrmro/catalyst/pr-job-pod
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: dockerfiles
+          file: dockerfiles/pr-job-pod.Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=ghcr.io/ncrmro/catalyst/pr-job-pod:branch-${{ github.ref_name }}-cache
+          cache-to: type=registry,ref=ghcr.io/ncrmro/catalyst/pr-job-pod:branch-${{ github.ref_name }}-cache,mode=max
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ghcr.io/ncrmro/catalyst/pr-job-pod
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
