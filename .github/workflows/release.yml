@@ -148,7 +148,7 @@ jobs:
       - name: Set Kubeconfig
         run: |
           mkdir -p ~/.kube
-          echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
           chmod 600 ~/.kube/config
 
       - name: Deploy Web to Railway
@@ -162,7 +162,8 @@ jobs:
       - name: Deploy Operator to catalyst-system
         if: needs.build-operator.result == 'success'
         run: |
-          kubectl set image deployment/operator-controller-manager manager=ghcr.io/${{ github.repository }}/operator@${{ needs.build-operator.outputs.digest }} -n catalyst-system
+          kubectl apply -f operator/config/crd/bases/
+          kubectl set image deployment/catalyst-controller-manager manager=ghcr.io/${{ github.repository }}/operator@${{ needs.build-operator.outputs.digest }} -n catalyst-system
 
       - name: Deploy Web to catalyst-system
         if: needs.build-web.result == 'success'
