@@ -105,6 +105,11 @@ jobs:
     if: needs.detect-changes.outputs.web_changed == 'true'
     # Note: Permissions are inherited from web.release.yml, not specified here
     uses: ./.github/workflows/web.release.yml
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
     secrets: inherit
 
   deploy:
@@ -131,6 +136,14 @@ jobs:
           mkdir -p ~/.kube
           echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
           chmod 600 ~/.kube/config
+
+      - name: Deploy Web to Railway
+        if: needs.build-web.result == 'success'
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          npm install -g @railway/cli
+          railway redeploy --service=web --yes
 
       - name: Deploy Operator to catalyst-system
         if: needs.build-operator.result == 'success'
