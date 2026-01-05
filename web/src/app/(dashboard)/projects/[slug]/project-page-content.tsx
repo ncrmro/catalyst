@@ -3,6 +3,7 @@ import type { Spec, PRsBySpec } from "@/lib/pr-spec-matching";
 import type { Issue } from "@/types/reports";
 import { splitIssuesByType } from "@/lib/issue-spec-matching";
 import { TasksSectionCard } from "./_components/TasksSectionCard";
+import { GitHubConnectionErrorBanner } from "@/components/github-connection-error-banner";
 
 interface ProjectPageContentProps {
   project: {
@@ -15,6 +16,8 @@ interface ProjectPageContentProps {
   featurePRs: PRsBySpec;
   platformPRs: PRsBySpec;
   issues: Issue[];
+  hasGitHubError?: boolean;
+  errorMessage?: string;
 }
 
 export function ProjectPageContent({
@@ -23,6 +26,8 @@ export function ProjectPageContent({
   featurePRs,
   platformPRs,
   issues,
+  hasGitHubError = false,
+  errorMessage,
 }: ProjectPageContentProps) {
   // Split issues between feature and platform categories
   const { featureIssues, platformIssues } = splitIssuesByType(issues);
@@ -32,6 +37,10 @@ export function ProjectPageContent({
 
   return (
     <>
+      {hasGitHubError && (
+        <GitHubConnectionErrorBanner errorMessage={errorMessage} />
+      )}
+
       <TasksSectionCard
         title="Feature Tasks"
         specs={specs}
