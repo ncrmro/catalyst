@@ -168,6 +168,11 @@ jobs:
             make deploy IMG=ghcr.io/${{ github.repository }}/operator@${{ needs.build-operator.outputs.digest }}
           "
 
+      - name: Deploy Web to catalyst-system
+        if: needs.build-web.result == 'success'
+        run: |
+          kubectl set image deployment/web nextjs=ghcr.io/${{ github.repository }}/web@${{ needs.build-web.outputs.digest }} -n catalyst-system
+
 
 
   release-dockerfiles:
