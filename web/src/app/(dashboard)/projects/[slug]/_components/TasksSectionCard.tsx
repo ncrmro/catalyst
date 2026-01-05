@@ -7,7 +7,7 @@ import { EntityCardTabSelector } from "@tetrastack/react-glass-components";
 import { PRListItem } from "@/components/work-items/PRTasksSection";
 import { IssueListItem } from "@/components/work-items/IssueListItem";
 import type { Spec, PRsBySpec } from "@/lib/pr-spec-matching";
-import type { IssuesBySpec } from "@/lib/issue-spec-matching";
+import { type IssuesBySpec, matchIssueToSpec } from "@/lib/issue-spec-matching";
 import type { Issue } from "@/types/reports";
 import { buildSpecUrl } from "@/lib/spec-url";
 
@@ -159,19 +159,14 @@ export function TasksSectionCard({
   const specIds = specs.map((s) => s.id);
   const issuesBySpec: IssuesBySpec = { bySpec: {}, noSpec: [] };
   issues.forEach((issue) => {
-    const titleLower = issue.title.toLowerCase();
-    let matched = false;
-    for (const specId of specIds) {
-      if (titleLower.includes(specId.toLowerCase())) {
-        if (!issuesBySpec.bySpec[specId]) {
-          issuesBySpec.bySpec[specId] = [];
-        }
-        issuesBySpec.bySpec[specId].push(issue);
-        matched = true;
-        break;
+    const matchedSpecId = matchIssueToSpec(issue.title, specIds);
+
+    if (matchedSpecId) {
+      if (!issuesBySpec.bySpec[matchedSpecId]) {
+        issuesBySpec.bySpec[matchedSpecId] = [];
       }
-    }
-    if (!matched) {
+      issuesBySpec.bySpec[matchedSpecId].push(issue);
+    } else {
       issuesBySpec.noSpec.push(issue);
     }
   });
@@ -358,6 +353,28 @@ export function TasksSectionCard({
               )}
             </>
           )}
+
+          <div className="pt-2 border-t border-outline/30 flex justify-end">
+            <Link
+              href={`/specs/${projectSlug}`}
+              className="text-sm font-medium text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+            >
+              View all specs
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </Link>
+          </div>
         </div>
       }
       size="sm"
