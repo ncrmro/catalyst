@@ -165,10 +165,11 @@ jobs:
           kubectl apply -f operator/config/crd/bases/
           kubectl set image deployment/catalyst-controller-manager manager=ghcr.io/${{ github.repository }}/operator@${{ needs.build-operator.outputs.digest }} -n catalyst-system
 
-      - name: Deploy Web to catalyst-system
-        if: needs.build-web.result == 'success'
-        run: |
-          kubectl set image deployment/web nextjs=ghcr.io/${{ github.repository }}/web@${{ needs.build-web.outputs.digest }} -n catalyst-system
+      # TODO: No web deployment exists yet in catalyst-system. Update to use Helm chart when ready.
+      # - name: Deploy Web to catalyst-system
+      #   if: needs.build-web.result == 'success'
+      #   run: |
+      #     kubectl set image deployment/web nextjs=ghcr.io/${{ github.repository }}/web@${{ needs.build-web.outputs.digest }} -n catalyst-system
 
 
 
