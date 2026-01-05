@@ -20,7 +20,9 @@ if [[ -z "$CNPG_TARBALL" ]]; then
   echo "Error: CloudNativePG tarball not found. Run 'helm dependency update' first."
   exit 1
 fi
-tar -xzf "$CNPG_TARBALL" cloudnative-pg/templates/crds/crds.yaml -O > "$CRDS_DIR/cloudnative-pg-crds.yaml"
+# Extract and strip Helm template conditionals from the CRD file
+tar -xzf "$CNPG_TARBALL" cloudnative-pg/templates/crds/crds.yaml -O | \
+  grep -v '^{{-' > "$CRDS_DIR/cloudnative-pg-crds.yaml"
 echo "  -> $CRDS_DIR/cloudnative-pg-crds.yaml"
 
 # Copy Catalyst operator CRDs
