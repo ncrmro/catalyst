@@ -30,7 +30,7 @@ jobs:
               - .github/workflows/operator.yml
             web:
               - web/**
-              - .github/workflows/web.release.yml
+              - .github/workflows/release.yml
             dockerfiles:
               - dockerfiles/**
               - .github/workflows/dockerfiles.release.yaml
@@ -103,14 +103,28 @@ jobs:
     name: Build Web
     needs: detect-changes
     if: needs.detect-changes.outputs.web_changed == 'true'
-    # Note: Permissions are inherited from web.release.yml, not specified here
-    uses: ./.github/workflows/web.release.yml
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.bake.outputs.digest }}
+      production-image: ${{ steps.bake.outputs.production-image }}
     permissions:
       contents: read
       packages: write
       id-token: write
       attestations: write
-    secrets: inherit
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and push containers with Docker Bake
+        id: bake
+        uses: ./.github/actions/build-container-bake
+        with:
+          registry: ghcr.io
+          image: ${{ github.repository }}/web
+          platforms: linux/amd64
+          workdir: "./web"
+          files: "./docker-bake.yml"
 
   deploy:
     name: Deploy
@@ -154,12 +168,7 @@ jobs:
             make deploy IMG=ghcr.io/${{ github.repository }}/operator@${{ needs.build-operator.outputs.digest }}
           "
 
-      - name: Deploy Web to catalyst-system
-        if: needs.build-web.result == 'success'
-        run: |
-          echo "Web deployment would go here"
-          # TODO: Implement web deployment to catalyst-system namespace
-          # kubectl set image deployment/web web=ghcr.io/${{ github.repository }}/web@${{ needs.build-web.outputs.digest }} -n catalyst-system
+
 
   release-dockerfiles:
     name: Release Dockerfiles
