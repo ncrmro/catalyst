@@ -15,7 +15,8 @@ cert-manager:
 
 # Values for CloudNativePG subchart
 cloudnative-pg:
-  {}
+  crds:
+    create: false # CRDs are managed in chart's crds/ directory via scripts/update-crds.sh
 
 # PostgreSQL Cluster configuration for the web database
 postgresql:

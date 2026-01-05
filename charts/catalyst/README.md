@@ -10,6 +10,24 @@ This Helm chart deploys the Catalyst platform, including the web application and
 - **cloudnative-pg**: v0.23.0 - CloudNativePG operator for PostgreSQL
 - **PostgreSQL**: CloudNativePG cluster for the web database
 
+## CRD Management
+
+This chart includes CRDs for CloudNativePG and the Catalyst operator in the `crds/` directory. Helm installs CRDs from this directory before templates, ensuring proper ordering.
+
+### Updating CRDs
+
+After updating chart dependencies or modifying operator CRDs, run the update script:
+
+```bash
+# First update Helm dependencies
+helm dependency update ./charts/catalyst
+
+# Then update CRDs
+./charts/catalyst/scripts/update-crds.sh
+```
+
+The script extracts CloudNativePG CRDs from the subchart and copies Catalyst operator CRDs from the operator directory.
+
 ## Usage
 
 ### Installation
@@ -17,6 +35,9 @@ This Helm chart deploys the Catalyst platform, including the web application and
 ```bash
 # Update dependencies before installing
 helm dependency update ./charts/catalyst
+
+# Update CRDs (required after dependency updates)
+./charts/catalyst/scripts/update-crds.sh
 
 # Install the chart
 helm install catalyst ./charts/catalyst --namespace catalyst-system --create-namespace
