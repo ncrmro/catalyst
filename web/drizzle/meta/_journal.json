@@ -127,6 +127,13 @@
       "when": 1767318114950,
       "tag": "0017_striped_hiroim",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1767550057671,
+      "tag": "0018_skinny_havok",
+      "breakpoints": true
     }
   ]
 }
