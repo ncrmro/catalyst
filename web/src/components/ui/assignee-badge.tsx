@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Assignee } from "@/components/tasks/types";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 export interface AssigneeBadgeProps {
   assignee: Assignee;
@@ -24,6 +25,8 @@ export function AssigneeBadge({
     md: "w-5 h-5",
   };
 
+  const pixelSize = size === "sm" ? 16 : 20;
+
   return (
     <span
       className={cn(
@@ -33,10 +36,11 @@ export function AssigneeBadge({
       )}
     >
       {assignee.avatarUrl ? (
-        <img
+        <UserAvatar
           src={assignee.avatarUrl}
           alt={assignee.name}
-          className={cn("rounded-full", iconSizeClasses[size])}
+          size={pixelSize}
+          unoptimized
         />
       ) : (
         <span

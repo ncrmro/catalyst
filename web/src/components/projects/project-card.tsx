@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import type { ProjectWithRelations } from "@/types/projects";
 
 export function ProjectCard({ project }: { project: ProjectWithRelations }) {
@@ -12,12 +12,11 @@ export function ProjectCard({ project }: { project: ProjectWithRelations }) {
       data-testid={`project-card-${project.fullName}`}
     >
       {/* Avatar */}
-      <Image
+      <UserAvatar
         src={project.ownerAvatarUrl || ""}
         alt={`${project.ownerLogin} avatar`}
-        width={48}
-        height={48}
-        className="w-12 h-12 rounded-full shrink-0"
+        size={48}
+        className="shrink-0"
       />
 
       {/* Main content */}

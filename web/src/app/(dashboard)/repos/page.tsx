@@ -1,6 +1,6 @@
 import { fetchGitHubRepos } from "@/actions/repos.github";
 import { getRepositoryConnectionStatus } from "@/actions/repos.connected";
-import Image from "next/image";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
@@ -63,12 +63,11 @@ function RepoCard({
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
-            <Image
+            <UserAvatar
               src={repo.owner.avatar_url}
               alt={`${repo.owner.login} avatar`}
-              width={24}
-              height={24}
-              className="w-6 h-6 rounded-full flex-shrink-0"
+              size={24}
+              className="flex-shrink-0"
             />
             <a
               href={repo.html_url}
@@ -147,12 +146,10 @@ function OrganizationSection({
   return (
     <div className="mb-8">
       <div className="flex items-center gap-3 mb-4">
-        <Image
+        <UserAvatar
           src={organization.avatar_url}
           alt={`${organization.login} avatar`}
-          width={32}
-          height={32}
-          className="w-8 h-8 rounded-full"
+          size={32}
         />
         <div>
           <h2 className="text-xl font-semibold text-on-surface">

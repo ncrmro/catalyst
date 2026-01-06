@@ -2,6 +2,7 @@
 
 import { GlassCard } from "@tetrastack/react-glass-components";
 import Link from "next/link";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import type { PullRequest } from "@/types/reports";
 
 interface PullRequestCardProps {
@@ -94,10 +95,11 @@ export function PullRequestCard({ pr, projectSlug }: PullRequestCardProps) {
             <div className="flex items-center gap-4 text-sm text-on-surface-variant">
               <div className="flex items-center gap-2">
                 {pr.author_avatar && (
-                  <img
+                  <UserAvatar
                     src={pr.author_avatar}
                     alt={pr.author}
-                    className="w-5 h-5 rounded-full"
+                    size={20}
+                    unoptimized
                   />
                 )}
                 <span>{pr.author}</span>

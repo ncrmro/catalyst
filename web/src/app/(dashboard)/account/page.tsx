@@ -3,7 +3,7 @@ import { signOutAction } from "@/actions/auth";
 import { auth } from "@/auth";
 import { GlassCard } from "@tetrastack/react-glass-components";
 import { Metadata } from "next";
-import Image from "next/image";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { ConnectProviderButton } from "./_components/ConnectProviderButton";
 
 export const metadata: Metadata = {
@@ -127,12 +127,10 @@ function ProviderCard({
             <div className="flex flex-col gap-1 mt-2">
               <div className="flex items-center gap-2">
                 {provider.avatarUrl && (
-                  <Image
+                  <UserAvatar
                     src={provider.avatarUrl}
                     alt={provider.username}
-                    width={24}
-                    height={24}
-                    className="w-6 h-6 rounded-full"
+                    size={24}
                   />
                 )}
                 <span className="text-sm text-on-surface-variant">
@@ -247,12 +245,10 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             {session.user.image ? (
-              <Image
+              <UserAvatar
                 src={session.user.image}
                 alt={session.user.name || "User"}
-                width={64}
-                height={64}
-                className="w-16 h-16 rounded-full"
+                size={64}
               />
             ) : (
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">

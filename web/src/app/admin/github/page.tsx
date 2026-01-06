@@ -1,5 +1,5 @@
 import { getGitHubAppInstallations } from "@/actions/github-app";
-import Image from "next/image";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 // Force dynamic rendering - don't pre-render this page at build time
 export const dynamic = "force-dynamic";
@@ -42,14 +42,12 @@ export default async function AdminGitHubPage() {
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center space-x-4">
-                  <Image
+                  <UserAvatar
                     src={
                       installation.account?.avatar_url || "/default-avatar.png"
                     }
                     alt={`${installation.account?.login || "Unknown"} avatar`}
-                    width={48}
-                    height={48}
-                    className="rounded-full"
+                    size={48}
                   />
                   <div>
                     <h3 className="text-lg font-medium text-on-surface">

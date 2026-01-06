@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { GlassCard } from "@tetrastack/react-glass-components";
 import type { PullRequest } from "@/types/reports";
 import type { Spec, PRsBySpec } from "@/lib/pr-spec-matching";
@@ -200,10 +201,11 @@ export function PRListItem({
 
         {/* Author avatar */}
         {pr.author_avatar && (
-          <img
+          <UserAvatar
             src={pr.author_avatar}
             alt={pr.author}
-            className="w-5 h-5 rounded-full"
+            size={20}
+            unoptimized
           />
         )}
       </div>

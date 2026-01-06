@@ -1,6 +1,6 @@
 import { fetchGitHubRepos } from "@/actions/repos.github";
 import { notFound } from "next/navigation";
-import Image from "next/image";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
@@ -56,12 +56,10 @@ export default async function DeploymentPage({ params }: DeploymentPageProps) {
       {/* Header Section */}
       <div>
         <div className="flex items-center gap-4 mb-4">
-          <Image
+          <UserAvatar
             src={repo.owner.avatar_url}
             alt={`${repo.owner.login} avatar`}
-            width={32}
-            height={32}
-            className="w-8 h-8 rounded-full"
+            size={32}
           />
           <div>
             <h1 className="text-3xl font-bold text-on-background">
@@ -82,12 +80,10 @@ export default async function DeploymentPage({ params }: DeploymentPageProps) {
       {/* Repository Info Card */}
       <div className="bg-surface border border-outline rounded-lg p-6">
         <div className="flex items-center gap-4">
-          <Image
+          <UserAvatar
             src={repo.owner.avatar_url}
             alt={`${repo.owner.login} avatar`}
-            width={48}
-            height={48}
-            className="w-12 h-12 rounded-full"
+            size={48}
           />
           <div className="flex-1">
             <h2 className="text-xl font-semibold text-on-surface">
