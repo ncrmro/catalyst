@@ -105,6 +105,12 @@ export interface GlassEntityCardProps extends Omit<
   LinkComponent?: React.ElementType;
 
   /**
+   * Whether to show a colored ring when selected or expanded
+   * @default true
+   */
+  showRing?: boolean;
+
+  /**
    * Test ID for testing purposes
    */
   testId?: string;
@@ -168,6 +174,7 @@ export function GlassEntityCard({
   size = "md",
   href,
   LinkComponent = "a",
+  showRing = true,
   testId,
   dataAttributes,
   className,
@@ -322,8 +329,9 @@ export function GlassEntityCard({
       className={cn(
         sizes.padding,
         "transition-all duration-200",
-        (selected || expanded) && "ring-2 ring-primary",
+        showRing && (selected || expanded) && "ring-2 ring-primary",
         isInteractive && !href && "hover:shadow-lg",
+        "focus-within:z-10",
         className,
       )}
       {...dataAttrs}

@@ -18,8 +18,10 @@ import {
  *     is implemented with links (though the default EntityCardTabSelector uses buttons).
  * 3.  **Synchronized State**: Multiple cards can be synchronized to the same tab state.
  */
-export interface TabbedGlassEntityCardProps
-  extends Omit<GlassEntityCardProps, "trailingContent" | "expandedContent"> {
+export interface TabbedGlassEntityCardProps extends Omit<
+  GlassEntityCardProps,
+  "trailingContent" | "expandedContent"
+> {
   /**
    * List of tabs to display in the trailing content area
    */
@@ -61,6 +63,7 @@ export function TabbedGlassEntityCard({
   return (
     <GlassEntityCard
       {...props}
+      showRing={false}
       trailingContent={
         <EntityCardTabSelector
           tabs={tabs}
