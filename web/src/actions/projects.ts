@@ -109,7 +109,7 @@ export async function fetchProjectPullRequests(
     }));
 
     // Fetch real pull requests from GitHub API
-    console.log("Fetching real pull requests for project", projectId);
+    console.log("Fetching real pull requests for project", project.slug);
     const session = await auth();
     const userId = session?.user?.id;
     if (!userId) {
@@ -202,7 +202,7 @@ export async function fetchProjectIssues(projectId: string): Promise<Issue[]> {
     }));
 
     // Fetch real issues from GitHub API
-    console.log("Fetching real issues for project", projectId);
+    console.log("Fetching real issues for project", project.slug);
     const session = await auth();
     const userId = session?.user?.id;
     if (!userId) {
