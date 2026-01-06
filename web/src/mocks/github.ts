@@ -1,4 +1,8 @@
 /**
+ * @deprecated
+ * TODO: Delete this file. GitHub mocks are deprecated.
+ * Local development should always involve a Personal Access Token (PAT).
+ *
  * Centralized GitHub mock data for development and testing
  *
  * This file contains mock data for:

@@ -6,6 +6,8 @@ import {
 import { ClusterCard } from "@/components/ClusterCard";
 import type { ClusterInfo } from "@/lib/k8s-client";
 
+// TODO: Delete mock data. GitHub mocks are deprecated.
+// Local development should always involve a Personal Access Token (PAT).
 // Mock cluster data for when real data is not available
 const mockClusters = [
   {

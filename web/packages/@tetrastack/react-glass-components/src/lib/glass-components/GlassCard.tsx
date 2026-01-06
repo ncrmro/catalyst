@@ -57,7 +57,12 @@ export function GlassCard({
       variant={variant}
       bordered
       shadowed
-      className={cn(roundedClasses[rounded], padded && "p-6", className)}
+      className={cn(
+        "relative",
+        roundedClasses[rounded],
+        padded && "p-6",
+        className,
+      )}
       {...props}
     >
       {children}

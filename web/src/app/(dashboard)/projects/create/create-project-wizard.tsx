@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { RepoSearch } from "@/components/repos/repo-search";
+import { checkProjectSlugAvailable } from "@/actions/projects";
 import type { ReposData, GitHubRepo } from "@/mocks/github";
 
 // TODO: Add SSH URL support (git@github.com:owner/repo.git)
@@ -72,6 +73,9 @@ export function CreateProjectWizard({
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [description, setDescription] = useState("");
 
+  const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
+  const [isCheckingSlug, setIsCheckingSlug] = useState(false);
+
   // Auto-fill form data when starting on step 2 with pre-selected repos (for Storybook)
   useEffect(() => {
     if (
@@ -86,6 +90,29 @@ export function CreateProjectWizard({
       setDescription(firstRepo.description || "");
     }
   }, [initialStep, initialSelectedRepos, name, slug]);
+
+  // Check slug availability when it changes
+  useEffect(() => {
+    if (!slug) {
+      setSlugAvailable(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsCheckingSlug(true);
+      try {
+        const available = await checkProjectSlugAvailable(slug);
+        setSlugAvailable(available);
+      } catch (error) {
+        console.error("Error checking slug availability:", error);
+        setSlugAvailable(null);
+      } finally {
+        setIsCheckingSlug(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [slug]);
 
   // Handle adding a repository from RepoSearch
   const handleRepoSelect = (repo: GitHubRepo) => {
@@ -396,8 +423,23 @@ export function CreateProjectWizard({
                 placeholder="my-awesome-project"
                 required
                 pattern="[a-z0-9\-]+"
-                className="w-full px-3 py-2 border border-outline/50 rounded-lg bg-surface text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono text-sm"
+                className={cn(
+                  "w-full px-3 py-2 border rounded-lg bg-surface text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:border-transparent font-mono text-sm",
+                  slugAvailable === false
+                    ? "border-error focus:ring-error"
+                    : "border-outline/50 focus:ring-primary",
+                )}
               />
+              {isCheckingSlug && (
+                <p className="mt-1 text-[10px] text-on-surface-variant">
+                  Checking availability...
+                </p>
+              )}
+              {slugAvailable === false && (
+                <p className="mt-1 text-[10px] text-error">
+                  This slug is already taken by another project in your team.
+                </p>
+              )}
               <p className="mt-1 text-xs text-on-surface-variant">
                 Used in URLs and Kubernetes resources (lowercase, hyphens only)
               </p>
@@ -445,10 +487,12 @@ export function CreateProjectWizard({
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting || !name || !slug}
+                disabled={
+                  isSubmitting || !name || !slug || slugAvailable === false
+                }
                 className={cn(
                   "px-6 py-2 text-sm font-medium text-on-primary bg-primary rounded-md transition-opacity",
-                  isSubmitting || !name || !slug
+                  isSubmitting || !name || !slug || slugAvailable === false
                     ? "opacity-50 cursor-not-allowed"
                     : "hover:opacity-90",
                 )}
