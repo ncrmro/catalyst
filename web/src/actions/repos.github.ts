@@ -80,8 +80,26 @@ async function fetchRealGitHubRepos(): Promise<ReposData | ReposDataFailed> {
       github_integration_enabled: true,
     };
   } catch (error) {
+    // Extract status code for more specific error handling
+    const statusCode = (error as { status?: number })?.status;
+
+    if (statusCode === 401) {
+      console.error(
+        "GitHub token expired or invalid (401):",
+        error instanceof Error ? error.message : "Unknown error",
+      );
+      return { github_integration_enabled: false, reason: "token_expired" };
+    }
+
+    if (statusCode === 403) {
+      console.error(
+        "GitHub permission denied (403):",
+        error instanceof Error ? error.message : "Unknown error",
+      );
+      return { github_integration_enabled: false, reason: "permission_denied" };
+    }
+
     console.error("Error fetching GitHub repositories:", error);
-    // Return empty data with github_integration_enabled flag set to false
     return { github_integration_enabled: false, reason: "error" };
   }
 }

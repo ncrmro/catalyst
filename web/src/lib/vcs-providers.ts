@@ -8,7 +8,7 @@
 // Re-export everything from the package
 export * from "@catalyst/vcs-provider";
 
-import { GITHUB_CONFIG, getGitHubTokens } from "@catalyst/vcs-provider";
+import { GITHUB_CONFIG, refreshTokenIfNeeded } from "@catalyst/vcs-provider";
 
 interface Session {
   accessToken?: string;
@@ -23,7 +23,8 @@ interface Session {
  * 2. Session token - populated by Auth.js JWT callback when user signs in via GitHub OAuth
  *    (see src/auth.ts jwt callback: token.accessToken = account.access_token)
  * 3. Database - for programmatic sessions (e.g., GitHub App OAuth installation flow)
- *    where tokens are stored in github_user_tokens but not in the JWT
+ *    where tokens are stored in github_user_tokens but not in the JWT.
+ *    Uses refreshTokenIfNeeded() to automatically refresh expired tokens.
  *
  * @param session - The Auth.js session object
  * @returns The access token or undefined if none available
@@ -31,11 +32,14 @@ interface Session {
 export async function getGitHubAccessToken(
   session: Session,
 ): Promise<string | undefined> {
-  // 1. PAT for local development, 2. Session token from Auth.js
-  const token = GITHUB_CONFIG.PAT || session.accessToken;
-  if (token) return token;
+  // 1. PAT for local development
+  if (GITHUB_CONFIG.PAT) return GITHUB_CONFIG.PAT;
 
-  // 3. Database lookup for programmatic sessions
-  const dbTokens = await getGitHubTokens(session.user.id);
-  return dbTokens?.accessToken;
+  // 2. Session token from Auth.js
+  if (session.accessToken) return session.accessToken;
+
+  // 3. Database lookup with automatic token refresh
+  // This ensures expired tokens are refreshed before use
+  const tokens = await refreshTokenIfNeeded(session.user.id);
+  return tokens?.accessToken;
 }

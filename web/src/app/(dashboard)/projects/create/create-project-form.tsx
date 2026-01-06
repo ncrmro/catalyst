@@ -29,7 +29,9 @@ type GitHubStatus =
   | "loading"
   | "connected"
   | "not_connected"
-  | "not_configured";
+  | "not_configured"
+  | "token_expired"
+  | "permission_denied";
 
 export interface CreateProjectFormProps {
   onSubmit?: (data: CreateProjectFormData) => void;
@@ -129,13 +131,19 @@ export function CreateProjectForm({
         const data = await fetchGitHubRepos();
 
         if (!data.github_integration_enabled) {
-          // Use the reason to distinguish between "not configured" and "not connected"
+          // Use the reason to distinguish between different error states:
           // - "no_access_token": GitHub IS configured, but user hasn't connected their account
+          // - "token_expired": User's GitHub token has expired and refresh failed
+          // - "permission_denied": User lacks permission to access repositories (403)
           // - "error": There was an error connecting to GitHub
           if (data.reason === "no_access_token") {
             setGithubStatus("not_connected");
+          } else if (data.reason === "token_expired") {
+            setGithubStatus("token_expired");
+          } else if (data.reason === "permission_denied") {
+            setGithubStatus("permission_denied");
           } else {
-            // Either "error" or undefined - treat as not configured
+            // "error" or undefined - treat as not configured
             setGithubStatus("not_configured");
           }
           setShowManualInput(true);
@@ -456,6 +464,129 @@ export function CreateProjectForm({
                       className="text-xs text-primary hover:underline mt-1 inline-block"
                     >
                       Connect GitHub in Account settings →
+                    </a>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={manualUrlInput}
+                      onChange={(e) => setManualUrlInput(e.target.value)}
+                      placeholder="https://github.com/org/repo"
+                      className="flex-1 px-3 py-2 border border-outline/50 rounded-lg bg-surface text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddManualUrl();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddManualUrl}
+                      disabled={!manualUrlInput.trim()}
+                      className={cn(
+                        "px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                        manualUrlInput.trim()
+                          ? "bg-primary text-on-primary hover:opacity-90"
+                          : "bg-surface-variant text-on-surface-variant cursor-not-allowed",
+                      )}
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 4v16m8-8H4"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* GitHub token expired - needs reconnection */}
+              {githubStatus === "token_expired" && (
+                <div className="space-y-3">
+                  <div className="p-3 bg-warning-container/30 border border-warning/30 rounded-lg">
+                    <p className="text-sm text-on-surface">
+                      Your GitHub session has expired
+                    </p>
+                    <p className="text-xs text-on-surface-variant/70 mt-1">
+                      Please reconnect your GitHub account to continue accessing
+                      your repositories
+                    </p>
+                    <a
+                      href="/account?highlight=github"
+                      className="text-xs text-primary hover:underline mt-2 inline-block"
+                    >
+                      Reconnect GitHub in Account settings →
+                    </a>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={manualUrlInput}
+                      onChange={(e) => setManualUrlInput(e.target.value)}
+                      placeholder="https://github.com/org/repo"
+                      className="flex-1 px-3 py-2 border border-outline/50 rounded-lg bg-surface text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddManualUrl();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddManualUrl}
+                      disabled={!manualUrlInput.trim()}
+                      className={cn(
+                        "px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                        manualUrlInput.trim()
+                          ? "bg-primary text-on-primary hover:opacity-90"
+                          : "bg-surface-variant text-on-surface-variant cursor-not-allowed",
+                      )}
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 4v16m8-8H4"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* GitHub permission denied */}
+              {githubStatus === "permission_denied" && (
+                <div className="space-y-3">
+                  <div className="p-3 bg-error-container/30 border border-error/30 rounded-lg">
+                    <p className="text-sm text-on-surface">
+                      Unable to access your GitHub repositories
+                    </p>
+                    <p className="text-xs text-on-surface-variant/70 mt-1">
+                      The GitHub App may need additional permissions. Try
+                      reconnecting your account or check the app installation
+                      settings in GitHub.
+                    </p>
+                    <a
+                      href="/account?highlight=github"
+                      className="text-xs text-primary hover:underline mt-2 inline-block"
+                    >
+                      Manage GitHub connection →
                     </a>
                   </div>
                   <div className="flex gap-2">

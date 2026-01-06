@@ -122,11 +122,18 @@ export const reposDataSchema = z.object({
  * Repository data structure for failed API responses (no repos available)
  * `reason` indicates why GitHub integration failed:
  * - "no_access_token": GitHub is configured but user hasn't connected their account
+ * - "token_expired": User's GitHub token has expired and refresh failed
+ * - "permission_denied": User lacks permission to access repositories (403)
  * - "error": There was an error connecting to GitHub API
  */
 export const reposDataFailedSchema = z.object({
   github_integration_enabled: z.literal(false),
-  reason: z.enum(["no_access_token", "error"]),
+  reason: z.enum([
+    "no_access_token",
+    "token_expired",
+    "permission_denied",
+    "error",
+  ]),
 });
 
 /**
@@ -138,7 +145,12 @@ export const reposDataWithReasonSchema = z.object({
   organizations: z.array(githubOrganizationSchema),
   org_repos: z.record(z.string(), z.array(githubRepoSchema)),
   github_integration_enabled: z.literal(false),
-  reason: z.enum(["no_access_token", "error"]),
+  reason: z.enum([
+    "no_access_token",
+    "token_expired",
+    "permission_denied",
+    "error",
+  ]),
 });
 
 /**
