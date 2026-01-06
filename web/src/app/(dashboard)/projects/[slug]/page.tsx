@@ -1,13 +1,12 @@
 import {
   fetchProjectBySlug,
-  fetchProjectPullRequests,
-  fetchProjectIssues,
+  fetchProjectDashboardData,
 } from "@/actions/projects";
-import { fetchProjectSpecs } from "@/actions/specs";
-import { groupPRsBySpecAndType } from "@/lib/pr-spec-matching";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { ProjectPageContent } from "./project-page-content";
+import { ProjectPageSkeleton } from "./_components/project-page-skeleton";
+import { Suspense } from "react";
 
 interface ProjectPageProps {
   params: Promise<{
@@ -36,45 +35,20 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     notFound();
   }
 
-  // TODO: Add caching for specs, PRs, and issues - consider unstable_cache or revalidate
-  // Fetch specs, PRs, and issues in parallel for better performance
-  const [specsResult, pullRequests, issues] = await Promise.all([
-    fetchProjectSpecs(project.id, slug).catch((e) => {
-      console.error("Failed to fetch specs:", e);
-      return {
-        specs: [],
-        error: { type: "error" as const, message: String(e) },
-      };
-    }),
-    fetchProjectPullRequests(project.id).catch((e) => {
-      console.error("Failed to fetch PRs:", e);
-      return [];
-    }),
-    fetchProjectIssues(project.id).catch((e) => {
-      console.error("Failed to fetch issues:", e);
-      return [];
-    }),
-  ]);
-
-  // Group PRs by type (feature vs platform/chore) and spec
-  const { featurePRs, platformPRs } = groupPRsBySpecAndType(
-    pullRequests,
-    specsResult.specs,
-  );
+  // Start fetching dashboard data in background (don't await)
+  const dashboardPromise = fetchProjectDashboardData(project.id, slug);
 
   return (
-    <ProjectPageContent
-      project={{
-        id: project.id,
-        slug: project.slug,
-        name: project.name,
-        fullName: project.fullName,
-      }}
-      specs={specsResult.specs}
-      specsError={specsResult.error}
-      featurePRs={featurePRs}
-      platformPRs={platformPRs}
-      issues={issues}
-    />
+    <Suspense fallback={<ProjectPageSkeleton />}>
+      <ProjectPageContent
+        project={{
+          id: project.id,
+          slug: project.slug,
+          name: project.name,
+          fullName: project.fullName,
+        }}
+        dashboardPromise={dashboardPromise}
+      />
+    </Suspense>
   );
 }

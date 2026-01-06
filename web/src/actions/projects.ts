@@ -20,6 +20,53 @@ import { db } from "@/db";
 import { pullRequestPods } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
+import { fetchProjectSpecs } from "@/actions/specs";
+
+/**
+ * Fetch all dashboard data (specs, PRs, issues) in parallel
+ * This allows for a single cached resource hook on the client
+ */
+export async function fetchProjectDashboardData(
+  projectId: string,
+  slug: string,
+) {
+  try {
+    const [specsResult, pullRequests, issues] = await Promise.all([
+      fetchProjectSpecs(projectId, slug).catch((e) => {
+        console.error("Failed to fetch specs:", e);
+        return {
+          specs: [],
+          error: { type: "error" as const, message: String(e) },
+        };
+      }),
+      fetchProjectPullRequests(projectId).catch((e) => {
+        console.error("Failed to fetch PRs:", e);
+        return [];
+      }),
+      fetchProjectIssues(projectId).catch((e) => {
+        console.error("Failed to fetch issues:", e);
+        return [];
+      }),
+    ]);
+
+    return {
+      specsResult,
+      pullRequests,
+      issues,
+    };
+  } catch (error) {
+    console.error("Error fetching project dashboard data:", error);
+    return {
+      specsResult: {
+        specs: [],
+        error: { type: "error", message: String(error) },
+      },
+      pullRequests: [],
+      issues: [],
+    };
+  }
+}
+
 /**
  * Fetch projects data from database using Drizzle's relational queries
  * Returns data directly as it comes from the database
@@ -314,5 +361,20 @@ export async function getPullRequest(
   } catch (error) {
     console.error(`Error fetching PR ${prNumber}:`, error);
     return null;
+  }
+}
+
+/**
+ * Check if a project slug is available for the current user's teams
+ */
+export async function checkProjectSlugAvailable(
+  slug: string,
+): Promise<boolean> {
+  try {
+    const project = await fetchProjectBySlug(slug);
+    return !project;
+  } catch (error) {
+    console.error("Error checking slug availability:", error);
+    return false; // Assume not available on error to be safe
   }
 }

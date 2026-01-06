@@ -32,13 +32,6 @@ const mockPR: PullRequest = {
   status: "ready",
 };
 
-const mockFeaturePRs: PRsBySpec = {
-  bySpec: {
-    "009-projects": [mockPR],
-  },
-  noSpec: [],
-};
-
 const mockPlatformPRs: PRsBySpec = {
   bySpec: {},
   noSpec: [
@@ -52,8 +45,6 @@ const mockPlatformPRs: PRsBySpec = {
     },
   ],
 };
-
-const emptyPRsBySpec: PRsBySpec = { bySpec: {}, noSpec: [] };
 
 const mockIssue: Issue = {
   id: 1,
@@ -83,6 +74,21 @@ const mockIssues: Issue[] = [
   },
 ];
 
+// Helper to create dashboard promise
+const createDashboardPromise = (
+  specs: Spec[],
+  pullRequests: PullRequest[],
+  issues: Issue[],
+) =>
+  Promise.resolve({
+    specsResult: { specs },
+    pullRequests,
+    issues,
+  });
+
+// All mock PRs flat list for dashboardPromise
+const allMockPRs = [mockPR, ...mockPlatformPRs.noSpec];
+
 const meta = {
   title: "Pages/Projects/ProjectPage",
   component: ProjectPageContent,
@@ -106,10 +112,7 @@ export const Default: Story = {
       name: "Catalyst",
       fullName: "ncrmro/catalyst",
     },
-    specs: mockSpecs,
-    featurePRs: mockFeaturePRs,
-    platformPRs: mockPlatformPRs,
-    issues: mockIssues,
+    dashboardPromise: createDashboardPromise(mockSpecs, allMockPRs, mockIssues),
   },
 };
 
@@ -124,29 +127,25 @@ export const MezeProject: Story = {
       name: "Meze",
       fullName: "ncrmro/meze",
     },
-    specs: [
-      {
-        id: "002-recipe-import",
-        name: "002-recipe-import",
-        href: "/projects/meze/spec/002-recipe-import",
-      },
-    ],
-    featurePRs: {
-      bySpec: {
-        "002-recipe-import": [
-          {
-            ...mockPR,
-            id: 10,
-            number: 15,
-            title: "feat(002-recipe-import): Add recipe parser",
-            repository: "ncrmro/meze",
-          },
-        ],
-      },
-      noSpec: [],
-    },
-    platformPRs: emptyPRsBySpec,
-    issues: [],
+    dashboardPromise: createDashboardPromise(
+      [
+        {
+          id: "002-recipe-import",
+          name: "002-recipe-import",
+          href: "/projects/meze/spec/002-recipe-import",
+        },
+      ],
+      [
+        {
+          ...mockPR,
+          id: 10,
+          number: 15,
+          title: "feat(002-recipe-import): Add recipe parser",
+          repository: "ncrmro/meze",
+        },
+      ],
+      [],
+    ),
   },
 };
 
@@ -161,9 +160,6 @@ export const NewProject: Story = {
       name: "New Project",
       fullName: "org/new-project",
     },
-    specs: [],
-    featurePRs: emptyPRsBySpec,
-    platformPRs: emptyPRsBySpec,
-    issues: [],
+    dashboardPromise: createDashboardPromise([], [], []),
   },
 };
