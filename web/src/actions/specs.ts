@@ -10,24 +10,54 @@ import { updateFile } from "@/actions/vcs";
 import type { Spec } from "@/lib/pr-spec-matching";
 
 /**
+ * Error information returned when specs cannot be fetched
+ */
+export interface SpecsError {
+  type: "access_denied" | "not_found" | "error";
+  message: string;
+}
+
+/**
+ * Result of fetching project specs
+ */
+export interface SpecsResult {
+  specs: Spec[];
+  error?: SpecsError;
+}
+
+/**
  * Fetch specs for a project from its repository's specs/ directory
  *
  * @param projectId - The project ID
  * @param projectSlug - The project slug (for building href)
- * @returns Array of specs with id, name, and href
+ * @returns SpecsResult with specs array and optional error info
  */
 export async function fetchProjectSpecs(
   projectId: string,
   projectSlug: string,
-): Promise<Spec[]> {
+): Promise<SpecsResult> {
   const project = await fetchProjectById(projectId);
-  if (!project) return [];
+  if (!project) return { specs: [] };
 
   const repo = project.repositories[0]?.repo;
-  if (!repo) return [];
+  if (!repo) return { specs: [] };
 
   const specsResult = await listDirectory(repo.fullName, "specs");
-  if (!specsResult.success) return [];
+  if (!specsResult.success) {
+    // Check if it's a 403/permission error
+    const isAccessDenied =
+      specsResult.error?.includes("403") ||
+      specsResult.error?.includes("Forbidden") ||
+      specsResult.error?.includes("Not Found");
+
+    return {
+      specs: [],
+      error: {
+        type: isAccessDenied ? "access_denied" : "error",
+        message: specsResult.error || "Failed to fetch specs",
+      },
+    };
+  }
 
   // Filter to only directories that start with 3 digits (e.g., 001-feature, 009-projects)
   // This excludes non-spec directories like .templates
@@ -36,11 +66,13 @@ export async function fetchProjectSpecs(
     (e) => e.type === "dir" && specPattern.test(e.name),
   );
 
-  return specDirs.map((dir) => ({
-    id: dir.name,
-    name: dir.name,
-    href: `/projects/${projectSlug}/spec/${dir.name}`,
-  }));
+  return {
+    specs: specDirs.map((dir) => ({
+      id: dir.name,
+      name: dir.name,
+      href: `/projects/${projectSlug}/spec/${dir.name}`,
+    })),
+  };
 }
 
 /**
