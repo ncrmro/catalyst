@@ -71,7 +71,13 @@ export async function listDirectory(
     console.log(`[VCS] listDirectory: Found ${entries.length} entries`);
     return { success: true, entries };
   } catch (error) {
-    console.error("[VCS] listDirectory error:", error);
+    const statusCode = (error as { status?: number })?.status;
+    console.error("[VCS] listDirectory error:", {
+      path: `${repoFullName}/${path}`,
+      ref,
+      statusCode,
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
     return {
       success: false,
       entries: [],
@@ -120,6 +126,13 @@ export async function readFile(
       },
     };
   } catch (error) {
+    const statusCode = (error as { status?: number })?.status;
+    console.error("[VCS] readFile error:", {
+      path: `${repoFullName}/${path}`,
+      ref,
+      statusCode,
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
     return {
       success: false,
       file: null,
