@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   TabbedEntityCard,
@@ -78,6 +79,9 @@ export function DeploymentEnvironmentsCard({
   projectSlug,
   configContent,
 }: DeploymentEnvironmentsCardProps) {
+  const [activeTab, setActiveTab] = useState("status");
+  const [isExpanded, setIsExpanded] = useState(true);
+
   const tabContent = {
     status: (
       <div className="space-y-2">
@@ -136,7 +140,12 @@ export function DeploymentEnvironmentsCard({
       title="Deployment Environments"
       subtitle="Production and staging deployments"
       tabs={ENVIRONMENT_TABS}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
       tabContent={tabContent}
+      expandable
+      expanded={isExpanded}
+      onToggle={() => setIsExpanded(!isExpanded)}
     />
   );
 }
@@ -153,6 +162,9 @@ export function DevelopmentEnvironmentsCard({
   projectSlug,
   configContent,
 }: DevelopmentEnvironmentsCardProps) {
+  const [activeTab, setActiveTab] = useState("status");
+  const [isExpanded, setIsExpanded] = useState(true);
+
   const tabContent = {
     status: (
       <div className="space-y-2">
@@ -211,7 +223,12 @@ export function DevelopmentEnvironmentsCard({
       title="Development Environments"
       subtitle="PR preview and development workspaces"
       tabs={ENVIRONMENT_TABS}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
       tabContent={tabContent}
+      expandable
+      expanded={isExpanded}
+      onToggle={() => setIsExpanded(!isExpanded)}
     />
   );
 }

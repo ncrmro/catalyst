@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   TabbedEntityCard,
   type EntityCardTab,
@@ -109,6 +110,9 @@ export interface RepositoriesCardProps {
 }
 
 export function RepositoriesCard({ repositories }: RepositoriesCardProps) {
+  const [activeTab, setActiveTab] = useState("status");
+  const [isExpanded, setIsExpanded] = useState(true);
+
   const tabContent = {
     status: (
       <div className="space-y-1">
@@ -159,7 +163,12 @@ export function RepositoriesCard({ repositories }: RepositoriesCardProps) {
       title="Git Repositories"
       subtitle="Connected source code repositories"
       tabs={REPO_TABS}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
       tabContent={tabContent}
+      expandable
+      expanded={isExpanded}
+      onToggle={() => setIsExpanded(!isExpanded)}
     />
   );
 }

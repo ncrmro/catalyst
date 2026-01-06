@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { TabbedEntityCard } from "@/components/ui/entity-card";
 import { PRListItem } from "@/components/work-items/PRTasksSection";
@@ -151,6 +152,9 @@ export function TasksSectionCard({
   const hasActionableContent = allPRs.length > 0 || issues.length > 0;
   const defaultExpanded = hasActionableContent;
 
+  const [activeTab, setActiveTab] = useState<string>(defaultTab);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+
   // Group issues by spec
   const specIds = specs.map((s) => s.id);
   const issuesBySpec: IssuesBySpec = { bySpec: {}, noSpec: [] };
@@ -240,11 +244,7 @@ export function TasksSectionCard({
               {prs.length > 0 && (
                 <div className="divide-y divide-outline/30">
                   {prs.map((pr) => (
-                    <PRListItem
-                      key={pr.id}
-                      pr={pr}
-                      projectSlug={projectSlug}
-                    />
+                    <PRListItem key={pr.id} pr={pr} projectSlug={projectSlug} />
                   ))}
                 </div>
               )}
@@ -349,10 +349,12 @@ export function TasksSectionCard({
       title={title}
       metadata={`${allPRs.length} PRs · ${issues.length} issues`}
       expandable
-      defaultExpanded={defaultExpanded}
+      expanded={isExpanded}
+      onToggle={() => setIsExpanded(!isExpanded)}
       className="!ring-0"
       tabs={visibleTabs}
-      defaultTab={defaultTab}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
       tabContent={tabContent}
       size="sm"
     />
