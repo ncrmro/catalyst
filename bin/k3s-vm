@@ -568,9 +568,21 @@ def _build_vm(memory: int, cores: int, deploy_apps: bool = False) -> None:
     forward_ports = [
         '{ from = "host"; host.port = 6443; guest.port = 6443; }',
         '{ from = "host"; host.port = 2666; guest.port = 22; }',
-        '{ from = "host"; host.port = 5432; guest.port = 30432; }',
         f'{{ from = "host"; host.port = {ingress_port}; guest.port = 30080; }}'  # Ingress HTTP
     ]
+
+    # Only forward 5432 if it's not already in use on the host
+    # This allows a local PostgreSQL (e.g. from nix devshell) to take precedence
+    import socket
+    def is_port_in_use(port):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            return s.connect_ex(('localhost', port)) == 0
+
+    if not is_port_in_use(5432):
+        forward_ports.append('{ from = "host"; host.port = 5432; guest.port = 30432; }')
+        info("Forwarding host port 5432 to VM PostgreSQL (NodePort 30432)")
+    else:
+        info("Host port 5432 is already in use, skipping VM PostgreSQL forwarding")
 
     # Only forward web port in --in-cluster mode (app runs in K3s)
     # In hybrid mode (default), the local dev server uses this port
