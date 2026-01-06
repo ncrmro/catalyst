@@ -234,6 +234,64 @@ export async function getUserOctokit(userId: string): Promise<Octokit> {
   );
 }
 
+/**
+ * Result type for getGitHubAccessToken
+ * Provides semantic status to distinguish between different failure modes
+ */
+export type GitHubTokenResult =
+  | { token: string; status: "valid" }
+  | { token: undefined; status: "no_token" | "expired" };
+
+/**
+ * Get a GitHub access token for a user with status information.
+ *
+ * Unlike getUserOctokit() which throws on failure, this returns
+ * semantic status for UI decision-making:
+ * - "valid": Token is available and ready to use
+ * - "expired": User was previously connected but token expired and refresh failed
+ * - "no_token": User has never connected their GitHub account
+ *
+ * Token priority:
+ * 1. PAT - for local development when GITHUB_PAT env var is set (non-production only)
+ * 2. Database tokens with auto-refresh - for GitHub App OAuth users
+ *
+ * @param userId - User ID for token lookup
+ * @returns Object with token and status indicating why token may be unavailable
+ */
+export async function getGitHubAccessToken(
+  userId: string,
+): Promise<GitHubTokenResult> {
+  // Check if PAT is allowed in current environment
+  const isPATAllowed =
+    process.env.NODE_ENV !== "production" || GITHUB_CONFIG.ALLOW_PAT_FALLBACK;
+
+  // First priority: Use PAT if allowed and available
+  if (isPATAllowed && GITHUB_CONFIG.PAT) {
+    return { token: GITHUB_CONFIG.PAT, status: "valid" };
+  }
+
+  // Second priority: Use GitHub App user tokens with auto-refresh
+  const { refreshTokenIfNeeded } = await import("./token-refresh");
+  const tokens = await refreshTokenIfNeeded(userId);
+
+  if (tokens?.accessToken) {
+    return { token: tokens.accessToken, status: "valid" };
+  }
+
+  // No valid token - check if user ever had tokens (to distinguish
+  // "never connected" from "was connected but token expired")
+  const { getGitHubTokens } = await import("./token-service");
+  const existingRecord = await getGitHubTokens(userId);
+
+  // If there's a record with an installationId, user was previously connected
+  // but their token expired and couldn't be refreshed
+  if (existingRecord?.installationId) {
+    return { token: undefined, status: "expired" };
+  }
+
+  return { token: undefined, status: "no_token" };
+}
+
 // Import PullRequest and Issue types - these are internal types for this module
 // interface PullRequest {
 //   id: number;

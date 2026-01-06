@@ -23,19 +23,26 @@ import { getGitHubAccessToken, GITHUB_CONFIG } from "@/lib/vcs-providers";
 
 /**
  * Fetch real GitHub repositories for the current user and organizations
- * Uses PAT first (for local dev), then session token, then database tokens
+ * Uses PAT first (for local dev), then database tokens with auto-refresh
  */
 async function fetchRealGitHubRepos(): Promise<ReposData | ReposDataFailed> {
   const session = await auth();
 
-  const token = await getGitHubAccessToken(session);
-
-  if (!token) {
+  if (!session?.user?.id) {
     return { github_integration_enabled: false, reason: "no_access_token" };
   }
 
+  const result = await getGitHubAccessToken(session.user.id);
+
+  if (result.status !== "valid") {
+    // Map token status to appropriate reason for UI
+    const reason =
+      result.status === "expired" ? "token_expired" : "no_access_token";
+    return { github_integration_enabled: false, reason };
+  }
+
   const octokit = new Octokit({
-    auth: token,
+    auth: result.token,
   });
 
   try {

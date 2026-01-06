@@ -32,6 +32,7 @@ export {
   getUserOctokit,
   getInstallationOctokit,
   getAllInstallations,
+  getGitHubAccessToken,
   fetchPullRequests,
   fetchIssues,
   fetchPullRequestById,
@@ -44,6 +45,7 @@ export {
 export type {
   EnrichedPullRequest,
   EnrichedIssue,
+  GitHubTokenResult,
 } from "./providers/github/client";
 export {
   refreshTokenIfNeeded,
