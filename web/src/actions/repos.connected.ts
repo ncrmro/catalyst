@@ -18,6 +18,8 @@ export async function getRepositoryConnectionStatus(
   }
 
   try {
+    // TODO: Delete mock data. GitHub mocks are deprecated.
+    // Local development should always involve a Personal Access Token (PAT).
     // Check if we should return mocked data
     const mocked = process.env.MOCKED;
 
@@ -55,6 +57,8 @@ export async function getConnectedRepositoryDetails(githubIds: number[]) {
   }
 
   try {
+    // TODO: Delete mock data. GitHub mocks are deprecated.
+    // Local development should always involve a Personal Access Token (PAT).
     // Check if we should return mocked data
     const mocked = process.env.MOCKED;
 
@@ -122,6 +126,7 @@ export async function fetchDatabaseRepos() {
       open_issues_count: repo.openIssuesCount,
       updated_at: repo.pushedAt?.toISOString() || repo.updatedAt.toISOString(),
       connection: repo.connection || null,
+      connections: repo.connections || [],
       teamId: repo.teamId,
       database_id: repo.id, // Internal database ID, useful for some operations
     }));

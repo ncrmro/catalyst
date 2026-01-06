@@ -6,7 +6,7 @@
  */
 
 import { db } from "@/db";
-import { repos, projectsRepos } from "@/db/schema";
+import { repos, projectsRepos, projects } from "@/db/schema";
 import { eq, inArray, and } from "drizzle-orm";
 import type { InferInsertModel } from "drizzle-orm";
 
@@ -113,26 +113,38 @@ export async function getReposWithConnections(params: GetReposParams) {
       repoId: projectsRepos.repoId,
       projectId: projectsRepos.projectId,
       isPrimary: projectsRepos.isPrimary,
+      projectName: projects.name,
     })
     .from(projectsRepos)
+    .innerJoin(projects, eq(projectsRepos.projectId, projects.id))
     .where(inArray(projectsRepos.repoId, repoIds));
 
   // Map connections to repos
-  const connectionMap = new Map(
-    connections.map((conn) => [
-      conn.repoId,
-      {
-        projectId: conn.projectId,
-        isPrimary: conn.isPrimary,
-      },
-    ]),
-  );
+  const connectionMap = new Map<
+    string,
+    Array<{ projectId: string; projectName: string; isPrimary: boolean }>
+  >();
+
+  for (const conn of connections) {
+    const existing = connectionMap.get(conn.repoId) || [];
+    existing.push({
+      projectId: conn.projectId,
+      projectName: conn.projectName,
+      isPrimary: conn.isPrimary,
+    });
+    connectionMap.set(conn.repoId, existing);
+  }
 
   // Return repos with connection info
-  return reposList.map((repo) => ({
-    ...repo,
-    connection: connectionMap.get(repo.id) || null,
-  }));
+  return reposList.map((repo) => {
+    const connections = connectionMap.get(repo.id) || [];
+    return {
+      ...repo,
+      connections,
+      // Keep single connection property for backward compatibility (using first one)
+      connection: connections.length > 0 ? connections[0] : null,
+    };
+  });
 }
 
 /**

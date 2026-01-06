@@ -1,8 +1,14 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { fetchGitHubRepos } from "@/actions/repos.github";
-import type { ReposData, GitHubRepo } from "@/mocks/github";
+import { useCachedResource } from "@/lib/use-cached-resource";
+import {
+  reposDataSchema,
+  reposDataWithReasonSchema,
+  type GitHubRepo,
+} from "@/schemas/github-mock";
+import { z } from "zod";
 
 export interface RepoSearchProps {
   onSelect: (repo: GitHubRepo) => void;
@@ -12,41 +18,45 @@ export interface RepoSearchProps {
 
 type VCSStatus = "loading" | "connected" | "not_connected" | "not_configured";
 
+const reposSchema = z.union([reposDataSchema, reposDataWithReasonSchema]);
+
 export function RepoSearch({
   onSelect,
   excludeUrls = [],
   placeholder = "Search repositories...",
 }: RepoSearchProps) {
-  const [status, setStatus] = useState<VCSStatus>("loading");
-  const [repos, setRepos] = useState<ReposData | null>(null);
+  const { data: repos, isLoading } = useCachedResource({
+    key: "catalyst_github_repos",
+    fetcher: fetchGitHubRepos,
+    schema: reposSchema,
+  });
+
   const [search, setSearch] = useState("");
   const [showAll, setShowAll] = useState(false);
 
-  // Fetch repos on mount
-  useEffect(() => {
-    async function loadRepos() {
-      try {
-        const data = await fetchGitHubRepos();
-
-        if (!data.github_integration_enabled) {
-          if (data.reason === "no_access_token") {
-            setStatus("not_connected");
-          } else {
-            setStatus("not_configured");
-          }
-          return;
-        }
-
-        setStatus("connected");
-        setRepos(data);
-      } catch (error) {
-        console.error("Failed to fetch repositories:", error);
-        setStatus("not_configured");
-      }
+  // Derive status from data
+  const status: VCSStatus = useMemo(() => {
+    if (!repos) {
+      return isLoading ? "loading" : "not_configured";
     }
 
-    loadRepos();
-  }, []);
+    if (repos.github_integration_enabled) {
+      return "connected";
+    }
+
+    // Handle reasons when integration is disabled
+    // reposDataWithReasonSchema has a 'reason' field
+    if ("reason" in repos) {
+      if (repos.reason === "no_access_token") {
+        return "not_connected";
+      }
+      // "token_expired", "permission_denied", "error" -> treat as not configured/error state
+      return "not_configured";
+    }
+
+    // Fallback if we have data but integration is disabled (e.g. using DB repos only)
+    return "connected"; // Treat as connected if we have data to show (even if just DB repos)
+  }, [repos, isLoading]);
 
   // Filter and flatten repos
   const filteredRepos = useMemo(() => {
@@ -154,6 +164,14 @@ export function RepoSearch({
                 {repo.private && (
                   <span className="text-[10px] text-on-surface-variant bg-surface-variant px-1.5 py-0.5 rounded border border-outline/20">
                     Private
+                  </span>
+                )}
+                {repo.connections && repo.connections.length > 0 && (
+                  <span className="text-[10px] text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
+                    Linked to{" "}
+                    {repo.connections
+                      .map((c) => c.projectName || c.projectId)
+                      .join(", ")}
                   </span>
                 )}
               </div>

@@ -219,6 +219,8 @@ if (!String.prototype.hashCode) {
 export async function fetchGitHubRepos(): Promise<
   ReposData | ReposDataWithReason
 > {
+  // TODO: Delete mock logic. GitHub mocks are deprecated.
+  // Local development should always involve a Personal Access Token (PAT).
   // Check if we should return mocked data
   const mocked = process.env.MOCKED === "1";
 

@@ -1,4 +1,8 @@
 /**
+ * @deprecated
+ * TODO: Delete this file. GitHub mocks are deprecated.
+ * Local development should always involve a Personal Access Token (PAT).
+ *
  * Zod schemas for GitHub mock data validation
  * These schemas ensure type safety when loading YAML mock data
  */
@@ -19,6 +23,7 @@ export const githubOwnerSchema = z.object({
  */
 export const githubRepoConnectionSchema = z.object({
   projectId: z.string().min(1),
+  projectName: z.string().optional(),
   isPrimary: z.boolean(),
 });
 
@@ -43,6 +48,7 @@ export const githubRepoSchema = z.object({
   forks_count: z.number().int().nonnegative(),
   open_issues_count: z.number().int().nonnegative(),
   connection: githubRepoConnectionSchema.nullable().optional(),
+  connections: z.array(githubRepoConnectionSchema).optional(),
   database_id: z.string().optional(),
   teamId: z.string().optional(),
 });

@@ -57,6 +57,8 @@ export async function connectRepoToProject(
       repo,
     } = request;
 
+    // TODO: Delete mock implementation. GitHub mocks are deprecated.
+    // Local development should always involve a Personal Access Token (PAT).
     // Use mocked implementation only if MOCKED env var is set
     if (process.env.MOCKED === "1") {
       // Since we're using mocked data and don't have a real database connection,
