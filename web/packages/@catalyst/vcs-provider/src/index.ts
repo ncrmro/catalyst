@@ -114,3 +114,40 @@ export function getProvider(providerId: ProviderId) {
 export function getAllProviders() {
   return providerRegistry.getAll();
 }
+
+/**
+ * Create an issue in a repository
+ */
+export async function createIssue(
+  client: AuthenticatedClient,
+  owner: string,
+  repo: string,
+  title: string,
+  body?: string,
+) {
+  const provider = providerRegistry.get(client.providerId);
+  if (!provider) {
+    throw new Error(`VCS provider '${client.providerId}' not found`);
+  }
+  return provider.createIssue(client, owner, repo, title, body);
+}
+
+/**
+ * Create a pull request in a repository
+ */
+export async function createPullRequest(
+  client: AuthenticatedClient,
+  owner: string,
+  repo: string,
+  title: string,
+  head: string,
+  base: string,
+  body?: string,
+) {
+  const provider = providerRegistry.get(client.providerId);
+  if (!provider) {
+    throw new Error(`VCS provider '${client.providerId}' not found`);
+  }
+  return provider.createPullRequest(client, owner, repo, title, head, base, body);
+}
+

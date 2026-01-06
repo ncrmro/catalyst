@@ -765,6 +765,39 @@ export class GitHubProvider implements VCSProvider {
   }
 
   /**
+   * Create an issue
+   */
+  async createIssue(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+    title: string,
+    body?: string,
+  ): Promise<Issue> {
+    const octokit = client.raw as Octokit;
+    const { data: issue } = await octokit.rest.issues.create({
+      owner,
+      repo,
+      title,
+      body,
+    });
+
+    return {
+      id: String(issue.id),
+      number: issue.number,
+      title: issue.title,
+      state: issue.state as "open" | "closed",
+      author: issue.user?.login || "unknown",
+      htmlUrl: issue.html_url,
+      createdAt: new Date(issue.created_at),
+      updatedAt: new Date(issue.updated_at),
+      labels: issue.labels.map((label) =>
+        typeof label === "string" ? label : label.name || "",
+      ),
+    };
+  }
+
+  /**
    * List branches for a repository
    */
   async listBranches(
