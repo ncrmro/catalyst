@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { EntityCard } from "@/components/ui/entity-card";
-import { EntityCardTabSelector } from "@tetrastack/react-glass-components";
+import { TabbedEntityCard } from "@/components/ui/entity-card";
 import { PRListItem } from "@/components/work-items/PRTasksSection";
 import { IssueListItem } from "@/components/work-items/IssueListItem";
 import type { Spec, PRsBySpec } from "@/lib/pr-spec-matching";
@@ -149,8 +147,6 @@ export function TasksSectionCard({
         ? "specs"
         : "prs";
 
-  const [activeTab, setActiveTab] = useState<TabValue>(defaultTab);
-
   // Collapse card when there are zero PRs and zero issues (nothing actionable to show)
   const hasActionableContent = allPRs.length > 0 || issues.length > 0;
   const defaultExpanded = hasActionableContent;
@@ -202,181 +198,162 @@ export function TasksSectionCard({
     (tab) => tab.value !== "specs" || showSpecsTab,
   );
 
+  const Footer = () => (
+    <div className="pt-2 border-t border-outline/30 flex justify-end">
+      <Link
+        href={`/specs/${projectSlug}`}
+        className="text-sm font-medium text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+      >
+        View all specs
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 5l7 7-7 7"
+          />
+        </svg>
+      </Link>
+    </div>
+  );
+
+  const tabContent = {
+    specs: (
+      <div className="pt-2 space-y-4">
+        {/* Render each spec with its associated PRs */}
+        {sortedSpecs.map((spec) => {
+          const prs = prsBySpec.bySpec[spec.id] || [];
+          return (
+            <div key={spec.id}>
+              <SpecGroupHeader
+                specId={spec.id}
+                specName={spec.name}
+                itemCount={prs.length}
+                projectSlug={projectSlug}
+                repoSlug={repoSlug}
+              />
+              {prs.length > 0 && (
+                <div className="divide-y divide-outline/30">
+                  {prs.map((pr) => (
+                    <PRListItem
+                      key={pr.id}
+                      pr={pr}
+                      projectSlug={projectSlug}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {prsBySpec.noSpec.length > 0 && (
+          <div>
+            {sortedSpecs.length > 0 && (
+              <SpecGroupHeader
+                specId="no-spec"
+                specName="No Spec"
+                itemCount={prsBySpec.noSpec.length}
+                projectSlug={projectSlug}
+                repoSlug={repoSlug}
+                showAgentButton={false}
+              />
+            )}
+            <div className="divide-y divide-outline/30">
+              {prsBySpec.noSpec.map((pr) => (
+                <PRListItem key={pr.id} pr={pr} projectSlug={projectSlug} />
+              ))}
+            </div>
+          </div>
+        )}
+        <Footer />
+      </div>
+    ),
+    issues: (
+      <div className="pt-2 space-y-4">
+        {/* Render issues grouped by spec (issues with spec tokens in title) */}
+        {sortedIssueSpecIds.map((specId) => {
+          const spec = specLookup.get(specId) || {
+            id: specId,
+            name: specId,
+          };
+          const specIssues = issuesBySpec.bySpec[specId];
+          return (
+            <div key={specId}>
+              <SpecGroupHeader
+                specId={specId}
+                specName={spec.name}
+                itemCount={specIssues.length}
+                projectSlug={projectSlug}
+                repoSlug={repoSlug}
+              />
+              <div className="divide-y divide-outline/30">
+                {specIssues.map((issue) => (
+                  <IssueListItem key={issue.id} issue={issue} />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+        {issuesBySpec.noSpec.length > 0 && (
+          <div>
+            {sortedIssueSpecIds.length > 0 && (
+              <SpecGroupHeader
+                specId="no-spec"
+                specName="No Spec"
+                itemCount={issuesBySpec.noSpec.length}
+                projectSlug={projectSlug}
+                repoSlug={repoSlug}
+                showAgentButton={false}
+              />
+            )}
+            <div className="divide-y divide-outline/30">
+              {issuesBySpec.noSpec.map((issue) => (
+                <IssueListItem key={issue.id} issue={issue} />
+              ))}
+            </div>
+          </div>
+        )}
+        {issues.length === 0 && (
+          <p className="text-sm text-on-surface-variant py-4 text-center">
+            No issues
+          </p>
+        )}
+        <Footer />
+      </div>
+    ),
+    prs: (
+      <div className="pt-2 space-y-4">
+        {allPRs.length > 0 ? (
+          <div className="divide-y divide-outline/30">
+            {allPRs.map((pr) => (
+              <PRListItem key={pr.id} pr={pr} projectSlug={projectSlug} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-on-surface-variant py-4 text-center">
+            No pull requests
+          </p>
+        )}
+        <Footer />
+      </div>
+    ),
+  };
+
   return (
-    <EntityCard
+    <TabbedEntityCard
       title={title}
       metadata={`${allPRs.length} PRs · ${issues.length} issues`}
       expandable
-      expanded={defaultExpanded}
+      defaultExpanded={defaultExpanded}
       className="!ring-0"
-      trailingContent={
-        <EntityCardTabSelector
-          tabs={visibleTabs}
-          activeTab={activeTab}
-          onTabChange={(value) => setActiveTab(value as TabValue)}
-        />
-      }
-      expandedContent={
-        <div className="pt-2 space-y-4">
-          {activeTab === "specs" && (
-            <>
-              {/* Render each spec with its associated PRs */}
-              {sortedSpecs.map((spec) => {
-                const prs = prsBySpec.bySpec[spec.id] || [];
-                return (
-                  <div key={spec.id}>
-                    <SpecGroupHeader
-                      specId={spec.id}
-                      specName={spec.name}
-                      itemCount={prs.length}
-                      projectSlug={projectSlug}
-                      repoSlug={repoSlug}
-                    />
-                    {prs.length > 0 && (
-                      <div className="divide-y divide-outline/30">
-                        {prs.map((pr) => (
-                          <PRListItem
-                            key={pr.id}
-                            pr={pr}
-                            projectSlug={projectSlug}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              {/**
-               * PRs Without Spec Association Display Logic:
-               * - Always show PRs that don't match any spec (noSpec PRs)
-               * - Only show "No Spec" header when there ARE specs being displayed
-               *   (to distinguish unmatched PRs from spec-grouped ones)
-               * - When zero specs exist, show PRs directly without the "No Spec" header
-               *   (the PRs tab becomes the default in this case - see defaultTab logic above)
-               */}
-              {prsBySpec.noSpec.length > 0 && (
-                <div>
-                  {sortedSpecs.length > 0 && (
-                    <SpecGroupHeader
-                      specId="no-spec"
-                      specName="No Spec"
-                      itemCount={prsBySpec.noSpec.length}
-                      projectSlug={projectSlug}
-                      repoSlug={repoSlug}
-                      showAgentButton={false}
-                    />
-                  )}
-                  <div className="divide-y divide-outline/30">
-                    {prsBySpec.noSpec.map((pr) => (
-                      <PRListItem
-                        key={pr.id}
-                        pr={pr}
-                        projectSlug={projectSlug}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {activeTab === "issues" && (
-            <>
-              {/* Render issues grouped by spec (issues with spec tokens in title) */}
-              {sortedIssueSpecIds.map((specId) => {
-                const spec = specLookup.get(specId) || {
-                  id: specId,
-                  name: specId,
-                };
-                const specIssues = issuesBySpec.bySpec[specId];
-                return (
-                  <div key={specId}>
-                    <SpecGroupHeader
-                      specId={specId}
-                      specName={spec.name}
-                      itemCount={specIssues.length}
-                      projectSlug={projectSlug}
-                      repoSlug={repoSlug}
-                    />
-                    <div className="divide-y divide-outline/30">
-                      {specIssues.map((issue) => (
-                        <IssueListItem key={issue.id} issue={issue} />
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-              {/**
-               * Issues Without Spec Association Display Logic:
-               * - Same pattern as PRs: show "No Spec" header only when specs exist
-               * - When zero specs with issues, show issues directly without header
-               */}
-              {issuesBySpec.noSpec.length > 0 && (
-                <div>
-                  {sortedIssueSpecIds.length > 0 && (
-                    <SpecGroupHeader
-                      specId="no-spec"
-                      specName="No Spec"
-                      itemCount={issuesBySpec.noSpec.length}
-                      projectSlug={projectSlug}
-                      repoSlug={repoSlug}
-                      showAgentButton={false}
-                    />
-                  )}
-                  <div className="divide-y divide-outline/30">
-                    {issuesBySpec.noSpec.map((issue) => (
-                      <IssueListItem key={issue.id} issue={issue} />
-                    ))}
-                  </div>
-                </div>
-              )}
-              {issues.length === 0 && (
-                <p className="text-sm text-on-surface-variant py-4 text-center">
-                  No issues
-                </p>
-              )}
-            </>
-          )}
-
-          {activeTab === "prs" && (
-            <>
-              {allPRs.length > 0 ? (
-                <div className="divide-y divide-outline/30">
-                  {allPRs.map((pr) => (
-                    <PRListItem key={pr.id} pr={pr} projectSlug={projectSlug} />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-on-surface-variant py-4 text-center">
-                  No pull requests
-                </p>
-              )}
-            </>
-          )}
-
-          <div className="pt-2 border-t border-outline/30 flex justify-end">
-            <Link
-              href={`/specs/${projectSlug}`}
-              className="text-sm font-medium text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
-            >
-              View all specs
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </Link>
-          </div>
-        </div>
-      }
+      tabs={visibleTabs}
+      defaultTab={defaultTab}
+      tabContent={tabContent}
       size="sm"
     />
   );

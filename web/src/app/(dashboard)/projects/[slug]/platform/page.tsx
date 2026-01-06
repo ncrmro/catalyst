@@ -10,7 +10,10 @@ import {
 } from "./_components/environment-cards";
 import { DetectionWrapper } from "./_components/detection-wrapper";
 import { DetectionLoading } from "./_components/detection-loading";
-import { RepoCard, type Repo } from "@/components/repos/RepoCard";
+import {
+  RepositoriesCard,
+  type Repo,
+} from "./_components/repository-card";
 
 interface PlatformPageProps {
   params: Promise<{
@@ -195,16 +198,7 @@ export default async function PlatformPage({ params }: PlatformPageProps) {
       />
 
       {/* Git Repositories */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-on-surface">
-          Git Repositories
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {repositories.map((repo) => (
-            <RepoCard key={repo.id} repo={repo} />
-          ))}
-        </div>
-      </div>
+      <RepositoriesCard repositories={repositories} projectSlug={slug} />
 
       {/* Infrastructure Settings */}
       <GlassCard>

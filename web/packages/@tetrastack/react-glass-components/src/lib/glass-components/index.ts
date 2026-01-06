@@ -62,3 +62,6 @@ export type {
   EntityCardTab,
   EntityCardTabSelectorProps,
 } from "./GlassEntityCard";
+
+export { TabbedGlassEntityCard } from "./TabbedGlassEntityCard";
+export type { TabbedGlassEntityCardProps } from "./TabbedGlassEntityCard";

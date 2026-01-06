@@ -25,9 +25,11 @@
 export {
   GlassEntityCard as EntityCard,
   EntityCardTabSelector,
+  TabbedGlassEntityCard as TabbedEntityCard,
 } from "@tetrastack/react-glass-components";
 export type {
   GlassEntityCardProps as EntityCardProps,
   EntityCardTab,
   EntityCardTabSelectorProps,
+  TabbedGlassEntityCardProps as TabbedEntityCardProps,
 } from "@tetrastack/react-glass-components";
