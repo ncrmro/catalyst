@@ -38,10 +38,13 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
 
   // TODO: Add caching for specs, PRs, and issues - consider unstable_cache or revalidate
   // Fetch specs, PRs, and issues in parallel for better performance
-  const [specs, pullRequests, issues] = await Promise.all([
+  const [specsResult, pullRequests, issues] = await Promise.all([
     fetchProjectSpecs(project.id, slug).catch((e) => {
       console.error("Failed to fetch specs:", e);
-      return [];
+      return {
+        specs: [],
+        error: { type: "error" as const, message: String(e) },
+      };
     }),
     fetchProjectPullRequests(project.id).catch((e) => {
       console.error("Failed to fetch PRs:", e);
