@@ -28,7 +28,7 @@ spec:
           image: busybox:1.36
           command: ['sh', '-c', 'until nc -z {{ .Values.postgresql.name }}-rw 5432; do echo waiting for database; sleep 2; done']
         - name: migrate
-          image: "{{ .Values.web.image.repository }}:{{ .Values.web.image.tag }}"
+          image: "{{ .Values.web.image.repository }}{{ if hasPrefix \"@\" .Values.web.image.tag }}{{ .Values.web.image.tag }}{{ else }}:{{ .Values.web.image.tag }}{{ end }}"
           imagePullPolicy: {{ .Values.web.image.pullPolicy }}
           command: ["npm", "run", "db:migrate"]
           env:
@@ -40,7 +40,7 @@ spec:
       {{- end }}
       containers:
         - name: web
-          image: "{{ .Values.web.image.repository }}:{{ .Values.web.image.tag }}"
+          image: "{{ .Values.web.image.repository }}{{ if hasPrefix \"@\" .Values.web.image.tag }}{{ .Values.web.image.tag }}{{ else }}:{{ .Values.web.image.tag }}{{ end }}"
           imagePullPolicy: {{ .Values.web.image.pullPolicy }}
           ports:
             - name: http
