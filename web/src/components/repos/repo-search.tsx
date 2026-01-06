@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
-import { cn } from "@/lib/utils";
+import { useState, useEffect, useMemo } from "react";
 import { fetchGitHubRepos } from "@/actions/repos.github";
 import type { ReposData, GitHubRepo } from "@/mocks/github";
 
@@ -21,8 +20,7 @@ export function RepoSearch({
   const [status, setStatus] = useState<VCSStatus>("loading");
   const [repos, setRepos] = useState<ReposData | null>(null);
   const [search, setSearch] = useState("");
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [showAll, setShowAll] = useState(false);
 
   // Fetch repos on mount
   useEffect(() => {
@@ -50,59 +48,40 @@ export function RepoSearch({
     loadRepos();
   }, []);
 
-  // Filter repos
+  // Filter and flatten repos
   const filteredRepos = useMemo(() => {
-    if (!repos)
-      return { userRepos: [], orgRepos: {} as Record<string, GitHubRepo[]> };
+    if (!repos) return [];
 
     const searchLower = search.toLowerCase();
-    
+
     // Helper to filter list
-    const filterList = (list: GitHubRepo[]) => 
+    const filterList = (list: GitHubRepo[]) =>
       list.filter(
         (repo) =>
           !excludeUrls.includes(repo.html_url) &&
           (repo.full_name.toLowerCase().includes(searchLower) ||
-           repo.description?.toLowerCase().includes(searchLower))
+            repo.description?.toLowerCase().includes(searchLower)),
       );
 
     const userRepos = filterList(repos.user_repos);
+    const orgRepos = Object.values(repos.org_repos).flatMap((list) =>
+      filterList(list),
+    );
 
-    const orgRepos: Record<string, GitHubRepo[]> = {};
-    for (const org of repos.organizations) {
-      const filtered = filterList(repos.org_repos[org.login] || []);
-      if (filtered.length > 0) {
-        orgRepos[org.login] = filtered;
-      }
-    }
-
-    return { userRepos, orgRepos };
+    // Combine and sort (user repos first, then alphabetically? or just as is)
+    // Let's keep user repos first as they are likely more relevant
+    return [...userRepos, ...orgRepos];
   }, [repos, search, excludeUrls]);
 
-  // Close on click outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleSelect = (repo: GitHubRepo) => {
-    onSelect(repo);
-    setIsOpen(false);
-    setSearch("");
-  };
+  const displayRepos = showAll ? filteredRepos : filteredRepos.slice(0, 3);
+  const hasMore = filteredRepos.length > 3;
 
   if (status === "loading") {
     return (
-      <div className="w-full px-3 py-2 border border-outline/50 rounded-lg bg-surface-variant/30 animate-pulse">
-        <div className="h-5 bg-surface-variant/50 rounded w-32" />
+      <div className="space-y-4">
+        <div className="w-full px-3 py-2 border border-outline/50 rounded-lg bg-surface-variant/30 animate-pulse">
+          <div className="h-5 bg-surface-variant/50 rounded w-32" />
+        </div>
       </div>
     );
   }
@@ -132,32 +111,21 @@ export function RepoSearch({
   }
 
   return (
-    <div ref={dropdownRef} className="relative">
-      <div
-        className={cn(
-          "w-full px-3 py-2 border rounded-lg bg-surface text-on-surface cursor-pointer flex items-center justify-between transition-all",
-          isOpen
-            ? "border-primary ring-2 ring-primary/20"
-            : "border-outline/50 hover:border-outline"
-        )}
-        onClick={() => setIsOpen(!isOpen)}
-      >
+    <div className="space-y-4">
+      {/* Search Input */}
+      <div className="relative">
         <input
           type="text"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
-            setIsOpen(true);
+            setShowAll(false); // Reset expansion on search
           }}
           placeholder={placeholder}
-          className="bg-transparent border-none focus:outline-none w-full placeholder:text-on-surface-variant/50"
-          onClick={(e) => e.stopPropagation()} // Prevent closing when clicking input
+          className="w-full pl-9 pr-3 py-2 border border-outline/50 rounded-lg bg-surface text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
         />
         <svg
-          className={cn(
-            "w-4 h-4 text-on-surface-variant transition-transform shrink-0 ml-2",
-            isOpen && "rotate-180"
-          )}
+          className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant/70"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -166,76 +134,59 @@ export function RepoSearch({
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M19 9l-7 7-7-7"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
           />
         </svg>
       </div>
 
-      {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-surface border border-outline/50 rounded-lg shadow-lg max-h-80 overflow-y-auto">
-          {/* User Repos */}
-          {filteredRepos.userRepos.length > 0 && (
-            <div>
-              <div className="px-4 py-1.5 text-xs font-medium text-on-surface-variant bg-surface-variant/30 sticky top-0">
-                Your Repositories
+      {/* Results List */}
+      <div className="space-y-1">
+        {displayRepos.map((repo) => (
+          <div
+            key={repo.id}
+            className="flex items-center justify-between p-3 rounded-lg border border-outline/30 hover:bg-surface-variant/30 transition-colors group"
+          >
+            <div className="min-w-0 flex-1 mr-4">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-sm text-on-surface truncate">
+                  {repo.full_name}
+                </span>
+                {repo.private && (
+                  <span className="text-[10px] text-on-surface-variant bg-surface-variant px-1.5 py-0.5 rounded border border-outline/20">
+                    Private
+                  </span>
+                )}
               </div>
-              {filteredRepos.userRepos.map((repo) => (
-                <RepoItem key={repo.id} repo={repo} onSelect={handleSelect} />
-              ))}
+              {repo.description && (
+                <p className="text-xs text-on-surface-variant mt-0.5 truncate">
+                  {repo.description}
+                </p>
+              )}
             </div>
-          )}
+            <button
+              onClick={() => onSelect(repo)}
+              className="px-3 py-1.5 text-xs font-medium bg-primary text-on-primary rounded-md hover:opacity-90 transition-opacity whitespace-nowrap opacity-0 group-hover:opacity-100 focus:opacity-100"
+            >
+              Add
+            </button>
+          </div>
+        ))}
 
-          {/* Org Repos */}
-          {Object.entries(filteredRepos.orgRepos).map(([orgLogin, repos]) => (
-            <div key={orgLogin}>
-              <div className="px-4 py-1.5 text-xs font-medium text-on-surface-variant bg-surface-variant/30 sticky top-0">
-                {orgLogin}
-              </div>
-              {repos.map((repo) => (
-                <RepoItem key={repo.id} repo={repo} onSelect={handleSelect} />
-              ))}
-            </div>
-          ))}
+        {filteredRepos.length === 0 && search && (
+          <div className="p-4 text-center text-sm text-on-surface-variant">
+            No repositories found matching &quot;{search}&quot;
+          </div>
+        )}
 
-          {/* No results */}
-          {filteredRepos.userRepos.length === 0 &&
-            Object.keys(filteredRepos.orgRepos).length === 0 && (
-              <div className="px-4 py-3 text-sm text-on-surface-variant text-center">
-                No repositories found matching &quot;{search}&quot;
-              </div>
-            )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function RepoItem({
-  repo,
-  onSelect,
-}: {
-  repo: GitHubRepo;
-  onSelect: (repo: GitHubRepo) => void;
-}) {
-  return (
-    <button
-      type="button"
-      className="w-full px-4 py-2 text-left text-sm hover:bg-primary/10 transition-colors border-b border-outline/10 last:border-0"
-      onClick={() => onSelect(repo)}
-    >
-      <div className="flex items-center justify-between">
-        <span className="font-medium text-on-surface">{repo.full_name}</span>
-        {repo.private && (
-          <span className="text-[10px] text-on-surface-variant bg-surface-variant px-1.5 py-0.5 rounded border border-outline/20">
-            Private
-          </span>
+        {hasMore && !showAll && (
+          <button
+            onClick={() => setShowAll(true)}
+            className="w-full py-2 text-xs font-medium text-primary hover:bg-primary/5 rounded-lg transition-colors border border-dashed border-primary/30"
+          >
+            Show {filteredRepos.length - 3} more repositories
+          </button>
         )}
       </div>
-      {repo.description && (
-        <p className="text-xs text-on-surface-variant mt-0.5 truncate">
-          {repo.description}
-        </p>
-      )}
-    </button>
+    </div>
   );
 }
