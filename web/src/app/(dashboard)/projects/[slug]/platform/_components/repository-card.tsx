@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   TabbedEntityCard,
   type EntityCardTab,
 } from "@/components/ui/entity-card";
+import { RepoSearch } from "@/components/repos/repo-search";
+import { connectRepoToProject } from "@/actions/connect-repo";
+import type { GitHubRepo } from "@/mocks/github";
 
 export interface Repo {
   id: number;
@@ -106,12 +110,42 @@ function RepositoryRowItem({ repo }: RepositoryRowProps) {
 
 export interface RepositoriesCardProps {
   repositories: Repo[];
+  projectId: string;
   projectSlug?: string;
 }
 
-export function RepositoriesCard({ repositories }: RepositoriesCardProps) {
+export function RepositoriesCard({
+  repositories,
+  projectId,
+}: RepositoriesCardProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("status");
   const [isExpanded, setIsExpanded] = useState(true);
+  const [isPending, startTransition] = useTransition();
+
+  const handleConnectRepo = (repo: GitHubRepo) => {
+    startTransition(async () => {
+      try {
+        const result = await connectRepoToProject({
+          repoId: repo.id,
+          connectionType: "existing",
+          projectId: projectId,
+          isPrimary: repositories.length === 0, // Make primary if it's the first one
+          repo: repo,
+        });
+
+        if (result.success) {
+          router.refresh();
+          setActiveTab("status");
+        } else {
+          console.error("Failed to connect repo:", result.error);
+          // TODO: Show error toast
+        }
+      } catch (error) {
+        console.error("Error connecting repo:", error);
+      }
+    });
+  };
 
   const tabContent = {
     status: (
@@ -145,22 +179,29 @@ export function RepositoriesCard({ repositories }: RepositoriesCardProps) {
     ),
     new: (
       <div className="space-y-4">
-        <p className="text-sm text-on-surface-variant">
-          Connect a new GitHub repository to this project.
-        </p>
-        <button
-          className="inline-flex items-center px-4 py-2 text-sm font-medium text-on-primary bg-primary rounded-md hover:opacity-90 transition-opacity"
-          onClick={() => alert("Connect repo flow implementation needed")}
-        >
-          Connect Repository
-        </button>
+        {isPending ? (
+          <div className="w-full px-3 py-2 border border-outline/50 rounded-lg bg-surface-variant/30 animate-pulse">
+            <div className="h-5 bg-surface-variant/50 rounded w-32" />
+          </div>
+        ) : (
+          <>
+            <p className="text-sm text-on-surface-variant">
+              Search and add a repository to this project.
+            </p>
+            <RepoSearch
+              onSelect={handleConnectRepo}
+              excludeUrls={repositories.map((r) => r.html_url)}
+              placeholder="Search repositories to add..."
+            />
+          </>
+        )}
       </div>
     ),
   };
 
   return (
     <TabbedEntityCard
-      title="Git Repositories"
+      title="Repositories"
       subtitle="Connected source code repositories"
       tabs={REPO_TABS}
       activeTab={activeTab}
