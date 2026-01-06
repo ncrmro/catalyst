@@ -168,7 +168,7 @@ jobs:
         id: image-refs
         # Use SHA256 digests when available for immutable deployments, fallback to 'latest' tag otherwise.
         # Digests ensure we deploy the exact image that was just built, regardless of tags.
-        # Format: For Helm templates that use "repository:tag", we pass "@digest" as the tag
+        # Digests from Docker actions are in "sha256:..." format; we prepend "@" to create "@sha256:..." for Helm template compatibility
         run: |
           if [ "${{ needs.build-web.result }}" == "success" ]; then
             # Use digest for immutable reference, passed as "tag" with @ prefix
