@@ -56,7 +56,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   // Group PRs by type (feature vs platform/chore) and spec
   const { featurePRs, platformPRs } = groupPRsBySpecAndType(
     pullRequests,
-    specs,
+    specsResult.specs,
   );
 
   return (
@@ -67,7 +67,8 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         name: project.name,
         fullName: project.fullName,
       }}
-      specs={specs}
+      specs={specsResult.specs}
+      specsError={specsResult.error}
       featurePRs={featurePRs}
       platformPRs={platformPRs}
       issues={issues}

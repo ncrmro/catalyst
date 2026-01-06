@@ -47,11 +47,13 @@ export default async function SpecPage({
   }
 
   // Fetch specs, PRs, and issues in parallel
-  const [specs, allPRs, allIssues] = await Promise.all([
+  const [specsResult, allPRs, allIssues] = await Promise.all([
     fetchProjectSpecs(project.id, projectSlug),
     fetchProjectPullRequests(project.id),
     fetchProjectIssues(project.id),
   ]);
+
+  const specs = specsResult.specs;
 
   // Validate spec exists
   const spec = specs.find((s) => s.id === specSlug);
