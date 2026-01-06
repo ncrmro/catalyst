@@ -3,6 +3,7 @@ import { signIn } from "@/auth";
 export default function SignIn() {
   return (
     <form
+      className="flex flex-col items-center"
       action={async (formData) => {
         "use server";
         await signIn(
@@ -15,7 +16,7 @@ export default function SignIn() {
       }}
     >
       {process.env.NODE_ENV === "development" && (
-        <div className="mb-4">
+        <div className="mb-4 w-full">
           <label
             htmlFor="password"
             className="block text-sm font-medium text-gray-700"
