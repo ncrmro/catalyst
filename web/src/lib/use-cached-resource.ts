@@ -1,4 +1,11 @@
-import { useState, useEffect, useCallback, use, useLayoutEffect } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  use,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import type { z } from "zod";
 
 /**
@@ -120,6 +127,9 @@ export function useCachedResource<T>({
   const [data, setData] = useState<T | null>(initialData);
   const [isLoading, setIsLoading] = useState(!initialData);
   const [error, setError] = useState<Error | null>(null);
+
+  // Track if we have processed the current initialPromise to avoid infinite loops
+  const processedPromiseRef = useRef<Promise<T> | undefined>(undefined);
 
   // 1. Try to load from Global Cache (Safe for hydration if empty on first load)
   // We DO NOT read localStorage here to avoid Hydration Mismatch.
@@ -249,6 +259,7 @@ export function useCachedResource<T>({
   }, [key, schema, cachedData]); // Depend on key/schema. cachedData check prevents overwrite if we already have it.
 
   // 4. Standard Effect for SWR / Initial Fetch
+  // 4. Standard Effect for SWR / Initial Fetch
   useEffect(() => {
     const currentCache = globalCache.get(key);
 
@@ -258,16 +269,20 @@ export function useCachedResource<T>({
     if (activeData) {
       // We have data. Do SWR or initialPromise sync.
       if (initialPromise) {
-        Promise.resolve(initialPromise)
-          .then((fresh) => {
-            updateCache(fresh);
-          })
-          .catch((err) => {
-            setError(err instanceof Error ? err : new Error(String(err)));
-          })
-          .finally(() => {
-            setIsLoading(false);
-          });
+        // Only process initialPromise if we haven't already for this exact promise instance
+        if (processedPromiseRef.current !== initialPromise) {
+          processedPromiseRef.current = initialPromise;
+          Promise.resolve(initialPromise)
+            .then((fresh) => {
+              updateCache(fresh);
+            })
+            .catch((err) => {
+              setError(err instanceof Error ? err : new Error(String(err)));
+            })
+            .finally(() => {
+              setIsLoading(false);
+            });
+        }
       } else if (!currentCache || Date.now() - currentCache.timestamp > 1000) {
         // SWR revalidation
         Promise.resolve(fetcher())
@@ -291,6 +306,12 @@ export function useCachedResource<T>({
       if (!suspense) {
         setIsLoading(true);
         const source = initialPromise || fetcher();
+
+        // Mark initialPromise as processed if we are using it
+        if (initialPromise) {
+          processedPromiseRef.current = initialPromise;
+        }
+
         Promise.resolve(source)
           .then((fresh) => {
             updateCache(fresh);
@@ -303,7 +324,7 @@ export function useCachedResource<T>({
           });
       }
     }
-  }, [key, fetcher, initialPromise, updateCache, suspense, data, cachedData]);
+  }, [key, fetcher, initialPromise, updateCache, suspense]); // Removed data, cachedData
 
   return {
     data: cachedData || data,
