@@ -35,7 +35,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: manager
-          image: "{{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag }}"
+          image: "{{ .Values.operator.image.repository }}{{ if hasPrefix \"@\" .Values.operator.image.tag }}{{ .Values.operator.image.tag }}{{ else }}:{{ .Values.operator.image.tag }}{{ end }}"
           imagePullPolicy: {{ .Values.operator.image.pullPolicy }}
           command:
             - /manager

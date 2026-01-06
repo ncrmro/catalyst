@@ -164,20 +164,21 @@ jobs:
           echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
           chmod 600 ~/.kube/config
 
-      - name: Determine image tags
-        id: image-tags
-        # When a component wasn't rebuilt, we use 'latest' as a fallback.
-        # TODO: Replace 'latest' with the actual previously deployed SHA256 digest
-        # by querying the current deployment's image or storing it as a GitHub variable.
-        # Using 'latest' assumes the registry tag points to the last successful build.
+      - name: Determine image references
+        id: image-refs
+        # Use SHA256 digests when available for immutable deployments, fallback to 'latest' tag otherwise.
+        # Digests ensure we deploy the exact image that was just built, regardless of tags.
+        # Digests from Docker actions are in "sha256:..." format; we prepend "@" to create "@sha256:..." for Helm template compatibility
         run: |
           if [ "${{ needs.build-web.result }}" == "success" ]; then
-            echo "web_tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+            # Use digest for immutable reference, passed as "tag" with @ prefix
+            echo "web_tag=@${{ needs.build-web.outputs.digest }}" >> $GITHUB_OUTPUT
           else
             echo "web_tag=latest" >> $GITHUB_OUTPUT
           fi
           if [ "${{ needs.build-operator.result }}" == "success" ]; then
-            echo "operator_tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+            # Use digest for immutable reference, passed as "tag" with @ prefix
+            echo "operator_tag=@${{ needs.build-operator.outputs.digest }}" >> $GITHUB_OUTPUT
           else
             echo "operator_tag=latest" >> $GITHUB_OUTPUT
           fi
@@ -191,9 +192,9 @@ jobs:
             --namespace catalyst-system \
             --create-namespace \
             --set operator.image.repository=ghcr.io/${{ github.repository }}/operator \
-            --set operator.image.tag=${{ steps.image-tags.outputs.operator_tag }} \
+            --set operator.image.tag=${{ steps.image-refs.outputs.operator_tag }} \
             --set web.image.repository=ghcr.io/${{ github.repository }}/web \
-            --set web.image.tag=${{ steps.image-tags.outputs.web_tag }} \
+            --set web.image.tag=${{ steps.image-refs.outputs.web_tag }} \
             --wait --timeout 10m
 
       - name: Verify deployment
