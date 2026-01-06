@@ -10,6 +10,7 @@ import {
 } from "./_components/environment-cards";
 import { DetectionWrapper } from "./_components/detection-wrapper";
 import { DetectionLoading } from "./_components/detection-loading";
+import { RepoCard, type Repo } from "@/components/repos/RepoCard";
 
 interface PlatformPageProps {
   params: Promise<{
@@ -43,6 +44,36 @@ export default async function PlatformPage({ params }: PlatformPageProps) {
   // Get the primary repository for detection
   const primaryRepoRelation = project.repositories.find((r) => r.isPrimary);
   const primaryRepo = primaryRepoRelation?.repo;
+
+  // Map project repositories to Repo interface for RepoCard
+  const repositories: Repo[] = project.repositories.map((relation) => ({
+    id: relation.repo.githubId,
+    name: relation.repo.name,
+    full_name: relation.repo.fullName,
+    description: relation.repo.description,
+    private: relation.repo.isPrivate,
+    owner: {
+      login: relation.repo.ownerLogin,
+      type: relation.repo.ownerType as "User" | "Organization",
+      avatar_url:
+        relation.repo.ownerAvatarUrl ||
+        "https://github.com/identicons/github.png",
+    },
+    html_url: relation.repo.url,
+    language: relation.repo.language,
+    stargazers_count: relation.repo.stargazersCount,
+    forks_count: relation.repo.forksCount,
+    open_issues_count: relation.repo.openIssuesCount,
+    updated_at:
+      relation.repo.pushedAt?.toISOString() ||
+      relation.repo.updatedAt.toISOString(),
+    connection: {
+      projectId: project.id,
+      isPrimary: relation.isPrimary,
+    },
+    teamId: relation.repo.teamId,
+    database_id: relation.repo.id,
+  }));
 
   // Get environments from K8s
   const sanitizedProjectName = project.name
@@ -162,6 +193,18 @@ export default async function PlatformPage({ params }: PlatformPageProps) {
         projectSlug={slug}
         configContent={developmentConfigContent}
       />
+
+      {/* Git Repositories */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-on-surface">
+          Git Repositories
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {repositories.map((repo) => (
+            <RepoCard key={repo.id} repo={repo} />
+          ))}
+        </div>
+      </div>
 
       {/* Infrastructure Settings */}
       <GlassCard>
