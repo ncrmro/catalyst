@@ -555,6 +555,86 @@ salt: "authjs.session-token"; // NOT 'session-token'
 2. Verify `NODE_ENV=development`
 3. Check database has users with emails: `bob@alice.com` and `admin@example.com`
 
+## 9. GitHub Token Auto-Refresh
+
+**Problem**: GitHub App user tokens expire after 8 hours. Without automatic refresh, users would lose GitHub access mid-session.
+
+**Solution**: The JWT callback in `src/auth.ts` automatically refreshes GitHub tokens on every session access.
+
+### How It Works
+
+1. **Initial Signin** (when `account` parameter is present):
+   - Store GitHub tokens from OAuth response into database
+   - Set token expiration to 8 hours from now
+   - Add token data to JWT
+
+2. **Subsequent Session Access** (when `account` is undefined):
+   - Check if tokens need refreshing (within 5-minute expiration buffer)
+   - If needed, exchange refresh token for new access token
+   - Update both database and JWT with new tokens
+   - Continue seamlessly without user interaction
+
+### Implementation
+
+```typescript
+// src/auth.ts - JWT callback
+async jwt({ token, account }) {
+  // ... user lookup logic ...
+
+  if (account?.provider === "github") {
+    // Initial signin - store tokens
+    await storeGitHubTokens(userId, {
+      accessToken: account.access_token,
+      refreshToken: account.refresh_token,
+      expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000),
+      scope: account.scope,
+    });
+  } else if (!account) {
+    // Subsequent access - refresh if needed
+    const refreshedTokens = await refreshTokenIfNeeded(userId);
+    if (refreshedTokens) {
+      token.accessToken = refreshedTokens.accessToken;
+      token.refreshToken = refreshedTokens.refreshToken;
+      token.tokenExpiresAt = refreshedTokens.expiresAt;
+    }
+  }
+
+  return token;
+}
+```
+
+### Token Refresh Logic
+
+The `refreshTokenIfNeeded` function (from `@catalyst/vcs-provider`):
+
+1. Retrieves stored tokens from database (encrypted)
+2. Checks if expiration is within 5-minute buffer
+3. If expiring soon:
+   - Calls GitHub's token refresh endpoint
+   - Stores new tokens in database
+   - Returns refreshed tokens
+4. If still valid, returns existing tokens
+5. If refresh fails, returns null (requires re-authentication)
+
+### Benefits
+
+- **Seamless UX**: Users never experience authentication interruptions
+- **Automatic**: No manual intervention required
+- **Secure**: Tokens stored encrypted in database
+- **Efficient**: Only refreshes when needed (5-minute buffer before expiration)
+- **Resilient**: Handles refresh failures gracefully
+
+### Testing
+
+Tests verify:
+- Tokens refresh on non-initial session access
+- No refresh attempted on initial signin
+- Refresh errors don't break sessions
+- Token expiration is properly updated
+- All token fields preserved after refresh
+
+See `__tests__/unit/auth-token-refresh.test.ts` for comprehensive test coverage.
+
 ## Summary
 
 This setup provides:
@@ -565,3 +645,4 @@ This setup provides:
 - Cookie-based Playwright testing (10x faster than UI login)
 - Auto-registration for OAuth users
 - Custom user fields (admin, onboarding status)
+- **Automatic GitHub token refresh** to maintain continuous GitHub access
