@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@/auth";
-import { fetchIssues } from "@/lib/vcs-providers";
+import { fetchIssues, refreshTokenIfNeeded } from "@/lib/vcs-providers";
 import type { Issue } from "@/types/reports";
 
 /**
@@ -18,6 +18,14 @@ export async function fetchIssuesFromRepos(
   }
 
   const userId = session.user.id;
+
+  // Refresh tokens before fetching issues to ensure valid GitHub access
+  try {
+    await refreshTokenIfNeeded(userId);
+  } catch (error) {
+    console.error("Failed to refresh tokens before fetching issues:", error);
+    // Continue anyway - getUserOctokit will attempt refresh again
+  }
 
   // Call core function with authenticated instance
   return (await fetchIssues(userId, repositories)) as unknown as Issue[];

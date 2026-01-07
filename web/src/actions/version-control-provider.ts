@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@/auth";
-import { providerRegistry } from "@/lib/vcs-providers";
+import { providerRegistry, refreshTokenIfNeeded } from "@/lib/vcs-providers";
 
 // Types
 export interface VCSEntry {
@@ -44,6 +44,14 @@ export async function listDirectory(
   if (!session?.user?.id) {
     console.log("[VCS] listDirectory: Not authenticated");
     return { success: false, entries: [], error: "Not authenticated" };
+  }
+
+  // Refresh tokens before accessing repository to ensure valid GitHub access
+  try {
+    await refreshTokenIfNeeded(session.user.id);
+  } catch (error) {
+    console.error("[VCS] Failed to refresh tokens before listing directory:", error);
+    // Continue anyway - provider.authenticate will attempt refresh again
   }
 
   try {
@@ -97,6 +105,14 @@ export async function readFile(
   const session = await auth();
   if (!session?.user?.id) {
     return { success: false, file: null, error: "Not authenticated" };
+  }
+
+  // Refresh tokens before reading file to ensure valid GitHub access
+  try {
+    await refreshTokenIfNeeded(session.user.id);
+  } catch (error) {
+    console.error("[VCS] Failed to refresh tokens before reading file:", error);
+    // Continue anyway - provider.authenticate will attempt refresh again
   }
 
   try {

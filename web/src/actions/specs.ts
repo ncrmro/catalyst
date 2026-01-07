@@ -4,9 +4,11 @@
  * Server actions for fetching project specifications from repository
  */
 
+import { auth } from "@/auth";
 import { fetchProjectById } from "@/actions/projects";
 import { listDirectory } from "@/actions/version-control-provider";
 import { updateFile } from "@/actions/vcs";
+import { refreshTokenIfNeeded } from "@/lib/vcs-providers";
 import type { Spec } from "@/lib/pr-spec-matching";
 
 /**
@@ -36,6 +38,17 @@ export async function fetchProjectSpecs(
   projectId: string,
   projectSlug: string,
 ): Promise<SpecsResult> {
+  // Refresh tokens before fetching specs to ensure valid GitHub access
+  const session = await auth();
+  if (session?.user?.id) {
+    try {
+      await refreshTokenIfNeeded(session.user.id);
+    } catch (error) {
+      console.error("Failed to refresh tokens before fetching specs:", error);
+      // Continue anyway - getUserOctokit will attempt refresh again
+    }
+  }
+
   const project = await fetchProjectById(projectId);
   if (!project) return { specs: [] };
 

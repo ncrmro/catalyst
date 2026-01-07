@@ -121,13 +121,21 @@ export async function fetchUserPullRequestsWithTokenStatus(): Promise<PullReques
     throw new Error("No authenticated user found");
   }
 
+  // Refresh tokens before checking status to ensure valid GitHub access
+  let refreshedTokens = null;
+  try {
+    refreshedTokens = await refreshTokenIfNeeded(session.user.id);
+  } catch (error) {
+    console.error("Failed to refresh tokens before fetching pull requests:", error);
+    // Continue anyway - getUserOctokit will attempt refresh again
+  }
+
   // Check for PAT first (if allowed), then GitHub App tokens
   const isPATAllowed =
     process.env.NODE_ENV !== "production" ||
     process.env.GITHUB_ALLOW_PAT_FALLBACK === "true";
   const hasGitHubToken =
-    (isPATAllowed && !!GITHUB_CONFIG.PAT) ||
-    !!(await refreshTokenIfNeeded(session.user.id));
+    (isPATAllowed && !!GITHUB_CONFIG.PAT) || !!refreshedTokens;
 
   try {
     // Fetch from all providers in parallel
@@ -176,6 +184,14 @@ export async function fetchPullRequestsFromRepos(
   }
 
   const userId = session.user.id;
+
+  // Refresh tokens before fetching pull requests to ensure valid GitHub access
+  try {
+    await refreshTokenIfNeeded(userId);
+  } catch (error) {
+    console.error("Failed to refresh tokens before fetching pull requests:", error);
+    // Continue anyway - getUserOctokit will attempt refresh again
+  }
 
   // Call core function with authenticated instance
   return await fetchPullRequests(userId, repositories);
