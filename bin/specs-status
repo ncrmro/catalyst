@@ -3,11 +3,32 @@
 import os
 import sys
 import subprocess
+import shutil
 
 def get_project_root():
     """Get the project root directory (parent of bin/)."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
     return os.path.dirname(script_dir)
+
+def get_open_prs(search_term):
+    """Get open PRs related to the spec using gh CLI."""
+    if not shutil.which("gh"):
+        return None
+
+    # Search for the spec name which often matches branch names or titles
+    cmd = [
+        "gh", "pr", "list",
+        "--state", "open",
+        "--search", search_term,
+        "--json", "number,title,url,author,headRefName,updatedAt",
+        "--template", "{{range .}}- #{{.number}} {{.title}} ({{.headRefName}}) - {{.author.login}}\n  {{.url}}\n{{end}}"
+    ]
+    
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        return result.stdout
+    except subprocess.CalledProcessError:
+        return None
 
 def main():
     if len(sys.argv) < 2:
@@ -62,6 +83,20 @@ def main():
         subprocess.run(cmd, check=True, cwd=project_root)
     except subprocess.CalledProcessError as e:
         print(f"Error running git log: {e}", file=sys.stderr)
+
+    # Check for Open PRs
+    print(f"\nOpen Pull Requests matching '{spec_name}':")
+    print("-" * 40)
+    prs = get_open_prs(spec_name)
+    if prs and prs.strip():
+        print(prs)
+    elif prs is None:
+        if not shutil.which("gh"):
+             print("GitHub CLI (gh) not found, skipping PR check.")
+        else:
+             print("Error fetching PRs.")
+    else:
+        print("No open PRs found.")
 
 if __name__ == "__main__":
     main()
