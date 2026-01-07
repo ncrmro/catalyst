@@ -336,7 +336,8 @@ describe("VCSProviderSingleton", () => {
         try {
           // This will fail because we don't have real provider setup
           // but it should accept the tokenSourceId parameter
-          await vcs.issues.get(tokenSourceId, "owner", "repo", 1);
+          // Now providerId is required as the second parameter
+          await vcs.issues.get(tokenSourceId, "github", "owner", "repo", 1);
         } catch (_error) {
           // Expected to fail, just checking parameter acceptance
         }

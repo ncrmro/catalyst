@@ -106,8 +106,11 @@ export async function getIssue(owner: string, repo: string, issueNumber: number)
     const vcs = VCSProviderSingleton.getInstance();
     
     // Automatic token management - no manual refresh needed!
+    // providerId is required (github, gitlab, bitbucket, azure)
+    // TODO: Future support for self-hosted instances
     const issue = await vcs.issues.get(
       session.user.id, // tokenSourceId (userId, teamId, projectId, etc.)
+      'github', // providerId - required parameter
       owner,
       repo,
       issueNumber
@@ -133,6 +136,7 @@ export async function listPullRequests(owner: string, repo: string) {
     
     const pullRequests = await vcs.pullRequests.list(
       session.user.id,
+      'github', // providerId - required parameter
       owner,
       repo,
       { state: 'open' }
@@ -162,6 +166,7 @@ export async function createPullRequest(
     
     const pr = await vcs.pullRequests.create(
       session.user.id,
+      'github', // providerId - required parameter
       owner,
       repo,
       title,
@@ -206,6 +211,7 @@ export async function listTeamRepositories(projectId: string) {
     // Your getTokenData callback determines how to fetch tokens for a team
     const repos = await vcs.repos.listOrg(
       team.id, // tokenSourceId is teamId
+      'github', // providerId - required parameter
       team.githubOrg
     );
 
@@ -241,6 +247,7 @@ export async function getFileContent(
     
     const file = await vcs.files.getContent(
       session.user.id,
+      'github', // providerId - required parameter
       owner,
       repo,
       path,
@@ -275,6 +282,7 @@ export async function updateFile(
     
     const updatedFile = await vcs.files.update(
       session.user.id,
+      'github', // providerId - required parameter
       owner,
       repo,
       path,

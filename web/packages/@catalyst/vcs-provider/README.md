@@ -46,17 +46,19 @@ VCSProviderSingleton.initialize({
 const vcs = VCSProviderSingleton.getInstance();
 
 // Get an issue (tokenSourceId can be userId, teamId, projectId)
-const issue = await vcs.issues.get(tokenSourceId, owner, repo, issueNumber);
+// providerId is required - supports github, gitlab, bitbucket, azure
+// TODO: Future support for self-hosted instances (e.g., gitlab.company.com)
+const issue = await vcs.issues.get(tokenSourceId, 'github', owner, repo, issueNumber);
 
-// List pull requests
-const prs = await vcs.pullRequests.list(tokenSourceId, owner, repo, { state: 'open' });
+// List pull requests from GitLab
+const prs = await vcs.pullRequests.list(tokenSourceId, 'gitlab', owner, repo, { state: 'open' });
 
-// Get repository
-const repo = await vcs.repos.get(tokenSourceId, owner, repo);
+// Get repository from GitHub
+const repo = await vcs.repos.get(tokenSourceId, 'github', owner, repo);
 
 // Create a PR
 const newPR = await vcs.pullRequests.create(
-  tokenSourceId, owner, repo, title, head, base, body
+  tokenSourceId, 'github', owner, repo, title, head, base, body
 );
 ```
 

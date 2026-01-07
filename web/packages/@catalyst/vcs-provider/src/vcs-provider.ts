@@ -1,8 +1,8 @@
 /**
  * VCS Provider Singleton - Comprehensive VCS Operations Facade
  * 
- * FUNCTIONAL SPECIFICATION:
- * =======================
+ * FUNCTIONAL REQUIREMENTS:
+ * ========================
  * 
  * PURPOSE:
  * This singleton provides a unified interface for all VCS operations with automatic
@@ -10,25 +10,51 @@
  * APIs, developers interact with this facade which handles token retrieval, refresh,
  * and provider routing automatically.
  * 
- * KEY FEATURES:
- * 1. Automatic Token Management: Tokens are retrieved and refreshed automatically
- * 2. Generic Token Source: Accepts user/team/project IDs for token lookup
- * 3. Namespaced Operations: Operations grouped by resource type (issues, pullRequests, repos)
- * 4. Provider-Agnostic: Works with any VCS provider (GitHub, GitLab, etc.)
- * 5. Environment Validation: Checks required environment variables on initialization
+ * FUNCTIONAL REQUIREMENTS (MUST):
  * 
- * ARCHITECTURE:
- * - Token Source ID: Generic identifier (userId, teamId, projectId) passed to token callbacks
- * - Token Callbacks: Provided during initialization to fetch/refresh/store tokens
- * - Provider Registry: Uses existing provider implementations for actual operations
- * - Automatic Refresh: Tokens refreshed transparently before expiration
+ * FR-001: Multi-Provider Support
+ * - The class MUST support multiple VCS providers (GitHub, GitLab, Bitbucket, Azure DevOps)
+ * - Each operation method MUST accept a providerId parameter to specify which provider to use
+ * - The class MUST support future extensibility for self-hosted provider instances
+ *   (e.g., self-hosted GitLab, GitHub Enterprise Server)
+ * - TODO: Implement support for provider instance URLs (e.g., gitlab.company.com)
+ * 
+ * FR-002: Automatic Token Management
+ * - The class MUST automatically refresh tokens before any operation that requires authentication
+ * - Token refresh MUST occur transparently without developer intervention
+ * - Token refresh MUST happen before the token expires (default: 5 minutes buffer)
+ * - The class MUST prevent concurrent refresh operations for the same token source
+ * 
+ * FR-003: Generic Token Source Support
+ * - All operations MUST accept a generic tokenSourceId parameter
+ * - The tokenSourceId MUST support user IDs, team IDs, project IDs, or any application-defined identifier
+ * - Token retrieval callbacks MUST be provided by the application to determine how to fetch tokens
+ * 
+ * FR-004: Environment Validation
+ * - The initialize() method MUST validate required environment variables
+ * - Missing required environment variables MUST cause initialization to fail with clear error messages
+ * - Environment validation MUST occur before any operations can be performed
+ * 
+ * FR-005: Namespaced Operations
+ * - Operations MUST be grouped by resource type (issues, pullRequests, repos, branches, files)
+ * - Each namespace MUST provide methods for common operations on that resource type
+ * - All methods MUST handle authentication and token refresh automatically
+ * 
+ * FR-006: Error Handling
+ * - Authentication failures MUST provide clear error messages indicating re-authentication is needed
+ * - Provider not found errors MUST specify which provider was requested
+ * - Token refresh failures MUST be logged and return null to trigger re-authentication flow
+ * 
+ * FR-007: Singleton Pattern
+ * - Only one instance MUST exist throughout the application lifecycle
+ * - The instance MUST be initialized once before use
+ * - Attempting to initialize twice MUST throw an error
  * 
  * USAGE PATTERN:
  * ```typescript
  * // 1. Initialize once at application startup
  * VCSProviderSingleton.initialize({
  *   getTokenData: async (tokenSourceId, providerId) => {
- *     // tokenSourceId can be userId, teamId, projectId, etc.
  *     return await db.getTokens(tokenSourceId, providerId);
  *   },
  *   refreshToken: async (refreshToken, providerId) => {
@@ -40,17 +66,17 @@
  *   requiredEnvVars: ['GITHUB_APP_CLIENT_ID', 'GITHUB_APP_CLIENT_SECRET'],
  * });
  * 
- * // 2. Use anywhere - automatic token management!
+ * // 2. Use anywhere - specify provider for each operation
  * const vcs = VCSProviderSingleton.getInstance();
  * 
- * // Get an issue (tokenSourceId can be userId, teamId, projectId)
- * const issue = await vcs.issues.get(tokenSourceId, owner, repo, issueNumber);
+ * // Get an issue from GitHub
+ * const issue = await vcs.issues.get(tokenSourceId, 'github', owner, repo, issueNumber);
  * 
- * // List pull requests
- * const prs = await vcs.pullRequests.list(tokenSourceId, owner, repo, { state: 'open' });
+ * // List pull requests from GitLab
+ * const prs = await vcs.pullRequests.list(tokenSourceId, 'gitlab', owner, repo, { state: 'open' });
  * 
- * // Get repository
- * const repo = await vcs.repos.get(tokenSourceId, owner, repo);
+ * // Get repository from GitHub
+ * const repo = await vcs.repos.get(tokenSourceId, 'github', owner, repo);
  * ```
  */
 
@@ -383,17 +409,17 @@ class IssueOperations {
    * Get a specific issue
    * 
    * @param tokenSourceId - User/team/project ID for token lookup
+   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
    * @param owner - Repository owner
    * @param repo - Repository name
    * @param issueNumber - Issue number
-   * @param providerId - Optional provider ID (defaults to configured default)
    */
   async get(
     tokenSourceId: string,
+    providerId: ProviderId,
     owner: string,
     repo: string,
     issueNumber: number,
-    providerId?: ProviderId,
   ): Promise<Issue> {
     const client = await this.provider.getAuthenticatedClient(
       tokenSourceId,
@@ -419,13 +445,19 @@ class IssueOperations {
 
   /**
    * List issues in a repository
+   * 
+   * @param tokenSourceId - User/team/project ID for token lookup
+   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
+   * @param owner - Repository owner
+   * @param repo - Repository name
+   * @param options - Optional filters (state)
    */
   async list(
     tokenSourceId: string,
+    providerId: ProviderId,
     owner: string,
     repo: string,
     options?: { state?: "open" | "closed" | "all" },
-    providerId?: ProviderId,
   ): Promise<Issue[]> {
     const client = await this.provider.getAuthenticatedClient(
       tokenSourceId,
@@ -449,13 +481,19 @@ class PullRequestOperations {
 
   /**
    * Get a specific pull request
+   * 
+   * @param tokenSourceId - User/team/project ID for token lookup
+   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
+   * @param owner - Repository owner
+   * @param repo - Repository name
+   * @param prNumber - Pull request number
    */
   async get(
     tokenSourceId: string,
+    providerId: ProviderId,
     owner: string,
     repo: string,
     prNumber: number,
-    providerId?: ProviderId,
   ): Promise<PullRequest> {
     const client = await this.provider.getAuthenticatedClient(
       tokenSourceId,
@@ -472,13 +510,19 @@ class PullRequestOperations {
 
   /**
    * List pull requests
+   * 
+   * @param tokenSourceId - User/team/project ID for token lookup
+   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
+   * @param owner - Repository owner
+   * @param repo - Repository name
+   * @param options - Optional filters (state)
    */
   async list(
     tokenSourceId: string,
+    providerId: ProviderId,
     owner: string,
     repo: string,
     options?: { state?: "open" | "closed" | "all" },
-    providerId?: ProviderId,
   ): Promise<PullRequest[]> {
     const client = await this.provider.getAuthenticatedClient(
       tokenSourceId,
@@ -495,13 +539,19 @@ class PullRequestOperations {
 
   /**
    * List pull request reviews
+   * 
+   * @param tokenSourceId - User/team/project ID for token lookup
+   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
+   * @param owner - Repository owner
+   * @param repo - Repository name
+   * @param prNumber - Pull request number
    */
   async listReviews(
     tokenSourceId: string,
+    providerId: ProviderId,
     owner: string,
     repo: string,
     prNumber: number,
-    providerId?: ProviderId,
   ): Promise<Review[]> {
     const client = await this.provider.getAuthenticatedClient(
       tokenSourceId,
@@ -518,16 +568,25 @@ class PullRequestOperations {
 
   /**
    * Create a pull request
+   * 
+   * @param tokenSourceId - User/team/project ID for token lookup
+   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
+   * @param owner - Repository owner
+   * @param repo - Repository name
+   * @param title - Pull request title
+   * @param head - Head branch
+   * @param base - Base branch
+   * @param body - Optional pull request body
    */
   async create(
     tokenSourceId: string,
+    providerId: ProviderId,
     owner: string,
     repo: string,
     title: string,
     head: string,
     base: string,
     body?: string,
-    providerId?: ProviderId,
   ): Promise<PullRequest> {
     const client = await this.provider.getAuthenticatedClient(
       tokenSourceId,
@@ -552,13 +611,19 @@ class PullRequestOperations {
 
   /**
    * List PR comments
+   * 
+   * @param tokenSourceId - User/team/project ID for token lookup
+   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
+   * @param owner - Repository owner
+   * @param repo - Repository name
+   * @param prNumber - Pull request number
    */
   async listComments(
     tokenSourceId: string,
+    providerId: ProviderId,
     owner: string,
     repo: string,
     prNumber: number,
-    providerId?: ProviderId,
   ): Promise<PRComment[]> {
     const client = await this.provider.getAuthenticatedClient(
       tokenSourceId,
@@ -575,14 +640,21 @@ class PullRequestOperations {
 
   /**
    * Create a PR comment
+   * 
+   * @param tokenSourceId - User/team/project ID for token lookup
+   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
+   * @param owner - Repository owner
+   * @param repo - Repository name
+   * @param prNumber - Pull request number
+   * @param body - Comment body
    */
   async createComment(
     tokenSourceId: string,
+    providerId: ProviderId,
     owner: string,
     repo: string,
     prNumber: number,
     body: string,
-    providerId?: ProviderId,
   ): Promise<PRComment> {
     const client = await this.provider.getAuthenticatedClient(
       tokenSourceId,
@@ -599,13 +671,19 @@ class PullRequestOperations {
 
   /**
    * Get CI status for a pull request
+   * 
+   * @param tokenSourceId - User/team/project ID for token lookup
+   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
+   * @param owner - Repository owner
+   * @param repo - Repository name
+   * @param prNumber - Pull request number
    */
   async getCIStatus(
     tokenSourceId: string,
+    providerId: ProviderId,
     owner: string,
     repo: string,
     prNumber: number,
-    providerId?: ProviderId,
   ): Promise<CIStatusSummary | null> {
     const client = await this.provider.getAuthenticatedClient(
       tokenSourceId,
@@ -629,12 +707,17 @@ class RepositoryOperations {
 
   /**
    * Get a specific repository
+   * 
+   * @param tokenSourceId - User/team/project ID for token lookup
+   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
+   * @param owner - Repository owner
+   * @param repo - Repository name
    */
   async get(
     tokenSourceId: string,
+    providerId: ProviderId,
     owner: string,
     repo: string,
-    providerId?: ProviderId,
   ): Promise<Repository> {
     const client = await this.provider.getAuthenticatedClient(
       tokenSourceId,
@@ -651,10 +734,13 @@ class RepositoryOperations {
 
   /**
    * List user repositories
+   * 
+   * @param tokenSourceId - User/team/project ID for token lookup
+   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
    */
   async listUser(
     tokenSourceId: string,
-    providerId?: ProviderId,
+    providerId: ProviderId,
   ): Promise<Repository[]> {
     const client = await this.provider.getAuthenticatedClient(
       tokenSourceId,
@@ -671,11 +757,15 @@ class RepositoryOperations {
 
   /**
    * List organization repositories
+   * 
+   * @param tokenSourceId - User/team/project ID for token lookup
+   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
+   * @param org - Organization name
    */
   async listOrg(
     tokenSourceId: string,
+    providerId: ProviderId,
     org: string,
-    providerId?: ProviderId,
   ): Promise<Repository[]> {
     const client = await this.provider.getAuthenticatedClient(
       tokenSourceId,
@@ -699,12 +789,17 @@ class BranchOperations {
 
   /**
    * List branches in a repository
+   * 
+   * @param tokenSourceId - User/team/project ID for token lookup
+   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
+   * @param owner - Repository owner
+   * @param repo - Repository name
    */
   async list(
     tokenSourceId: string,
+    providerId: ProviderId,
     owner: string,
     repo: string,
-    providerId?: ProviderId,
   ): Promise<Branch[]> {
     const client = await this.provider.getAuthenticatedClient(
       tokenSourceId,
@@ -721,14 +816,21 @@ class BranchOperations {
 
   /**
    * Create a branch
+   * 
+   * @param tokenSourceId - User/team/project ID for token lookup
+   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
+   * @param owner - Repository owner
+   * @param repo - Repository name
+   * @param name - Branch name
+   * @param fromBranch - Optional branch to create from
    */
   async create(
     tokenSourceId: string,
+    providerId: ProviderId,
     owner: string,
     repo: string,
     name: string,
     fromBranch?: string,
-    providerId?: ProviderId,
   ): Promise<Branch> {
     const client = await this.provider.getAuthenticatedClient(
       tokenSourceId,
@@ -752,14 +854,21 @@ class FileOperations {
 
   /**
    * Get file content
+   * 
+   * @param tokenSourceId - User/team/project ID for token lookup
+   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
+   * @param owner - Repository owner
+   * @param repo - Repository name
+   * @param path - File path
+   * @param ref - Optional branch/tag/commit ref
    */
   async getContent(
     tokenSourceId: string,
+    providerId: ProviderId,
     owner: string,
     repo: string,
     path: string,
     ref?: string,
-    providerId?: ProviderId,
   ): Promise<FileContent | null> {
     const client = await this.provider.getAuthenticatedClient(
       tokenSourceId,
@@ -776,14 +885,21 @@ class FileOperations {
 
   /**
    * Get directory content
+   * 
+   * @param tokenSourceId - User/team/project ID for token lookup
+   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
+   * @param owner - Repository owner
+   * @param repo - Repository name
+   * @param path - Directory path
+   * @param ref - Optional branch/tag/commit ref
    */
   async getDirectory(
     tokenSourceId: string,
+    providerId: ProviderId,
     owner: string,
     repo: string,
     path: string,
     ref?: string,
-    providerId?: ProviderId,
   ): Promise<DirectoryEntry[]> {
     const client = await this.provider.getAuthenticatedClient(
       tokenSourceId,
@@ -800,16 +916,25 @@ class FileOperations {
 
   /**
    * Update a file
+   * 
+   * @param tokenSourceId - User/team/project ID for token lookup
+   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
+   * @param owner - Repository owner
+   * @param repo - Repository name
+   * @param path - File path
+   * @param content - File content
+   * @param message - Commit message
+   * @param branch - Branch to commit to
    */
   async update(
     tokenSourceId: string,
+    providerId: ProviderId,
     owner: string,
     repo: string,
     path: string,
     content: string,
     message: string,
     branch: string,
-    providerId?: ProviderId,
   ): Promise<FileContent> {
     const client = await this.provider.getAuthenticatedClient(
       tokenSourceId,
