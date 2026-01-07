@@ -17,7 +17,60 @@ interface TasksPageProps {
 // Mock task fixtures - in real app, fetch from database
 // Uses actual project slugs: "catalyst" and "meze"
 const taskFixtures: Task[] = [
-  // catalyst feature tasks
+  // catalyst-platform feature tasks (for real project)
+  {
+    id: "task-cp-1",
+    title: "Implement environment reconciliation",
+    status: "in_progress",
+    priority: "high",
+    type: "feature",
+    project: "catalyst-platform",
+    projectSlug: "catalyst-platform",
+    assignee: ASSIGNEES.claude,
+    dueDate: "2024-01-15",
+    spec: {
+      id: "001-environments",
+      name: "001-environments",
+      href: "/projects/catalyst-platform/spec/001-environments",
+    },
+    description:
+      "Build environment reconciliation logic for Kubernetes operator.",
+  },
+  {
+    id: "task-cp-2",
+    title: "Add GitHub App integration",
+    status: "todo",
+    priority: "medium",
+    type: "feature",
+    project: "catalyst-platform",
+    projectSlug: "catalyst-platform",
+    assignee: ASSIGNEES.bill,
+    dueDate: "2024-01-25",
+    spec: {
+      id: "003-vcs-providers",
+      name: "003-vcs-providers",
+      href: "/projects/catalyst-platform/spec/003-vcs-providers",
+    },
+    description: "Integrate GitHub App for repository access and webhooks.",
+  },
+  {
+    id: "task-cp-3",
+    title: "CLI agent harness implementation",
+    status: "in_progress",
+    priority: "high",
+    type: "feature",
+    project: "catalyst-platform",
+    projectSlug: "catalyst-platform",
+    assignee: ASSIGNEES.copilot,
+    dueDate: "2024-01-20",
+    spec: {
+      id: "006-cli-codeing-agents-harness",
+      name: "006-cli-codeing-agents-harness",
+      href: "/projects/catalyst-platform/spec/006-cli-codeing-agents-harness",
+    },
+    description: "Build harness for running CLI-based coding agents.",
+  },
+  // catalyst feature tasks (for fixtures)
   {
     id: "task-1",
     title: "Implement user authentication flow",
@@ -29,9 +82,9 @@ const taskFixtures: Task[] = [
     assignee: ASSIGNEES.claude,
     dueDate: "2024-01-15",
     spec: {
-      id: "spec-001",
-      name: "SPEC-001: Auth System",
-      href: "/projects/catalyst/spec/001-auth-system",
+      id: "001-environments",
+      name: "001-environments",
+      href: "/projects/catalyst/spec/001-environments",
     },
     description:
       "Implement complete auth flow including login, logout, session management.",
@@ -47,8 +100,8 @@ const taskFixtures: Task[] = [
     assignee: ASSIGNEES.bill,
     dueDate: "2024-01-25",
     spec: {
-      id: "spec-009",
-      name: "SPEC-009: Projects",
+      id: "009-projects",
+      name: "009-projects",
       href: "/projects/catalyst/spec/009-projects",
     },
     description: "Build step-by-step wizard for creating new projects.",
@@ -76,9 +129,9 @@ const taskFixtures: Task[] = [
     assignee: ASSIGNEES.claude,
     dueDate: "2024-01-18",
     spec: {
-      id: "spec-002",
-      name: "SPEC-002: Recipe Import",
-      href: "/projects/meze/spec/002-recipe-import",
+      id: "003-vcs-providers",
+      name: "003-vcs-providers",
+      href: "/projects/meze/spec/003-vcs-providers",
     },
     description: "Parse and import recipes from popular cooking websites.",
   },
