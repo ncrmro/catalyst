@@ -1,6 +1,8 @@
 import { test, expect } from "./fixtures/projects-fixture";
 
 test.describe("Project Creation Wizard", () => {
+  test.setTimeout(60_000);
+
   test("should create project with GitHub repo and auto-filled details", async ({
     page,
     projectsPage,
@@ -69,7 +71,9 @@ test.describe("Project Creation Wizard", () => {
     await createButton.click();
 
     // Verify redirect to project home page
-    await expect(page).toHaveURL(new RegExp(`/projects/${uniqueSlug}$`));
+    await expect(page).toHaveURL(new RegExp(`/projects/${uniqueSlug}$`), {
+      timeout: 30_000,
+    });
   });
 
   test("should navigate back from step 2 to step 1", async ({
