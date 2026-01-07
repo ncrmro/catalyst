@@ -52,7 +52,11 @@ export function initializeVCSProvider() {
       throw new Error(`Unsupported provider: ${providerId}`);
     },
 
-    storeTokenData: async (tokenSourceId: string, tokens, providerId: ProviderId) => {
+    storeTokenData: async (
+      tokenSourceId: string,
+      tokens,
+      providerId: ProviderId,
+    ) => {
       if (providerId === "github") {
         await storeGitHubTokens(tokenSourceId, {
           accessToken: tokens.accessToken,
@@ -65,9 +69,9 @@ export function initializeVCSProvider() {
 
     // Validate required environment variables on startup
     requiredEnvVars: [
-      'GITHUB_APP_CLIENT_ID',
-      'GITHUB_APP_CLIENT_SECRET',
-      'TOKEN_ENCRYPTION_KEY',
+      "GITHUB_APP_CLIENT_ID",
+      "GITHUB_APP_CLIENT_SECRET",
+      "TOKEN_ENCRYPTION_KEY",
     ],
 
     // Optional: Custom expiration buffer (default is 5 minutes)
@@ -96,7 +100,11 @@ initializeVCSProvider();
 import { auth } from "@/auth";
 import { VCSProviderSingleton } from "@catalyst/vcs-provider";
 
-export async function getIssue(owner: string, repo: string, issueNumber: number) {
+export async function getIssue(
+  owner: string,
+  repo: string,
+  issueNumber: number,
+) {
   const session = await auth();
   if (!session?.user?.id) {
     return { success: false, error: "Not authenticated" };
@@ -104,16 +112,15 @@ export async function getIssue(owner: string, repo: string, issueNumber: number)
 
   try {
     const vcs = VCSProviderSingleton.getInstance();
-    
+
     // Automatic token management - no manual refresh needed!
     // providerId is required (github, gitlab, bitbucket, azure)
-    // TODO: Future support for self-hosted instances
     const issue = await vcs.issues.get(
       session.user.id, // tokenSourceId (userId, teamId, projectId, etc.)
-      'github', // providerId - required parameter
+      "github", // providerId - required parameter
       owner,
       repo,
-      issueNumber
+      issueNumber,
     );
 
     return { success: true, issue };
@@ -124,65 +131,9 @@ export async function getIssue(owner: string, repo: string, issueNumber: number)
     return { success: false, error: "Failed to fetch issue" };
   }
 }
-
-export async function listPullRequests(owner: string, repo: string) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return { success: false, error: "Not authenticated" };
-  }
-
-  try {
-    const vcs = VCSProviderSingleton.getInstance();
-    
-    const pullRequests = await vcs.pullRequests.list(
-      session.user.id,
-      'github', // providerId - required parameter
-      owner,
-      repo,
-      { state: 'open' }
-    );
-
-    return { success: true, pullRequests };
-  } catch (error) {
-    return { success: false, error: "Failed to fetch pull requests" };
-  }
-}
-
-export async function createPullRequest(
-  owner: string,
-  repo: string,
-  title: string,
-  head: string,
-  base: string,
-  body?: string
-) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return { success: false, error: "Not authenticated" };
-  }
-
-  try {
-    const vcs = VCSProviderSingleton.getInstance();
-    
-    const pr = await vcs.pullRequests.create(
-      session.user.id,
-      'github', // providerId - required parameter
-      owner,
-      repo,
-      title,
-      head,
-      base,
-      body
-    );
-
-    return { success: true, pr };
-  } catch (error) {
-    return { success: false, error: "Failed to create pull request" };
-  }
-}
 ```
 
-### Using with Team or Project Context
+### Using with Team or Project Context (Scoped Instance)
 
 ```typescript
 // src/actions/team-repos.ts
@@ -205,227 +156,15 @@ export async function listTeamRepositories(projectId: string) {
   }
 
   try {
-    const vcs = VCSProviderSingleton.getInstance();
-    
-    // Use teamId as tokenSourceId
-    // Your getTokenData callback determines how to fetch tokens for a team
-    const repos = await vcs.repos.listOrg(
-      team.id, // tokenSourceId is teamId
-      'github', // providerId - required parameter
-      team.githubOrg
-    );
+    // Recommended: Use getScoped to bind userId and provider
+    const vcs = VCSProviderSingleton.getInstance().getScoped(team.id, 'github');
+
+    // Much cleaner API!
+    const repos = await vcs.repos.listOrg(team.githubOrg);
 
     return { success: true, repos };
   } catch (error) {
     return { success: false, error: "Failed to fetch repositories" };
-  }
-}
-```
-
-### File Operations
-
-```typescript
-// src/actions/files.ts
-"use server";
-
-import { auth } from "@/auth";
-import { VCSProviderSingleton } from "@catalyst/vcs-provider";
-
-export async function getFileContent(
-  owner: string,
-  repo: string,
-  path: string,
-  ref?: string
-) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return { success: false, error: "Not authenticated" };
-  }
-
-  try {
-    const vcs = VCSProviderSingleton.getInstance();
-    
-    const file = await vcs.files.getContent(
-      session.user.id,
-      'github', // providerId - required parameter
-      owner,
-      repo,
-      path,
-      ref
-    );
-
-    if (!file) {
-      return { success: false, error: "File not found" };
-    }
-
-    return { success: true, file };
-  } catch (error) {
-    return { success: false, error: "Failed to fetch file" };
-  }
-}
-
-export async function updateFile(
-  owner: string,
-  repo: string,
-  path: string,
-  content: string,
-  message: string,
-  branch: string
-) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return { success: false, error: "Not authenticated" };
-  }
-
-  try {
-    const vcs = VCSProviderSingleton.getInstance();
-    
-    const updatedFile = await vcs.files.update(
-      session.user.id,
-      'github', // providerId - required parameter
-      owner,
-      repo,
-      path,
-      content,
-      message,
-      branch
-    );
-
-    return { success: true, file: updatedFile };
-  } catch (error) {
-    return { success: false, error: "Failed to update file" };
-  }
-}
-```
-
-## Legacy: Using VCSTokenManager (Lower-Level)
-
-```typescript
-// src/lib/vcs-token-manager-init.ts
-import { VCSTokenManager } from "@catalyst/vcs-provider";
-import {
-  getGitHubTokens,
-  storeGitHubTokens,
-  exchangeRefreshToken,
-} from "@catalyst/vcs-provider";
-import type { ProviderId } from "@catalyst/vcs-provider";
-
-let initialized = false;
-
-/**
- * Initialize VCS Token Manager
- * Call this once at application startup
- */
-export function initializeVCSTokenManager() {
-  if (initialized) {
-    return;
-  }
-
-  VCSTokenManager.initialize({
-    getTokenData: async (userId: string, providerId: ProviderId) => {
-      // Currently only GitHub is supported, but this pattern
-      // allows for future multi-provider support
-      if (providerId === "github") {
-        return await getGitHubTokens(userId);
-      }
-      return null;
-    },
-
-    refreshToken: async (refreshToken: string, providerId: ProviderId) => {
-      // Provider-specific token refresh logic
-      if (providerId === "github") {
-        const tokens = await exchangeRefreshToken(refreshToken);
-        return {
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
-          expiresAt: tokens.expiresAt,
-          scope: tokens.scope,
-        };
-      }
-      throw new Error(`Unsupported provider: ${providerId}`);
-    },
-
-    storeTokenData: async (userId: string, tokens, providerId: ProviderId) => {
-      // Provider-specific token storage
-      if (providerId === "github") {
-        await storeGitHubTokens(userId, {
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken || "",
-          expiresAt: tokens.expiresAt || new Date(),
-          scope: tokens.scope || "",
-        });
-      }
-    },
-
-    // Optional: Custom expiration buffer (default is 5 minutes)
-    expirationBufferMs: 5 * 60 * 1000, // 5 minutes
-  });
-
-  initialized = true;
-}
-```
-
-### Calling Initialization in Next.js
-
-```typescript
-// src/middleware.ts
-import { initializeVCSTokenManager } from "@/lib/vcs-token-manager-init";
-
-// Initialize on first middleware execution
-initializeVCSTokenManager();
-
-export function middleware(request: NextRequest) {
-  // Your middleware logic...
-}
-```
-
-Or in an instrumentation file:
-
-```typescript
-// src/instrumentation.ts
-export async function register() {
-  if (process.env.NEXT_RUNTIME === "nodejs") {
-    const { initializeVCSTokenManager } = await import(
-      "@/lib/vcs-token-manager-init"
-    );
-    initializeVCSTokenManager();
-  }
-}
-```
-
-### Using VCSTokenManager in Server Actions
-
-```typescript
-// src/actions/version-control-provider.ts
-"use server";
-
-import { auth } from "@/auth";
-import { VCSTokenManager } from "@catalyst/vcs-provider";
-import { Octokit } from "@octokit/rest";
-
-export async function getRepositoryData(repoFullName: string) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return { success: false, error: "Not authenticated" };
-  }
-
-  // Get valid token (automatically refreshed if needed!)
-  const manager = VCSTokenManager.getInstance();
-  const tokens = await manager.getValidToken(session.user.id, "github");
-
-  if (!tokens) {
-    return { success: false, error: "Please reconnect your GitHub account" };
-  }
-
-  // Use the token with Octokit
-  const octokit = new Octokit({ auth: tokens.accessToken });
-  const [owner, repo] = repoFullName.split("/");
-
-  try {
-    const { data } = await octokit.rest.repos.get({ owner, repo });
-    return { success: true, data };
-  } catch (error) {
-    return { success: false, error: "Failed to fetch repository" };
   }
 }
 ```
@@ -441,7 +180,7 @@ These server actions provide a generic interface for reading files and directori
 "use server";
 
 import { auth } from "@/auth";
-import { getUserOctokit } from "@/lib/vcs-providers";
+import { VCSProviderSingleton } from "@catalyst/vcs-provider";
 
 export interface VCSEntry {
   name: string;
@@ -470,30 +209,20 @@ export async function listDirectory(
 
   try {
     const [owner, repo] = repoFullName.split("/");
-    const octokit = await getUserOctokit(session.user.id);
+    
+    // Use the singleton facade
+    const vcs = VCSProviderSingleton.getInstance().getScoped(session.user.id, 'github');
+    
+    const directoryEntries = await vcs.files.getDirectory(owner, repo, path, ref);
 
-    const { data } = await octokit.rest.repos.getContent({
-      owner,
-      repo,
-      path,
-      ref,
-    });
-
-    if (!Array.isArray(data)) {
-      return { success: false, entries: [], error: "Path is not a directory" };
-    }
-
-    const entries: VCSEntry[] = data.map((item) => ({
+    const entries: VCSEntry[] = directoryEntries.map((item) => ({
       name: item.name,
       path: item.path,
-      type: item.type as "file" | "dir",
+      type: item.type === "dir" ? "dir" : "file",
     }));
 
     return { success: true, entries };
   } catch (error) {
-    if ((error as { status?: number })?.status === 404) {
-      return { success: true, entries: [] }; // Directory doesn't exist
-    }
     return {
       success: false,
       entries: [],
@@ -502,6 +231,7 @@ export async function listDirectory(
   }
 }
 ```
+
 
 ### Read File Contents
 

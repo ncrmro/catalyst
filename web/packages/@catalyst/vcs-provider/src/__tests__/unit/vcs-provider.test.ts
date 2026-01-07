@@ -7,7 +7,12 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { VCSProviderSingleton } from "../../vcs-provider";
 import type { VCSProviderConfig } from "../../vcs-provider";
-import type { TokenData, ProviderId, AuthenticatedClient, VCSProvider } from "../../types";
+import type {
+  TokenData,
+  ProviderId,
+  AuthenticatedClient,
+  VCSProvider,
+} from "../../types";
 import { providerRegistry } from "../../provider-registry";
 import { GitHubProvider } from "../../providers/github/provider";
 
@@ -324,14 +329,21 @@ describe("VCSProviderSingleton", () => {
         expiresAt: new Date(Date.now() + 3600000),
         scope: "repo",
       };
-      
-      const mockListIssues = vi.fn().mockResolvedValue([{ number: 1, title: "Test Issue" }]);
-      
+
+      const mockListIssues = vi
+        .fn()
+        .mockResolvedValue([{ number: 1, title: "Test Issue" }]);
+
       const mockProvider: VCSProvider = {
         id: "github" as ProviderId,
         name: "GitHub",
         iconName: "github",
-        authenticate: vi.fn().mockResolvedValue({ providerId: "github", raw: {} } as AuthenticatedClient),
+        authenticate: vi
+          .fn()
+          .mockResolvedValue({
+            providerId: "github",
+            raw: {},
+          } as AuthenticatedClient),
         checkConnection: vi.fn(),
         storeTokens: vi.fn(),
         refreshTokensIfNeeded: vi.fn(),
@@ -351,6 +363,7 @@ describe("VCSProviderSingleton", () => {
         updatePRComment: vi.fn(),
         deletePRComment: vi.fn(),
         getCIStatus: vi.fn(),
+        validateConfig: vi.fn(),
         listIssues: mockListIssues,
         listBranches: vi.fn(),
         verifyWebhookSignature: vi.fn(),
@@ -358,7 +371,7 @@ describe("VCSProviderSingleton", () => {
       };
 
       // Mock the registry to return our mock provider
-      vi.spyOn(providerRegistry, 'get').mockReturnValue(mockProvider);
+      vi.spyOn(providerRegistry, "get").mockReturnValue(mockProvider);
 
       VCSProviderSingleton.initialize({
         getTokenData: vi.fn().mockResolvedValue(mockTokenData),
@@ -371,7 +384,7 @@ describe("VCSProviderSingleton", () => {
 
       // Test a method call through scoped instance
       const issue = await scoped.issues.get("owner", "repo", 1);
-      
+
       expect(issue.number).toBe(1);
       expect(mockListIssues).toHaveBeenCalled();
     });
@@ -388,9 +401,9 @@ describe("VCSProviderSingleton", () => {
       const vcs = VCSProviderSingleton.getInstance();
 
       // Should use github by default when providerId is not specified
-      await expect(
-        vcs.getAuthenticatedClient("user-123"),
-      ).rejects.toThrow(/github/);
+      await expect(vcs.getAuthenticatedClient("user-123")).rejects.toThrow(
+        /github/,
+      );
     });
 
     it("should allow custom default provider", async () => {
@@ -404,9 +417,9 @@ describe("VCSProviderSingleton", () => {
       const vcs = VCSProviderSingleton.getInstance();
 
       // Should use gitlab when not specified
-      await expect(
-        vcs.getAuthenticatedClient("user-123"),
-      ).rejects.toThrow(/gitlab/);
+      await expect(vcs.getAuthenticatedClient("user-123")).rejects.toThrow(
+        /gitlab/,
+      );
     });
   });
 
@@ -428,12 +441,7 @@ describe("VCSProviderSingleton", () => {
       const vcs = VCSProviderSingleton.getInstance();
 
       // This should accept various token source types
-      const testCases = [
-        "user-123",
-        "team-456",
-        "project-789",
-        "org-abc",
-      ];
+      const testCases = ["user-123", "team-456", "project-789", "org-abc"];
 
       for (const tokenSourceId of testCases) {
         try {

@@ -87,63 +87,26 @@ const newPR = await vcs.pullRequests.create(
 - ✅ Environment validation on startup
 - ✅ Provider-agnostic design
 
-### 🔄 VCSTokenManager - Lower-Level Token Management
-
-For advanced use cases where you need direct token management without the full VCS facade:
-
-```typescript
-import { VCSTokenManager } from "@catalyst/vcs-provider";
-
-// 1. Initialize once at application startup
-VCSTokenManager.initialize({
-  getTokenData: async (userId, providerId) => {
-    return await getGitHubTokens(userId);
-  },
-  refreshToken: async (refreshToken, providerId) => {
-    return await exchangeRefreshToken(refreshToken);
-  },
-  storeTokenData: async (userId, tokens, providerId) => {
-    await storeGitHubTokens(userId, tokens);
-  },
-});
-
-// 2. Use anywhere - automatic refresh before expiration!
-const manager = VCSTokenManager.getInstance();
-const tokens = await manager.getValidToken(userId, "github");
-
-if (!tokens) {
-  return { error: "Please reconnect your GitHub account" };
-}
-
-// Use tokens.accessToken for API calls
-const octokit = new Octokit({ auth: tokens.accessToken });
-```
-
-**Benefits:**
-
-- ✅ No manual token refresh logic in actions/routes
-- ✅ Automatic refresh 5 minutes before expiration
-- ✅ Provider-agnostic design (works with GitHub, GitLab, etc.)
-- ✅ Handles refresh failures gracefully
-- ✅ Prevents concurrent refresh calls for the same user
-
 ## Installation
 
 ```bash
 npm install @catalyst/vcs-provider
 ```
 
+
 ## Database Schema
 
 This package requires a database table to store authentication tokens. The schema definition is provided by `@tetrastack/backend`.
 
 **PostgreSQL:**
+
 ```typescript
 import { postgres } from "@tetrastack/backend/database";
 const { connectionTokens } = postgres;
 ```
 
 **SQLite:**
+
 ```typescript
 import { sqlite } from "@tetrastack/backend/database";
 const { connectionTokens } = sqlite;
@@ -174,14 +137,6 @@ VCSProviderSingleton.initialize({
 ```
 
 ## Exports
-
-### Token Manager (Provider-Agnostic)
-
-- `VCSTokenManager` - Singleton for automatic token refresh
-- `VCSTokenManagerConfig` - Configuration interface
-- `VCS_PROVIDER_TOKEN_SCHEMA` - Database schema reference
-- `VCSProviderTokenRecord` - TypeScript type for token records
-- `POSTGRES_MIGRATION_SQL` - SQL for creating token table
 
 ### GitHub Provider
 

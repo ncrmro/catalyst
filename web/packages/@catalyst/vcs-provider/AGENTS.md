@@ -18,49 +18,38 @@ The VCS provider package abstracts version control system APIs (GitHub, GitLab, 
 
 ## Key Patterns
 
+### 0. Use VCSProviderSingleton for Automatic Token Management (NEW)
 
-### 0. Use VCSTokenManager for Automatic Token Refresh (NEW)
-
-**ALWAYS** use the VCSTokenManager singleton for token management instead of manually calling `refreshTokenIfNeeded()`.
+**ALWAYS** use the `VCSProviderSingleton` facade for all VCS operations. It handles authentication, token refresh, and provider routing automatically.
 
 ```typescript
-import { VCSTokenManager } from "@catalyst/vcs-provider";
+import { VCSProviderSingleton } from "@catalyst/vcs-provider";
 
-// Initialize once at application startup (e.g., in middleware or startup file)
-VCSTokenManager.initialize({
-  getTokenData: async (userId, providerId) => {
-    return await getGitHubTokens(userId);
-  },
-  refreshToken: async (refreshToken, providerId) => {
-    return await exchangeRefreshToken(refreshToken);
-  },
-  storeTokenData: async (userId, tokens, providerId) => {
-    await storeGitHubTokens(userId, tokens);
-  },
+// 1. Initialize once at application startup
+VCSProviderSingleton.initialize({
+  getTokenData: async (id, provider) => db.getTokens(id, provider),
+  refreshToken: async (token, provider) => oauth.refresh(token, provider),
+  storeTokenData: async (id, tokens, provider) => db.saveTokens(id, tokens, provider),
 });
 
-// In your actions/routes - token refresh is automatic!
+// 2. Use in actions - scoped instance is recommended
 export async function myAction() {
   const session = await auth();
+  
+  // Get a bound instance for this user and GitHub
+  const vcs = VCSProviderSingleton.getInstance().getScoped(session.user.id, 'github');
 
-  const manager = VCSTokenManager.getInstance();
-  const tokens = await manager.getValidToken(session.user.id, "github");
-
-  if (!tokens) {
-    return { error: "Please reconnect your GitHub account" };
-  }
-
-  const octokit = new Octokit({ auth: tokens.accessToken });
-  // Use octokit...
+  // No manual refresh needed!
+  const prs = await vcs.pullRequests.list('owner', 'repo');
 }
 ```
 
 **Benefits:**
 
-- No manual `refreshTokenIfNeeded()` calls
-- Automatic refresh 5 minutes before expiration
-- Concurrent refresh protection
-- Works with any VCS provider
+- Unified interface for GitHub, GitLab, etc.
+- No manual `refreshTokenIfNeeded()` or `getUserOctokit()` calls
+- Automatic concurrency protection for token refreshes
+- Scoped instances for cleaner code
 
 ### 1. Import from the Barrel File
 

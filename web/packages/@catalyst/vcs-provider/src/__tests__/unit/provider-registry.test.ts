@@ -75,6 +75,8 @@ class MockProvider implements VCSProvider {
   // CI/CD
   getCIStatus = vi.fn().mockResolvedValue(null);
 
+  validateConfig = vi.fn();
+
   verifyWebhookSignature = vi.fn().mockReturnValue(true);
   parseWebhookEvent = vi
     .fn()

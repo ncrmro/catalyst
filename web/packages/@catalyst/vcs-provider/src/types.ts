@@ -5,7 +5,12 @@
  */
 
 // Provider identification
-export type ProviderId = "github" | "gitlab" | "bitbucket" | "azure" | (string & {});
+export type ProviderId =
+  | "github"
+  | "gitlab"
+  | "bitbucket"
+  | "azure"
+  | (string & {});
 
 // Authentication
 export interface ConnectionStatus {
@@ -173,6 +178,12 @@ export interface VCSProvider {
   checkConnection(userId: string): Promise<ConnectionStatus>;
   storeTokens(userId: string, tokens: TokenData): Promise<void>;
   refreshTokensIfNeeded(userId: string): Promise<TokenData | null>;
+  
+  /**
+   * Validate provider configuration (environment variables, etc.)
+   * Should throw an error if configuration is invalid.
+   */
+  validateConfig(): void;
 
   // Repositories
   listUserRepositories(client: AuthenticatedClient): Promise<Repository[]>;

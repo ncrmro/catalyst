@@ -74,10 +74,6 @@ export {
 export { VCSProviderSingleton } from "./vcs-provider";
 export type { VCSProviderConfig } from "./vcs-provider";
 
-// Token Manager singleton (provider-agnostic) - DEPRECATED: Use VCSProviderSingleton instead
-export { VCSTokenManager } from "./token-manager";
-export type { VCSTokenManagerConfig } from "./token-manager";
-
 import type { ProviderId, AuthenticatedClient } from "./types";
 import { providerRegistry } from "./provider-registry";
 
