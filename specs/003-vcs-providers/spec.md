@@ -4,32 +4,34 @@
 
 Integrating with Version Control System (VCS) providers is essential to create a unified and streamlined development lifecycle. By connecting directly with the platforms where code lives (GitHub, Gitea, GitLab), we reduce context switching, automate administrative overhead (like team management), and unlock advanced capabilities like AI-driven development workflows. This integration allows the platform to serve as a central hub for coding, project management, and automated assistance.
 
-## User Story: Automatic Token Refresh
+## User Story: Automatic Token Refresh (COMPLETED)
 
 **As a developer**, I want refresh tokens to automatically be handled without me having to think about it in each action, API route, or service call.
 
-**Why:** Currently, developers must manually check token expiration and refresh tokens before each VCS operation. This leads to:
-- Duplicated refresh logic across the codebase
-- Inconsistent error handling
-- Risk of using expired tokens
-- More complex action/route implementations
+**Why:** Currently, developers must manually check token expiration and refresh tokens before each VCS operation. This leads to duplicated refresh logic, inconsistent error handling, and complexity.
 
-**What:** A singleton VCS Token Manager that:
+**What:** A singleton **VCSProviderSingleton** facade that:
 - Automatically checks token expiration before any VCS operation
 - Refreshes tokens transparently when needed
 - Uses a callback pattern to remain provider-agnostic
-- Works with any storage backend (database, Redis, etc.)
-- Handles refresh failures gracefully
+- Provides namespaced operations (`issues`, `repos`, `pullRequests`)
+- Handles concurrency to prevent multiple refresh calls
+- Validates environment variables on startup
 
-**Acceptance Criteria:**
-- [ ] VCSTokenManager singleton class implemented with full JSDoc documentation
-- [ ] Token manager uses callback pattern for get/refresh/store operations
-- [ ] Automatic token refresh 5 minutes before expiration
-- [ ] Comprehensive unit test suite covering all edge cases
-- [ ] Provider-agnostic token schema exported for adoption by other projects
-- [ ] README.md updated with usage examples
-- [ ] AGENTS.md updated with integration guidance
-- [ ] Existing GitHub provider integrated with the token manager
+**Implementation Details:**
+- **Location:** `@catalyst/vcs-provider` package
+- **Schema:** `@tetrastack/backend` (connection_tokens table)
+- **Security:** `@tetrastack/backend` (AES-256-GCM encryption)
+
+**Completed Acceptance Criteria:**
+- [x] `VCSProviderSingleton` facade implemented with automatic token management
+- [x] Scoped instances (`getScoped`) for cleaner API usage
+- [x] `connection_tokens` schema created in `@tetrastack/backend` (Postgres & SQLite)
+- [x] Security utilities (`encrypt`/`decrypt`) centralized in `@tetrastack/backend`
+- [x] Automatic token refresh 5 minutes before expiration
+- [x] Comprehensive unit test suite covering refresh, concurrency, and validation
+- [x] Provider-agnostic design supporting GitHub (with extensibility for GitLab/Bitbucket)
+- [x] README.md and AGENTS.md updated with `VCSProviderSingleton` usage examples
 
 ## What
 

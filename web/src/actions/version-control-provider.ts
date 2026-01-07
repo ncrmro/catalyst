@@ -176,7 +176,6 @@ export async function readFile(
   }
 }
 
-
 /**
  * Check if a directory exists in a repository
  */
