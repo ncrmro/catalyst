@@ -144,7 +144,8 @@ def main():
             for filename in ["spec.md", "plan.md", "tasks.md"]:
                 file_path = os.path.join(worktree_path, filename)
                 if os.path.exists(file_path):
-                    spec_instructions += f" @{file_path}"
+                    relative_path = os.path.relpath(file_path, project_root)
+                    spec_instructions += f" @{relative_path}"
             
             # Get spec status
             spec_status = get_spec_status(branch_input, project_root)
@@ -182,7 +183,8 @@ def main():
             for filename in ["spec.md", "plan.md", "tasks.md"]:
                 file_path = os.path.join(cwd, filename)
                 if os.path.exists(file_path):
-                    spec_instructions += f" @{file_path}"
+                    relative_path = os.path.relpath(file_path, project_root)
+                    spec_instructions += f" @{relative_path}"
                 
             # Get spec status
             spec_status = get_spec_status(spec_name, project_root)
