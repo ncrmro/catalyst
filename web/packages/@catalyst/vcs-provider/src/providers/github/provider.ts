@@ -54,10 +54,12 @@ export class GitHubProvider implements VCSProvider {
    */
   async checkConnection(userId: string): Promise<ConnectionStatus> {
     try {
-      const tokens = await getGitHubTokens(userId);
+      // First, try to refresh tokens if they're about to expire
+      // This ensures we have valid tokens before checking connection
+      const refreshedTokens = await refreshTokenIfNeeded(userId);
 
-      // Check for PAT fallback if no database tokens
-      if (!tokens) {
+      // Check for PAT fallback if no database tokens after refresh attempt
+      if (!refreshedTokens) {
         const isPATAllowed =
           process.env.NODE_ENV !== "production" ||
           GITHUB_CONFIG.ALLOW_PAT_FALLBACK;
@@ -82,6 +84,7 @@ export class GitHubProvider implements VCSProvider {
         };
       }
 
+      // Use the refreshed/valid tokens to check connection
       const octokit = await getUserOctokit(userId);
       const { data: user } = await octokit.rest.users.getAuthenticated();
 
@@ -89,7 +92,7 @@ export class GitHubProvider implements VCSProvider {
         connected: true,
         username: user.login,
         avatarUrl: user.avatar_url,
-        authMethod: tokens.installationId ? "app" : "oauth",
+        authMethod: refreshedTokens.installationId ? "app" : "oauth",
       };
     } catch (error) {
       return {
