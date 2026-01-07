@@ -291,6 +291,13 @@ export interface VCSProvider {
     repo: string,
     options?: { state?: "open" | "closed" | "all" },
   ): Promise<Issue[]>;
+  createIssue(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+    title: string,
+    body?: string,
+  ): Promise<Issue>;
 
   listBranches(
     client: AuthenticatedClient,
