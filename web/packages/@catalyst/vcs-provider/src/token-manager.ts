@@ -177,6 +177,7 @@ export class VCSTokenManager {
   private config: VCSTokenManagerConfig | null = null;
   
   // Track ongoing refresh operations to prevent concurrent refreshes
+  // Key format: "${userId}:${providerId}" to uniquely identify each user-provider combination
   private refreshing = new Map<string, Promise<TokenData | null>>();
   
   // Default expiration buffer: 5 minutes
@@ -407,6 +408,10 @@ export class VCSTokenManager {
    * 
    * Useful when refresh fails or tokens are known to be invalid.
    * 
+   * Note: This stores empty tokens with expired date to indicate invalid state.
+   * The storage layer should handle this appropriately - for example, preserving
+   * provider-specific metadata like GitHub installation IDs while clearing tokens.
+   * 
    * @param userId - The user ID
    * @param providerId - The VCS provider ID
    * 
@@ -427,7 +432,9 @@ export class VCSTokenManager {
     }
 
     try {
-      // Store empty tokens to indicate invalid state
+      // Store empty tokens with expired date to indicate invalid state
+      // The storage callback should handle this appropriately (e.g., preserve
+      // installation IDs or other provider-specific metadata if needed)
       await this.config.storeTokenData(
         userId,
         {
