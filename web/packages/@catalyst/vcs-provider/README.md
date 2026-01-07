@@ -7,9 +7,51 @@ Version Control System provider abstraction for multi-provider support (GitHub, 
 This package provides a unified interface for interacting with version control systems. It abstracts provider-specific APIs behind a common interface, making it easy to:
 
 - Authenticate users with VCS providers
+- **Automatically refresh tokens without manual logic** (NEW!)
 - Read files and directories from repositories
 - Manage pull requests and issues
 - Handle webhooks
+
+## Key Features
+
+### 🔄 Automatic Token Refresh (NEW)
+
+The **VCSTokenManager** singleton automatically handles token refresh for you. No more manually checking expiration or writing refresh logic in every action!
+
+```typescript
+import { VCSTokenManager } from "@catalyst/vcs-provider";
+
+// 1. Initialize once at application startup
+VCSTokenManager.initialize({
+  getTokenData: async (userId, providerId) => {
+    return await getGitHubTokens(userId);
+  },
+  refreshToken: async (refreshToken, providerId) => {
+    return await exchangeRefreshToken(refreshToken);
+  },
+  storeTokenData: async (userId, tokens, providerId) => {
+    await storeGitHubTokens(userId, tokens);
+  },
+});
+
+// 2. Use anywhere - automatic refresh before expiration!
+const manager = VCSTokenManager.getInstance();
+const tokens = await manager.getValidToken(userId, 'github');
+
+if (!tokens) {
+  return { error: 'Please reconnect your GitHub account' };
+}
+
+// Use tokens.accessToken for API calls
+const octokit = new Octokit({ auth: tokens.accessToken });
+```
+
+**Benefits:**
+- ✅ No manual token refresh logic in actions/routes
+- ✅ Automatic refresh 5 minutes before expiration
+- ✅ Provider-agnostic design (works with GitHub, GitLab, etc.)
+- ✅ Handles refresh failures gracefully
+- ✅ Prevents concurrent refresh calls for the same user
 
 ## Installation
 
@@ -81,6 +123,14 @@ const refreshed = await refreshTokenIfNeeded(userId);
 ```
 
 ## Exports
+
+### Token Manager (Provider-Agnostic)
+
+- `VCSTokenManager` - Singleton for automatic token refresh
+- `VCSTokenManagerConfig` - Configuration interface
+- `VCS_PROVIDER_TOKEN_SCHEMA` - Database schema reference
+- `VCSProviderTokenRecord` - TypeScript type for token records
+- `POSTGRES_MIGRATION_SQL` - SQL for creating token table
 
 ### GitHub Provider
 

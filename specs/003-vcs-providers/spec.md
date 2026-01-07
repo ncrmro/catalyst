@@ -4,6 +4,33 @@
 
 Integrating with Version Control System (VCS) providers is essential to create a unified and streamlined development lifecycle. By connecting directly with the platforms where code lives (GitHub, Gitea, GitLab), we reduce context switching, automate administrative overhead (like team management), and unlock advanced capabilities like AI-driven development workflows. This integration allows the platform to serve as a central hub for coding, project management, and automated assistance.
 
+## User Story: Automatic Token Refresh
+
+**As a developer**, I want refresh tokens to automatically be handled without me having to think about it in each action, API route, or service call.
+
+**Why:** Currently, developers must manually check token expiration and refresh tokens before each VCS operation. This leads to:
+- Duplicated refresh logic across the codebase
+- Inconsistent error handling
+- Risk of using expired tokens
+- More complex action/route implementations
+
+**What:** A singleton VCS Token Manager that:
+- Automatically checks token expiration before any VCS operation
+- Refreshes tokens transparently when needed
+- Uses a callback pattern to remain provider-agnostic
+- Works with any storage backend (database, Redis, etc.)
+- Handles refresh failures gracefully
+
+**Acceptance Criteria:**
+- [ ] VCSTokenManager singleton class implemented with full JSDoc documentation
+- [ ] Token manager uses callback pattern for get/refresh/store operations
+- [ ] Automatic token refresh 5 minutes before expiration
+- [ ] Comprehensive unit test suite covering all edge cases
+- [ ] Provider-agnostic token schema exported for adoption by other projects
+- [ ] README.md updated with usage examples
+- [ ] AGENTS.md updated with integration guidance
+- [ ] Existing GitHub provider integrated with the token manager
+
 ## What
 
 This specification outlines the integration with major VCS providers, specifically **GitHub**, **Gitea**, and **GitLab**, with a strong emphasis on supporting **self-hosted** instances.

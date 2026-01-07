@@ -6,12 +6,54 @@ This document provides guidance for AI agents working with the `@catalyst/vcs-pr
 
 The VCS provider package abstracts version control system APIs (GitHub, GitLab, Bitbucket) behind a unified interface. It handles:
 
-- Authentication and token management
+- Authentication and automatic token management
 - Repository content operations (read files, list directories)
 - Pull request and issue management
 - Deployment comments and status updates
 
 ## Key Patterns
+
+### 0. Use VCSTokenManager for Automatic Token Refresh (NEW)
+
+**ALWAYS** use the VCSTokenManager singleton for token management instead of manually calling `refreshTokenIfNeeded()`.
+
+```typescript
+import { VCSTokenManager } from "@catalyst/vcs-provider";
+
+// Initialize once at application startup (e.g., in middleware or startup file)
+VCSTokenManager.initialize({
+  getTokenData: async (userId, providerId) => {
+    return await getGitHubTokens(userId);
+  },
+  refreshToken: async (refreshToken, providerId) => {
+    return await exchangeRefreshToken(refreshToken);
+  },
+  storeTokenData: async (userId, tokens, providerId) => {
+    await storeGitHubTokens(userId, tokens);
+  },
+});
+
+// In your actions/routes - token refresh is automatic!
+export async function myAction() {
+  const session = await auth();
+  
+  const manager = VCSTokenManager.getInstance();
+  const tokens = await manager.getValidToken(session.user.id, 'github');
+  
+  if (!tokens) {
+    return { error: 'Please reconnect your GitHub account' };
+  }
+  
+  const octokit = new Octokit({ auth: tokens.accessToken });
+  // Use octokit...
+}
+```
+
+**Benefits:**
+- No manual `refreshTokenIfNeeded()` calls
+- Automatic refresh 5 minutes before expiration
+- Concurrent refresh protection
+- Works with any VCS provider
 
 ### 1. Import from the Barrel File
 

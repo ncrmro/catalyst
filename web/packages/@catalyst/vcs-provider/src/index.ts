@@ -74,6 +74,21 @@ export {
 export { encryptToken, decryptToken } from "./token-crypto";
 export type { EncryptedToken } from "./token-crypto";
 
+// Token Manager singleton (provider-agnostic)
+export { VCSTokenManager } from "./token-manager";
+export type { VCSTokenManagerConfig } from "./token-manager";
+
+// Provider-agnostic token schema
+export {
+  VCS_PROVIDER_TOKEN_SCHEMA,
+  POSTGRES_MIGRATION_SQL,
+  migrateGitHubTokensToVCSTokens,
+} from "./token-schema";
+export type {
+  EncryptedTokenParts,
+  VCSProviderTokenRecord,
+} from "./token-schema";
+
 import type { ProviderId, AuthenticatedClient } from "./types";
 import { providerRegistry } from "./provider-registry";
 
