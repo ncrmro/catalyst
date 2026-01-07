@@ -18,6 +18,23 @@ def rename_zellij_tab(tab_name):
         except Exception:
             pass
 
+def get_spec_status(spec_name, project_root):
+    """Get the recent status/commits for a spec."""
+    specs_status_script = os.path.join(project_root, "bin", "specs-status")
+    if os.path.exists(specs_status_script):
+        try:
+            result = subprocess.run(
+                [specs_status_script, spec_name],
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            if result.returncode == 0:
+                return result.stdout
+        except Exception as e:
+            print(f"Warning: Could not get spec status: {e}", file=sys.stderr)
+    return ""
+
 def main():
     """Run Gemini with worktree support."""
     project_root = get_project_root()
@@ -87,6 +104,11 @@ def main():
                 except Exception as e:
                     print(f"Warning: Could not read spec file at {spec_path}: {e}", file=sys.stderr)
 
+            # Get spec status
+            spec_status = get_spec_status(branch_input, project_root)
+            if spec_status:
+                spec_instructions += f"\n\nHere is the recent activity/status for this spec:\n\n{spec_status}\n"
+
             # Construct the prompt for the LLM
             initial_prompt = (
                 f"I am working in the worktree located at: {worktree_path}. "
@@ -115,6 +137,12 @@ def main():
                 with open(spec_path, "r") as f:
                     spec_content = f.read()
                 spec_instructions += f"\n\nHere is the spec content for context:\n\n{spec_content}\n"
+                
+                # Get spec status
+                spec_status = get_spec_status(spec_name, project_root)
+                if spec_status:
+                    spec_instructions += f"\n\nHere is the recent activity/status for this spec:\n\n{spec_status}\n"
+
                 initial_prompt = spec_instructions
             except Exception as e:
                 print(f"Warning: Could not read spec file at {spec_path}: {e}", file=sys.stderr)
