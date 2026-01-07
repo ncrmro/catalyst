@@ -1,13 +1,15 @@
 /**
- * Token Encryption Utilities
+ * Security Utilities
  *
- * Provider-agnostic token encryption using AES-256-GCM.
+ * Provides encryption and decryption utilities for sensitive data
+ * (like OAuth tokens) using AES-256-GCM.
+ *
+ * Requirements:
+ * - TOKEN_ENCRYPTION_KEY environment variable (32-byte hex string)
  */
 
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 
-// Key should be stored in environment variables
-// const ENCRYPTION_KEY = process.env.TOKEN_ENCRYPTION_KEY as string;
 const ALGORITHM = "aes-256-gcm";
 
 // Check if we're in NextJS build phase - don't validate env vars during build
@@ -19,7 +21,7 @@ if (!isNextJsBuild && !process.env.TOKEN_ENCRYPTION_KEY) {
     console.error(
       "TOKEN_ENCRYPTION_KEY environment variable is required in production. Application will exit.",
     );
-    process.exit(1);
+    // process.exit(1); // Don't hard exit library code, let app handle it or fail on usage
   } else {
     console.warn(
       "TOKEN_ENCRYPTION_KEY environment variable is not set. Token encryption will not work.",
@@ -27,22 +29,24 @@ if (!isNextJsBuild && !process.env.TOKEN_ENCRYPTION_KEY) {
   }
 }
 
-export interface EncryptedToken {
+export interface EncryptedData {
   encryptedData: string;
   iv: string;
   authTag: string;
 }
 
 /**
- * Encrypt a token using AES-256-GCM
- * @param token The token to encrypt
- * @returns Encrypted token with IV and auth tag
+ * Encrypt a string using AES-256-GCM
+ * 
+ * @param text The text to encrypt
+ * @returns Encrypted data object with IV and auth tag
+ * @throws Error if TOKEN_ENCRYPTION_KEY is not set
  */
-export function encryptToken(token: string): EncryptedToken {
+export function encrypt(text: string): EncryptedData {
   const encryptionKey = process.env.TOKEN_ENCRYPTION_KEY;
   if (!encryptionKey) {
     throw new Error(
-      "TOKEN_ENCRYPTION_KEY environment variable is required for token encryption",
+      "TOKEN_ENCRYPTION_KEY environment variable is required for encryption",
     );
   }
 
@@ -53,7 +57,7 @@ export function encryptToken(token: string): EncryptedToken {
     iv,
   );
 
-  let encryptedData = cipher.update(token, "utf8", "hex");
+  let encryptedData = cipher.update(text, "utf8", "hex");
   encryptedData += cipher.final("hex");
 
   // GCM mode provides authentication tag for integrity verification
@@ -67,13 +71,15 @@ export function encryptToken(token: string): EncryptedToken {
 }
 
 /**
- * Decrypt a token using AES-256-GCM
- * @param encryptedData The encrypted token data
- * @param iv The initialization vector
- * @param authTag The authentication tag
- * @returns Decrypted token
+ * Decrypt a string using AES-256-GCM
+ * 
+ * @param encryptedData The encrypted hex string
+ * @param iv The initialization vector hex string
+ * @param authTag The authentication tag hex string
+ * @returns Decrypted plain text
+ * @throws Error if TOKEN_ENCRYPTION_KEY is not set or decryption fails
  */
-export function decryptToken(
+export function decrypt(
   encryptedData: string,
   iv: string,
   authTag: string,
@@ -81,7 +87,7 @@ export function decryptToken(
   const encryptionKey = process.env.TOKEN_ENCRYPTION_KEY;
   if (!encryptionKey) {
     throw new Error(
-      "TOKEN_ENCRYPTION_KEY environment variable is required for token decryption",
+      "TOKEN_ENCRYPTION_KEY environment variable is required for decryption",
     );
   }
 

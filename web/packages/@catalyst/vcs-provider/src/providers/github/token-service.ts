@@ -7,7 +7,7 @@
 import { db } from "@/db";
 import { githubUserTokens } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { encryptToken, decryptToken } from "../../token-crypto";
+import { encrypt, decrypt } from "@tetrastack/backend/utils";
 
 export interface GitHubTokens {
   accessToken: string;
@@ -27,8 +27,8 @@ export async function storeGitHubTokens(
   tokens: GitHubTokens,
 ): Promise<void> {
   // Encrypt the tokens
-  const encryptedAccess = encryptToken(tokens.accessToken);
-  const encryptedRefresh = encryptToken(tokens.refreshToken);
+  const encryptedAccess = encrypt(tokens.accessToken);
+  const encryptedRefresh = encrypt(tokens.refreshToken);
 
   // Update or insert tokens using upsert pattern
   await db
@@ -97,13 +97,13 @@ export async function getGitHubTokens(
 
   try {
     // Decrypt the tokens
-    const accessToken = decryptToken(
+    const accessToken = decrypt(
       record.accessTokenEncrypted,
       record.accessTokenIv,
       record.accessTokenAuthTag,
     );
 
-    const refreshToken = decryptToken(
+    const refreshToken = decrypt(
       record.refreshTokenEncrypted,
       record.refreshTokenIv,
       record.refreshTokenAuthTag,

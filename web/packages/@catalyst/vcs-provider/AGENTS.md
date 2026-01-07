@@ -11,7 +11,13 @@ The VCS provider package abstracts version control system APIs (GitHub, GitLab, 
 - Pull request and issue management
 - Deployment comments and status updates
 
+## Dependencies
+
+- **@tetrastack/backend**: Provides the database schema (`connection_tokens`) and security utilities (`encrypt`, `decrypt`) required for token storage.
+- **@octokit/rest**: GitHub API client.
+
 ## Key Patterns
+
 
 ### 0. Use VCSTokenManager for Automatic Token Refresh (NEW)
 
@@ -36,20 +42,21 @@ VCSTokenManager.initialize({
 // In your actions/routes - token refresh is automatic!
 export async function myAction() {
   const session = await auth();
-  
+
   const manager = VCSTokenManager.getInstance();
-  const tokens = await manager.getValidToken(session.user.id, 'github');
-  
+  const tokens = await manager.getValidToken(session.user.id, "github");
+
   if (!tokens) {
-    return { error: 'Please reconnect your GitHub account' };
+    return { error: "Please reconnect your GitHub account" };
   }
-  
+
   const octokit = new Octokit({ auth: tokens.accessToken });
   // Use octokit...
 }
 ```
 
 **Benefits:**
+
 - No manual `refreshTokenIfNeeded()` calls
 - Automatic refresh 5 minutes before expiration
 - Concurrent refresh protection

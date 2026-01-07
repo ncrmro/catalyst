@@ -70,10 +70,6 @@ export {
   deleteDeploymentComment,
 } from "./providers/github/comments";
 
-// Token encryption utilities (provider-agnostic)
-export { encryptToken, decryptToken } from "./token-crypto";
-export type { EncryptedToken } from "./token-crypto";
-
 // VCS Provider Singleton - Comprehensive facade for all VCS operations
 export { VCSProviderSingleton } from "./vcs-provider";
 export type { VCSProviderConfig } from "./vcs-provider";
@@ -81,29 +77,6 @@ export type { VCSProviderConfig } from "./vcs-provider";
 // Token Manager singleton (provider-agnostic) - DEPRECATED: Use VCSProviderSingleton instead
 export { VCSTokenManager } from "./token-manager";
 export type { VCSTokenManagerConfig } from "./token-manager";
-
-// Provider-agnostic token schema
-export {
-  VCS_PROVIDER_TOKEN_SCHEMA,
-  POSTGRES_MIGRATION_SQL,
-  migrateGitHubTokensToVCSTokens,
-} from "./token-schema";
-export type {
-  EncryptedTokenParts,
-  VCSProviderTokenRecord,
-} from "./token-schema";
-
-// Drizzle Schemas
-export {
-  vcsProviderTokensPg,
-  vcsProviderTokensSqlite,
-} from "./drizzle-schema";
-export type {
-  VCSProviderTokenPg,
-  VCSProviderTokenPgInsert,
-  VCSProviderTokenSqlite,
-  VCSProviderTokenSqliteInsert,
-} from "./drizzle-schema";
 
 import type { ProviderId, AuthenticatedClient } from "./types";
 import { providerRegistry } from "./provider-registry";

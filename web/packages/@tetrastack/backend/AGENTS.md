@@ -62,7 +62,12 @@ const handleSubmit = async (e) => {
 - `src/auth`: NextAuth configuration factory, providers, and callbacks.
 - `src/database`: Drizzle schema definitions (must be imported by consumer).
 - `src/uploads`: Cloudflare R2 interaction logic (presigned URLs).
-- `src/utils`: Shared helpers (UUIDv7, slugify).
+- `src/utils`: Shared helpers (UUIDv7, slugify, security/encryption).
+
+## Security Guidelines
+
+- **Encryption**: Use `src/utils/security.ts` for any sensitive data storage (tokens, keys).
+- **Environment**: `TOKEN_ENCRYPTION_KEY` is required for encryption operations.
 
 ## Development
 
