@@ -2,6 +2,142 @@
 
 This document provides example code for common VCS operations using the `@catalyst/vcs-provider` package.
 
+## Initializing VCSTokenManager
+
+The VCSTokenManager should be initialized once at application startup. This example shows how to set it up in a Next.js application.
+
+### Initialization in Next.js Middleware or Server Startup
+
+```typescript
+// src/lib/vcs-token-manager-init.ts
+import { VCSTokenManager } from "@catalyst/vcs-provider";
+import {
+  getGitHubTokens,
+  storeGitHubTokens,
+  exchangeRefreshToken,
+} from "@catalyst/vcs-provider";
+import type { ProviderId } from "@catalyst/vcs-provider";
+
+let initialized = false;
+
+/**
+ * Initialize VCS Token Manager
+ * Call this once at application startup
+ */
+export function initializeVCSTokenManager() {
+  if (initialized) {
+    return;
+  }
+
+  VCSTokenManager.initialize({
+    getTokenData: async (userId: string, providerId: ProviderId) => {
+      // Currently only GitHub is supported, but this pattern
+      // allows for future multi-provider support
+      if (providerId === "github") {
+        return await getGitHubTokens(userId);
+      }
+      return null;
+    },
+
+    refreshToken: async (refreshToken: string, providerId: ProviderId) => {
+      // Provider-specific token refresh logic
+      if (providerId === "github") {
+        const tokens = await exchangeRefreshToken(refreshToken);
+        return {
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          expiresAt: tokens.expiresAt,
+          scope: tokens.scope,
+        };
+      }
+      throw new Error(`Unsupported provider: ${providerId}`);
+    },
+
+    storeTokenData: async (userId: string, tokens, providerId: ProviderId) => {
+      // Provider-specific token storage
+      if (providerId === "github") {
+        await storeGitHubTokens(userId, {
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken || "",
+          expiresAt: tokens.expiresAt || new Date(),
+          scope: tokens.scope || "",
+        });
+      }
+    },
+
+    // Optional: Custom expiration buffer (default is 5 minutes)
+    expirationBufferMs: 5 * 60 * 1000, // 5 minutes
+  });
+
+  initialized = true;
+}
+```
+
+### Calling Initialization in Next.js
+
+```typescript
+// src/middleware.ts
+import { initializeVCSTokenManager } from "@/lib/vcs-token-manager-init";
+
+// Initialize on first middleware execution
+initializeVCSTokenManager();
+
+export function middleware(request: NextRequest) {
+  // Your middleware logic...
+}
+```
+
+Or in an instrumentation file:
+
+```typescript
+// src/instrumentation.ts
+export async function register() {
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { initializeVCSTokenManager } = await import(
+      "@/lib/vcs-token-manager-init"
+    );
+    initializeVCSTokenManager();
+  }
+}
+```
+
+### Using VCSTokenManager in Server Actions
+
+```typescript
+// src/actions/version-control-provider.ts
+"use server";
+
+import { auth } from "@/auth";
+import { VCSTokenManager } from "@catalyst/vcs-provider";
+import { Octokit } from "@octokit/rest";
+
+export async function getRepositoryData(repoFullName: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { success: false, error: "Not authenticated" };
+  }
+
+  // Get valid token (automatically refreshed if needed!)
+  const manager = VCSTokenManager.getInstance();
+  const tokens = await manager.getValidToken(session.user.id, "github");
+
+  if (!tokens) {
+    return { success: false, error: "Please reconnect your GitHub account" };
+  }
+
+  // Use the token with Octokit
+  const octokit = new Octokit({ auth: tokens.accessToken });
+  const [owner, repo] = repoFullName.split("/");
+
+  try {
+    const { data } = await octokit.rest.repos.get({ owner, repo });
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: "Failed to fetch repository" };
+  }
+}
+```
+
 ## Server Actions for Repository Content
 
 These server actions provide a generic interface for reading files and directories from repositories. They can be used by UI components to display repository content like specs, documentation, or configuration files.
