@@ -7,16 +7,70 @@ Version Control System provider abstraction for multi-provider support (GitHub, 
 This package provides a unified interface for interacting with version control systems. It abstracts provider-specific APIs behind a common interface, making it easy to:
 
 - Authenticate users with VCS providers
-- **Automatically refresh tokens without manual logic** (NEW!)
+- **Automatically manage and refresh tokens** (NEW!)
+- **Access all VCS operations through a single facade** (NEW!)
 - Read files and directories from repositories
 - Manage pull requests and issues
 - Handle webhooks
 
 ## Key Features
 
-### 🔄 Automatic Token Refresh (NEW)
+### 🚀 VCSProviderSingleton - Comprehensive VCS Facade (NEW & RECOMMENDED)
 
-The **VCSTokenManager** singleton automatically handles token refresh for you. No more manually checking expiration or writing refresh logic in every action!
+The **VCSProviderSingleton** is the new recommended way to interact with VCS providers. It provides:
+- **Automatic token management**: Tokens refreshed transparently before expiration
+- **Namespaced operations**: Clean API with `issues`, `pullRequests`, `repos`, `branches`, `files`
+- **Generic token sources**: Works with user/team/project IDs
+- **Environment validation**: Checks required env vars on initialization
+- **Provider-agnostic**: Unified interface across all VCS providers
+
+```typescript
+import { VCSProviderSingleton } from "@catalyst/vcs-provider";
+
+// 1. Initialize once at application startup
+VCSProviderSingleton.initialize({
+  getTokenData: async (tokenSourceId, providerId) => {
+    // tokenSourceId can be userId, teamId, projectId, etc.
+    return await db.getTokens(tokenSourceId, providerId);
+  },
+  refreshToken: async (refreshToken, providerId) => {
+    return await oauth.exchangeRefreshToken(refreshToken);
+  },
+  storeTokenData: async (tokenSourceId, tokens, providerId) => {
+    await db.storeTokens(tokenSourceId, tokens, providerId);
+  },
+  requiredEnvVars: ['GITHUB_APP_CLIENT_ID', 'GITHUB_APP_CLIENT_SECRET'],
+});
+
+// 2. Use anywhere - automatic token management!
+const vcs = VCSProviderSingleton.getInstance();
+
+// Get an issue (tokenSourceId can be userId, teamId, projectId)
+const issue = await vcs.issues.get(tokenSourceId, owner, repo, issueNumber);
+
+// List pull requests
+const prs = await vcs.pullRequests.list(tokenSourceId, owner, repo, { state: 'open' });
+
+// Get repository
+const repo = await vcs.repos.get(tokenSourceId, owner, repo);
+
+// Create a PR
+const newPR = await vcs.pullRequests.create(
+  tokenSourceId, owner, repo, title, head, base, body
+);
+```
+
+**Benefits:**
+- ✅ One-line API calls with automatic token management
+- ✅ No manual token refresh logic needed
+- ✅ Clean, namespaced operations (issues, pullRequests, repos, etc.)
+- ✅ Generic token source (user/team/project agnostic)
+- ✅ Environment validation on startup
+- ✅ Provider-agnostic design
+
+### 🔄 VCSTokenManager - Lower-Level Token Management
+
+For advanced use cases where you need direct token management without the full VCS facade:
 
 ```typescript
 import { VCSTokenManager } from "@catalyst/vcs-provider";

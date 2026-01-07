@@ -74,7 +74,11 @@ export {
 export { encryptToken, decryptToken } from "./token-crypto";
 export type { EncryptedToken } from "./token-crypto";
 
-// Token Manager singleton (provider-agnostic)
+// VCS Provider Singleton - Comprehensive facade for all VCS operations
+export { VCSProviderSingleton } from "./vcs-provider";
+export type { VCSProviderConfig } from "./vcs-provider";
+
+// Token Manager singleton (provider-agnostic) - DEPRECATED: Use VCSProviderSingleton instead
 export { VCSTokenManager } from "./token-manager";
 export type { VCSTokenManagerConfig } from "./token-manager";
 

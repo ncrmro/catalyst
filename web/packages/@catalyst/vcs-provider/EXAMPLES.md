@@ -2,11 +2,295 @@
 
 This document provides example code for common VCS operations using the `@catalyst/vcs-provider` package.
 
-## Initializing VCSTokenManager
+## Using VCSProviderSingleton (NEW & RECOMMENDED)
 
-The VCSTokenManager should be initialized once at application startup. This example shows how to set it up in a Next.js application.
+The VCSProviderSingleton provides the easiest and most powerful way to interact with VCS providers.
 
-### Initialization in Next.js Middleware or Server Startup
+### Initialization in Next.js
+
+```typescript
+// src/lib/vcs-provider-init.ts
+import { VCSProviderSingleton } from "@catalyst/vcs-provider";
+import {
+  getGitHubTokens,
+  storeGitHubTokens,
+  exchangeRefreshToken,
+} from "@catalyst/vcs-provider";
+import type { ProviderId } from "@catalyst/vcs-provider";
+
+let initialized = false;
+
+/**
+ * Initialize VCS Provider Singleton
+ * Call this once at application startup
+ */
+export function initializeVCSProvider() {
+  if (initialized) {
+    return;
+  }
+
+  VCSProviderSingleton.initialize({
+    getTokenData: async (tokenSourceId: string, providerId: ProviderId) => {
+      // tokenSourceId can be userId, teamId, projectId, etc.
+      // Your application logic determines how to interpret it
+      if (providerId === "github") {
+        return await getGitHubTokens(tokenSourceId);
+      }
+      return null;
+    },
+
+    refreshToken: async (refreshToken: string, providerId: ProviderId) => {
+      if (providerId === "github") {
+        const tokens = await exchangeRefreshToken(refreshToken);
+        return {
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          expiresAt: tokens.expiresAt,
+          scope: tokens.scope,
+        };
+      }
+      throw new Error(`Unsupported provider: ${providerId}`);
+    },
+
+    storeTokenData: async (tokenSourceId: string, tokens, providerId: ProviderId) => {
+      if (providerId === "github") {
+        await storeGitHubTokens(tokenSourceId, {
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken || "",
+          expiresAt: tokens.expiresAt || new Date(),
+          scope: tokens.scope || "",
+        });
+      }
+    },
+
+    // Validate required environment variables on startup
+    requiredEnvVars: [
+      'GITHUB_APP_CLIENT_ID',
+      'GITHUB_APP_CLIENT_SECRET',
+      'TOKEN_ENCRYPTION_KEY',
+    ],
+
+    // Optional: Custom expiration buffer (default is 5 minutes)
+    expirationBufferMs: 5 * 60 * 1000,
+  });
+
+  initialized = true;
+}
+```
+
+### Call initialization in Next.js
+
+```typescript
+// src/middleware.ts or src/instrumentation.ts
+import { initializeVCSProvider } from "@/lib/vcs-provider-init";
+
+initializeVCSProvider();
+```
+
+### Using in Server Actions
+
+```typescript
+// src/actions/issues.ts
+"use server";
+
+import { auth } from "@/auth";
+import { VCSProviderSingleton } from "@catalyst/vcs-provider";
+
+export async function getIssue(owner: string, repo: string, issueNumber: number) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { success: false, error: "Not authenticated" };
+  }
+
+  try {
+    const vcs = VCSProviderSingleton.getInstance();
+    
+    // Automatic token management - no manual refresh needed!
+    const issue = await vcs.issues.get(
+      session.user.id, // tokenSourceId (userId, teamId, projectId, etc.)
+      owner,
+      repo,
+      issueNumber
+    );
+
+    return { success: true, issue };
+  } catch (error) {
+    if (error.message.includes("No valid tokens")) {
+      return { success: false, error: "Please reconnect your GitHub account" };
+    }
+    return { success: false, error: "Failed to fetch issue" };
+  }
+}
+
+export async function listPullRequests(owner: string, repo: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { success: false, error: "Not authenticated" };
+  }
+
+  try {
+    const vcs = VCSProviderSingleton.getInstance();
+    
+    const pullRequests = await vcs.pullRequests.list(
+      session.user.id,
+      owner,
+      repo,
+      { state: 'open' }
+    );
+
+    return { success: true, pullRequests };
+  } catch (error) {
+    return { success: false, error: "Failed to fetch pull requests" };
+  }
+}
+
+export async function createPullRequest(
+  owner: string,
+  repo: string,
+  title: string,
+  head: string,
+  base: string,
+  body?: string
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { success: false, error: "Not authenticated" };
+  }
+
+  try {
+    const vcs = VCSProviderSingleton.getInstance();
+    
+    const pr = await vcs.pullRequests.create(
+      session.user.id,
+      owner,
+      repo,
+      title,
+      head,
+      base,
+      body
+    );
+
+    return { success: true, pr };
+  } catch (error) {
+    return { success: false, error: "Failed to create pull request" };
+  }
+}
+```
+
+### Using with Team or Project Context
+
+```typescript
+// src/actions/team-repos.ts
+"use server";
+
+import { auth } from "@/auth";
+import { VCSProviderSingleton } from "@catalyst/vcs-provider";
+import { getTeamFromProject } from "@/db/queries";
+
+export async function listTeamRepositories(projectId: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { success: false, error: "Not authenticated" };
+  }
+
+  // Get team that owns this project
+  const team = await getTeamFromProject(projectId);
+  if (!team) {
+    return { success: false, error: "Team not found" };
+  }
+
+  try {
+    const vcs = VCSProviderSingleton.getInstance();
+    
+    // Use teamId as tokenSourceId
+    // Your getTokenData callback determines how to fetch tokens for a team
+    const repos = await vcs.repos.listOrg(
+      team.id, // tokenSourceId is teamId
+      team.githubOrg
+    );
+
+    return { success: true, repos };
+  } catch (error) {
+    return { success: false, error: "Failed to fetch repositories" };
+  }
+}
+```
+
+### File Operations
+
+```typescript
+// src/actions/files.ts
+"use server";
+
+import { auth } from "@/auth";
+import { VCSProviderSingleton } from "@catalyst/vcs-provider";
+
+export async function getFileContent(
+  owner: string,
+  repo: string,
+  path: string,
+  ref?: string
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { success: false, error: "Not authenticated" };
+  }
+
+  try {
+    const vcs = VCSProviderSingleton.getInstance();
+    
+    const file = await vcs.files.getContent(
+      session.user.id,
+      owner,
+      repo,
+      path,
+      ref
+    );
+
+    if (!file) {
+      return { success: false, error: "File not found" };
+    }
+
+    return { success: true, file };
+  } catch (error) {
+    return { success: false, error: "Failed to fetch file" };
+  }
+}
+
+export async function updateFile(
+  owner: string,
+  repo: string,
+  path: string,
+  content: string,
+  message: string,
+  branch: string
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { success: false, error: "Not authenticated" };
+  }
+
+  try {
+    const vcs = VCSProviderSingleton.getInstance();
+    
+    const updatedFile = await vcs.files.update(
+      session.user.id,
+      owner,
+      repo,
+      path,
+      content,
+      message,
+      branch
+    );
+
+    return { success: true, file: updatedFile };
+  } catch (error) {
+    return { success: false, error: "Failed to update file" };
+  }
+}
+```
+
+## Legacy: Using VCSTokenManager (Lower-Level)
 
 ```typescript
 // src/lib/vcs-token-manager-init.ts
