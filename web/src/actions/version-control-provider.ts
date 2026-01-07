@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth";
 import { providerRegistry, refreshTokenIfNeeded } from "@/lib/vcs-providers";
+import { GITHUB_CONFIG } from "@catalyst/vcs-provider";
 
 // Types
 export interface VCSEntry {
@@ -44,6 +45,15 @@ export async function listDirectory(
   if (!session?.user?.id) {
     console.log("[VCS] listDirectory: Not authenticated");
     return { success: false, entries: [], error: "Not authenticated" };
+  }
+
+  // Handle Mocked Mode
+  if (GITHUB_CONFIG.REPOS_MODE === "mocked") {
+    console.log("[VCS] listDirectory: Returning mocked data");
+    // Simple mock: return empty array or fake files based on path
+    // For project creation wizard autodetect, usually just returning [] is safe,
+    // or if we need to simulate a package.json, we can check path.
+    return { success: true, entries: [] };
   }
 
   // Refresh tokens before accessing repository to ensure valid GitHub access
@@ -110,6 +120,12 @@ export async function readFile(
     return { success: false, file: null, error: "Not authenticated" };
   }
 
+  // Handle Mocked Mode
+  if (GITHUB_CONFIG.REPOS_MODE === "mocked") {
+    console.log("[VCS] readFile: Returning mocked data");
+    return { success: true, file: null };
+  }
+
   // Refresh tokens before reading file to ensure valid GitHub access
   try {
     await refreshTokenIfNeeded(session.user.id);
@@ -159,6 +175,7 @@ export async function readFile(
     };
   }
 }
+
 
 /**
  * Check if a directory exists in a repository
