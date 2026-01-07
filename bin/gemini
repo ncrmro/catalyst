@@ -2,12 +2,21 @@
 
 import os
 import subprocess
+import shutil
 import sys
 
 def get_project_root():
     """Get the project root directory (parent of bin/)."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
     return os.path.dirname(script_dir)
+
+def rename_zellij_tab(tab_name):
+    """Rename the current Zellij tab if Zellij is available."""
+    if shutil.which("zellij"):
+        try:
+            subprocess.run(["zellij", "action", "rename-tab", tab_name], check=False)
+        except Exception:
+            pass
 
 def main():
     """Run Gemini with worktree support."""
@@ -28,6 +37,14 @@ def main():
                 sys.exit(1)
 
             branch_input = args[i + 1]
+
+            # Rename zellij tab
+            tab_suffix = branch_input
+            if branch_input.startswith("specs/"):
+                tab_suffix = branch_input[len("specs/"):]
+            elif branch_input.startswith("spec/"):
+                tab_suffix = branch_input[len("spec/"):]
+            rename_zellij_tab(f"gemini-{tab_suffix}")
             
             # Resolve worktree path using the same logic as bin/worktree
             if branch_input.startswith("specs/") or branch_input.startswith("spec/"):
@@ -58,12 +75,24 @@ def main():
                     print(f"Error: bin/worktree script not found at {worktree_script}", file=sys.stderr)
                     sys.exit(1)
 
+            # Check if we are working on a spec
+            spec_path = os.path.join(worktree_path, "spec.md")
+            spec_instructions = ""
+            if os.path.exists(spec_path):
+                spec_instructions = f"Refocus on the spec '{branch_input}' which should now be available inside this worktree. "
+                try:
+                    with open(spec_path, "r") as f:
+                        spec_content = f.read()
+                    spec_instructions += f"\n\nHere is the spec content for context:\n\n{spec_content}\n"
+                except Exception as e:
+                    print(f"Warning: Could not read spec file at {spec_path}: {e}", file=sys.stderr)
+
             # Construct the prompt for the LLM
             initial_prompt = (
                 f"I am working in the worktree located at: {worktree_path}. "
                 f"Please acknowledge this by confirming you will change your working directory to this path "
                 f"and only create, read, update, or delete files within this directory. "
-                f"Refocus on the spec '{branch_input}' which should now be available inside this worktree. "
+                f"{spec_instructions}"
                 f"Note: The development server has NOT been started automatically. If you need to run the application, "
                 f"please run 'make up' within the worktree directory."
             )
@@ -73,6 +102,22 @@ def main():
         else:
             processed_args.append(args[i])
             i += 1
+
+    # If no worktree was specified, check if the current directory is a spec
+    if not initial_prompt:
+        cwd = os.getcwd()
+        spec_path = os.path.join(cwd, "spec.md")
+        if os.path.exists(spec_path):
+            spec_name = os.path.basename(cwd)
+            rename_zellij_tab(f"gemini-{spec_name}")
+            spec_instructions = f"Refocus on the spec '{spec_name}' which is available in the current directory. "
+            try:
+                with open(spec_path, "r") as f:
+                    spec_content = f.read()
+                spec_instructions += f"\n\nHere is the spec content for context:\n\n{spec_content}\n"
+                initial_prompt = spec_instructions
+            except Exception as e:
+                print(f"Warning: Could not read spec file at {spec_path}: {e}", file=sys.stderr)
 
     # Construct the final command
     cmd = ["gemini"]
