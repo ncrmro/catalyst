@@ -218,9 +218,11 @@ export const {
             if (refreshedTokens) {
               token.accessToken = refreshedTokens.accessToken;
               token.refreshToken = refreshedTokens.refreshToken;
-              token.tokenExpiresAt = Math.floor(
-                refreshedTokens.expiresAt.getTime() / 1000,
-              );
+              if (refreshedTokens.expiresAt) {
+                token.tokenExpiresAt = Math.floor(
+                  refreshedTokens.expiresAt.getTime() / 1000,
+                );
+              }
               token.tokenScope = refreshedTokens.scope;
             }
           } catch (error) {
