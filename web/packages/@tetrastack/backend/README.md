@@ -23,7 +23,14 @@ This package exports Drizzle ORM schemas that you must import into your applicat
 // src/db/schema.ts
 import { sqlite } from "@tetrastack/backend/database";
 
-const { users, accounts, sessions, verificationTokens, uploads, connectionTokens } = sqlite;
+const {
+  users,
+  accounts,
+  sessions,
+  verificationTokens,
+  uploads,
+  connectionTokens,
+} = sqlite;
 
 // Combine with your own tables if needed
 export const schema = {

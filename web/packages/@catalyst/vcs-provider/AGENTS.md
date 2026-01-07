@@ -29,18 +29,22 @@ import { VCSProviderSingleton } from "@catalyst/vcs-provider";
 VCSProviderSingleton.initialize({
   getTokenData: async (id, provider) => db.getTokens(id, provider),
   refreshToken: async (token, provider) => oauth.refresh(token, provider),
-  storeTokenData: async (id, tokens, provider) => db.saveTokens(id, tokens, provider),
+  storeTokenData: async (id, tokens, provider) =>
+    db.saveTokens(id, tokens, provider),
 });
 
 // 2. Use in actions - scoped instance is recommended
 export async function myAction() {
   const session = await auth();
-  
+
   // Get a bound instance for this user and GitHub
-  const vcs = VCSProviderSingleton.getInstance().getScoped(session.user.id, 'github');
+  const vcs = VCSProviderSingleton.getInstance().getScoped(
+    session.user.id,
+    "github",
+  );
 
   // No manual refresh needed!
-  const prs = await vcs.pullRequests.list('owner', 'repo');
+  const prs = await vcs.pullRequests.list("owner", "repo");
 }
 ```
 

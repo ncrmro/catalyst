@@ -50,7 +50,10 @@ export async function listDirectory(
   try {
     await refreshTokenIfNeeded(session.user.id);
   } catch (error) {
-    console.error("[VCS] Failed to refresh tokens before listing directory:", error);
+    console.error(
+      "[VCS] Failed to refresh tokens before listing directory:",
+      error,
+    );
     // Continue anyway - provider.authenticate will attempt refresh again
   }
 

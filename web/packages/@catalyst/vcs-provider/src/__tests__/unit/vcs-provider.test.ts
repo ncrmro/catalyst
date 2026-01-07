@@ -338,12 +338,10 @@ describe("VCSProviderSingleton", () => {
         id: "github" as ProviderId,
         name: "GitHub",
         iconName: "github",
-        authenticate: vi
-          .fn()
-          .mockResolvedValue({
-            providerId: "github",
-            raw: {},
-          } as AuthenticatedClient),
+        authenticate: vi.fn().mockResolvedValue({
+          providerId: "github",
+          raw: {},
+        } as AuthenticatedClient),
         checkConnection: vi.fn(),
         storeTokens: vi.fn(),
         refreshTokensIfNeeded: vi.fn(),

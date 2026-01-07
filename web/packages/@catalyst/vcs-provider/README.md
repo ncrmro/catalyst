@@ -93,7 +93,6 @@ const newPR = await vcs.pullRequests.create(
 npm install @catalyst/vcs-provider
 ```
 
-
 ## Database Schema
 
 This package requires a database table to store authentication tokens. The schema definition is provided by `@tetrastack/backend`.

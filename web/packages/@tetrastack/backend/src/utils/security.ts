@@ -37,7 +37,7 @@ export interface EncryptedData {
 
 /**
  * Encrypt a string using AES-256-GCM
- * 
+ *
  * @param text The text to encrypt
  * @returns Encrypted data object with IV and auth tag
  * @throws Error if TOKEN_ENCRYPTION_KEY is not set
@@ -72,7 +72,7 @@ export function encrypt(text: string): EncryptedData {
 
 /**
  * Decrypt a string using AES-256-GCM
- * 
+ *
  * @param encryptedData The encrypted hex string
  * @param iv The initialization vector hex string
  * @param authTag The authentication tag hex string

@@ -1,54 +1,54 @@
 /**
  * VCS Provider Singleton - Comprehensive VCS Operations Facade
- * 
+ *
  * FUNCTIONAL REQUIREMENTS:
  * ========================
- * 
+ *
  * PURPOSE:
  * This singleton provides a unified interface for all VCS operations with automatic
  * token management. Instead of manually managing tokens and calling provider-specific
  * APIs, developers interact with this facade which handles token retrieval, refresh,
  * and provider routing automatically.
- * 
+ *
  * FUNCTIONAL REQUIREMENTS (MUST):
- * 
+ *
  * FR-001: Multi-Provider Support
  * - The class MUST support multiple VCS providers (GitHub, GitLab, Bitbucket, Azure DevOps)
  * - Each operation method MUST accept a providerId parameter to specify which provider to use
  * - The class MUST support future extensibility for self-hosted provider instances
  *   (e.g., self-hosted GitLab, GitHub Enterprise Server)
- * 
+ *
  * FR-002: Automatic Token Management
  * - The class MUST automatically refresh tokens before any operation that requires authentication
  * - Token refresh MUST occur transparently without developer intervention
  * - Token refresh MUST happen before the token expires (default: 5 minutes buffer)
  * - The class MUST prevent concurrent refresh operations for the same token source
- * 
+ *
  * FR-003: Generic Token Source Support
  * - All operations MUST accept a generic tokenSourceId parameter
  * - The tokenSourceId MUST support user IDs, team IDs, project IDs, or any application-defined identifier
  * - Token retrieval callbacks MUST be provided by the application to determine how to fetch tokens
- * 
+ *
  * FR-004: Environment Validation
  * - The initialize() method MUST validate required environment variables
  * - Missing required environment variables MUST cause initialization to fail with clear error messages
  * - Environment validation MUST occur before any operations can be performed
- * 
+ *
  * FR-005: Namespaced Operations
  * - Operations MUST be grouped by resource type (issues, pullRequests, repos, branches, files)
  * - Each namespace MUST provide methods for common operations on that resource type
  * - All methods MUST handle authentication and token refresh automatically
- * 
+ *
  * FR-006: Error Handling
  * - Authentication failures MUST provide clear error messages indicating re-authentication is needed
  * - Provider not found errors MUST specify which provider was requested
  * - Token refresh failures MUST be logged and return null to trigger re-authentication flow
- * 
+ *
  * FR-007: Singleton Pattern
  * - Only one instance MUST exist throughout the application lifecycle
  * - The instance MUST be initialized once before use
  * - Attempting to initialize twice MUST throw an error
- * 
+ *
  * USAGE PATTERN:
  * ```typescript
  * // 1. Initialize once at application startup
@@ -67,13 +67,13 @@
  *   },
  *   requiredEnvVars: ['GITHUB_APP_CLIENT_ID', 'GITHUB_APP_CLIENT_SECRET'],
  * });
- * 
+ *
  * // 2. Use anywhere - specify provider for each operation
  * const vcs = VCSProviderSingleton.getInstance();
- * 
+ *
  * // Get an issue from GitHub
  * const issue = await vcs.issues.get(tokenSourceId, 'github', owner, repo, issueNumber);
- * 
+ *
  * // OR use a scoped instance (Recommended)
  * const myVcs = vcs.getScoped(userId, 'github');
  * const myIssue = await myVcs.issues.get(owner, repo, issueNumber);
@@ -103,7 +103,7 @@ import { providerRegistry } from "./provider-registry";
 export interface VCSProviderConfig {
   /**
    * Callback to retrieve token data from storage
-   * 
+   *
    * @param tokenSourceId - Generic identifier (userId, teamId, projectId, etc.)
    * @param providerId - The VCS provider ID
    * @returns Token data or null if not found
@@ -115,7 +115,7 @@ export interface VCSProviderConfig {
 
   /**
    * Callback to refresh an expired token
-   * 
+   *
    * @param refreshToken - The refresh token to exchange
    * @param providerId - The VCS provider ID
    * @returns New token data
@@ -127,7 +127,7 @@ export interface VCSProviderConfig {
 
   /**
    * Callback to store refreshed token data
-   * 
+   *
    * @param tokenSourceId - Generic identifier (userId, teamId, projectId, etc.)
    * @param tokens - The token data to store
    * @param providerId - The VCS provider ID
@@ -140,7 +140,7 @@ export interface VCSProviderConfig {
 
   /**
    * Callback for authentication errors (e.g. when refresh fails or tokens are missing)
-   * 
+   *
    * @param tokenSourceId - Generic identifier
    * @param providerId - The VCS provider ID
    */
@@ -166,7 +166,7 @@ export interface VCSProviderConfig {
 
 /**
  * VCS Provider Singleton
- * 
+ *
  * Comprehensive facade for all VCS operations with automatic token management.
  */
 export class VCSProviderSingleton {
@@ -194,7 +194,7 @@ export class VCSProviderSingleton {
 
   /**
    * Initialize the VCS Provider Singleton
-   * 
+   *
    * @param config - Configuration with token callbacks and env requirements
    * @throws Error if already initialized or if required env vars are missing
    */
@@ -218,7 +218,7 @@ export class VCSProviderSingleton {
 
     VCSProviderSingleton.instance = new VCSProviderSingleton();
     VCSProviderSingleton.instance.config = config;
-    
+
     if (config.defaultProvider) {
       VCSProviderSingleton.instance.defaultProviderId = config.defaultProvider;
     }
@@ -239,12 +239,19 @@ export class VCSProviderSingleton {
   /**
    * Get a scoped instance for a specific user and provider.
    * This is the recommended way to use the singleton to avoid passing IDs repeatedly.
-   * 
+   *
    * @param tokenSourceId - Generic identifier (userId, teamId, projectId, etc.)
    * @param providerId - Optional VCS provider ID (defaults to configured default)
    */
-  public getScoped(tokenSourceId: string, providerId?: ProviderId): ScopedVCSProvider {
-    return new ScopedVCSProvider(this, tokenSourceId, providerId || this.defaultProviderId);
+  public getScoped(
+    tokenSourceId: string,
+    providerId?: ProviderId,
+  ): ScopedVCSProvider {
+    return new ScopedVCSProvider(
+      this,
+      tokenSourceId,
+      providerId || this.defaultProviderId,
+    );
   }
 
   /**
@@ -257,16 +264,19 @@ export class VCSProviderSingleton {
 
   /**
    * Execute an operation with an authenticated provider
-   * 
+   *
    * @internal
    */
   public async execute<T>(
     tokenSourceId: string,
     providerId: ProviderId,
-    operation: (provider: VCSProvider, client: AuthenticatedClient) => Promise<T>
+    operation: (
+      provider: VCSProvider,
+      client: AuthenticatedClient,
+    ) => Promise<T>,
   ): Promise<T> {
     const client = await this.getAuthenticatedClient(tokenSourceId, providerId);
-    
+
     const provider = providerRegistry.get(client.providerId);
     if (!provider) {
       throw new Error(`Provider ${client.providerId} not registered`);
@@ -278,7 +288,7 @@ export class VCSProviderSingleton {
   /**
    * Get an authenticated client for the token source
    * Automatically handles token refresh
-   * 
+   *
    * @internal
    */
   async getAuthenticatedClient(
@@ -286,10 +296,10 @@ export class VCSProviderSingleton {
     providerId?: ProviderId,
   ): Promise<AuthenticatedClient> {
     const actualProviderId = providerId || this.defaultProviderId;
-    
+
     // Get valid token (with automatic refresh)
     const tokens = await this.getValidToken(tokenSourceId, actualProviderId);
-    
+
     if (!tokens) {
       if (this.config?.onAuthError) {
         this.config.onAuthError(tokenSourceId, actualProviderId);
@@ -434,7 +444,7 @@ export class VCSProviderSingleton {
         `Failed to refresh token for source ${tokenSourceId} provider ${providerId}:`,
         error,
       );
-      
+
       // If refresh fails, tokens are effectively invalid.
       // We might want to trigger auth error here too, but getValidToken will return null
       // which triggers onAuthError in getAuthenticatedClient.
@@ -445,7 +455,7 @@ export class VCSProviderSingleton {
 
 /**
  * Scoped VCS Provider
- * 
+ *
  * A wrapper around VCSProviderSingleton that binds the tokenSourceId and providerId
  * to allow for cleaner API usage.
  */
@@ -453,41 +463,124 @@ export class ScopedVCSProvider {
   constructor(
     private provider: VCSProviderSingleton,
     private tokenSourceId: string,
-    private providerId: ProviderId
+    private providerId: ProviderId,
   ) {}
 
   public get issues() {
     return {
-      get: (owner: string, repo: string, issueNumber: number) => 
-        this.provider.issues.get(this.tokenSourceId, this.providerId, owner, repo, issueNumber),
-      list: (owner: string, repo: string, options?: { state?: "open" | "closed" | "all" }) =>
-        this.provider.issues.list(this.tokenSourceId, this.providerId, owner, repo, options),
+      get: (owner: string, repo: string, issueNumber: number) =>
+        this.provider.issues.get(
+          this.tokenSourceId,
+          this.providerId,
+          owner,
+          repo,
+          issueNumber,
+        ),
+      list: (
+        owner: string,
+        repo: string,
+        options?: { state?: "open" | "closed" | "all" },
+      ) =>
+        this.provider.issues.list(
+          this.tokenSourceId,
+          this.providerId,
+          owner,
+          repo,
+          options,
+        ),
     };
   }
 
   public get pullRequests() {
     return {
       get: (owner: string, repo: string, prNumber: number) =>
-        this.provider.pullRequests.get(this.tokenSourceId, this.providerId, owner, repo, prNumber),
-      list: (owner: string, repo: string, options?: { state?: "open" | "closed" | "all" }) =>
-        this.provider.pullRequests.list(this.tokenSourceId, this.providerId, owner, repo, options),
+        this.provider.pullRequests.get(
+          this.tokenSourceId,
+          this.providerId,
+          owner,
+          repo,
+          prNumber,
+        ),
+      list: (
+        owner: string,
+        repo: string,
+        options?: { state?: "open" | "closed" | "all" },
+      ) =>
+        this.provider.pullRequests.list(
+          this.tokenSourceId,
+          this.providerId,
+          owner,
+          repo,
+          options,
+        ),
       listReviews: (owner: string, repo: string, prNumber: number) =>
-        this.provider.pullRequests.listReviews(this.tokenSourceId, this.providerId, owner, repo, prNumber),
-      create: (owner: string, repo: string, title: string, head: string, base: string, body?: string) =>
-        this.provider.pullRequests.create(this.tokenSourceId, this.providerId, owner, repo, title, head, base, body),
+        this.provider.pullRequests.listReviews(
+          this.tokenSourceId,
+          this.providerId,
+          owner,
+          repo,
+          prNumber,
+        ),
+      create: (
+        owner: string,
+        repo: string,
+        title: string,
+        head: string,
+        base: string,
+        body?: string,
+      ) =>
+        this.provider.pullRequests.create(
+          this.tokenSourceId,
+          this.providerId,
+          owner,
+          repo,
+          title,
+          head,
+          base,
+          body,
+        ),
       listComments: (owner: string, repo: string, prNumber: number) =>
-        this.provider.pullRequests.listComments(this.tokenSourceId, this.providerId, owner, repo, prNumber),
-      createComment: (owner: string, repo: string, prNumber: number, body: string) =>
-        this.provider.pullRequests.createComment(this.tokenSourceId, this.providerId, owner, repo, prNumber, body),
+        this.provider.pullRequests.listComments(
+          this.tokenSourceId,
+          this.providerId,
+          owner,
+          repo,
+          prNumber,
+        ),
+      createComment: (
+        owner: string,
+        repo: string,
+        prNumber: number,
+        body: string,
+      ) =>
+        this.provider.pullRequests.createComment(
+          this.tokenSourceId,
+          this.providerId,
+          owner,
+          repo,
+          prNumber,
+          body,
+        ),
       getCIStatus: (owner: string, repo: string, prNumber: number) =>
-        this.provider.pullRequests.getCIStatus(this.tokenSourceId, this.providerId, owner, repo, prNumber),
+        this.provider.pullRequests.getCIStatus(
+          this.tokenSourceId,
+          this.providerId,
+          owner,
+          repo,
+          prNumber,
+        ),
     };
   }
 
   public get repos() {
     return {
       get: (owner: string, repo: string) =>
-        this.provider.repos.get(this.tokenSourceId, this.providerId, owner, repo),
+        this.provider.repos.get(
+          this.tokenSourceId,
+          this.providerId,
+          owner,
+          repo,
+        ),
       listUser: () =>
         this.provider.repos.listUser(this.tokenSourceId, this.providerId),
       listOrg: (org: string) =>
@@ -498,20 +591,67 @@ export class ScopedVCSProvider {
   public get branches() {
     return {
       list: (owner: string, repo: string) =>
-        this.provider.branches.list(this.tokenSourceId, this.providerId, owner, repo),
-      create: (owner: string, repo: string, name: string, fromBranch?: string) =>
-        this.provider.branches.create(this.tokenSourceId, this.providerId, owner, repo, name, fromBranch),
+        this.provider.branches.list(
+          this.tokenSourceId,
+          this.providerId,
+          owner,
+          repo,
+        ),
+      create: (
+        owner: string,
+        repo: string,
+        name: string,
+        fromBranch?: string,
+      ) =>
+        this.provider.branches.create(
+          this.tokenSourceId,
+          this.providerId,
+          owner,
+          repo,
+          name,
+          fromBranch,
+        ),
     };
   }
 
   public get files() {
     return {
       getContent: (owner: string, repo: string, path: string, ref?: string) =>
-        this.provider.files.getContent(this.tokenSourceId, this.providerId, owner, repo, path, ref),
+        this.provider.files.getContent(
+          this.tokenSourceId,
+          this.providerId,
+          owner,
+          repo,
+          path,
+          ref,
+        ),
       getDirectory: (owner: string, repo: string, path: string, ref?: string) =>
-        this.provider.files.getDirectory(this.tokenSourceId, this.providerId, owner, repo, path, ref),
-      update: (owner: string, repo: string, path: string, content: string, message: string, branch: string) =>
-        this.provider.files.update(this.tokenSourceId, this.providerId, owner, repo, path, content, message, branch),
+        this.provider.files.getDirectory(
+          this.tokenSourceId,
+          this.providerId,
+          owner,
+          repo,
+          path,
+          ref,
+        ),
+      update: (
+        owner: string,
+        repo: string,
+        path: string,
+        content: string,
+        message: string,
+        branch: string,
+      ) =>
+        this.provider.files.update(
+          this.tokenSourceId,
+          this.providerId,
+          owner,
+          repo,
+          path,
+          content,
+          message,
+          branch,
+        ),
     };
   }
 }
@@ -529,18 +669,22 @@ class IssueOperations {
     repo: string,
     issueNumber: number,
   ): Promise<Issue> {
-    return this.provider.execute(tokenSourceId, providerId, async (vcsProvider, client) => {
-      // Note: VCSProvider interface doesn't have getIssue, only listIssues
-      // We'd need to add this method to the interface or filter from list
-      const issues = await vcsProvider.listIssues(client, owner, repo);
-      const issue = issues.find((i) => i.number === issueNumber);
-      
-      if (!issue) {
-        throw new Error(`Issue #${issueNumber} not found`);
-      }
-      
-      return issue;
-    });
+    return this.provider.execute(
+      tokenSourceId,
+      providerId,
+      async (vcsProvider, client) => {
+        // Note: VCSProvider interface doesn't have getIssue, only listIssues
+        // We'd need to add this method to the interface or filter from list
+        const issues = await vcsProvider.listIssues(client, owner, repo);
+        const issue = issues.find((i) => i.number === issueNumber);
+
+        if (!issue) {
+          throw new Error(`Issue #${issueNumber} not found`);
+        }
+
+        return issue;
+      },
+    );
   }
 
   async list(
@@ -550,9 +694,13 @@ class IssueOperations {
     repo: string,
     options?: { state?: "open" | "closed" | "all" },
   ): Promise<Issue[]> {
-    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
-      return vcsProvider.listIssues(client, owner, repo, options);
-    });
+    return this.provider.execute(
+      tokenSourceId,
+      providerId,
+      (vcsProvider, client) => {
+        return vcsProvider.listIssues(client, owner, repo, options);
+      },
+    );
   }
 }
 
@@ -569,9 +717,13 @@ class PullRequestOperations {
     repo: string,
     prNumber: number,
   ): Promise<PullRequest> {
-    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
-      return vcsProvider.getPullRequest(client, owner, repo, prNumber);
-    });
+    return this.provider.execute(
+      tokenSourceId,
+      providerId,
+      (vcsProvider, client) => {
+        return vcsProvider.getPullRequest(client, owner, repo, prNumber);
+      },
+    );
   }
 
   async list(
@@ -581,9 +733,13 @@ class PullRequestOperations {
     repo: string,
     options?: { state?: "open" | "closed" | "all" },
   ): Promise<PullRequest[]> {
-    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
-      return vcsProvider.listPullRequests(client, owner, repo, options);
-    });
+    return this.provider.execute(
+      tokenSourceId,
+      providerId,
+      (vcsProvider, client) => {
+        return vcsProvider.listPullRequests(client, owner, repo, options);
+      },
+    );
   }
 
   async listReviews(
@@ -593,9 +749,18 @@ class PullRequestOperations {
     repo: string,
     prNumber: number,
   ): Promise<Review[]> {
-    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
-      return vcsProvider.listPullRequestReviews(client, owner, repo, prNumber);
-    });
+    return this.provider.execute(
+      tokenSourceId,
+      providerId,
+      (vcsProvider, client) => {
+        return vcsProvider.listPullRequestReviews(
+          client,
+          owner,
+          repo,
+          prNumber,
+        );
+      },
+    );
   }
 
   async create(
@@ -608,9 +773,21 @@ class PullRequestOperations {
     base: string,
     body?: string,
   ): Promise<PullRequest> {
-    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
-      return vcsProvider.createPullRequest(client, owner, repo, title, head, base, body);
-    });
+    return this.provider.execute(
+      tokenSourceId,
+      providerId,
+      (vcsProvider, client) => {
+        return vcsProvider.createPullRequest(
+          client,
+          owner,
+          repo,
+          title,
+          head,
+          base,
+          body,
+        );
+      },
+    );
   }
 
   async listComments(
@@ -620,9 +797,13 @@ class PullRequestOperations {
     repo: string,
     prNumber: number,
   ): Promise<PRComment[]> {
-    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
-      return vcsProvider.listPRComments(client, owner, repo, prNumber);
-    });
+    return this.provider.execute(
+      tokenSourceId,
+      providerId,
+      (vcsProvider, client) => {
+        return vcsProvider.listPRComments(client, owner, repo, prNumber);
+      },
+    );
   }
 
   async createComment(
@@ -633,9 +814,13 @@ class PullRequestOperations {
     prNumber: number,
     body: string,
   ): Promise<PRComment> {
-    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
-      return vcsProvider.createPRComment(client, owner, repo, prNumber, body);
-    });
+    return this.provider.execute(
+      tokenSourceId,
+      providerId,
+      (vcsProvider, client) => {
+        return vcsProvider.createPRComment(client, owner, repo, prNumber, body);
+      },
+    );
   }
 
   async getCIStatus(
@@ -645,9 +830,13 @@ class PullRequestOperations {
     repo: string,
     prNumber: number,
   ): Promise<CIStatusSummary | null> {
-    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
-      return vcsProvider.getCIStatus(client, owner, repo, prNumber);
-    });
+    return this.provider.execute(
+      tokenSourceId,
+      providerId,
+      (vcsProvider, client) => {
+        return vcsProvider.getCIStatus(client, owner, repo, prNumber);
+      },
+    );
   }
 }
 
@@ -663,18 +852,26 @@ class RepositoryOperations {
     owner: string,
     repo: string,
   ): Promise<Repository> {
-    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
-      return vcsProvider.getRepository(client, owner, repo);
-    });
+    return this.provider.execute(
+      tokenSourceId,
+      providerId,
+      (vcsProvider, client) => {
+        return vcsProvider.getRepository(client, owner, repo);
+      },
+    );
   }
 
   async listUser(
     tokenSourceId: string,
     providerId: ProviderId,
   ): Promise<Repository[]> {
-    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
-      return vcsProvider.listUserRepositories(client);
-    });
+    return this.provider.execute(
+      tokenSourceId,
+      providerId,
+      (vcsProvider, client) => {
+        return vcsProvider.listUserRepositories(client);
+      },
+    );
   }
 
   async listOrg(
@@ -682,9 +879,13 @@ class RepositoryOperations {
     providerId: ProviderId,
     org: string,
   ): Promise<Repository[]> {
-    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
-      return vcsProvider.listOrgRepositories(client, org);
-    });
+    return this.provider.execute(
+      tokenSourceId,
+      providerId,
+      (vcsProvider, client) => {
+        return vcsProvider.listOrgRepositories(client, org);
+      },
+    );
   }
 }
 
@@ -700,9 +901,13 @@ class BranchOperations {
     owner: string,
     repo: string,
   ): Promise<Branch[]> {
-    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
-      return vcsProvider.listBranches(client, owner, repo);
-    });
+    return this.provider.execute(
+      tokenSourceId,
+      providerId,
+      (vcsProvider, client) => {
+        return vcsProvider.listBranches(client, owner, repo);
+      },
+    );
   }
 
   async create(
@@ -713,9 +918,13 @@ class BranchOperations {
     name: string,
     fromBranch?: string,
   ): Promise<Branch> {
-    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
-      return vcsProvider.createBranch(client, owner, repo, name, fromBranch);
-    });
+    return this.provider.execute(
+      tokenSourceId,
+      providerId,
+      (vcsProvider, client) => {
+        return vcsProvider.createBranch(client, owner, repo, name, fromBranch);
+      },
+    );
   }
 }
 
@@ -733,9 +942,13 @@ class FileOperations {
     path: string,
     ref?: string,
   ): Promise<FileContent | null> {
-    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
-      return vcsProvider.getFileContent(client, owner, repo, path, ref);
-    });
+    return this.provider.execute(
+      tokenSourceId,
+      providerId,
+      (vcsProvider, client) => {
+        return vcsProvider.getFileContent(client, owner, repo, path, ref);
+      },
+    );
   }
 
   async getDirectory(
@@ -746,9 +959,13 @@ class FileOperations {
     path: string,
     ref?: string,
   ): Promise<DirectoryEntry[]> {
-    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
-      return vcsProvider.getDirectoryContent(client, owner, repo, path, ref);
-    });
+    return this.provider.execute(
+      tokenSourceId,
+      providerId,
+      (vcsProvider, client) => {
+        return vcsProvider.getDirectoryContent(client, owner, repo, path, ref);
+      },
+    );
   }
 
   async update(
@@ -761,8 +978,20 @@ class FileOperations {
     message: string,
     branch: string,
   ): Promise<FileContent> {
-    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
-      return vcsProvider.updateFile(client, owner, repo, path, content, message, branch);
-    });
+    return this.provider.execute(
+      tokenSourceId,
+      providerId,
+      (vcsProvider, client) => {
+        return vcsProvider.updateFile(
+          client,
+          owner,
+          repo,
+          path,
+          content,
+          message,
+          branch,
+        );
+      },
+    );
   }
 }

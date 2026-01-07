@@ -157,7 +157,7 @@ export async function listTeamRepositories(projectId: string) {
 
   try {
     // Recommended: Use getScoped to bind userId and provider
-    const vcs = VCSProviderSingleton.getInstance().getScoped(team.id, 'github');
+    const vcs = VCSProviderSingleton.getInstance().getScoped(team.id, "github");
 
     // Much cleaner API!
     const repos = await vcs.repos.listOrg(team.githubOrg);
@@ -209,11 +209,19 @@ export async function listDirectory(
 
   try {
     const [owner, repo] = repoFullName.split("/");
-    
+
     // Use the singleton facade
-    const vcs = VCSProviderSingleton.getInstance().getScoped(session.user.id, 'github');
-    
-    const directoryEntries = await vcs.files.getDirectory(owner, repo, path, ref);
+    const vcs = VCSProviderSingleton.getInstance().getScoped(
+      session.user.id,
+      "github",
+    );
+
+    const directoryEntries = await vcs.files.getDirectory(
+      owner,
+      repo,
+      path,
+      ref,
+    );
 
     const entries: VCSEntry[] = directoryEntries.map((item) => ({
       name: item.name,
@@ -231,7 +239,6 @@ export async function listDirectory(
   }
 }
 ```
-
 
 ### Read File Contents
 

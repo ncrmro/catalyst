@@ -56,10 +56,13 @@ export class GitHubProvider implements VCSProvider {
     const missingVars: string[] = [];
 
     if (!GITHUB_CONFIG.APP_ID) missingVars.push("GITHUB_APP_ID");
-    if (!GITHUB_CONFIG.APP_PRIVATE_KEY) missingVars.push("GITHUB_APP_PRIVATE_KEY");
+    if (!GITHUB_CONFIG.APP_PRIVATE_KEY)
+      missingVars.push("GITHUB_APP_PRIVATE_KEY");
     if (!GITHUB_CONFIG.APP_CLIENT_ID) missingVars.push("GITHUB_APP_CLIENT_ID");
-    if (!GITHUB_CONFIG.APP_CLIENT_SECRET) missingVars.push("GITHUB_APP_CLIENT_SECRET");
-    if (!GITHUB_CONFIG.WEBHOOK_SECRET) missingVars.push("GITHUB_WEBHOOK_SECRET");
+    if (!GITHUB_CONFIG.APP_CLIENT_SECRET)
+      missingVars.push("GITHUB_APP_CLIENT_SECRET");
+    if (!GITHUB_CONFIG.WEBHOOK_SECRET)
+      missingVars.push("GITHUB_WEBHOOK_SECRET");
 
     if (missingVars.length > 0) {
       throw new Error(

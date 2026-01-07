@@ -178,7 +178,7 @@ export interface VCSProvider {
   checkConnection(userId: string): Promise<ConnectionStatus>;
   storeTokens(userId: string, tokens: TokenData): Promise<void>;
   refreshTokensIfNeeded(userId: string): Promise<TokenData | null>;
-  
+
   /**
    * Validate provider configuration (environment variables, etc.)
    * Should throw an error if configuration is invalid.

@@ -126,7 +126,10 @@ export async function fetchUserPullRequestsWithTokenStatus(): Promise<PullReques
   try {
     refreshedTokens = await refreshTokenIfNeeded(session.user.id);
   } catch (error) {
-    console.error("Failed to refresh tokens before fetching pull requests:", error);
+    console.error(
+      "Failed to refresh tokens before fetching pull requests:",
+      error,
+    );
     // Continue anyway - getUserOctokit will attempt refresh again
   }
 
@@ -189,7 +192,10 @@ export async function fetchPullRequestsFromRepos(
   try {
     await refreshTokenIfNeeded(userId);
   } catch (error) {
-    console.error("Failed to refresh tokens before fetching pull requests:", error);
+    console.error(
+      "Failed to refresh tokens before fetching pull requests:",
+      error,
+    );
     // Continue anyway - getUserOctokit will attempt refresh again
   }
 
