@@ -187,7 +187,7 @@ export const {
         token.id = existingUser.id;
         token.admin = existingUser.admin;
 
-        // Store GitHub App tokens in database if we have them
+        // Store GitHub App tokens in database if we have them (initial signin)
         if (
           account?.provider === "github" &&
           token.accessToken &&
@@ -205,6 +205,28 @@ export const {
             expiresAt,
             scope: (token.tokenScope as string) || "",
           });
+        } else if (!account) {
+          // Not a fresh signin - check if we need to refresh GitHub tokens
+          // This runs on every session access to keep tokens fresh
+          try {
+            const { refreshTokenIfNeeded } = await import(
+              "@catalyst/vcs-provider"
+            );
+            const refreshedTokens = await refreshTokenIfNeeded(existingUser.id);
+
+            // If tokens were refreshed, update the JWT token
+            if (refreshedTokens) {
+              token.accessToken = refreshedTokens.accessToken;
+              token.refreshToken = refreshedTokens.refreshToken;
+              token.tokenExpiresAt = Math.floor(
+                refreshedTokens.expiresAt.getTime() / 1000,
+              );
+              token.tokenScope = refreshedTokens.scope;
+            }
+          } catch (error) {
+            // Log error but don't fail the session - user can still use the app
+            console.error("Failed to refresh GitHub tokens in JWT callback:", error);
+          }
         }
 
         return token;
