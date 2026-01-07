@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Task, ASSIGNEES } from "@/components/tasks/types";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PriorityBadge } from "@/components/ui/priority-badge";
+import { formatSpecName } from "@/lib/spec-formatting";
 
 interface TasksPageProps {
   params: Promise<{
@@ -234,7 +235,7 @@ function TaskRow({ task, projectSlug }: { task: Task; projectSlug: string }) {
           <p className="text-on-surface font-medium truncate">
             {task.spec && (
               <span className="text-primary">
-                {task.spec.href.split("/").pop()}:{" "}
+                {formatSpecName(task.spec.href.split("/").pop() || "")}:{" "}
               </span>
             )}
             {task.title}

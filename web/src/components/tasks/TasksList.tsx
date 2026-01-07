@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { GlassCard } from "@tetrastack/react-glass-components";
 import { Spec, LegacyTask } from "./types";
+import { formatSpecName } from "@/lib/spec-formatting";
 
 export type { Spec, LegacyTask as Task };
 
@@ -34,7 +35,7 @@ function TaskItem({ task }: { task: LegacyTask }) {
             {task.spec && (
               <>
                 <span>·</span>
-                <span className="text-primary">{task.spec.name}</span>
+                <span className="text-primary">{formatSpecName(task.spec.name)}</span>
               </>
             )}
           </div>
