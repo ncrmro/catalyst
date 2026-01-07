@@ -206,11 +206,11 @@ describe("VCSTokenManager", () => {
     });
 
     it("should use custom expiration buffer", async () => {
-      // Token expires in 31 seconds
+      // Token expires in 29 seconds
       const expiringTokens: TokenData = {
         accessToken: "expiring_access_token",
         refreshToken: "refresh_token",
-        expiresAt: new Date(Date.now() + 31 * 1000),
+        expiresAt: new Date(Date.now() + 29 * 1000),
         scope: "repo",
       };
 
@@ -236,7 +236,7 @@ describe("VCSTokenManager", () => {
       const manager = VCSTokenManager.getInstance();
       const result = await manager.getValidToken("user123", "github");
 
-      // Should refresh because token expires in 31s and buffer is 30s
+      // Should refresh because token expires in 29s and buffer is 30s
       expect(result).toEqual(newTokens);
       expect(refreshToken).toHaveBeenCalled();
     });

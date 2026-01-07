@@ -283,13 +283,13 @@ export class VCSTokenManager {
 
     const key = `${userId}:${providerId}`;
 
-    // Check if refresh is already in progress for this user/provider
-    const existingRefresh = this.refreshing.get(key);
-    if (existingRefresh) {
-      return existingRefresh;
-    }
-
     try {
+      // Check if refresh is already in progress for this user/provider
+      const existingRefresh = this.refreshing.get(key);
+      if (existingRefresh) {
+        return existingRefresh;
+      }
+
       // Get current tokens from storage
       const tokens = await this.config.getTokenData(userId, providerId);
 
@@ -299,6 +299,12 @@ export class VCSTokenManager {
 
       // Check if token needs refresh
       if (this.needsRefresh(tokens)) {
+        // Check again if another call started refreshing while we were getting tokens
+        const raceRefresh = this.refreshing.get(key);
+        if (raceRefresh) {
+          return raceRefresh;
+        }
+
         // Start refresh and track it
         const refreshPromise = this.refreshTokens(userId, providerId, tokens);
         this.refreshing.set(key, refreshPromise);
