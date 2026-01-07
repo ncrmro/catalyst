@@ -16,12 +16,13 @@ def get_open_prs(search_term):
         return None
 
     # Search for the spec name which often matches branch names or titles
+    # Template outputs a markdown list item
     cmd = [
         "gh", "pr", "list",
         "--state", "open",
         "--search", search_term,
         "--json", "number,title,url,author,headRefName,updatedAt",
-        "--template", "{{range .}}- #{{.number}} {{.title}} ({{.headRefName}}) - {{.author.login}}\n  {{.url}}\n{{end}}"
+        "--template", "{{range .}}- [{{.title}}]({{.url}}) (#{{.number}}) by @{{.author.login}} ({{.headRefName}})\n{{end}}"
     ]
     
     try:
@@ -32,7 +33,7 @@ def get_open_prs(search_term):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: bin/specs-status <spec-name>")
+        print("Usage: bin/spec-status <spec-name>")
         sys.exit(1)
 
     spec_input = sys.argv[1]
@@ -55,25 +56,23 @@ def main():
     full_spec_path = os.path.join(project_root, spec_dir)
     
     if not os.path.exists(full_spec_path):
-        # Try to find it if it's just a partial match or maybe inside a subdir?
-        # For now, strict matching with what was provided, assuming it's a top-level spec dir
         print(f"Warning: Spec directory not found at {spec_dir}", file=sys.stderr)
         return
 
-    print(f"Recent commits for {spec_dir}:")
-    print("-" * 40)
+    print(f"### Recent Commits for `{spec_dir}`")
+    print("")
 
     # Git command to show recent history for this path across all branches
-    # We use --all to see main and the feature branch (and any others)
+    # Formatted as a markdown list
     cmd = [
         "git",
+        "--no-pager",
         "log",
         "-n", "10",
-        "--graph",
         "--abbrev-commit",
-        "--decorate",
         "--date=relative",
-        "--format=format:%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(auto)%d%C(reset)",
+        # Format: - `hash` (date) message - **author**
+        "--format=format:- `%h` (%ar) %s - **%an**",
         "--all",
         "--",
         spec_dir
@@ -85,18 +84,18 @@ def main():
         print(f"Error running git log: {e}", file=sys.stderr)
 
     # Check for Open PRs
-    print(f"\nOpen Pull Requests matching '{spec_name}':")
-    print("-" * 40)
+    print(f"\n\n### Open Pull Requests matching `{spec_name}`")
+    print("")
     prs = get_open_prs(spec_name)
     if prs and prs.strip():
         print(prs)
     elif prs is None:
         if not shutil.which("gh"):
-             print("GitHub CLI (gh) not found, skipping PR check.")
+             print("_GitHub CLI (gh) not found, skipping PR check._")
         else:
-             print("Error fetching PRs.")
+             print("_Error fetching PRs._")
     else:
-        print("No open PRs found.")
+        print("_No open PRs found._")
 
 if __name__ == "__main__":
     main()

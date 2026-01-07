@@ -20,7 +20,7 @@ def rename_zellij_tab(tab_name):
 
 def get_spec_status(spec_name, project_root):
     """Get the recent status/commits for a spec."""
-    specs_status_script = os.path.join(project_root, "bin", "specs-status")
+    specs_status_script = os.path.join(project_root, "bin", "spec-status")
     if os.path.exists(specs_status_script):
         try:
             result = subprocess.run(
