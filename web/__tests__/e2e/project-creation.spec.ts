@@ -34,7 +34,9 @@ test.describe("Project Creation Wizard", () => {
     await searchInput.fill("catalyst");
 
     // Wait for search results and click on catalyst repo
-    const catalystRow = page.locator(".group").filter({ hasText: "ncrmro/catalyst" });
+    const catalystRow = page
+      .locator(".group")
+      .filter({ hasText: "ncrmro/catalyst" });
     await expect(catalystRow).toBeVisible();
     await catalystRow.getByRole("button", { name: "Add" }).click();
 
@@ -87,7 +89,9 @@ test.describe("Project Creation Wizard", () => {
     const searchInput = page.getByTestId("repo-search");
     await searchInput.fill("catalyst");
 
-    const catalystRow = page.locator(".group").filter({ hasText: "ncrmro/catalyst" });
+    const catalystRow = page
+      .locator(".group")
+      .filter({ hasText: "ncrmro/catalyst" });
     await expect(catalystRow).toBeVisible();
     await catalystRow.getByRole("button", { name: "Add" }).click();
 
@@ -118,10 +122,12 @@ test.describe("Project Creation Wizard", () => {
     await page.waitForURL(/\/projects\/create$/);
 
     // Add first repo - catalyst
-    let searchInput = page.getByTestId("repo-search");
+    const searchInput = page.getByTestId("repo-search");
     await searchInput.fill("catalyst");
-    
-    const catalystRow = page.locator(".group").filter({ hasText: "ncrmro/catalyst" });
+
+    const catalystRow = page
+      .locator(".group")
+      .filter({ hasText: "ncrmro/catalyst" });
     await expect(catalystRow).toBeVisible();
     await catalystRow.getByRole("button", { name: "Add" }).click();
 
@@ -130,7 +136,7 @@ test.describe("Project Creation Wizard", () => {
     // Add second repo - meze
     await searchInput.clear();
     await searchInput.fill("meze");
-    
+
     const mezeRow = page.locator(".group").filter({ hasText: "ncrmro/meze" });
     await expect(mezeRow).toBeVisible();
     await mezeRow.getByRole("button", { name: "Add" }).click();
