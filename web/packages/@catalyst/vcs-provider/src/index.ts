@@ -93,6 +93,18 @@ export type {
   VCSProviderTokenRecord,
 } from "./token-schema";
 
+// Drizzle Schemas
+export {
+  vcsProviderTokensPg,
+  vcsProviderTokensSqlite,
+} from "./drizzle-schema";
+export type {
+  VCSProviderTokenPg,
+  VCSProviderTokenPgInsert,
+  VCSProviderTokenSqlite,
+  VCSProviderTokenSqliteInsert,
+} from "./drizzle-schema";
+
 import type { ProviderId, AuthenticatedClient } from "./types";
 import { providerRegistry } from "./provider-registry";
 
