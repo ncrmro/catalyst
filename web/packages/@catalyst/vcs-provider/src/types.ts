@@ -5,7 +5,7 @@
  */
 
 // Provider identification
-export type ProviderId = "github" | "gitlab" | "bitbucket" | "azure";
+export type ProviderId = "github" | "gitlab" | "bitbucket" | "azure" | (string & {});
 
 // Authentication
 export interface ConnectionStatus {

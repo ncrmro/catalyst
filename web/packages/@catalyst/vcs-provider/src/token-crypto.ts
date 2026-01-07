@@ -7,14 +7,14 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 
 // Key should be stored in environment variables
-const ENCRYPTION_KEY = process.env.TOKEN_ENCRYPTION_KEY as string;
+// const ENCRYPTION_KEY = process.env.TOKEN_ENCRYPTION_KEY as string;
 const ALGORITHM = "aes-256-gcm";
 
 // Check if we're in NextJS build phase - don't validate env vars during build
 const isNextJsBuild = process.env.NEXT_PHASE === "phase-production-build";
 
 // Only check environment variables at runtime, not during build
-if (!isNextJsBuild && !ENCRYPTION_KEY) {
+if (!isNextJsBuild && !process.env.TOKEN_ENCRYPTION_KEY) {
   if (process.env.NODE_ENV === "production") {
     console.error(
       "TOKEN_ENCRYPTION_KEY environment variable is required in production. Application will exit.",
@@ -39,7 +39,8 @@ export interface EncryptedToken {
  * @returns Encrypted token with IV and auth tag
  */
 export function encryptToken(token: string): EncryptedToken {
-  if (!ENCRYPTION_KEY) {
+  const encryptionKey = process.env.TOKEN_ENCRYPTION_KEY;
+  if (!encryptionKey) {
     throw new Error(
       "TOKEN_ENCRYPTION_KEY environment variable is required for token encryption",
     );
@@ -48,7 +49,7 @@ export function encryptToken(token: string): EncryptedToken {
   const iv = randomBytes(16);
   const cipher = createCipheriv(
     ALGORITHM,
-    Buffer.from(ENCRYPTION_KEY, "hex"),
+    Buffer.from(encryptionKey, "hex"),
     iv,
   );
 
@@ -77,7 +78,8 @@ export function decryptToken(
   iv: string,
   authTag: string,
 ): string {
-  if (!ENCRYPTION_KEY) {
+  const encryptionKey = process.env.TOKEN_ENCRYPTION_KEY;
+  if (!encryptionKey) {
     throw new Error(
       "TOKEN_ENCRYPTION_KEY environment variable is required for token decryption",
     );
@@ -85,7 +87,7 @@ export function decryptToken(
 
   const decipher = createDecipheriv(
     ALGORITHM,
-    Buffer.from(ENCRYPTION_KEY, "hex"),
+    Buffer.from(encryptionKey, "hex"),
     Buffer.from(iv, "hex"),
   );
 

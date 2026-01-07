@@ -17,7 +17,6 @@
  * - Each operation method MUST accept a providerId parameter to specify which provider to use
  * - The class MUST support future extensibility for self-hosted provider instances
  *   (e.g., self-hosted GitLab, GitHub Enterprise Server)
- * - TODO: Implement support for provider instance URLs (e.g., gitlab.company.com)
  * 
  * FR-002: Automatic Token Management
  * - The class MUST automatically refresh tokens before any operation that requires authentication
@@ -63,6 +62,9 @@
  *   storeTokenData: async (tokenSourceId, tokens, providerId) => {
  *     await db.storeTokens(tokenSourceId, tokens, providerId);
  *   },
+ *   onAuthError: (tokenSourceId, providerId) => {
+ *     // Redirect to login or show error
+ *   },
  *   requiredEnvVars: ['GITHUB_APP_CLIENT_ID', 'GITHUB_APP_CLIENT_SECRET'],
  * });
  * 
@@ -72,11 +74,9 @@
  * // Get an issue from GitHub
  * const issue = await vcs.issues.get(tokenSourceId, 'github', owner, repo, issueNumber);
  * 
- * // List pull requests from GitLab
- * const prs = await vcs.pullRequests.list(tokenSourceId, 'gitlab', owner, repo, { state: 'open' });
- * 
- * // Get repository from GitHub
- * const repo = await vcs.repos.get(tokenSourceId, 'github', owner, repo);
+ * // OR use a scoped instance (Recommended)
+ * const myVcs = vcs.getScoped(userId, 'github');
+ * const myIssue = await myVcs.issues.get(owner, repo, issueNumber);
  * ```
  */
 
@@ -93,6 +93,7 @@ import type {
   Branch,
   CIStatusSummary,
   AuthenticatedClient,
+  VCSProvider,
 } from "./types";
 import { providerRegistry } from "./provider-registry";
 
@@ -136,6 +137,14 @@ export interface VCSProviderConfig {
     tokens: TokenData,
     providerId: ProviderId,
   ) => Promise<void>;
+
+  /**
+   * Callback for authentication errors (e.g. when refresh fails or tokens are missing)
+   * 
+   * @param tokenSourceId - Generic identifier
+   * @param providerId - The VCS provider ID
+   */
+  onAuthError?: (tokenSourceId: string, providerId: ProviderId) => void;
 
   /**
    * Required environment variables to check during initialization
@@ -228,11 +237,42 @@ export class VCSProviderSingleton {
   }
 
   /**
+   * Get a scoped instance for a specific user and provider.
+   * This is the recommended way to use the singleton to avoid passing IDs repeatedly.
+   * 
+   * @param tokenSourceId - Generic identifier (userId, teamId, projectId, etc.)
+   * @param providerId - Optional VCS provider ID (defaults to configured default)
+   */
+  public getScoped(tokenSourceId: string, providerId?: ProviderId): ScopedVCSProvider {
+    return new ScopedVCSProvider(this, tokenSourceId, providerId || this.defaultProviderId);
+  }
+
+  /**
    * Reset the singleton (for testing)
    * @internal
    */
   public static reset(): void {
     VCSProviderSingleton.instance = null;
+  }
+
+  /**
+   * Execute an operation with an authenticated provider
+   * 
+   * @internal
+   */
+  public async execute<T>(
+    tokenSourceId: string,
+    providerId: ProviderId,
+    operation: (provider: VCSProvider, client: AuthenticatedClient) => Promise<T>
+  ): Promise<T> {
+    const client = await this.getAuthenticatedClient(tokenSourceId, providerId);
+    
+    const provider = providerRegistry.get(client.providerId);
+    if (!provider) {
+      throw new Error(`Provider ${client.providerId} not registered`);
+    }
+
+    return operation(provider, client);
   }
 
   /**
@@ -251,6 +291,9 @@ export class VCSProviderSingleton {
     const tokens = await this.getValidToken(tokenSourceId, actualProviderId);
     
     if (!tokens) {
+      if (this.config?.onAuthError) {
+        this.config.onAuthError(tokenSourceId, actualProviderId);
+      }
       throw new Error(
         `No valid tokens available for source ${tokenSourceId} and provider ${actualProviderId}. Re-authentication required.`,
       );
@@ -265,10 +308,7 @@ export class VCSProviderSingleton {
     // Return authenticated client with raw provider client
     // Note: This assumes providers expose a way to create client from token
     // For now, we'll just return the structure expected
-    return {
-      providerId: actualProviderId,
-      raw: tokens, // This will be replaced with actual provider client
-    };
+    return provider.authenticate(tokenSourceId);
   }
 
   /**
@@ -394,8 +434,85 @@ export class VCSProviderSingleton {
         `Failed to refresh token for source ${tokenSourceId} provider ${providerId}:`,
         error,
       );
+      
+      // If refresh fails, tokens are effectively invalid.
+      // We might want to trigger auth error here too, but getValidToken will return null
+      // which triggers onAuthError in getAuthenticatedClient.
       return null;
     }
+  }
+}
+
+/**
+ * Scoped VCS Provider
+ * 
+ * A wrapper around VCSProviderSingleton that binds the tokenSourceId and providerId
+ * to allow for cleaner API usage.
+ */
+export class ScopedVCSProvider {
+  constructor(
+    private provider: VCSProviderSingleton,
+    private tokenSourceId: string,
+    private providerId: ProviderId
+  ) {}
+
+  public get issues() {
+    return {
+      get: (owner: string, repo: string, issueNumber: number) => 
+        this.provider.issues.get(this.tokenSourceId, this.providerId, owner, repo, issueNumber),
+      list: (owner: string, repo: string, options?: { state?: "open" | "closed" | "all" }) =>
+        this.provider.issues.list(this.tokenSourceId, this.providerId, owner, repo, options),
+    };
+  }
+
+  public get pullRequests() {
+    return {
+      get: (owner: string, repo: string, prNumber: number) =>
+        this.provider.pullRequests.get(this.tokenSourceId, this.providerId, owner, repo, prNumber),
+      list: (owner: string, repo: string, options?: { state?: "open" | "closed" | "all" }) =>
+        this.provider.pullRequests.list(this.tokenSourceId, this.providerId, owner, repo, options),
+      listReviews: (owner: string, repo: string, prNumber: number) =>
+        this.provider.pullRequests.listReviews(this.tokenSourceId, this.providerId, owner, repo, prNumber),
+      create: (owner: string, repo: string, title: string, head: string, base: string, body?: string) =>
+        this.provider.pullRequests.create(this.tokenSourceId, this.providerId, owner, repo, title, head, base, body),
+      listComments: (owner: string, repo: string, prNumber: number) =>
+        this.provider.pullRequests.listComments(this.tokenSourceId, this.providerId, owner, repo, prNumber),
+      createComment: (owner: string, repo: string, prNumber: number, body: string) =>
+        this.provider.pullRequests.createComment(this.tokenSourceId, this.providerId, owner, repo, prNumber, body),
+      getCIStatus: (owner: string, repo: string, prNumber: number) =>
+        this.provider.pullRequests.getCIStatus(this.tokenSourceId, this.providerId, owner, repo, prNumber),
+    };
+  }
+
+  public get repos() {
+    return {
+      get: (owner: string, repo: string) =>
+        this.provider.repos.get(this.tokenSourceId, this.providerId, owner, repo),
+      listUser: () =>
+        this.provider.repos.listUser(this.tokenSourceId, this.providerId),
+      listOrg: (org: string) =>
+        this.provider.repos.listOrg(this.tokenSourceId, this.providerId, org),
+    };
+  }
+
+  public get branches() {
+    return {
+      list: (owner: string, repo: string) =>
+        this.provider.branches.list(this.tokenSourceId, this.providerId, owner, repo),
+      create: (owner: string, repo: string, name: string, fromBranch?: string) =>
+        this.provider.branches.create(this.tokenSourceId, this.providerId, owner, repo, name, fromBranch),
+    };
+  }
+
+  public get files() {
+    return {
+      getContent: (owner: string, repo: string, path: string, ref?: string) =>
+        this.provider.files.getContent(this.tokenSourceId, this.providerId, owner, repo, path, ref),
+      getDirectory: (owner: string, repo: string, path: string, ref?: string) =>
+        this.provider.files.getDirectory(this.tokenSourceId, this.providerId, owner, repo, path, ref),
+      update: (owner: string, repo: string, path: string, content: string, message: string, branch: string) =>
+        this.provider.files.update(this.tokenSourceId, this.providerId, owner, repo, path, content, message, branch),
+    };
   }
 }
 
@@ -405,15 +522,6 @@ export class VCSProviderSingleton {
 class IssueOperations {
   constructor(private provider: VCSProviderSingleton) {}
 
-  /**
-   * Get a specific issue
-   * 
-   * @param tokenSourceId - User/team/project ID for token lookup
-   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   * @param issueNumber - Issue number
-   */
   async get(
     tokenSourceId: string,
     providerId: ProviderId,
@@ -421,37 +529,20 @@ class IssueOperations {
     repo: string,
     issueNumber: number,
   ): Promise<Issue> {
-    const client = await this.provider.getAuthenticatedClient(
-      tokenSourceId,
-      providerId,
-    );
-    const vcsProvider = providerRegistry.get(client.providerId);
-    
-    if (!vcsProvider) {
-      throw new Error(`Provider ${client.providerId} not found`);
-    }
-
-    // Note: VCSProvider interface doesn't have getIssue, only listIssues
-    // We'd need to add this method to the interface or filter from list
-    const issues = await vcsProvider.listIssues(client, owner, repo);
-    const issue = issues.find((i) => i.number === issueNumber);
-    
-    if (!issue) {
-      throw new Error(`Issue #${issueNumber} not found`);
-    }
-    
-    return issue;
+    return this.provider.execute(tokenSourceId, providerId, async (vcsProvider, client) => {
+      // Note: VCSProvider interface doesn't have getIssue, only listIssues
+      // We'd need to add this method to the interface or filter from list
+      const issues = await vcsProvider.listIssues(client, owner, repo);
+      const issue = issues.find((i) => i.number === issueNumber);
+      
+      if (!issue) {
+        throw new Error(`Issue #${issueNumber} not found`);
+      }
+      
+      return issue;
+    });
   }
 
-  /**
-   * List issues in a repository
-   * 
-   * @param tokenSourceId - User/team/project ID for token lookup
-   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   * @param options - Optional filters (state)
-   */
   async list(
     tokenSourceId: string,
     providerId: ProviderId,
@@ -459,17 +550,9 @@ class IssueOperations {
     repo: string,
     options?: { state?: "open" | "closed" | "all" },
   ): Promise<Issue[]> {
-    const client = await this.provider.getAuthenticatedClient(
-      tokenSourceId,
-      providerId,
-    );
-    const vcsProvider = providerRegistry.get(client.providerId);
-    
-    if (!vcsProvider) {
-      throw new Error(`Provider ${client.providerId} not found`);
-    }
-
-    return vcsProvider.listIssues(client, owner, repo, options);
+    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
+      return vcsProvider.listIssues(client, owner, repo, options);
+    });
   }
 }
 
@@ -479,15 +562,6 @@ class IssueOperations {
 class PullRequestOperations {
   constructor(private provider: VCSProviderSingleton) {}
 
-  /**
-   * Get a specific pull request
-   * 
-   * @param tokenSourceId - User/team/project ID for token lookup
-   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   * @param prNumber - Pull request number
-   */
   async get(
     tokenSourceId: string,
     providerId: ProviderId,
@@ -495,28 +569,11 @@ class PullRequestOperations {
     repo: string,
     prNumber: number,
   ): Promise<PullRequest> {
-    const client = await this.provider.getAuthenticatedClient(
-      tokenSourceId,
-      providerId,
-    );
-    const vcsProvider = providerRegistry.get(client.providerId);
-    
-    if (!vcsProvider) {
-      throw new Error(`Provider ${client.providerId} not found`);
-    }
-
-    return vcsProvider.getPullRequest(client, owner, repo, prNumber);
+    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
+      return vcsProvider.getPullRequest(client, owner, repo, prNumber);
+    });
   }
 
-  /**
-   * List pull requests
-   * 
-   * @param tokenSourceId - User/team/project ID for token lookup
-   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   * @param options - Optional filters (state)
-   */
   async list(
     tokenSourceId: string,
     providerId: ProviderId,
@@ -524,28 +581,11 @@ class PullRequestOperations {
     repo: string,
     options?: { state?: "open" | "closed" | "all" },
   ): Promise<PullRequest[]> {
-    const client = await this.provider.getAuthenticatedClient(
-      tokenSourceId,
-      providerId,
-    );
-    const vcsProvider = providerRegistry.get(client.providerId);
-    
-    if (!vcsProvider) {
-      throw new Error(`Provider ${client.providerId} not found`);
-    }
-
-    return vcsProvider.listPullRequests(client, owner, repo, options);
+    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
+      return vcsProvider.listPullRequests(client, owner, repo, options);
+    });
   }
 
-  /**
-   * List pull request reviews
-   * 
-   * @param tokenSourceId - User/team/project ID for token lookup
-   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   * @param prNumber - Pull request number
-   */
   async listReviews(
     tokenSourceId: string,
     providerId: ProviderId,
@@ -553,31 +593,11 @@ class PullRequestOperations {
     repo: string,
     prNumber: number,
   ): Promise<Review[]> {
-    const client = await this.provider.getAuthenticatedClient(
-      tokenSourceId,
-      providerId,
-    );
-    const vcsProvider = providerRegistry.get(client.providerId);
-    
-    if (!vcsProvider) {
-      throw new Error(`Provider ${client.providerId} not found`);
-    }
-
-    return vcsProvider.listPullRequestReviews(client, owner, repo, prNumber);
+    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
+      return vcsProvider.listPullRequestReviews(client, owner, repo, prNumber);
+    });
   }
 
-  /**
-   * Create a pull request
-   * 
-   * @param tokenSourceId - User/team/project ID for token lookup
-   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   * @param title - Pull request title
-   * @param head - Head branch
-   * @param base - Base branch
-   * @param body - Optional pull request body
-   */
   async create(
     tokenSourceId: string,
     providerId: ProviderId,
@@ -588,36 +608,11 @@ class PullRequestOperations {
     base: string,
     body?: string,
   ): Promise<PullRequest> {
-    const client = await this.provider.getAuthenticatedClient(
-      tokenSourceId,
-      providerId,
-    );
-    const vcsProvider = providerRegistry.get(client.providerId);
-    
-    if (!vcsProvider) {
-      throw new Error(`Provider ${client.providerId} not found`);
-    }
-
-    return vcsProvider.createPullRequest(
-      client,
-      owner,
-      repo,
-      title,
-      head,
-      base,
-      body,
-    );
+    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
+      return vcsProvider.createPullRequest(client, owner, repo, title, head, base, body);
+    });
   }
 
-  /**
-   * List PR comments
-   * 
-   * @param tokenSourceId - User/team/project ID for token lookup
-   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   * @param prNumber - Pull request number
-   */
   async listComments(
     tokenSourceId: string,
     providerId: ProviderId,
@@ -625,29 +620,11 @@ class PullRequestOperations {
     repo: string,
     prNumber: number,
   ): Promise<PRComment[]> {
-    const client = await this.provider.getAuthenticatedClient(
-      tokenSourceId,
-      providerId,
-    );
-    const vcsProvider = providerRegistry.get(client.providerId);
-    
-    if (!vcsProvider) {
-      throw new Error(`Provider ${client.providerId} not found`);
-    }
-
-    return vcsProvider.listPRComments(client, owner, repo, prNumber);
+    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
+      return vcsProvider.listPRComments(client, owner, repo, prNumber);
+    });
   }
 
-  /**
-   * Create a PR comment
-   * 
-   * @param tokenSourceId - User/team/project ID for token lookup
-   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   * @param prNumber - Pull request number
-   * @param body - Comment body
-   */
   async createComment(
     tokenSourceId: string,
     providerId: ProviderId,
@@ -656,28 +633,11 @@ class PullRequestOperations {
     prNumber: number,
     body: string,
   ): Promise<PRComment> {
-    const client = await this.provider.getAuthenticatedClient(
-      tokenSourceId,
-      providerId,
-    );
-    const vcsProvider = providerRegistry.get(client.providerId);
-    
-    if (!vcsProvider) {
-      throw new Error(`Provider ${client.providerId} not found`);
-    }
-
-    return vcsProvider.createPRComment(client, owner, repo, prNumber, body);
+    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
+      return vcsProvider.createPRComment(client, owner, repo, prNumber, body);
+    });
   }
 
-  /**
-   * Get CI status for a pull request
-   * 
-   * @param tokenSourceId - User/team/project ID for token lookup
-   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   * @param prNumber - Pull request number
-   */
   async getCIStatus(
     tokenSourceId: string,
     providerId: ProviderId,
@@ -685,17 +645,9 @@ class PullRequestOperations {
     repo: string,
     prNumber: number,
   ): Promise<CIStatusSummary | null> {
-    const client = await this.provider.getAuthenticatedClient(
-      tokenSourceId,
-      providerId,
-    );
-    const vcsProvider = providerRegistry.get(client.providerId);
-    
-    if (!vcsProvider) {
-      throw new Error(`Provider ${client.providerId} not found`);
-    }
-
-    return vcsProvider.getCIStatus(client, owner, repo, prNumber);
+    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
+      return vcsProvider.getCIStatus(client, owner, repo, prNumber);
+    });
   }
 }
 
@@ -705,79 +657,34 @@ class PullRequestOperations {
 class RepositoryOperations {
   constructor(private provider: VCSProviderSingleton) {}
 
-  /**
-   * Get a specific repository
-   * 
-   * @param tokenSourceId - User/team/project ID for token lookup
-   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   */
   async get(
     tokenSourceId: string,
     providerId: ProviderId,
     owner: string,
     repo: string,
   ): Promise<Repository> {
-    const client = await this.provider.getAuthenticatedClient(
-      tokenSourceId,
-      providerId,
-    );
-    const vcsProvider = providerRegistry.get(client.providerId);
-    
-    if (!vcsProvider) {
-      throw new Error(`Provider ${client.providerId} not found`);
-    }
-
-    return vcsProvider.getRepository(client, owner, repo);
+    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
+      return vcsProvider.getRepository(client, owner, repo);
+    });
   }
 
-  /**
-   * List user repositories
-   * 
-   * @param tokenSourceId - User/team/project ID for token lookup
-   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
-   */
   async listUser(
     tokenSourceId: string,
     providerId: ProviderId,
   ): Promise<Repository[]> {
-    const client = await this.provider.getAuthenticatedClient(
-      tokenSourceId,
-      providerId,
-    );
-    const vcsProvider = providerRegistry.get(client.providerId);
-    
-    if (!vcsProvider) {
-      throw new Error(`Provider ${client.providerId} not found`);
-    }
-
-    return vcsProvider.listUserRepositories(client);
+    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
+      return vcsProvider.listUserRepositories(client);
+    });
   }
 
-  /**
-   * List organization repositories
-   * 
-   * @param tokenSourceId - User/team/project ID for token lookup
-   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
-   * @param org - Organization name
-   */
   async listOrg(
     tokenSourceId: string,
     providerId: ProviderId,
     org: string,
   ): Promise<Repository[]> {
-    const client = await this.provider.getAuthenticatedClient(
-      tokenSourceId,
-      providerId,
-    );
-    const vcsProvider = providerRegistry.get(client.providerId);
-    
-    if (!vcsProvider) {
-      throw new Error(`Provider ${client.providerId} not found`);
-    }
-
-    return vcsProvider.listOrgRepositories(client, org);
+    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
+      return vcsProvider.listOrgRepositories(client, org);
+    });
   }
 }
 
@@ -787,43 +694,17 @@ class RepositoryOperations {
 class BranchOperations {
   constructor(private provider: VCSProviderSingleton) {}
 
-  /**
-   * List branches in a repository
-   * 
-   * @param tokenSourceId - User/team/project ID for token lookup
-   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   */
   async list(
     tokenSourceId: string,
     providerId: ProviderId,
     owner: string,
     repo: string,
   ): Promise<Branch[]> {
-    const client = await this.provider.getAuthenticatedClient(
-      tokenSourceId,
-      providerId,
-    );
-    const vcsProvider = providerRegistry.get(client.providerId);
-    
-    if (!vcsProvider) {
-      throw new Error(`Provider ${client.providerId} not found`);
-    }
-
-    return vcsProvider.listBranches(client, owner, repo);
+    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
+      return vcsProvider.listBranches(client, owner, repo);
+    });
   }
 
-  /**
-   * Create a branch
-   * 
-   * @param tokenSourceId - User/team/project ID for token lookup
-   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   * @param name - Branch name
-   * @param fromBranch - Optional branch to create from
-   */
   async create(
     tokenSourceId: string,
     providerId: ProviderId,
@@ -832,17 +713,9 @@ class BranchOperations {
     name: string,
     fromBranch?: string,
   ): Promise<Branch> {
-    const client = await this.provider.getAuthenticatedClient(
-      tokenSourceId,
-      providerId,
-    );
-    const vcsProvider = providerRegistry.get(client.providerId);
-    
-    if (!vcsProvider) {
-      throw new Error(`Provider ${client.providerId} not found`);
-    }
-
-    return vcsProvider.createBranch(client, owner, repo, name, fromBranch);
+    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
+      return vcsProvider.createBranch(client, owner, repo, name, fromBranch);
+    });
   }
 }
 
@@ -852,16 +725,6 @@ class BranchOperations {
 class FileOperations {
   constructor(private provider: VCSProviderSingleton) {}
 
-  /**
-   * Get file content
-   * 
-   * @param tokenSourceId - User/team/project ID for token lookup
-   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   * @param path - File path
-   * @param ref - Optional branch/tag/commit ref
-   */
   async getContent(
     tokenSourceId: string,
     providerId: ProviderId,
@@ -870,29 +733,11 @@ class FileOperations {
     path: string,
     ref?: string,
   ): Promise<FileContent | null> {
-    const client = await this.provider.getAuthenticatedClient(
-      tokenSourceId,
-      providerId,
-    );
-    const vcsProvider = providerRegistry.get(client.providerId);
-    
-    if (!vcsProvider) {
-      throw new Error(`Provider ${client.providerId} not found`);
-    }
-
-    return vcsProvider.getFileContent(client, owner, repo, path, ref);
+    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
+      return vcsProvider.getFileContent(client, owner, repo, path, ref);
+    });
   }
 
-  /**
-   * Get directory content
-   * 
-   * @param tokenSourceId - User/team/project ID for token lookup
-   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   * @param path - Directory path
-   * @param ref - Optional branch/tag/commit ref
-   */
   async getDirectory(
     tokenSourceId: string,
     providerId: ProviderId,
@@ -901,31 +746,11 @@ class FileOperations {
     path: string,
     ref?: string,
   ): Promise<DirectoryEntry[]> {
-    const client = await this.provider.getAuthenticatedClient(
-      tokenSourceId,
-      providerId,
-    );
-    const vcsProvider = providerRegistry.get(client.providerId);
-    
-    if (!vcsProvider) {
-      throw new Error(`Provider ${client.providerId} not found`);
-    }
-
-    return vcsProvider.getDirectoryContent(client, owner, repo, path, ref);
+    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
+      return vcsProvider.getDirectoryContent(client, owner, repo, path, ref);
+    });
   }
 
-  /**
-   * Update a file
-   * 
-   * @param tokenSourceId - User/team/project ID for token lookup
-   * @param providerId - VCS provider ID (github, gitlab, bitbucket, azure)
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   * @param path - File path
-   * @param content - File content
-   * @param message - Commit message
-   * @param branch - Branch to commit to
-   */
   async update(
     tokenSourceId: string,
     providerId: ProviderId,
@@ -936,24 +761,8 @@ class FileOperations {
     message: string,
     branch: string,
   ): Promise<FileContent> {
-    const client = await this.provider.getAuthenticatedClient(
-      tokenSourceId,
-      providerId,
-    );
-    const vcsProvider = providerRegistry.get(client.providerId);
-    
-    if (!vcsProvider) {
-      throw new Error(`Provider ${client.providerId} not found`);
-    }
-
-    return vcsProvider.updateFile(
-      client,
-      owner,
-      repo,
-      path,
-      content,
-      message,
-      branch,
-    );
+    return this.provider.execute(tokenSourceId, providerId, (vcsProvider, client) => {
+      return vcsProvider.updateFile(client, owner, repo, path, content, message, branch);
+    });
   }
 }

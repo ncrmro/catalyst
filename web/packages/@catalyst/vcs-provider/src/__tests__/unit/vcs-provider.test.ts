@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { VCSProviderSingleton } from "../../vcs-provider";
 import type { VCSProviderConfig } from "../../vcs-provider";
-import type { TokenData, ProviderId } from "../../types";
+import type { TokenData, ProviderId, AuthenticatedClient, VCSProvider } from "../../types";
 import { providerRegistry } from "../../provider-registry";
 import { GitHubProvider } from "../../providers/github/provider";
 
@@ -193,6 +193,48 @@ describe("VCSProviderSingleton", () => {
         vcs.getAuthenticatedClient("user-789", "github"),
       ).rejects.toThrow("No valid tokens available");
     });
+
+    it("should trigger onAuthError when tokens are missing", async () => {
+      const onAuthError = vi.fn();
+      VCSProviderSingleton.initialize({
+        getTokenData: vi.fn().mockResolvedValue(null),
+        refreshToken: vi.fn(),
+        storeTokenData: vi.fn(),
+        onAuthError,
+      });
+
+      const vcs = VCSProviderSingleton.getInstance();
+
+      await expect(
+        vcs.getAuthenticatedClient("user-missing", "github"),
+      ).rejects.toThrow(/No valid tokens available/);
+
+      expect(onAuthError).toHaveBeenCalledWith("user-missing", "github");
+    });
+
+    it("should trigger onAuthError when refresh fails", async () => {
+      const expiredToken: TokenData = {
+        accessToken: "expired",
+        refreshToken: "refresh",
+        expiresAt: new Date(Date.now() - 1000),
+      };
+
+      const onAuthError = vi.fn();
+      VCSProviderSingleton.initialize({
+        getTokenData: vi.fn().mockResolvedValue(expiredToken),
+        refreshToken: vi.fn().mockRejectedValue(new Error("Refresh failed")),
+        storeTokenData: vi.fn(),
+        onAuthError,
+      });
+
+      const vcs = VCSProviderSingleton.getInstance();
+
+      await expect(
+        vcs.getAuthenticatedClient("user-refresh-fail", "github"),
+      ).rejects.toThrow(/No valid tokens available/);
+
+      expect(onAuthError).toHaveBeenCalledWith("user-refresh-fail", "github");
+    });
   });
 
   describe("Namespaced Operations", () => {
@@ -271,6 +313,67 @@ describe("VCSProviderSingleton", () => {
       expect(typeof vcs.files.getContent).toBe("function");
       expect(typeof vcs.files.getDirectory).toBe("function");
       expect(typeof vcs.files.update).toBe("function");
+    });
+  });
+
+  describe("Scoped Provider", () => {
+    it("should provide a scoped instance with bound IDs", async () => {
+      const mockTokenData: TokenData = {
+        accessToken: "valid-token",
+        refreshToken: "refresh-token",
+        expiresAt: new Date(Date.now() + 3600000),
+        scope: "repo",
+      };
+      
+      const mockListIssues = vi.fn().mockResolvedValue([{ number: 1, title: "Test Issue" }]);
+      
+      const mockProvider: VCSProvider = {
+        id: "github" as ProviderId,
+        name: "GitHub",
+        iconName: "github",
+        authenticate: vi.fn().mockResolvedValue({ providerId: "github", raw: {} } as AuthenticatedClient),
+        checkConnection: vi.fn(),
+        storeTokens: vi.fn(),
+        refreshTokensIfNeeded: vi.fn(),
+        listUserRepositories: vi.fn(),
+        listOrgRepositories: vi.fn(),
+        getRepository: vi.fn(),
+        getFileContent: vi.fn(),
+        getDirectoryContent: vi.fn(),
+        createBranch: vi.fn(),
+        updateFile: vi.fn(),
+        listPullRequests: vi.fn(),
+        getPullRequest: vi.fn(),
+        createPullRequest: vi.fn(),
+        listPullRequestReviews: vi.fn(),
+        listPRComments: vi.fn(),
+        createPRComment: vi.fn(),
+        updatePRComment: vi.fn(),
+        deletePRComment: vi.fn(),
+        getCIStatus: vi.fn(),
+        listIssues: mockListIssues,
+        listBranches: vi.fn(),
+        verifyWebhookSignature: vi.fn(),
+        parseWebhookEvent: vi.fn(),
+      };
+
+      // Mock the registry to return our mock provider
+      vi.spyOn(providerRegistry, 'get').mockReturnValue(mockProvider);
+
+      VCSProviderSingleton.initialize({
+        getTokenData: vi.fn().mockResolvedValue(mockTokenData),
+        refreshToken: vi.fn(),
+        storeTokenData: vi.fn(),
+      });
+
+      const vcs = VCSProviderSingleton.getInstance();
+      const scoped = vcs.getScoped("user-scoped", "github");
+
+      // Test a method call through scoped instance
+      const issue = await scoped.issues.get("owner", "repo", 1);
+      
+      expect(issue.number).toBe(1);
+      expect(mockListIssues).toHaveBeenCalled();
     });
   });
 
