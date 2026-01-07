@@ -806,7 +806,7 @@ export async function createPreviewDeployment(
           tls: tlsEnabled
             ? {
                 enabled: true,
-                issuer: process.env.TLS_ISSUER || "letsencrypt-prod",
+                issuer: "letsencrypt-prod",
               }
             : undefined,
         }

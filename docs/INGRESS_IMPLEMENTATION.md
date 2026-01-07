@@ -70,13 +70,6 @@ Add to `.env`:
 ```bash
 # Default domain for preview environments
 DEFAULT_PREVIEW_DOMAIN=preview.example.com
-
-# Kubernetes ingress class (nginx, traefik, etc.)
-INGRESS_CLASS_NAME=nginx
-
-# TLS/HTTPS via cert-manager
-ENABLE_TLS=true
-TLS_ISSUER=letsencrypt-prod
 ```
 
 ### DNS Configuration
@@ -123,9 +116,6 @@ make install   # Applies CRDs to cluster
 Set environment variables:
 ```bash
 DEFAULT_PREVIEW_DOMAIN=preview.example.com
-INGRESS_CLASS_NAME=nginx
-ENABLE_TLS=true
-TLS_ISSUER=letsencrypt-prod
 ```
 
 Configure DNS:
@@ -218,8 +208,6 @@ Tests cover:
 2. **Set test environment variables:**
    ```bash
    DEFAULT_PREVIEW_DOMAIN=preview.local
-   INGRESS_CLASS_NAME=traefik  # K3s default
-   ENABLE_TLS=false
    ```
 
 3. **Create test PR** - Open PR in configured repo

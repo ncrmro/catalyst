@@ -27,23 +27,16 @@ This allows preview environments to be accessible at URLs like:
 
 ### 2. Set Environment Variables
 
-Configure the following environment variables in your deployment:
+Configure the following environment variable in your deployment:
 
 ```bash
 # Base domain for preview environments
 DEFAULT_PREVIEW_DOMAIN=preview.example.com
-
-# Kubernetes ingress class
-INGRESS_CLASS_NAME=nginx
-
-# Enable TLS/HTTPS (requires cert-manager)
-ENABLE_TLS=true
-TLS_ISSUER=letsencrypt-prod
 ```
 
 ### 3. TLS Certificate Automation (Optional)
 
-If you enable TLS, ensure cert-manager is installed in your cluster:
+If you want to enable TLS for preview environments, ensure cert-manager is installed in your cluster:
 
 ```bash
 # Install cert-manager
@@ -85,7 +78,7 @@ Projects can specify custom domains instead of using the default preview domain.
 
 When a project has a custom domain configured:
 - Preview URLs use the custom domain: `https://env-preview-123.previews.myapp.com`
-- TLS certificates are automatically provisioned (if `ENABLE_TLS=true`)
+- TLS certificates are automatically provisioned if TLS is enabled for the project
 - The default domain is not used for this project
 
 ## Ingress Controller Setup
@@ -159,8 +152,6 @@ Common issues:
 ```bash
 # .env
 DEFAULT_PREVIEW_DOMAIN=preview.localhost
-INGRESS_CLASS_NAME=traefik  # K3s uses Traefik by default
-ENABLE_TLS=false
 ```
 
 ### Production (AWS EKS)
@@ -168,9 +159,6 @@ ENABLE_TLS=false
 ```bash
 # .env
 DEFAULT_PREVIEW_DOMAIN=preview.prod.example.com
-INGRESS_CLASS_NAME=nginx
-ENABLE_TLS=true
-TLS_ISSUER=letsencrypt-prod
 ```
 
 ### Custom Domain Example
