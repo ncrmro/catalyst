@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   sqliteTable,
   text,
@@ -47,12 +48,12 @@ export const connectionTokens = sqliteTable(
     tokenScope: text("token_scope"),
 
     // Timestamps
-    createdAt: integer("created_at", { mode: "timestamp" })
+    createdAt: text("created_at")
       .notNull()
-      .default(new Date()),
-    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at")
       .notNull()
-      .default(new Date()),
+      .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => ({
     pk: primaryKey({ columns: [table.userId, table.providerId] }),
