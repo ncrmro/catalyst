@@ -110,8 +110,8 @@ outputs:
     description: 'PR development cache image name with tag'
     value: ${{ steps.set-outputs.outputs.pr-dev-cache-image }}
   digest:
-    description: 'Image digest'
-    value: ${{ steps.bake.outputs.digest }}
+    description: 'Production image digest (extracted from bake metadata)'
+    value: ${{ steps.set-outputs.outputs.digest }}
 
 runs:
   using: 'composite'
@@ -274,13 +274,23 @@ runs:
         # Extract first tag from comma-separated lists for outputs
         FIRST_PRODUCTION_TAG=$(echo "${{ env.PRODUCTION_TAGS }}" | cut -d',' -f1)
         FIRST_DEVELOPMENT_TAG=$(echo "${{ env.DEVELOPMENT_TAGS }}" | cut -d',' -f1)
-        
+
         # Get the first branch from release-branches for main cache
         FIRST_BRANCH=$(echo "${{ inputs.release-branches }}" | cut -d',' -f1 | xargs)
         CACHE_TAG="${BASE_NAME}:${FIRST_BRANCH}-cache"
         DEV_CACHE_TAG="${BASE_NAME}:${FIRST_BRANCH}-dev-cache"
         PR_DEV_CACHE_TAG="${BASE_NAME}:${{ env.TAG_SUFFIX }}-dev-cache"
-        
+
+        # Extract production digest from bake metadata
+        # The bake action outputs metadata as JSON with structure: {"target": {"containerimage.digest": "sha256:..."}}
+        BAKE_METADATA='${{ steps.bake.outputs.metadata }}'
+        if [ -n "$BAKE_METADATA" ]; then
+          PRODUCTION_DIGEST=$(echo "$BAKE_METADATA" | jq -r '.production."containerimage.digest" // empty')
+          if [ -n "$PRODUCTION_DIGEST" ]; then
+            echo "digest=$PRODUCTION_DIGEST" >> $GITHUB_OUTPUT
+          fi
+        fi
+
         echo "production-image=$FIRST_PRODUCTION_TAG" >> $GITHUB_OUTPUT
         echo "development-image=$FIRST_DEVELOPMENT_TAG" >> $GITHUB_OUTPUT
         echo "cache-image=$CACHE_TAG" >> $GITHUB_OUTPUT

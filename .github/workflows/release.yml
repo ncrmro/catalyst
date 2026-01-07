@@ -170,15 +170,18 @@ jobs:
         # Digests ensure we deploy the exact image that was just built, regardless of tags.
         # Digests from Docker actions are in "sha256:..." format; we prepend "@" to create "@sha256:..." for Helm template compatibility
         run: |
-          if [ "${{ needs.build-web.result }}" == "success" ]; then
+          WEB_DIGEST="${{ needs.build-web.outputs.digest }}"
+          OPERATOR_DIGEST="${{ needs.build-operator.outputs.digest }}"
+
+          if [ "${{ needs.build-web.result }}" == "success" ] && [ -n "$WEB_DIGEST" ]; then
             # Use digest for immutable reference, passed as "tag" with @ prefix
-            echo "web_tag=@${{ needs.build-web.outputs.digest }}" >> $GITHUB_OUTPUT
+            echo "web_tag=@${WEB_DIGEST}" >> $GITHUB_OUTPUT
           else
             echo "web_tag=latest" >> $GITHUB_OUTPUT
           fi
-          if [ "${{ needs.build-operator.result }}" == "success" ]; then
+          if [ "${{ needs.build-operator.result }}" == "success" ] && [ -n "$OPERATOR_DIGEST" ]; then
             # Use digest for immutable reference, passed as "tag" with @ prefix
-            echo "operator_tag=@${{ needs.build-operator.outputs.digest }}" >> $GITHUB_OUTPUT
+            echo "operator_tag=@${OPERATOR_DIGEST}" >> $GITHUB_OUTPUT
           else
             echo "operator_tag=latest" >> $GITHUB_OUTPUT
           fi
