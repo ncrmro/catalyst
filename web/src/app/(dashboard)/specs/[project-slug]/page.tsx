@@ -4,6 +4,7 @@ import { GlassCard } from "@tetrastack/react-glass-components";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import Link from "next/link";
+import { formatSpecName } from "@/lib/spec-formatting";
 
 interface SpecDirectory {
   name: string;
@@ -136,7 +137,7 @@ export default async function SpecsPage({ params }: SpecsPageProps) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-medium text-on-surface text-lg">
-                      {spec.name}
+                      {formatSpecName(spec.name)}
                     </h3>
                     <p className="text-sm text-on-surface-variant">
                       {fileCount} markdown {fileCount === 1 ? "file" : "files"}
