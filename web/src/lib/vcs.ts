@@ -14,9 +14,16 @@ import {
 
 // Initialize the VCS Provider Singleton
 // This should be done once, typically in a file like this that is imported by actions
+// Use a guard pattern to check if already initialized
+let isInitialized = false;
 try {
   VCSProviderSingleton.getInstance();
+  isInitialized = true;
 } catch {
+  // Not initialized yet, continue with initialization
+}
+
+if (!isInitialized) {
   VCSProviderSingleton.initialize({
     // Get token data from our database
     getTokenData: async (userId, providerId) => {

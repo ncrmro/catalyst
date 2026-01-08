@@ -80,11 +80,6 @@ describe("JWT Callback Token Refresh", () => {
       mockRefreshTokenIfNeeded.mockResolvedValue(refreshedTokens);
 
       // Simulate the JWT callback logic (not initial signin - no account param)
-      const token = {
-        email: "test@example.com",
-        name: "Test User",
-        picture: "https://example.com/avatar.jpg",
-      };
       const account = undefined; // Not a fresh signin
 
       // This simulates what happens in the JWT callback
@@ -115,11 +110,6 @@ describe("JWT Callback Token Refresh", () => {
       };
 
       // Simulate the JWT callback logic (initial signin)
-      const token = {
-        email: "test@example.com",
-        name: "Test User",
-        picture: "https://example.com/avatar.jpg",
-      };
 
       // When it's a fresh signin, don't call refresh
       if (account?.provider === "github") {
@@ -214,7 +204,6 @@ describe("JWT Callback Token Refresh", () => {
 
     it("should refresh tokens that are near expiration", async () => {
       // Setup: tokens expire in 4 minutes (within the 5-minute buffer)
-      const soonToExpire = new Date(Date.now() + 4 * 60 * 1000);
 
       // Mock returns new tokens because old ones are expiring soon
       mockRefreshTokenIfNeeded.mockResolvedValue({

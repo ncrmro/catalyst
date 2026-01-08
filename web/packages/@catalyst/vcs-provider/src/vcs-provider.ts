@@ -445,9 +445,11 @@ export class VCSProviderSingleton {
         error,
       );
 
+      // Trigger auth error callback when refresh fails
+      // This ensures consistent error handling across the application
+      await this.config.onAuthError?.(tokenSourceId, providerId);
+
       // If refresh fails, tokens are effectively invalid.
-      // We might want to trigger auth error here too, but getValidToken will return null
-      // which triggers onAuthError in getAuthenticatedClient.
       return null;
     }
   }

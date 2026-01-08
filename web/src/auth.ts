@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import authConfig from "@/lib/auth.config";
 import Credentials from "next-auth/providers/credentials";
 import { createSessionHelpers } from "@tetrastack/backend/auth";
+import { refreshTokenIfNeeded } from "@/lib/vcs-providers";
 
 declare module "next-auth" {
   interface Session {
@@ -209,8 +210,6 @@ export const {
           // Not a fresh signin - check if we need to refresh GitHub tokens
           // This runs on every session access to keep tokens fresh
           try {
-            const { refreshTokenIfNeeded } =
-              await import("@/lib/vcs-providers");
             const refreshedTokens = await refreshTokenIfNeeded(existingUser.id);
 
             // If tokens were refreshed, update the JWT token
