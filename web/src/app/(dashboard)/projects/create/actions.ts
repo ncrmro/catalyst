@@ -5,7 +5,7 @@ import { createProjects } from "@/models/projects";
 import { getUserPrimaryTeamId } from "@/lib/team-auth";
 import { checkGitHubConnection } from "@/actions/account";
 import { fetchGitHubRepos } from "@/actions/repos.github";
-import { upsertRepos } from "@/models/repos";
+import { upsertRepos, getRepos } from "@/models/repos";
 import { createProjectRepoLinks, setPrimaryRepo } from "@/models/project-repos";
 import type { CreateProjectFormData } from "./create-project-form";
 import type { GitHubRepo } from "@/mocks/github";
@@ -113,19 +113,25 @@ export async function createProject(
             pushedAt: repo.pushed_at ? new Date(repo.pushed_at) : undefined,
           }));
 
-          const savedRepos = await upsertRepos(reposToUpsert);
+          await upsertRepos(reposToUpsert);
+
+          // Fetch the repos again to get their IDs (both inserted and existing)
+          // upsertRepos might return empty if using onConflictDoNothing and repos exist
+          const savedRepos = await getRepos({
+            githubIds: reposToUpsert.map((r) => r.githubId),
+          });
 
           // Link repos to project
-          await createProjectRepoLinks(
-            savedRepos.map((repo) => ({
-              projectId: project.id,
-              repoId: repo.id,
-              isPrimary: false, // Will set primary separately
-            })),
-          );
-
-          // Set the first one as primary
           if (savedRepos.length > 0) {
+            await createProjectRepoLinks(
+              savedRepos.map((repo) => ({
+                projectId: project.id,
+                repoId: repo.id,
+                isPrimary: false, // Will set primary separately
+              })),
+            );
+
+            // Set the first one as primary
             // Find the ID of the first repo in the input list that was successfully saved
             // We match by name/fullName to be sure
             const firstRepoUrl = data.repoUrls[0];

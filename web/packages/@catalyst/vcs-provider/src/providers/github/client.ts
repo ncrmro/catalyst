@@ -201,9 +201,31 @@ export async function getOctokitForComments(installationId?: number) {
 }
 
 /**
+ * Token getter function type for dependency injection
+ * The web app provides this function to get refreshed tokens
+ */
+export type TokenGetter = (
+  userId: string,
+) => Promise<{ accessToken: string } | null>;
+
+/**
+ * Registered token getter - set by the web app at initialization
+ */
+let registeredTokenGetter: TokenGetter | null = null;
+
+/**
+ * Register a token getter function.
+ * This should be called by the web app during initialization to provide
+ * a function that retrieves and refreshes tokens as needed.
+ */
+export function registerTokenGetter(getter: TokenGetter): void {
+  registeredTokenGetter = getter;
+}
+
+/**
  * Get an Octokit instance with authentication fallback and session management
- * Priority: PAT (if allowed) → GitHub App User Token (with auto-refresh) → Error
- * @param userId User ID for GitHub App token refresh
+ * Priority: PAT (if allowed) → GitHub App User Token (via registered getter) → Error
+ * @param userId User ID for GitHub App token retrieval
  * @returns Authenticated Octokit instance
  */
 export async function getUserOctokit(userId: string): Promise<Octokit> {
@@ -218,14 +240,14 @@ export async function getUserOctokit(userId: string): Promise<Octokit> {
     });
   }
 
-  // Second priority: Use GitHub App user tokens with auto-refresh
-  const { refreshTokenIfNeeded } = await import("./token-refresh");
-  const tokens = await refreshTokenIfNeeded(userId);
-
-  if (tokens?.accessToken) {
-    return new Octokit({
-      auth: tokens.accessToken,
-    });
+  // Second priority: Use GitHub App user tokens via registered getter
+  if (registeredTokenGetter) {
+    const tokens = await registeredTokenGetter(userId);
+    if (tokens?.accessToken) {
+      return new Octokit({
+        auth: tokens.accessToken,
+      });
+    }
   }
 
   // No authentication available
@@ -243,6 +265,28 @@ export type GitHubTokenResult =
   | { token: undefined; status: "no_token" | "expired" };
 
 /**
+ * Token status checker function type for dependency injection
+ * Used to check if a user has had tokens before (for distinguishing expired vs never-connected)
+ */
+export type TokenStatusChecker = (
+  userId: string,
+) => Promise<{ hadTokens: boolean; hasInstallationId: boolean }>;
+
+/**
+ * Registered token status checker - set by the web app at initialization
+ */
+let registeredTokenStatusChecker: TokenStatusChecker | null = null;
+
+/**
+ * Register a token status checker function.
+ * This should be called by the web app during initialization to provide
+ * a function that checks token history for a user.
+ */
+export function registerTokenStatusChecker(checker: TokenStatusChecker): void {
+  registeredTokenStatusChecker = checker;
+}
+
+/**
  * Get a GitHub access token for a user with status information.
  *
  * Unlike getUserOctokit() which throws on failure, this returns
@@ -253,7 +297,7 @@ export type GitHubTokenResult =
  *
  * Token priority:
  * 1. PAT - for local development when GITHUB_PAT env var is set (non-production only)
- * 2. Database tokens with auto-refresh - for GitHub App OAuth users
+ * 2. Database tokens via registered getter - for GitHub App OAuth users
  *
  * @param userId - User ID for token lookup
  * @returns Object with token and status indicating why token may be unavailable
@@ -270,23 +314,21 @@ export async function getGitHubAccessToken(
     return { token: GITHUB_CONFIG.PAT, status: "valid" };
   }
 
-  // Second priority: Use GitHub App user tokens with auto-refresh
-  const { refreshTokenIfNeeded } = await import("./token-refresh");
-  const tokens = await refreshTokenIfNeeded(userId);
-
-  if (tokens?.accessToken) {
-    return { token: tokens.accessToken, status: "valid" };
+  // Second priority: Use GitHub App user tokens via registered getter
+  if (registeredTokenGetter) {
+    const tokens = await registeredTokenGetter(userId);
+    if (tokens?.accessToken) {
+      return { token: tokens.accessToken, status: "valid" };
+    }
   }
 
   // No valid token - check if user ever had tokens (to distinguish
   // "never connected" from "was connected but token expired")
-  const { getGitHubTokens } = await import("./token-service");
-  const existingRecord = await getGitHubTokens(userId);
-
-  // If there's a record with an installationId, user was previously connected
-  // but their token expired and couldn't be refreshed
-  if (existingRecord?.installationId) {
-    return { token: undefined, status: "expired" };
+  if (registeredTokenStatusChecker) {
+    const status = await registeredTokenStatusChecker(userId);
+    if (status.hasInstallationId) {
+      return { token: undefined, status: "expired" };
+    }
   }
 
   return { token: undefined, status: "no_token" };

@@ -2,6 +2,10 @@
  * GitHub VCS Provider
  *
  * Implementation of VCSProvider interface for GitHub.
+ *
+ * NOTE: Token management (storage, refresh) is handled by VCSProviderSingleton
+ * via callbacks provided during initialization. This provider focuses on
+ * API operations only.
  */
 
 import { Octokit } from "@octokit/rest";
@@ -10,7 +14,6 @@ import type {
   ProviderId,
   AuthenticatedClient,
   ConnectionStatus,
-  TokenData,
   Repository,
   FileContent,
   DirectoryEntry,
@@ -26,8 +29,6 @@ import type {
   CICheckSource,
 } from "../../types";
 import { getUserOctokit, GITHUB_CONFIG } from "./client";
-import { storeGitHubTokens, getGitHubTokens } from "./token-service";
-import { refreshTokenIfNeeded } from "./token-refresh";
 import { createHmac, timingSafeEqual } from "crypto";
 
 /**
@@ -50,41 +51,38 @@ export class GitHubProvider implements VCSProvider {
   }
 
   /**
+   * Validate provider configuration
+   */
+  validateConfig(): void {
+    const missingVars: string[] = [];
+
+    if (!GITHUB_CONFIG.APP_ID) missingVars.push("GITHUB_APP_ID");
+    if (!GITHUB_CONFIG.APP_PRIVATE_KEY)
+      missingVars.push("GITHUB_APP_PRIVATE_KEY");
+    if (!GITHUB_CONFIG.APP_CLIENT_ID) missingVars.push("GITHUB_APP_CLIENT_ID");
+    if (!GITHUB_CONFIG.APP_CLIENT_SECRET)
+      missingVars.push("GITHUB_APP_CLIENT_SECRET");
+    if (!GITHUB_CONFIG.WEBHOOK_SECRET)
+      missingVars.push("GITHUB_WEBHOOK_SECRET");
+
+    if (missingVars.length > 0) {
+      throw new Error(
+        `Missing required GitHub environment variables: ${missingVars.join(", ")}`,
+      );
+    }
+  }
+
+  /**
    * Check the connection status for a user
+   *
+   * NOTE: Token refresh is handled by VCSProviderSingleton.getValidToken()
+   * which is called by getUserOctokit(). This method simply tries to
+   * authenticate and returns the connection status.
    */
   async checkConnection(userId: string): Promise<ConnectionStatus> {
     try {
-      // First, try to refresh tokens if they're about to expire
-      // This ensures we have valid tokens before checking connection
-      const refreshedTokens = await refreshTokenIfNeeded(userId);
-
-      // Check for PAT fallback if no database tokens after refresh attempt
-      if (!refreshedTokens) {
-        const isPATAllowed =
-          process.env.NODE_ENV !== "production" ||
-          GITHUB_CONFIG.ALLOW_PAT_FALLBACK;
-
-        if (isPATAllowed && GITHUB_CONFIG.PAT) {
-          // Validate PAT by making API call
-          const { Octokit } = await import("@octokit/rest");
-          const octokit = new Octokit({ auth: GITHUB_CONFIG.PAT });
-          const { data: user } = await octokit.rest.users.getAuthenticated();
-
-          return {
-            connected: true,
-            username: user.login,
-            avatarUrl: user.avatar_url,
-            authMethod: "pat",
-          };
-        }
-
-        return {
-          connected: false,
-          error: "No tokens stored",
-        };
-      }
-
-      // Use the refreshed/valid tokens to check connection
+      // Try to get an authenticated client
+      // getUserOctokit will use the singleton's token management if available
       const octokit = await getUserOctokit(userId);
       const { data: user } = await octokit.rest.users.getAuthenticated();
 
@@ -92,9 +90,30 @@ export class GitHubProvider implements VCSProvider {
         connected: true,
         username: user.login,
         avatarUrl: user.avatar_url,
-        authMethod: refreshedTokens.installationId ? "app" : "oauth",
+        authMethod: "oauth", // Default to oauth, could be enhanced to detect app vs oauth
       };
     } catch (error) {
+      // Check for PAT fallback if user token fails
+      const isPATAllowed =
+        process.env.NODE_ENV !== "production" ||
+        GITHUB_CONFIG.ALLOW_PAT_FALLBACK;
+
+      if (isPATAllowed && GITHUB_CONFIG.PAT) {
+        try {
+          const patOctokit = new Octokit({ auth: GITHUB_CONFIG.PAT });
+          const { data: user } = await patOctokit.rest.users.getAuthenticated();
+
+          return {
+            connected: true,
+            username: user.login,
+            avatarUrl: user.avatar_url,
+            authMethod: "pat",
+          };
+        } catch {
+          // PAT also failed, return original error
+        }
+      }
+
       return {
         connected: false,
         error: error instanceof Error ? error.message : "Unknown error",
@@ -103,30 +122,21 @@ export class GitHubProvider implements VCSProvider {
   }
 
   /**
-   * Store tokens for a user
+   * List organizations for the authenticated user
    */
-  async storeTokens(userId: string, tokens: TokenData): Promise<void> {
-    await storeGitHubTokens(userId, {
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken || "",
-      expiresAt: tokens.expiresAt || new Date(Date.now() + 8 * 60 * 60 * 1000),
-      scope: tokens.scope || "",
+  async listUserOrganizations(
+    client: AuthenticatedClient,
+  ): Promise<Array<{ login: string; id: string; avatarUrl: string }>> {
+    const octokit = client.raw as Octokit;
+    const { data: orgs } = await octokit.rest.orgs.listForAuthenticatedUser({
+      per_page: 100,
     });
-  }
 
-  /**
-   * Refresh tokens if needed
-   */
-  async refreshTokensIfNeeded(userId: string): Promise<TokenData | null> {
-    const tokens = await refreshTokenIfNeeded(userId);
-    if (!tokens) return null;
-
-    return {
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      expiresAt: tokens.expiresAt,
-      scope: tokens.scope,
-    };
+    return orgs.map((org) => ({
+      login: org.login,
+      id: String(org.id),
+      avatarUrl: org.avatar_url,
+    }));
   }
 
   /**

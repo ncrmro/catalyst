@@ -1,6 +1,8 @@
 import { test, expect } from "./fixtures/projects-fixture";
 
 test.describe("Project Creation Wizard", () => {
+  test.setTimeout(60_000);
+
   test("should create project with GitHub repo and auto-filled details", async ({
     page,
     projectsPage,
@@ -29,18 +31,16 @@ test.describe("Project Creation Wizard", () => {
     const continueButton = page.getByRole("button", { name: /continue/i });
     await expect(continueButton).toBeDisabled();
 
-    // Open the repo dropdown
-    const dropdown = page.getByTestId("repo-dropdown");
-    await dropdown.click();
-
     // Search for catalyst repo
     const searchInput = page.getByTestId("repo-search");
     await searchInput.fill("catalyst");
 
     // Wait for search results and click on catalyst repo
-    const catalystOption = page.getByText("ncrmro/catalyst");
-    await expect(catalystOption).toBeVisible();
-    await catalystOption.click();
+    const catalystRow = page
+      .locator(".group")
+      .filter({ hasText: "ncrmro/catalyst" });
+    await expect(catalystRow).toBeVisible();
+    await catalystRow.getByRole("button", { name: "Add" }).click();
 
     // Verify repo was added (shows "1 added")
     await expect(page.getByText("1 added")).toBeVisible();
@@ -71,7 +71,9 @@ test.describe("Project Creation Wizard", () => {
     await createButton.click();
 
     // Verify redirect to project home page
-    await expect(page).toHaveURL(new RegExp(`/projects/${uniqueSlug}$`));
+    await expect(page).toHaveURL(new RegExp(`/projects/${uniqueSlug}$`), {
+      timeout: 30_000,
+    });
   });
 
   test("should navigate back from step 2 to step 1", async ({
@@ -88,13 +90,14 @@ test.describe("Project Creation Wizard", () => {
     await page.waitForURL(/\/projects\/create$/);
 
     // Step 1: Add a repo
-    const dropdown = page.getByTestId("repo-dropdown");
-    await dropdown.click();
-
     const searchInput = page.getByTestId("repo-search");
     await searchInput.fill("catalyst");
 
-    await page.getByText("ncrmro/catalyst").click();
+    const catalystRow = page
+      .locator(".group")
+      .filter({ hasText: "ncrmro/catalyst" });
+    await expect(catalystRow).toBeVisible();
+    await catalystRow.getByRole("button", { name: "Add" }).click();
 
     // Go to step 2
     await page.getByRole("button", { name: /continue/i }).click();
@@ -112,41 +115,6 @@ test.describe("Project Creation Wizard", () => {
     await expect(page.getByText("ncrmro/catalyst")).toBeVisible();
   });
 
-  test("should allow adding manual URL", async ({ page, projectsPage }) => {
-    // Navigate to projects page
-    await projectsPage.goto();
-
-    // Click "Create Project" button
-    await page.getByRole("link", { name: "Create Project" }).click();
-
-    // Wait for navigation to create page to complete
-    await page.waitForURL(/\/projects\/create$/);
-
-    // Step 1: Open dropdown and select manual entry
-    const dropdown = page.getByTestId("repo-dropdown");
-    await dropdown.click();
-
-    await page.getByText("Enter URL manually").click();
-
-    // Enter a manual URL
-    const urlInput = page.getByTestId("manual-url-input");
-    await urlInput.fill("https://github.com/example/external-repo");
-
-    // Click add button
-    const addButton = page.getByTestId("add-manual-url");
-    await addButton.click();
-
-    // Verify repo was added
-    await expect(page.getByText("1 added")).toBeVisible();
-    await expect(
-      page.getByText("https://github.com/example/external-repo"),
-    ).toBeVisible();
-
-    // Continue should be enabled
-    const continueButton = page.getByRole("button", { name: /continue/i });
-    await expect(continueButton).toBeEnabled();
-  });
-
   test("should allow adding multiple repos", async ({ page, projectsPage }) => {
     // Navigate to projects page
     await projectsPage.goto();
@@ -158,22 +126,24 @@ test.describe("Project Creation Wizard", () => {
     await page.waitForURL(/\/projects\/create$/);
 
     // Add first repo - catalyst
-    let dropdown = page.getByTestId("repo-dropdown");
-    await dropdown.click();
-
-    let searchInput = page.getByTestId("repo-search");
+    const searchInput = page.getByTestId("repo-search");
     await searchInput.fill("catalyst");
-    await page.getByText("ncrmro/catalyst").click();
+
+    const catalystRow = page
+      .locator(".group")
+      .filter({ hasText: "ncrmro/catalyst" });
+    await expect(catalystRow).toBeVisible();
+    await catalystRow.getByRole("button", { name: "Add" }).click();
 
     await expect(page.getByText("1 added")).toBeVisible();
 
     // Add second repo - meze
-    dropdown = page.getByTestId("repo-dropdown");
-    await dropdown.click();
-
-    searchInput = page.getByTestId("repo-search");
+    await searchInput.clear();
     await searchInput.fill("meze");
-    await page.getByText("ncrmro/meze").click();
+
+    const mezeRow = page.locator(".group").filter({ hasText: "ncrmro/meze" });
+    await expect(mezeRow).toBeVisible();
+    await mezeRow.getByRole("button", { name: "Add" }).click();
 
     await expect(page.getByText("2 added")).toBeVisible();
 

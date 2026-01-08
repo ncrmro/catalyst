@@ -1,7 +1,8 @@
 "use server";
 
 import { auth } from "@/auth";
-import { providerRegistry, refreshTokenIfNeeded } from "@/lib/vcs-providers";
+import { vcs } from "@/lib/vcs";
+import { GITHUB_CONFIG } from "@/lib/vcs-providers";
 
 // Types
 export interface VCSEntry {
@@ -46,44 +47,36 @@ export async function listDirectory(
     return { success: false, entries: [], error: "Not authenticated" };
   }
 
-  // Refresh tokens before accessing repository to ensure valid GitHub access
-  try {
-    await refreshTokenIfNeeded(session.user.id);
-  } catch (error) {
-    console.error("[VCS] Failed to refresh tokens before listing directory:", error);
-    // Continue anyway - provider.authenticate will attempt refresh again
+  // Handle Mocked Mode
+  if (GITHUB_CONFIG.REPOS_MODE === "mocked") {
+    console.log("[VCS] listDirectory: Returning mocked data");
+    return { success: true, entries: [] };
   }
 
   try {
     const [owner, repo] = repoFullName.split("/");
     console.log(`[VCS] listDirectory: owner=${owner}, repo=${repo}`);
 
-    const provider = providerRegistry.getDefault();
-    const client = await provider.authenticate(session.user.id);
-    const directoryEntries = await provider.getDirectoryContent(
-      client,
+    const scopedVcs = vcs.getScoped(session.user.id);
+    const directoryEntries = await scopedVcs.files.getDirectory(
       owner,
       repo,
       path,
       ref,
     );
 
-    // Empty result means either empty directory or path doesn't exist
-    // The provider returns [] for both cases
     const entries: VCSEntry[] = directoryEntries.map((item) => ({
       name: item.name,
       path: item.path,
-      type: item.type === "dir" ? "dir" : "file", // Map submodule/symlink to file
+      type: item.type === "dir" ? "dir" : "file",
     }));
 
     console.log(`[VCS] listDirectory: Found ${entries.length} entries`);
     return { success: true, entries };
   } catch (error) {
-    const statusCode = (error as { status?: number })?.status;
     console.error("[VCS] listDirectory error:", {
       path: `${repoFullName}/${path}`,
       ref,
-      statusCode,
       message: error instanceof Error ? error.message : "Unknown error",
     });
     return {
@@ -107,20 +100,16 @@ export async function readFile(
     return { success: false, file: null, error: "Not authenticated" };
   }
 
-  // Refresh tokens before reading file to ensure valid GitHub access
-  try {
-    await refreshTokenIfNeeded(session.user.id);
-  } catch (error) {
-    console.error("[VCS] Failed to refresh tokens before reading file:", error);
-    // Continue anyway - provider.authenticate will attempt refresh again
+  // Handle Mocked Mode
+  if (GITHUB_CONFIG.REPOS_MODE === "mocked") {
+    console.log("[VCS] readFile: Returning mocked data");
+    return { success: true, file: null };
   }
 
   try {
     const [owner, repo] = repoFullName.split("/");
-    const provider = providerRegistry.getDefault();
-    const client = await provider.authenticate(session.user.id);
-    const fileContent = await provider.getFileContent(
-      client,
+    const scopedVcs = vcs.getScoped(session.user.id);
+    const fileContent = await scopedVcs.files.getContent(
       owner,
       repo,
       path,
@@ -128,7 +117,7 @@ export async function readFile(
     );
 
     if (!fileContent) {
-      return { success: true, file: null }; // File doesn't exist or is not a file
+      return { success: true, file: null };
     }
 
     return {
@@ -142,11 +131,9 @@ export async function readFile(
       },
     };
   } catch (error) {
-    const statusCode = (error as { status?: number })?.status;
     console.error("[VCS] readFile error:", {
       path: `${repoFullName}/${path}`,
       ref,
-      statusCode,
       message: error instanceof Error ? error.message : "Unknown error",
     });
     return {

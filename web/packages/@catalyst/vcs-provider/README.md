@@ -7,9 +7,85 @@ Version Control System provider abstraction for multi-provider support (GitHub, 
 This package provides a unified interface for interacting with version control systems. It abstracts provider-specific APIs behind a common interface, making it easy to:
 
 - Authenticate users with VCS providers
+- **Automatically manage and refresh tokens** (NEW!)
+- **Access all VCS operations through a single facade** (NEW!)
 - Read files and directories from repositories
 - Manage pull requests and issues
 - Handle webhooks
+
+## Key Features
+
+### 🚀 VCSProviderSingleton - Comprehensive VCS Facade (NEW & RECOMMENDED)
+
+The **VCSProviderSingleton** is the new recommended way to interact with VCS providers. It provides:
+
+- **Automatic token management**: Tokens refreshed transparently before expiration
+- **Namespaced operations**: Clean API with `issues`, `pullRequests`, `repos`, `branches`, `files`
+- **Generic token sources**: Works with user/team/project IDs
+- **Environment validation**: Checks required env vars on initialization
+- **Provider-agnostic**: Unified interface across all VCS providers
+
+```typescript
+import { VCSProviderSingleton } from "@catalyst/vcs-provider";
+
+// 1. Initialize once at application startup
+VCSProviderSingleton.initialize({
+  getTokenData: async (tokenSourceId, providerId) => {
+    // tokenSourceId can be userId, teamId, projectId, etc.
+    return await db.getTokens(tokenSourceId, providerId);
+  },
+  refreshToken: async (refreshToken, providerId) => {
+    return await oauth.exchangeRefreshToken(refreshToken);
+  },
+  storeTokenData: async (tokenSourceId, tokens, providerId) => {
+    await db.storeTokens(tokenSourceId, tokens, providerId);
+  },
+  requiredEnvVars: ["GITHUB_APP_CLIENT_ID", "GITHUB_APP_CLIENT_SECRET"],
+});
+
+// 2. Use anywhere - automatic token management!
+const vcs = VCSProviderSingleton.getInstance();
+
+// Get an issue (tokenSourceId can be userId, teamId, projectId)
+// providerId is required - supports github, gitlab, bitbucket, azure
+// TODO: Future support for self-hosted instances (e.g., gitlab.company.com)
+const issue = await vcs.issues.get(
+  tokenSourceId,
+  "github",
+  owner,
+  repo,
+  issueNumber,
+);
+
+// List pull requests from GitLab
+const prs = await vcs.pullRequests.list(tokenSourceId, "gitlab", owner, repo, {
+  state: "open",
+});
+
+// Get repository from GitHub
+const repo = await vcs.repos.get(tokenSourceId, "github", owner, repo);
+
+// Create a PR
+const newPR = await vcs.pullRequests.create(
+  tokenSourceId,
+  "github",
+  owner,
+  repo,
+  title,
+  head,
+  base,
+  body,
+);
+```
+
+**Benefits:**
+
+- ✅ One-line API calls with automatic token management
+- ✅ No manual token refresh logic needed
+- ✅ Clean, namespaced operations (issues, pullRequests, repos, etc.)
+- ✅ Generic token source (user/team/project agnostic)
+- ✅ Environment validation on startup
+- ✅ Provider-agnostic design
 
 ## Installation
 
@@ -17,67 +93,46 @@ This package provides a unified interface for interacting with version control s
 npm install @catalyst/vcs-provider
 ```
 
+## Database Schema
+
+This package requires a database table to store authentication tokens. The schema definition is provided by `@tetrastack/backend`.
+
+**PostgreSQL:**
+
+```typescript
+import { postgres } from "@tetrastack/backend/database";
+const { connectionTokens } = postgres;
+```
+
+**SQLite:**
+
+```typescript
+import { sqlite } from "@tetrastack/backend/database";
+const { connectionTokens } = sqlite;
+```
+
+## Security
+
+Token encryption and decryption is handled by `@tetrastack/backend/utils`. Ensure `TOKEN_ENCRYPTION_KEY` is set in your environment.
+
 ## Usage
 
-### Authentication
+Initialize the provider singleton with your storage callbacks:
 
 ```typescript
-import { getUserOctokit, GITHUB_CONFIG } from "@catalyst/vcs-provider";
+import { VCSProviderSingleton } from "@catalyst/vcs-provider";
+import { encrypt, decrypt } from "@tetrastack/backend/utils";
+// ... imports from your db ...
 
-// Get an authenticated Octokit client for a user
-const octokit = await getUserOctokit(userId);
-```
-
-### Reading Repository Content
-
-The package exports utilities for reading files and directories. See [EXAMPLES.md](./EXAMPLES.md) for server action examples.
-
-```typescript
-import { getUserOctokit } from "@catalyst/vcs-provider";
-
-const octokit = await getUserOctokit(userId);
-
-// List directory contents
-const { data } = await octokit.rest.repos.getContent({
-  owner: "owner",
-  repo: "repo",
-  path: "specs",
-  ref: "main",
+VCSProviderSingleton.initialize({
+  getTokenData: async (tokenSourceId, providerId) => {
+    // ... fetch and decrypt ...
+  },
+  storeTokenData: async (tokenSourceId, tokens, providerId) => {
+    // ... encrypt and store ...
+  },
+  // ...
 });
-
-// Read file content
-const { data: file } = await octokit.rest.repos.getContent({
-  owner: "owner",
-  repo: "repo",
-  path: "specs/feature/spec.md",
-  ref: "main",
-});
-
-// Decode base64 content
-const content = Buffer.from(file.content, "base64").toString("utf-8");
-```
-
-### Token Management
-
-```typescript
-import {
-  storeGitHubTokens,
-  getGitHubTokens,
-  refreshTokenIfNeeded,
-} from "@catalyst/vcs-provider";
-
-// Store tokens securely (encrypted)
-await storeGitHubTokens(userId, {
-  accessToken: "...",
-  refreshToken: "...",
-  expiresAt: new Date(),
-});
-
-// Get tokens (decrypted)
-const tokens = await getGitHubTokens(userId);
-
-// Refresh if needed
-const refreshed = await refreshTokenIfNeeded(userId);
 ```
 
 ## Exports

@@ -627,6 +627,7 @@ The `refreshTokenIfNeeded` function (from `@catalyst/vcs-provider`):
 ### Testing
 
 Tests verify:
+
 - Tokens refresh on non-initial session access
 - No refresh attempted on initial signin
 - Refresh errors don't break sessions

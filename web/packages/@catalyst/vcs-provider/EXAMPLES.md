@@ -2,6 +2,173 @@
 
 This document provides example code for common VCS operations using the `@catalyst/vcs-provider` package.
 
+## Using VCSProviderSingleton (NEW & RECOMMENDED)
+
+The VCSProviderSingleton provides the easiest and most powerful way to interact with VCS providers.
+
+### Initialization in Next.js
+
+```typescript
+// src/lib/vcs-provider-init.ts
+import { VCSProviderSingleton } from "@catalyst/vcs-provider";
+import {
+  getGitHubTokens,
+  storeGitHubTokens,
+  exchangeRefreshToken,
+} from "@catalyst/vcs-provider";
+import type { ProviderId } from "@catalyst/vcs-provider";
+
+let initialized = false;
+
+/**
+ * Initialize VCS Provider Singleton
+ * Call this once at application startup
+ */
+export function initializeVCSProvider() {
+  if (initialized) {
+    return;
+  }
+
+  VCSProviderSingleton.initialize({
+    getTokenData: async (tokenSourceId: string, providerId: ProviderId) => {
+      // tokenSourceId can be userId, teamId, projectId, etc.
+      // Your application logic determines how to interpret it
+      if (providerId === "github") {
+        return await getGitHubTokens(tokenSourceId);
+      }
+      return null;
+    },
+
+    refreshToken: async (refreshToken: string, providerId: ProviderId) => {
+      if (providerId === "github") {
+        const tokens = await exchangeRefreshToken(refreshToken);
+        return {
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          expiresAt: tokens.expiresAt,
+          scope: tokens.scope,
+        };
+      }
+      throw new Error(`Unsupported provider: ${providerId}`);
+    },
+
+    storeTokenData: async (
+      tokenSourceId: string,
+      tokens,
+      providerId: ProviderId,
+    ) => {
+      if (providerId === "github") {
+        await storeGitHubTokens(tokenSourceId, {
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken || "",
+          expiresAt: tokens.expiresAt || new Date(),
+          scope: tokens.scope || "",
+        });
+      }
+    },
+
+    // Validate required environment variables on startup
+    requiredEnvVars: [
+      "GITHUB_APP_CLIENT_ID",
+      "GITHUB_APP_CLIENT_SECRET",
+      "TOKEN_ENCRYPTION_KEY",
+    ],
+
+    // Optional: Custom expiration buffer (default is 5 minutes)
+    expirationBufferMs: 5 * 60 * 1000,
+  });
+
+  initialized = true;
+}
+```
+
+### Call initialization in Next.js
+
+```typescript
+// src/middleware.ts or src/instrumentation.ts
+import { initializeVCSProvider } from "@/lib/vcs-provider-init";
+
+initializeVCSProvider();
+```
+
+### Using in Server Actions
+
+```typescript
+// src/actions/issues.ts
+"use server";
+
+import { auth } from "@/auth";
+import { VCSProviderSingleton } from "@catalyst/vcs-provider";
+
+export async function getIssue(
+  owner: string,
+  repo: string,
+  issueNumber: number,
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { success: false, error: "Not authenticated" };
+  }
+
+  try {
+    const vcs = VCSProviderSingleton.getInstance();
+
+    // Automatic token management - no manual refresh needed!
+    // providerId is required (github, gitlab, bitbucket, azure)
+    const issue = await vcs.issues.get(
+      session.user.id, // tokenSourceId (userId, teamId, projectId, etc.)
+      "github", // providerId - required parameter
+      owner,
+      repo,
+      issueNumber,
+    );
+
+    return { success: true, issue };
+  } catch (error) {
+    if (error.message.includes("No valid tokens")) {
+      return { success: false, error: "Please reconnect your GitHub account" };
+    }
+    return { success: false, error: "Failed to fetch issue" };
+  }
+}
+```
+
+### Using with Team or Project Context (Scoped Instance)
+
+```typescript
+// src/actions/team-repos.ts
+"use server";
+
+import { auth } from "@/auth";
+import { VCSProviderSingleton } from "@catalyst/vcs-provider";
+import { getTeamFromProject } from "@/db/queries";
+
+export async function listTeamRepositories(projectId: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { success: false, error: "Not authenticated" };
+  }
+
+  // Get team that owns this project
+  const team = await getTeamFromProject(projectId);
+  if (!team) {
+    return { success: false, error: "Team not found" };
+  }
+
+  try {
+    // Recommended: Use getScoped to bind userId and provider
+    const vcs = VCSProviderSingleton.getInstance().getScoped(team.id, "github");
+
+    // Much cleaner API!
+    const repos = await vcs.repos.listOrg(team.githubOrg);
+
+    return { success: true, repos };
+  } catch (error) {
+    return { success: false, error: "Failed to fetch repositories" };
+  }
+}
+```
+
 ## Server Actions for Repository Content
 
 These server actions provide a generic interface for reading files and directories from repositories. They can be used by UI components to display repository content like specs, documentation, or configuration files.
@@ -13,7 +180,7 @@ These server actions provide a generic interface for reading files and directori
 "use server";
 
 import { auth } from "@/auth";
-import { getUserOctokit } from "@/lib/vcs-providers";
+import { VCSProviderSingleton } from "@catalyst/vcs-provider";
 
 export interface VCSEntry {
   name: string;
@@ -42,30 +209,28 @@ export async function listDirectory(
 
   try {
     const [owner, repo] = repoFullName.split("/");
-    const octokit = await getUserOctokit(session.user.id);
 
-    const { data } = await octokit.rest.repos.getContent({
+    // Use the singleton facade
+    const vcs = VCSProviderSingleton.getInstance().getScoped(
+      session.user.id,
+      "github",
+    );
+
+    const directoryEntries = await vcs.files.getDirectory(
       owner,
       repo,
       path,
       ref,
-    });
+    );
 
-    if (!Array.isArray(data)) {
-      return { success: false, entries: [], error: "Path is not a directory" };
-    }
-
-    const entries: VCSEntry[] = data.map((item) => ({
+    const entries: VCSEntry[] = directoryEntries.map((item) => ({
       name: item.name,
       path: item.path,
-      type: item.type as "file" | "dir",
+      type: item.type === "dir" ? "dir" : "file",
     }));
 
     return { success: true, entries };
   } catch (error) {
-    if ((error as { status?: number })?.status === 404) {
-      return { success: true, entries: [] }; // Directory doesn't exist
-    }
     return {
       success: false,
       entries: [],

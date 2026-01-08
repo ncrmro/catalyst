@@ -209,9 +209,8 @@ export const {
           // Not a fresh signin - check if we need to refresh GitHub tokens
           // This runs on every session access to keep tokens fresh
           try {
-            const { refreshTokenIfNeeded } = await import(
-              "@catalyst/vcs-provider"
-            );
+            const { refreshTokenIfNeeded } =
+              await import("@/lib/vcs-providers");
             const refreshedTokens = await refreshTokenIfNeeded(existingUser.id);
 
             // If tokens were refreshed, update the JWT token
@@ -227,7 +226,10 @@ export const {
             }
           } catch (error) {
             // Log error but don't fail the session - user can still use the app
-            console.error("Failed to refresh GitHub tokens in JWT callback:", error);
+            console.error(
+              "Failed to refresh GitHub tokens in JWT callback:",
+              error,
+            );
           }
         }
 

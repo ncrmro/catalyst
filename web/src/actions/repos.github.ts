@@ -1,7 +1,6 @@
 "use server";
 
 import { auth } from "@/auth";
-import { Octokit } from "@octokit/rest";
 import { getUserTeamIds } from "@/lib/team-auth";
 import { getRepos, upsertRepos } from "@/models/repos";
 import { getProjects } from "@/models/projects";
@@ -11,10 +10,11 @@ import {
   GitHubRepo,
   GitHubOrganization,
   ReposData,
-  ReposDataFailed,
   ReposDataWithReason,
 } from "@/mocks/github";
-import { getGitHubAccessToken, GITHUB_CONFIG } from "@/lib/vcs-providers";
+import { GITHUB_CONFIG } from "@/lib/vcs-providers";
+import { vcs } from "@/lib/vcs";
+import { Repository } from "@/lib/vcs-providers";
 
 /**
  * Server action to fetch repositories for the current user from the database
@@ -22,91 +22,96 @@ import { getGitHubAccessToken, GITHUB_CONFIG } from "@/lib/vcs-providers";
  */
 
 /**
- * Fetch real GitHub repositories for the current user and organizations
- * Uses PAT first (for local dev), then database tokens with auto-refresh
+ * Map VCS Repository to GitHubRepo format for UI compatibility
  */
-async function fetchRealGitHubRepos(): Promise<ReposData | ReposDataFailed> {
+function mapToGitHubRepo(repo: Repository): GitHubRepo {
+  return {
+    id: parseInt(repo.id),
+    name: repo.name,
+    full_name: repo.fullName,
+    description: repo.description || null,
+    private: repo.private,
+    owner: {
+      login: repo.owner,
+      type: "User", // Default to User, will be refined if needed
+      avatar_url: `https://github.com/${repo.owner}.png`,
+    },
+    html_url: repo.htmlUrl,
+    clone_url: `${repo.htmlUrl}.git`,
+    ssh_url: `git@github.com:${repo.fullName}.git`,
+    created_at: repo.updatedAt.toISOString(), // Heuristic
+    updated_at: repo.updatedAt.toISOString(),
+    pushed_at: repo.updatedAt.toISOString(),
+    language: repo.language || null,
+    stargazers_count: 0,
+    forks_count: 0,
+    open_issues_count: 0,
+  };
+}
+
+/**
+ * Fetch real GitHub repositories for the current user and organizations
+ */
+async function fetchRealGitHubRepos(): Promise<
+  | ReposData
+  | {
+      github_integration_enabled: false;
+      reason:
+        | "error"
+        | "no_access_token"
+        | "token_expired"
+        | "permission_denied";
+    }
+> {
   const session = await auth();
 
   if (!session?.user?.id) {
     return { github_integration_enabled: false, reason: "no_access_token" };
   }
 
-  const result = await getGitHubAccessToken(session.user.id);
-
-  if (result.status !== "valid") {
-    // Map token status to appropriate reason for UI
-    const reason =
-      result.status === "expired" ? "token_expired" : "no_access_token";
-    return { github_integration_enabled: false, reason };
-  }
-
-  const octokit = new Octokit({
-    auth: result.token,
-  });
-
   try {
-    // Fetch user repositories
-    const userReposResponse = await octokit.rest.repos.listForAuthenticatedUser(
-      {
-        per_page: 100,
-        sort: "updated",
-      },
-    );
+    const scopedVcs = vcs.getScoped(session.user.id);
 
-    // Fetch user organizations
-    const orgsResponse = await octokit.rest.orgs.listForAuthenticatedUser({
-      per_page: 100,
-    });
+    // Fetch user repositories and organizations in parallel
+    const [userRepos, organizations] = await Promise.all([
+      scopedVcs.repos.listUser(),
+      scopedVcs.repos.listUserOrganizations(),
+    ]);
 
     // Fetch repositories for each organization
     const orgRepos: Record<string, GitHubRepo[]> = {};
 
-    for (const org of orgsResponse.data) {
-      try {
-        const orgReposResponse = await octokit.rest.repos.listForOrg({
-          org: org.login,
-          per_page: 100,
-          sort: "updated",
-        });
-        orgRepos[org.login] = orgReposResponse.data as GitHubRepo[];
-      } catch (error) {
-        // If we can't access org repos (permissions), skip it
-        console.warn(
-          `Could not fetch repos for org ${org.login}:`,
-          error instanceof Error ? error.message : "Unknown error",
-        );
-        orgRepos[org.login] = [];
-      }
-    }
+    await Promise.all(
+      organizations.map(async (org) => {
+        try {
+          const repos = await scopedVcs.repos.listOrg(org.login);
+          orgRepos[org.login] = repos.map((r) => ({
+            ...mapToGitHubRepo(r),
+            owner: {
+              ...mapToGitHubRepo(r).owner,
+              type: "Organization" as const,
+            },
+          }));
+        } catch (error) {
+          console.warn(`Could not fetch repos for org ${org.login}:`, error);
+          orgRepos[org.login] = [];
+        }
+      }),
+    );
 
     return {
-      user_repos: userReposResponse.data as GitHubRepo[],
-      organizations: orgsResponse.data as GitHubOrganization[],
+      user_repos: userRepos.map(mapToGitHubRepo),
+      organizations: organizations.map((org) => ({
+        login: org.login,
+        id: parseInt(org.id),
+        avatar_url: org.avatarUrl,
+        description: null,
+      })),
       org_repos: orgRepos,
       github_integration_enabled: true,
     };
   } catch (error) {
-    // Extract status code for more specific error handling
-    const statusCode = (error as { status?: number })?.status;
-
-    if (statusCode === 401) {
-      console.error(
-        "GitHub token expired or invalid (401):",
-        error instanceof Error ? error.message : "Unknown error",
-      );
-      return { github_integration_enabled: false, reason: "token_expired" };
-    }
-
-    if (statusCode === 403) {
-      console.error(
-        "GitHub permission denied (403):",
-        error instanceof Error ? error.message : "Unknown error",
-      );
-      return { github_integration_enabled: false, reason: "permission_denied" };
-    }
-
-    console.error("Error fetching GitHub repositories:", error);
+    console.error("Error fetching GitHub repositories via Singleton:", error);
     return { github_integration_enabled: false, reason: "error" };
   }
 }
