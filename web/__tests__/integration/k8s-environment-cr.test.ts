@@ -16,13 +16,8 @@ import { beforeAll, afterAll, describe, it, expect } from "vitest";
 import {
   createEnvironmentClient,
   getClusterConfig,
-  type Environment,
 } from "@catalyst/kubernetes-client";
-import {
-  AppsV1Api,
-  CoreV1Api,
-  CustomObjectsApi,
-} from "@kubernetes/client-node";
+import { CustomObjectsApi } from "@kubernetes/client-node";
 
 describe("Web <-> Operator Contract Integration", () => {
   const testNamespace = "default"; // CRs live in default or catalyst-system
@@ -30,7 +25,7 @@ describe("Web <-> Operator Contract Integration", () => {
 
   // Test data
   const testProject = "test-project";
-  const testRepo = "test-repo";
+  const _testRepo = "test-repo";
   const testCommit = "abc1234567890abcdef";
   const testBranch = "feature/integration-test";
   const testPrNumber = 1234;
