@@ -57,7 +57,7 @@ export function TaskDetailCard({
               href={task.spec.href}
               className="text-primary hover:underline"
             >
-              {formatSpecName(task.spec.href.split("/").pop() || "")}
+              {formatSpecName(task.spec.name)}
             </Link>
           )}
           {task.spec && ": "}

@@ -64,9 +64,9 @@ const taskFixtures: Task[] = [
     assignee: ASSIGNEES.copilot,
     dueDate: "2024-01-20",
     spec: {
-      id: "006-cli-codeing-agents-harness",
-      name: "006-cli-codeing-agents-harness",
-      href: "/projects/catalyst-platform/spec/006-cli-codeing-agents-harness",
+      id: "006-cli-coding-agents-harness",
+      name: "006-cli-coding-agents-harness",
+      href: "/projects/catalyst-platform/spec/006-cli-coding-agents-harness",
     },
     description: "Build harness for running CLI-based coding agents.",
   },
@@ -288,7 +288,7 @@ function TaskRow({ task, projectSlug }: { task: Task; projectSlug: string }) {
           <p className="text-on-surface font-medium truncate">
             {task.spec && (
               <span className="text-primary">
-                {formatSpecName(task.spec.href.split("/").pop() || "")}:{" "}
+                {formatSpecName(task.spec.name)}:{" "}
               </span>
             )}
             {task.title}
