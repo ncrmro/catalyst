@@ -16,13 +16,51 @@ import type {
 import { GitHubProvider } from "../../providers/github/provider";
 
 /**
+ * Create a mock VCS provider for testing without real environment dependencies
+ */
+function createMockProvider(id: ProviderId = "github"): VCSProvider {
+  return {
+    id,
+    name: "Mock Provider",
+    iconName: "github",
+    authenticate: vi.fn().mockResolvedValue({
+      providerId: id,
+      raw: {},
+    } as AuthenticatedClient),
+    validateConfig: vi.fn(),
+    checkConnection: vi.fn(),
+    listUserRepositories: vi.fn(),
+    listUserOrganizations: vi.fn(),
+    listOrgRepositories: vi.fn(),
+    getRepository: vi.fn(),
+    getFileContent: vi.fn(),
+    getDirectoryContent: vi.fn(),
+    createBranch: vi.fn(),
+    updateFile: vi.fn(),
+    listPullRequests: vi.fn(),
+    getPullRequest: vi.fn(),
+    createPullRequest: vi.fn(),
+    listPullRequestReviews: vi.fn(),
+    listPRComments: vi.fn(),
+    createPRComment: vi.fn(),
+    updatePRComment: vi.fn(),
+    deletePRComment: vi.fn(),
+    getCIStatus: vi.fn(),
+    listIssues: vi.fn(),
+    listBranches: vi.fn(),
+    verifyWebhookSignature: vi.fn(),
+    parseWebhookEvent: vi.fn(),
+  };
+}
+
+/**
  * Helper function to create a basic VCSProviderConfig for testing
  */
 function createTestConfig(
   overrides: Partial<VCSProviderConfig> = {},
 ): VCSProviderConfig {
   return {
-    providers: [new GitHubProvider()],
+    providers: [createMockProvider()],
     getTokenData: vi.fn(),
     refreshToken: vi.fn(),
     storeTokenData: vi.fn(),
@@ -97,6 +135,68 @@ describe("VCSProviderSingleton", () => {
       VCSProviderSingleton.reset();
 
       expect(() => initializeSingleton()).not.toThrow();
+    });
+
+    it("should throw error when no providers are specified", () => {
+      expect(() =>
+        VCSProviderSingleton.initialize({
+          providers: [],
+          getTokenData: vi.fn(),
+          refreshToken: vi.fn(),
+          storeTokenData: vi.fn(),
+        }),
+      ).toThrow("At least one provider must be specified");
+    });
+
+    it("should call validateConfig on each provider during initialization", () => {
+      const mockProvider = createMockProvider();
+      const validateConfig = vi.fn();
+      mockProvider.validateConfig = validateConfig;
+
+      VCSProviderSingleton.initialize({
+        providers: [mockProvider],
+        getTokenData: vi.fn(),
+        refreshToken: vi.fn(),
+        storeTokenData: vi.fn(),
+      });
+
+      expect(validateConfig).toHaveBeenCalledTimes(1);
+    });
+
+    it("should propagate validation errors from providers", () => {
+      const mockProvider = createMockProvider();
+      mockProvider.validateConfig = vi
+        .fn()
+        .mockImplementation(() => {
+          throw new Error("Provider validation failed: missing config");
+        });
+
+      expect(() =>
+        VCSProviderSingleton.initialize({
+          providers: [mockProvider],
+          getTokenData: vi.fn(),
+          refreshToken: vi.fn(),
+          storeTokenData: vi.fn(),
+        }),
+      ).toThrow("Provider validation failed: missing config");
+    });
+
+    it("should register all providers successfully after validation", () => {
+      const mockProvider1 = createMockProvider("github");
+      const mockProvider2 = createMockProvider("gitlab" as ProviderId);
+
+      VCSProviderSingleton.initialize({
+        providers: [mockProvider1, mockProvider2],
+        getTokenData: vi.fn(),
+        refreshToken: vi.fn(),
+        storeTokenData: vi.fn(),
+      });
+
+      const vcs = VCSProviderSingleton.getInstance();
+
+      // Both providers should be accessible via getScoped
+      expect(() => vcs.getScoped("user-123", "github")).not.toThrow();
+      expect(() => vcs.getScoped("user-123", "gitlab")).not.toThrow();
     });
   });
 

@@ -217,10 +217,8 @@ export class VCSProviderSingleton {
     }
 
     for (const provider of config.providers) {
-      // Validate provider configuration if it has a validateConfig method
-      if ("validateConfig" in provider && typeof provider.validateConfig === "function") {
-        provider.validateConfig();
-      }
+      // Validate provider configuration
+      provider.validateConfig();
       providerRegistry.register(provider);
     }
 
