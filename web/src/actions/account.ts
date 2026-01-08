@@ -7,7 +7,7 @@
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { githubUserTokens } from "@/db/schema";
-import { getGitHubTokens } from "@/lib/vcs-providers";
+import { getGitHubTokens, isGitHubOAuthConfigured } from "@/lib/vcs-providers";
 import { vcs } from "@/lib/vcs";
 import { eq } from "drizzle-orm";
 
@@ -47,8 +47,7 @@ export async function checkGitHubConnection(): Promise<GitHubConnectionStatus> {
     return { connected: false, error: "Not authenticated" };
   }
 
-  // Import the OAuth configuration checker
-  const { isGitHubOAuthConfigured } = await import("@/lib/vcs-providers");
+  // Check if OAuth credentials are configured
   const oauthConfigured = isGitHubOAuthConfigured();
 
   try {
