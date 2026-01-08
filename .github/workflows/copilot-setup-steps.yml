@@ -82,7 +82,7 @@ jobs:
             ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
 
-      # Copliot setup steps don't respect changing the directory between steps
+      # Copilot setup steps don't respect changing the directory between steps
       - run: |
           cd ./web
           cp .env.example .env
