@@ -85,6 +85,32 @@ const buildGitHubConfig = () => {
 
 export const GITHUB_CONFIG = buildGitHubConfig();
 
+/**
+ * Check if GitHub OAuth credentials are properly configured (not placeholder values)
+ * Used to determine if the GitHub connection feature should be available to users
+ */
+export function isGitHubOAuthConfigured(): boolean {
+  const placeholderPatterns = [
+    "your_github_app_client_id_here",
+    "your_github_app_client_secret_here",
+    "your_app_client_id",
+    "your_app_client_secret",
+    "stub",
+    "",
+  ];
+
+  const clientId = GITHUB_CONFIG.APP_CLIENT_ID || "";
+  const clientSecret = GITHUB_CONFIG.APP_CLIENT_SECRET || "";
+
+  // Check if credentials are missing or are placeholder values
+  const isClientIdInvalid =
+    !clientId || placeholderPatterns.some((pattern) => clientId.includes(pattern));
+  const isClientSecretInvalid =
+    !clientSecret || placeholderPatterns.some((pattern) => clientSecret.includes(pattern));
+
+  return !isClientIdInvalid && !isClientSecretInvalid;
+}
+
 // ============================================================================
 // TOKEN STORAGE & RETRIEVAL
 // ============================================================================

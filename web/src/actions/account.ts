@@ -18,6 +18,7 @@ export interface GitHubConnectionStatus {
   error?: string;
   authMethod?: "oauth" | "pat";
   hasGitHubApp?: boolean;
+  oauthConfigured?: boolean; // Whether OAuth credentials are properly configured
 }
 
 export interface ProviderStatus {
@@ -31,6 +32,7 @@ export interface ProviderStatus {
   available: boolean; // Whether the provider integration is implemented
   authMethod?: "oauth" | "pat";
   hasGitHubApp?: boolean;
+  oauthConfigured?: boolean; // Whether OAuth credentials are properly configured
 }
 
 /**
@@ -44,6 +46,10 @@ export async function checkGitHubConnection(): Promise<GitHubConnectionStatus> {
   if (!session?.user?.id) {
     return { connected: false, error: "Not authenticated" };
   }
+
+  // Import the OAuth configuration checker
+  const { isGitHubOAuthConfigured } = await import("@/lib/vcs-providers");
+  const oauthConfigured = isGitHubOAuthConfigured();
 
   try {
     const scopedVcs = vcs.getScoped(session.user.id, "github");
@@ -60,6 +66,7 @@ export async function checkGitHubConnection(): Promise<GitHubConnectionStatus> {
       error: status.error,
       authMethod: status.authMethod === "app" ? "oauth" : status.authMethod, // Map "app" to "oauth" for UI
       hasGitHubApp,
+      oauthConfigured,
     };
   } catch (error) {
     console.error("GitHub connection check failed:", error);
@@ -69,6 +76,7 @@ export async function checkGitHubConnection(): Promise<GitHubConnectionStatus> {
         error instanceof Error
           ? error.message
           : "Failed to verify GitHub connection",
+      oauthConfigured,
     };
   }
 }
@@ -92,6 +100,7 @@ export async function getProviderStatuses(): Promise<ProviderStatus[]> {
       available: true,
       authMethod: githubStatus.authMethod,
       hasGitHubApp: githubStatus.hasGitHubApp,
+      oauthConfigured: githubStatus.oauthConfigured,
     },
     {
       id: "gitlab",

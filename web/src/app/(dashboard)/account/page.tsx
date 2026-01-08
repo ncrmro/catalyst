@@ -188,9 +188,51 @@ function ProviderCard({
               )}
             </div>
           ) : provider.available ? (
-            <p className="text-sm text-on-surface-variant mt-1">
-              {provider.error || "Not connected"}
-            </p>
+            <>
+              <p className="text-sm text-on-surface-variant mt-1">
+                {provider.error || "Not connected"}
+              </p>
+              {/* Show configuration notice for GitHub when OAuth is not configured */}
+              {provider.id === "github" && provider.oauthConfigured === false && (
+                <div className="mt-3 p-3 rounded-lg bg-warning/10 border border-warning/20">
+                  <div className="flex gap-2">
+                    <svg
+                      className="w-5 h-5 text-warning flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                      />
+                    </svg>
+                    <div className="text-xs text-on-surface-variant">
+                      <p className="font-medium text-warning mb-1">
+                        Configuration Required
+                      </p>
+                      <p className="mb-2">
+                        GitHub OAuth credentials are not configured. Please set the
+                        following environment variables:
+                      </p>
+                      <ul className="list-disc list-inside space-y-1 font-mono text-xs">
+                        <li>GITHUB_APP_CLIENT_ID</li>
+                        <li>GITHUB_APP_CLIENT_SECRET</li>
+                      </ul>
+                      <p className="mt-2">
+                        See{" "}
+                        <code className="px-1 py-0.5 rounded bg-surface-variant">
+                          .env.example
+                        </code>{" "}
+                        for details.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <p className="text-sm text-on-surface-variant/70 mt-1">
               Integration coming soon
@@ -209,7 +251,10 @@ function ProviderCard({
                 Disconnect
               </button>
             ) : (
-              <ConnectProviderButton providerId={provider.id} />
+              <ConnectProviderButton
+                providerId={provider.id}
+                disabled={provider.oauthConfigured === false}
+              />
             )}
           </div>
         )}
