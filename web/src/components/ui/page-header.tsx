@@ -35,10 +35,16 @@ export interface PageHeaderProps {
  * ```
  */
 export function PageHeader({ breadcrumbs, action, children }: PageHeaderProps) {
-  // Get parent link (first item with href) for mobile back button
-  const parentItem = breadcrumbs.find((item) => item.href);
+  const hasBreadcrumbs = breadcrumbs.length > 0;
+  // Get parent link (nearest previous item with href) for mobile back button
+  const parentItem = hasBreadcrumbs
+    ? breadcrumbs
+        .slice(0, -1)
+        .reverse()
+        .find((item) => item.href)
+    : undefined;
   // Get current page (last item) for mobile title
-  const currentItem = breadcrumbs[breadcrumbs.length - 1];
+  const currentItem = hasBreadcrumbs ? breadcrumbs[breadcrumbs.length - 1] : undefined;
 
   return (
     <GlassCard>
