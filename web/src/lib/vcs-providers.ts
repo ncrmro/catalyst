@@ -550,6 +550,9 @@ registerTokenStatusChecker(async (userId: string) => {
 export { _VCSProviderSingleton as VCSProviderSingleton };
 
 export {
+  // Provider classes for explicit registration
+  GitHubProvider,
+
   // GitHub API fetchers (still used in specialized areas)
   getGitHubAccessToken,
   fetchPullRequests,

@@ -30,6 +30,9 @@ export type {
 export { VCSProviderSingleton } from "./vcs-provider";
 export type { VCSProviderConfig } from "./vcs-provider";
 
+// Export provider classes for explicit registration
+export { GitHubProvider } from "./providers/github/provider";
+
 // 3. GitHub Specific Exports (Still needed by the web app for now)
 // TODO: Refactor web app to use the Singleton for these operations
 export {
