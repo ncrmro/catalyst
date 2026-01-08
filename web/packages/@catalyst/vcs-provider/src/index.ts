@@ -8,6 +8,10 @@
  * to avoid circular dependencies with @/db.
  */
 
+// Import providers to trigger their registration
+// This ensures providers register themselves with the providerRegistry
+import "./providers/github/provider";
+
 // 1. Export core types
 export type {
   ProviderId,
