@@ -126,6 +126,7 @@ export function RepoSearch({
       <div className="relative">
         <input
           type="text"
+          data-testid="repo-search"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);

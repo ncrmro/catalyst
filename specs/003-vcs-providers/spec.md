@@ -4,6 +4,35 @@
 
 Integrating with Version Control System (VCS) providers is essential to create a unified and streamlined development lifecycle. By connecting directly with the platforms where code lives (GitHub, Gitea, GitLab), we reduce context switching, automate administrative overhead (like team management), and unlock advanced capabilities like AI-driven development workflows. This integration allows the platform to serve as a central hub for coding, project management, and automated assistance.
 
+## User Story: Automatic Token Refresh (COMPLETED)
+
+**As a developer**, I want refresh tokens to automatically be handled without me having to think about it in each action, API route, or service call.
+
+**Why:** Currently, developers must manually check token expiration and refresh tokens before each VCS operation. This leads to duplicated refresh logic, inconsistent error handling, and complexity.
+
+**What:** A singleton **VCSProviderSingleton** facade that:
+- Automatically checks token expiration before any VCS operation
+- Refreshes tokens transparently when needed
+- Uses a callback pattern to remain provider-agnostic
+- Provides namespaced operations (`issues`, `repos`, `pullRequests`)
+- Handles concurrency to prevent multiple refresh calls
+- Validates environment variables on startup
+
+**Implementation Details:**
+- **Location:** `@catalyst/vcs-provider` package
+- **Schema:** `@tetrastack/backend` (connection_tokens table)
+- **Security:** `@tetrastack/backend` (AES-256-GCM encryption)
+
+**Completed Acceptance Criteria:**
+- [x] `VCSProviderSingleton` facade implemented with automatic token management
+- [x] Scoped instances (`getScoped`) for cleaner API usage
+- [x] `connection_tokens` schema created in `@tetrastack/backend` (Postgres & SQLite)
+- [x] Security utilities (`encrypt`/`decrypt`) centralized in `@tetrastack/backend`
+- [x] Automatic token refresh 5 minutes before expiration
+- [x] Comprehensive unit test suite covering refresh, concurrency, and validation
+- [x] Provider-agnostic design supporting GitHub (with extensibility for GitLab/Bitbucket)
+- [x] README.md and AGENTS.md updated with `VCSProviderSingleton` usage examples
+
 ## What
 
 This specification outlines the integration with major VCS providers, specifically **GitHub**, **Gitea**, and **GitLab**, with a strong emphasis on supporting **self-hosted** instances.

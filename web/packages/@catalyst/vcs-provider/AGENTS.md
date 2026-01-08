@@ -6,12 +6,54 @@ This document provides guidance for AI agents working with the `@catalyst/vcs-pr
 
 The VCS provider package abstracts version control system APIs (GitHub, GitLab, Bitbucket) behind a unified interface. It handles:
 
-- Authentication and token management
+- Authentication and automatic token management
 - Repository content operations (read files, list directories)
 - Pull request and issue management
 - Deployment comments and status updates
 
+## Dependencies
+
+- **@tetrastack/backend**: Provides the database schema (`connection_tokens`) and security utilities (`encrypt`, `decrypt`) required for token storage.
+- **@octokit/rest**: GitHub API client.
+
 ## Key Patterns
+
+### 0. Use VCSProviderSingleton for Automatic Token Management (NEW)
+
+**ALWAYS** use the `VCSProviderSingleton` facade for all VCS operations. It handles authentication, token refresh, and provider routing automatically.
+
+```typescript
+import { VCSProviderSingleton } from "@catalyst/vcs-provider";
+
+// 1. Initialize once at application startup
+VCSProviderSingleton.initialize({
+  getTokenData: async (id, provider) => db.getTokens(id, provider),
+  refreshToken: async (token, provider) => oauth.refresh(token, provider),
+  storeTokenData: async (id, tokens, provider) =>
+    db.saveTokens(id, tokens, provider),
+});
+
+// 2. Use in actions - scoped instance is recommended
+export async function myAction() {
+  const session = await auth();
+
+  // Get a bound instance for this user and GitHub
+  const vcs = VCSProviderSingleton.getInstance().getScoped(
+    session.user.id,
+    "github",
+  );
+
+  // No manual refresh needed!
+  const prs = await vcs.pullRequests.list("owner", "repo");
+}
+```
+
+**Benefits:**
+
+- Unified interface for GitHub, GitLab, etc.
+- No manual `refreshTokenIfNeeded()` or `getUserOctokit()` calls
+- Automatic concurrency protection for token refreshes
+- Scoped instances for cleaner code
 
 ### 1. Import from the Barrel File
 

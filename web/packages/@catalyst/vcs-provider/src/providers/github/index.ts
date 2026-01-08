@@ -2,6 +2,10 @@
  * GitHub Provider
  *
  * Complete GitHub VCS provider implementation.
+ *
+ * NOTE: Token management functions (storeGitHubTokens, getGitHubTokens, etc.)
+ * are NOT exported from this package. They live in web/src/lib/vcs-providers.ts
+ * to avoid circular dependencies with @/db.
  */
 
 // Export the provider class
@@ -13,37 +17,25 @@ export {
   getUserOctokit,
   getInstallationOctokit,
   getAllInstallations,
-  fetchPullRequests, // Renamed from fetchRealPullRequests
-  fetchIssues, // Renamed from fetchRealIssues
+  fetchPullRequests,
+  fetchIssues,
   fetchPullRequestById,
   fetchCIStatus,
   fetchUserRepositoryPullRequests,
   isGitHubTokenError,
   determinePRPriority,
   determinePRStatus,
+  // Token getter registration for dependency injection
+  registerTokenGetter,
+  registerTokenStatusChecker,
 } from "./client";
-export type { EnrichedPullRequest, EnrichedIssue } from "./client";
-
-// Export auth utilities
-export {
-  exchangeRefreshToken,
-  exchangeAuthorizationCode,
-  generateAuthorizationUrl,
-} from "./auth";
-
-// Export token management
-export {
-  storeGitHubTokens,
-  getGitHubTokens,
-  deleteGitHubTokens,
-} from "./token-service";
-export type { GitHubTokens } from "./token-service";
-
-export {
-  refreshTokenIfNeeded,
-  invalidateTokens,
-  areTokensValid,
-} from "./token-refresh";
+export type {
+  EnrichedPullRequest,
+  EnrichedIssue,
+  GitHubTokenResult,
+  TokenGetter,
+  TokenStatusChecker,
+} from "./client";
 
 // Export PR comment utilities
 export {

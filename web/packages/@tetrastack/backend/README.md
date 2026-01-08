@@ -23,7 +23,14 @@ This package exports Drizzle ORM schemas that you must import into your applicat
 // src/db/schema.ts
 import { sqlite } from "@tetrastack/backend/database";
 
-const { users, accounts, sessions, verificationTokens, uploads } = sqlite;
+const {
+  users,
+  accounts,
+  sessions,
+  verificationTokens,
+  uploads,
+  connectionTokens,
+} = sqlite;
 
 // Combine with your own tables if needed
 export const schema = {
@@ -32,7 +39,33 @@ export const schema = {
   sessions,
   verificationTokens,
   uploads,
+  connectionTokens,
 };
+```
+
+## Security & Encryption
+
+This package provides utilities for encrypting sensitive data (like OAuth tokens) using AES-256-GCM.
+
+### Configuration
+
+Set the `TOKEN_ENCRYPTION_KEY` environment variable with a 32-byte hex string.
+
+```bash
+# Generate a key
+openssl rand -hex 32
+```
+
+### Usage
+
+```typescript
+import { encrypt, decrypt } from "@tetrastack/backend/utils";
+
+// Encrypt
+const { encryptedData, iv, authTag } = encrypt("sensitive-token");
+
+// Decrypt
+const token = decrypt(encryptedData, iv, authTag);
 ```
 
 ## Authentication
