@@ -529,6 +529,11 @@ This delivers the core value proposition: automatic preview deployments with pub
   - Delete `web/src/lib/k8s-operator.ts`
   - Delete `web/src/lib/k8s-pods.ts`
   - Delete `web/src/lib/k8s-namespaces.ts`
+- [ ] T146 Implement Web<->Operator Contract Test
+  - Create `web/__tests__/integration/k8s-environment-cr.test.ts`
+  - Test CR creation with correct `spec.sources`
+  - Test Status polling by simulating Operator updates to the CR
+  - Verify Web App handles "Building" -> "Ready" transitions correctly
 
 **Checkpoint**: Web UI shows real, live data from the cluster
 

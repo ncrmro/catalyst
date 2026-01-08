@@ -144,6 +144,17 @@ This plan covers the `@catalyst/kubernetes-client` package. The operator is a se
      - Added `name` field to `EnvironmentSource`.
    - **Impact**: Operator logic must now iterate over `sources` when reconciling builds and deployments.
 
+**7. Testing Strategy**
+   - **Unit Tests**: Coverage for helper logic (Namespace generation, URL generation).
+   - **Integration Tests (Web)**:
+     - **Goal**: Verify the contract between Web App and Operator.
+     - **Scenario**:
+       1. Call `createPreviewDeployment`.
+       2. Verify `Environment` CR exists with correct `spec.sources`.
+       3. *Simulate Operator*: Patch `Environment.Status` to `{ phase: "Ready", url: "..." }`.
+       4. Verify `getPreviewDeploymentStatusFull` returns "Ready" and the correct URL.
+   - **End-to-End Tests**: Full cluster tests (Kind/K3s) running both Web App and Operator are deferred to the Operator repo's CI.
+
 ### Deferred
 
 - **True interactive terminal** - Requires WebSocket support
