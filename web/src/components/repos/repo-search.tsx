@@ -121,7 +121,7 @@ export function RepoSearch({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="repo-dropdown">
       {/* Search Input */}
       <div className="relative">
         <input
@@ -132,6 +132,7 @@ export function RepoSearch({
             setShowAll(false); // Reset expansion on search
           }}
           placeholder={placeholder}
+          data-testid="repo-search"
           className="w-full pl-9 pr-3 py-2 border border-outline/50 rounded-lg bg-surface text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
         />
         <svg
