@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@/auth";
-import { getVCSClient, getProvider } from "@/lib/vcs-providers";
+import { vcs } from "@/lib/vcs";
 
 export interface CreateBranchParams {
   owner: string;
@@ -37,11 +37,8 @@ export async function createBranch(params: CreateBranchParams) {
     throw new Error("Unauthorized");
   }
 
-  const client = await getVCSClient(session.user.id);
-  const provider = getProvider(client.providerId);
-
-  const result = await provider.createBranch(
-    client,
+  const scopedVcs = vcs.getScoped(session.user.id);
+  const result = await scopedVcs.branches.create(
     params.owner,
     params.repo,
     params.name,
@@ -60,11 +57,8 @@ export async function createPullRequest(params: CreatePullRequestParams) {
     throw new Error("Unauthorized");
   }
 
-  const client = await getVCSClient(session.user.id);
-  const provider = getProvider(client.providerId);
-
-  const result = await provider.createPullRequest(
-    client,
+  const scopedVcs = vcs.getScoped(session.user.id);
+  const result = await scopedVcs.pullRequests.create(
     params.owner,
     params.repo,
     params.title,
@@ -85,11 +79,8 @@ export async function updateFile(params: UpdateFileParams) {
     throw new Error("Unauthorized");
   }
 
-  const client = await getVCSClient(session.user.id);
-  const provider = getProvider(client.providerId);
-
-  const result = await provider.updateFile(
-    client,
+  const scopedVcs = vcs.getScoped(session.user.id);
+  const result = await scopedVcs.files.update(
     params.owner,
     params.repo,
     params.path,

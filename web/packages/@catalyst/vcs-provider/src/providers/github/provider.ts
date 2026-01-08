@@ -152,6 +152,24 @@ export class GitHubProvider implements VCSProvider {
   }
 
   /**
+   * List organizations for the authenticated user
+   */
+  async listUserOrganizations(
+    client: AuthenticatedClient,
+  ): Promise<Array<{ login: string; id: string; avatarUrl: string }>> {
+    const octokit = client.raw as Octokit;
+    const { data: orgs } = await octokit.rest.orgs.listForAuthenticatedUser({
+      per_page: 100,
+    });
+
+    return orgs.map((org) => ({
+      login: org.login,
+      id: String(org.id),
+      avatarUrl: org.avatar_url,
+    }));
+  }
+
+  /**
    * List repositories for the authenticated user
    */
   async listUserRepositories(

@@ -178,6 +178,7 @@ export interface VCSProvider {
   checkConnection(userId: string): Promise<ConnectionStatus>;
   storeTokens(userId: string, tokens: TokenData): Promise<void>;
   refreshTokensIfNeeded(userId: string): Promise<TokenData | null>;
+  listUserOrganizations(client: AuthenticatedClient): Promise<Array<{ login: string; id: string; avatarUrl: string }>>;
 
   /**
    * Validate provider configuration (environment variables, etc.)

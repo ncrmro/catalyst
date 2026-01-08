@@ -9,18 +9,10 @@
 import { auth } from "@/auth";
 import { PullRequest } from "@/types/reports";
 import { getMockPullRequests } from "@/mocks/github";
-import {
-  refreshTokenIfNeeded,
-  invalidateTokens,
-  getUserOctokit,
-  fetchPullRequests, // Changed from fetchRealPullRequests
-  fetchUserRepositoryPullRequests,
-  isGitHubTokenError,
-  GITHUB_CONFIG,
-} from "@/lib/vcs-providers";
+import { vcs } from "@/lib/vcs";
 
 /**
- * GitHub provider - fetches real pull requests from GitHub API using GitHub App tokens or PAT
+ * GitHub provider - fetches real pull requests from GitHub API using Singleton
  * Gets user's repositories and then fetches open pull requests from them
  */
 async function fetchGitHubPullRequests(): Promise<{
@@ -33,54 +25,63 @@ async function fetchGitHubPullRequests(): Promise<{
     throw new Error("No authenticated user found for fetching pull requests");
   }
 
-  // Determine auth method for logging
+  // Singleton handles auth method (PAT vs App) transparently
+  // We just need to know for logging/UI purposes
   const isPATAllowed =
     process.env.NODE_ENV !== "production" ||
     process.env.GITHUB_ALLOW_PAT_FALLBACK === "true";
-  let authMethod: "github-app" | "pat" | "none" = "none";
+  let authMethod: "github-app" | "pat" | "none" = "github-app";
 
-  if (isPATAllowed && GITHUB_CONFIG.PAT) {
-    console.log("Using GitHub Personal Access Token for pull requests");
+  if (isPATAllowed && process.env.GITHUB_PAT) {
     authMethod = "pat";
-  } else {
-    authMethod = "github-app";
   }
 
   try {
-    // Get authenticated Octokit instance with session management
-    const octokit = await getUserOctokit(session.user.id);
+    const scopedVcs = vcs.getScoped(session.user.id);
 
-    // Call core function to fetch user repository PRs
-    const pullRequests = await fetchUserRepositoryPullRequests(octokit);
+    // Get user's repositories
+    const repos = await scopedVcs.repos.listUser();
+
+    // Fetch pull requests from each repository in parallel
+    const prPromises = repos.map(async (repo) => {
+      try {
+        const prs = await scopedVcs.pullRequests.list(repo.owner, repo.name, {
+          state: "open",
+        });
+        return prs.map((pr) => ({
+          id: parseInt(pr.id),
+          title: pr.title,
+          number: pr.number,
+          author: pr.author,
+          author_avatar: pr.authorAvatarUrl || "",
+          repository: repo.name,
+          url: pr.htmlUrl,
+          created_at: pr.createdAt.toISOString(),
+          updated_at: pr.updatedAt.toISOString(),
+          comments_count: 0, // Singleton doesn't return this yet
+          priority: "medium" as const, // Singleton doesn't return this yet
+          status: pr.draft ? ("draft" as const) : ("ready" as const),
+        }));
+      } catch (error) {
+        console.warn(`Could not fetch PRs for ${repo.fullName}:`, error);
+        return [];
+      }
+    });
+
+    const prResults = await Promise.all(prPromises);
+    const pullRequests = prResults.flat();
 
     return { pullRequests, authMethod };
   } catch (error) {
-    // Handle potential token errors
-    if (isGitHubTokenError(error)) {
-      console.error("Token error during pull request fetch:", error);
-      // Only invalidate tokens if using GitHub App auth (not PAT)
-      if (authMethod === "github-app") {
-        await invalidateTokens(session.user.id);
-      }
-    } else {
-      console.error("Error fetching GitHub pull requests:", error);
-    }
-    return { pullRequests: [], authMethod };
+    console.error("Error fetching GitHub pull requests via Singleton:", error);
+    return { pullRequests: [], authMethod: "none" };
   }
 }
 
 /**
  * gitfoobar provider - placeholder provider that returns empty array
- * This acts as a placeholder for future git providers
- *
- * DOCUMENTATION: This is a placeholder git provider called "gitfoobar" that
- * always returns an empty array of pull requests. It serves as a template
- * for future git provider integrations and demonstrates the multi-provider
- * architecture of the pull requests system.
  */
 async function fetchGitFoobarPullRequests(): Promise<PullRequest[]> {
-  // This is a placeholder provider that returns no pull requests
-  // In the future, this could be replaced with actual integration to another git provider
   console.log("gitfoobar provider: returning empty pull requests array");
   return [];
 }
@@ -96,21 +97,13 @@ export interface PullRequestsResult {
  * Combines results from GitHub and gitfoobar providers
  */
 export async function fetchUserPullRequestsWithTokenStatus(): Promise<PullRequestsResult> {
-  // Check if we should return mocked data (using same env var as GitHub repos)
+  // Check if we should return mocked data
   const mocked = process.env.MOCKED === "1";
 
-  console.log(
-    "Environment check - MOCKED:",
-    mocked,
-    "GITHUB_REPOS_MODE:",
-    GITHUB_CONFIG.REPOS_MODE,
-  );
-
-  if (GITHUB_CONFIG.REPOS_MODE === "mocked" || mocked) {
-    console.log("Returning mocked pull requests data");
+  if (process.env.GITHUB_REPOS_MODE === "mocked" || mocked) {
     return {
       pullRequests: getMockPullRequests(),
-      hasGitHubToken: true, // Assume we have token in mocked mode
+      hasGitHubToken: true,
       authMethod: "github-app" as const,
     };
   }
@@ -121,26 +114,11 @@ export async function fetchUserPullRequestsWithTokenStatus(): Promise<PullReques
     throw new Error("No authenticated user found");
   }
 
-  // Refresh tokens before checking status to ensure valid GitHub access
-  let refreshedTokens = null;
   try {
-    refreshedTokens = await refreshTokenIfNeeded(session.user.id);
-  } catch (error) {
-    console.error(
-      "Failed to refresh tokens before fetching pull requests:",
-      error,
-    );
-    // Continue anyway - getUserOctokit will attempt refresh again
-  }
+    // Check connection via Singleton
+    const scopedVcs = vcs.getScoped(session.user.id);
+    const connection = await scopedVcs.checkConnection();
 
-  // Check for PAT first (if allowed), then GitHub App tokens
-  const isPATAllowed =
-    process.env.NODE_ENV !== "production" ||
-    process.env.GITHUB_ALLOW_PAT_FALLBACK === "true";
-  const hasGitHubToken =
-    (isPATAllowed && !!GITHUB_CONFIG.PAT) || !!refreshedTokens;
-
-  try {
     // Fetch from all providers in parallel
     const [githubResult, gitfoobarPrs] = await Promise.all([
       fetchGitHubPullRequests(),
@@ -155,14 +133,14 @@ export async function fetchUserPullRequestsWithTokenStatus(): Promise<PullReques
         (a, b) =>
           new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
       ),
-      hasGitHubToken,
+      hasGitHubToken: connection.connected,
       authMethod: githubResult.authMethod,
     };
   } catch (error) {
     console.error("Error fetching user pull requests:", error);
     return {
       pullRequests: [],
-      hasGitHubToken,
+      hasGitHubToken: false,
       authMethod: "none" as const,
     };
   }
@@ -175,7 +153,6 @@ export async function fetchUserPullRequests(): Promise<PullRequest[]> {
 
 /**
  * Fetch pull requests from specific repositories using session-based authentication
- * Uses GitHub App user tokens from database with PAT fallback
  */
 export async function fetchPullRequestsFromRepos(
   repositories: string[],
@@ -186,19 +163,37 @@ export async function fetchPullRequestsFromRepos(
     throw new Error("No authenticated user found");
   }
 
-  const userId = session.user.id;
+  const scopedVcs = vcs.getScoped(session.user.id);
 
-  // Refresh tokens before fetching pull requests to ensure valid GitHub access
-  try {
-    await refreshTokenIfNeeded(userId);
-  } catch (error) {
-    console.error(
-      "Failed to refresh tokens before fetching pull requests:",
-      error,
-    );
-    // Continue anyway - getUserOctokit will attempt refresh again
-  }
+  // Fetch from each specified repository in parallel
+  const prPromises = repositories.map(async (repoFullName) => {
+    try {
+      const [owner, repoName] = repoFullName.split("/");
+      if (!owner || !repoName) return [];
 
-  // Call core function with authenticated instance
-  return await fetchPullRequests(userId, repositories);
+      const prs = await scopedVcs.pullRequests.list(owner, repoName, {
+        state: "open",
+      });
+      return prs.map((pr) => ({
+        id: parseInt(pr.id),
+        title: pr.title,
+        number: pr.number,
+        author: pr.author,
+        author_avatar: pr.authorAvatarUrl || "",
+        repository: repoName,
+        url: pr.htmlUrl,
+        created_at: pr.createdAt.toISOString(),
+        updated_at: pr.updatedAt.toISOString(),
+        comments_count: 0,
+        priority: "medium" as const,
+        status: pr.draft ? ("draft" as const) : ("ready" as const),
+      }));
+    } catch (error) {
+      console.warn(`Could not fetch PRs for ${repoFullName}:`, error);
+      return [];
+    }
+  });
+
+  const results = await Promise.all(prPromises);
+  return results.flat();
 }

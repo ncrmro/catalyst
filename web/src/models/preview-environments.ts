@@ -581,7 +581,7 @@ import {
 import {
   upsertDeploymentComment,
   deleteDeploymentComment,
-} from "@/lib/vcs-providers";
+} from "@/lib/vcs/comments";
 import {
   previewLogger,
   logPreviewLifecycleEvent,

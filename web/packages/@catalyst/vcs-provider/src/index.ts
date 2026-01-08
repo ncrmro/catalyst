@@ -4,7 +4,7 @@
  * Version Control System provider abstraction for multi-provider support.
  */
 
-// Export all types
+// 1. Export core types
 export type {
   ProviderId,
   ConnectionStatus,
@@ -22,16 +22,14 @@ export type {
   VCSProvider,
 } from "./types";
 
-// Export provider registry
-export { ProviderRegistry, providerRegistry } from "./provider-registry";
+// 2. VCS Provider Singleton - The primary entry point
+export { VCSProviderSingleton } from "./vcs-provider";
+export type { VCSProviderConfig } from "./vcs-provider";
 
-// Re-export GitHub provider
-export { GitHubProvider } from "./providers/github";
+// 3. GitHub Specific Exports (Still needed by the web app for now)
+// TODO: Refactor web app to use the Singleton for these operations
 export {
   GITHUB_CONFIG,
-  getUserOctokit,
-  getInstallationOctokit,
-  getAllInstallations,
   getGitHubAccessToken,
   fetchPullRequests,
   fetchIssues,
@@ -42,77 +40,38 @@ export {
   determinePRPriority,
   determinePRStatus,
 } from "./providers/github/client";
+
 export type {
   EnrichedPullRequest,
   EnrichedIssue,
   GitHubTokenResult,
 } from "./providers/github/client";
+
+// Token management (needed for Singleton initialization)
 export {
   refreshTokenIfNeeded,
   invalidateTokens,
   areTokensValid,
 } from "./providers/github/token-refresh";
+
 export {
   storeGitHubTokens,
   getGitHubTokens,
   deleteGitHubTokens,
 } from "./providers/github/token-service";
+
 export {
   exchangeRefreshToken,
   exchangeAuthorizationCode,
   generateAuthorizationUrl,
   fetchGitHubUser,
 } from "./providers/github/auth";
+
 export type { GitHubUserProfile } from "./providers/github/auth";
+
+// Comment management
 export {
   formatDeploymentComment,
   upsertDeploymentComment,
   deleteDeploymentComment,
 } from "./providers/github/comments";
-
-// VCS Provider Singleton - Comprehensive facade for all VCS operations
-export { VCSProviderSingleton } from "./vcs-provider";
-export type { VCSProviderConfig } from "./vcs-provider";
-
-import type { ProviderId, AuthenticatedClient } from "./types";
-import { providerRegistry } from "./provider-registry";
-
-/**
- * Get an authenticated VCS client for a user
- *
- * @param userId - The user ID to authenticate
- * @param providerId - Optional provider ID (defaults to the default provider)
- * @returns Authenticated client for the specified provider
- */
-export async function getVCSClient(
-  userId: string,
-  providerId?: ProviderId,
-): Promise<AuthenticatedClient> {
-  const provider = providerId
-    ? providerRegistry.get(providerId)
-    : providerRegistry.getDefault();
-
-  if (!provider) {
-    throw new Error(`VCS provider '${providerId}' not found`);
-  }
-
-  return provider.authenticate(userId);
-}
-
-/**
- * Get a VCS provider by ID
- */
-export function getProvider(providerId: ProviderId) {
-  const provider = providerRegistry.get(providerId);
-  if (!provider) {
-    throw new Error(`VCS provider '${providerId}' not found`);
-  }
-  return provider;
-}
-
-/**
- * Get all registered VCS providers
- */
-export function getAllProviders() {
-  return providerRegistry.getAll();
-}

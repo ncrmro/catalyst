@@ -9,8 +9,8 @@ import { githubUserTokens, users } from "@/db/schema";
 import {
   exchangeAuthorizationCode,
   fetchGitHubUser,
-  storeGitHubTokens,
-} from "@/lib/vcs-providers";
+} from "@/lib/vcs/auth";
+import { storeGitHubTokens } from "@/lib/vcs/token";
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 

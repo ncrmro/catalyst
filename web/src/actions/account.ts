@@ -7,7 +7,8 @@
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { githubUserTokens } from "@/db/schema";
-import { getGitHubTokens, providerRegistry } from "@/lib/vcs-providers";
+import { getGitHubTokens } from "@/lib/vcs/token";
+import { vcs } from "@/lib/vcs";
 import { eq } from "drizzle-orm";
 
 export interface GitHubConnectionStatus {
@@ -40,9 +41,13 @@ export interface ProviderStatus {
 export async function checkGitHubConnection(): Promise<GitHubConnectionStatus> {
   const session = await auth();
 
+  if (!session?.user?.id) {
+    return { connected: false, error: "Not authenticated" };
+  }
+
   try {
-    const provider = providerRegistry.getDefault();
-    const status = await provider.checkConnection(session.user.id);
+    const scopedVcs = vcs.getScoped(session.user.id, "github");
+    const status = await scopedVcs.checkConnection();
 
     // Check if GitHub App is installed by looking for installationId
     const tokens = await getGitHubTokens(session.user.id);
@@ -127,6 +132,10 @@ export interface GitHubAppInstallationStatus {
  */
 export async function checkGitHubAppInstallation(): Promise<GitHubAppInstallationStatus> {
   const session = await auth();
+
+  if (!session?.user?.id) {
+    return { hasAppInstalled: false, connected: false };
+  }
 
   try {
     const tokenRecord = await db

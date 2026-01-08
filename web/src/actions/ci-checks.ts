@@ -8,7 +8,7 @@
 
 import { auth } from "@/auth";
 import { fetchProjectById } from "./projects";
-import { getVCSClient, getProvider } from "@/lib/vcs-providers";
+import { vcs } from "@/lib/vcs";
 import type { CIStatusSummary } from "@/lib/types/ci-checks";
 
 /**
@@ -41,14 +41,12 @@ export async function getCIStatus(
       return null;
     }
 
-    // Call provider function via generic interface
-    const client = await getVCSClient(session.user.id);
-    const provider = getProvider(client.providerId);
+    // Call provider function via generic singleton
+    const scopedVcs = vcs.getScoped(session.user.id);
 
     // Cast result to match local type definition if needed,
     // though ideally types should be shared or mapped
-    return (await provider.getCIStatus(
-      client,
+    return (await scopedVcs.pullRequests.getCIStatus(
       owner,
       repoName,
       prNumber,

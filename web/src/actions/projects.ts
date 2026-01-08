@@ -8,14 +8,10 @@ import { getProjects } from "@/models/projects";
 import { auth } from "@/auth";
 import { getUserTeamIds } from "@/lib/team-auth";
 import {
-  fetchPullRequests,
-  fetchIssues,
-  fetchPullRequestById,
-  getVCSClient,
-  getProvider,
+  type Branch,
 } from "@/lib/vcs-providers";
 import type { PullRequest, Issue } from "@/types/reports";
-import { Branch } from "@/lib/vcs-providers";
+import { vcs } from "@/lib/vcs";
 import { db } from "@/db";
 import { pullRequestPods } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -147,24 +143,51 @@ export async function fetchProjectPullRequests(
       return [];
     }
 
-    // Extract repositories from the project data
-    const repositories = project.repositories.map((relation) => ({
-      id: relation.repo.githubId,
-      name: relation.repo.name,
-      full_name: relation.repo.fullName,
-      url: relation.repo.url,
-    }));
-
-    // Fetch real pull requests from GitHub API
-    console.log("Fetching real pull requests for project", project.slug);
     const session = await auth();
     const userId = session?.user?.id;
     if (!userId) {
       console.warn("No user ID found for fetching project pull requests");
       return [];
     }
-    const repoNames = repositories.map((r) => r.full_name);
-    const prs = await fetchPullRequests(userId, repoNames);
+
+    const scopedVcs = vcs.getScoped(userId);
+    const prPromises = project.repositories.map(async (relation) => {
+      try {
+        const [owner, repoName] = relation.repo.fullName.split("/");
+        if (!owner || !repoName) return [];
+
+        const prs = await scopedVcs.pullRequests.list(owner, repoName, {
+          state: "open",
+        });
+
+        // Convert to PullRequest type and enrich with required fields that might be missing
+        return prs.map((pr) => ({
+          id: parseInt(pr.id),
+          title: pr.title,
+          number: pr.number,
+          author: pr.author,
+          author_avatar: pr.authorAvatarUrl || "",
+          repository: repoName,
+          url: pr.htmlUrl,
+          created_at: pr.createdAt.toISOString(),
+          updated_at: pr.updatedAt.toISOString(),
+          comments_count: 0, // Not available in list
+          priority: "medium" as const, // Not available in list
+          status: pr.draft ? ("draft" as const) : ("ready" as const),
+          headBranch: pr.headRef,
+          headSha: pr.headSha,
+        }));
+      } catch (error) {
+        console.warn(
+          `Could not fetch PRs for ${relation.repo.fullName}:`,
+          error,
+        );
+        return [];
+      }
+    });
+
+    const prResults = await Promise.all(prPromises);
+    const prs = prResults.flat();
 
     // Enrich PRs with preview environment data
     return enrichPullRequestsWithPreviewEnvs(prs);
@@ -181,7 +204,8 @@ async function enrichPullRequestsWithPreviewEnvs(
   prs: PullRequest[],
 ): Promise<PullRequest[]> {
   // Fetch all preview environments for these repositories
-
+  // Optimization: In the future, we could filter by repo/branch if needed
+  // but for now, fetching all PR pods is likely fine as the table shouldn't be huge
   const previewEnvs = await db
     .select({
       id: pullRequestPods.id,
@@ -240,24 +264,48 @@ export async function fetchProjectIssues(projectId: string): Promise<Issue[]> {
       return [];
     }
 
-    // Extract repositories from the project data
-    const repositories = project.repositories.map((relation) => ({
-      id: relation.repo.githubId,
-      name: relation.repo.name,
-      full_name: relation.repo.fullName,
-      url: relation.repo.url,
-    }));
-
-    // Fetch real issues from GitHub API
-    console.log("Fetching real issues for project", project.slug);
     const session = await auth();
     const userId = session?.user?.id;
     if (!userId) {
       console.warn("No user ID found for fetching project issues");
       return [];
     }
-    const repoNames = repositories.map((r) => r.full_name);
-    return await fetchIssues(userId, repoNames);
+
+    const scopedVcs = vcs.getScoped(userId);
+    const issuePromises = project.repositories.map(async (relation) => {
+      try {
+        const [owner, repoName] = relation.repo.fullName.split("/");
+        if (!owner || !repoName) return [];
+
+        const issues = await scopedVcs.issues.list(owner, repoName, {
+          state: "open",
+        });
+
+        return issues.map((issue) => ({
+          id: parseInt(issue.id),
+          title: issue.title,
+          number: issue.number,
+          repository: repoName,
+          url: issue.htmlUrl,
+          created_at: issue.createdAt.toISOString(),
+          updated_at: issue.updatedAt.toISOString(),
+          labels: issue.labels,
+          priority: "medium" as const, // Not available
+          effort_estimate: "medium" as const, // Not available
+          type: "improvement" as const, // Not available
+          state: issue.state,
+        }));
+      } catch (error) {
+        console.warn(
+          `Could not fetch issues for ${relation.repo.fullName}:`,
+          error,
+        );
+        return [];
+      }
+    });
+
+    const results = await Promise.all(issuePromises);
+    return results.flat();
   } catch (error) {
     console.error("Error fetching project issues:", error);
     return [];
@@ -282,16 +330,14 @@ export async function fetchProjectBranches(
       return [];
     }
 
-    const client = await getVCSClient(userId);
-    const provider = getProvider(client.providerId);
-
+    const scopedVcs = vcs.getScoped(userId);
     const allBranches: Branch[] = [];
 
     for (const relation of project.repositories) {
       const [owner, repoName] = relation.repo.fullName.split("/");
       if (!owner || !repoName) continue;
 
-      const branches = await provider.listBranches(client, owner, repoName);
+      const branches = await scopedVcs.branches.list(owner, repoName);
       allBranches.push(...branches);
     }
 
@@ -334,13 +380,32 @@ export async function getPullRequest(
       return null;
     }
 
-    const pr = await fetchPullRequestById(userId, owner, repoName, prNumber);
+    const scopedVcs = vcs.getScoped(userId);
+    const pr = await scopedVcs.pullRequests.get(owner, repoName, prNumber);
 
     if (!pr) {
       return null;
     }
 
-    const expectedBranchName = `pr-${pr.repository}-${pr.number}`;
+    const enrichedPR: PullRequest = {
+      id: parseInt(pr.id),
+      title: pr.title,
+      number: pr.number,
+      author: pr.author,
+      author_avatar: pr.authorAvatarUrl || "",
+      repository: repoName,
+      url: pr.htmlUrl,
+      created_at: pr.createdAt.toISOString(),
+      updated_at: pr.updatedAt.toISOString(),
+      comments_count: 0, // Not available
+      priority: "medium", // Not available
+      status: pr.draft ? "draft" : "ready",
+      body: pr.body || undefined,
+      headBranch: pr.headRef,
+      headSha: pr.headSha,
+    };
+
+    const expectedBranchName = `pr-${enrichedPR.repository}-${enrichedPR.number}`;
     // Fetch preview environment if exists
     const previewEnv = await db.query.pullRequestPods.findFirst({
       where: and(
@@ -353,7 +418,7 @@ export async function getPullRequest(
     });
 
     return {
-      ...pr,
+      ...enrichedPR,
       previewEnvironmentId: previewEnv?.id,
       previewUrl: previewEnv?.publicUrl ?? undefined,
       previewStatus: previewEnv?.status,
