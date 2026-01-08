@@ -12,7 +12,7 @@ name: "Copilot Setup Steps"
 #
 # Supported test suites:
 # - Unit tests: npm run test:unit
-# - Component tests: npm run test:components  
+# - Component tests: npm run test:components
 # - Integration tests: npm run test:integration (133/135 tests pass)
 # - E2E tests: npm run test:e2e
 #

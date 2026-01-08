@@ -36,6 +36,9 @@ npm run test:integration -- __tests__/integration/environment-url-access.test.ts
 - ✅ Environment URL access tests (gracefully skips when CRD not available)
 
 **Known Limitations (2/135):**
+- ⚠️ `k8s-preview-deployment.test.ts`: "should watch deployment until ready"
+  - Timing/test ordering issue where deployment is deleted before watching completes
+  - Not an infrastructure issue, can be fixed with test refactoring
 - ⚠️ `k8s-pull-request-pod-docker-build.test.ts`: Requires Docker buildx with Kubernetes driver
   - This test validates Docker-in-Kubernetes builds with buildx
   - Requires pods to access the Kubernetes API and create builder deployments
