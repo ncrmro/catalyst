@@ -2,6 +2,10 @@
  * @catalyst/vcs-provider
  *
  * Version Control System provider abstraction for multi-provider support.
+ *
+ * NOTE: Token management functions (storeGitHubTokens, getGitHubTokens, etc.)
+ * are NOT exported from this package. They live in web/src/lib/vcs-providers.ts
+ * to avoid circular dependencies with @/db.
  */
 
 // 1. Export core types
@@ -39,35 +43,20 @@ export {
   isGitHubTokenError,
   determinePRPriority,
   determinePRStatus,
+  // Token getter registration for dependency injection
+  registerTokenGetter,
+  registerTokenStatusChecker,
+  // GitHub App management
+  getAllInstallations,
 } from "./providers/github/client";
 
 export type {
   EnrichedPullRequest,
   EnrichedIssue,
   GitHubTokenResult,
+  TokenGetter,
+  TokenStatusChecker,
 } from "./providers/github/client";
-
-// Token management (needed for Singleton initialization)
-export {
-  refreshTokenIfNeeded,
-  invalidateTokens,
-  areTokensValid,
-} from "./providers/github/token-refresh";
-
-export {
-  storeGitHubTokens,
-  getGitHubTokens,
-  deleteGitHubTokens,
-} from "./providers/github/token-service";
-
-export {
-  exchangeRefreshToken,
-  exchangeAuthorizationCode,
-  generateAuthorizationUrl,
-  fetchGitHubUser,
-} from "./providers/github/auth";
-
-export type { GitHubUserProfile } from "./providers/github/auth";
 
 // Comment management
 export {

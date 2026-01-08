@@ -53,7 +53,15 @@ function mapToGitHubRepo(repo: Repository): GitHubRepo {
  * Fetch real GitHub repositories for the current user and organizations
  */
 async function fetchRealGitHubRepos(): Promise<
-  ReposData | { github_integration_enabled: false; reason: string }
+  | ReposData
+  | {
+      github_integration_enabled: false;
+      reason:
+        | "error"
+        | "no_access_token"
+        | "token_expired"
+        | "permission_denied";
+    }
 > {
   const session = await auth();
 
@@ -79,7 +87,10 @@ async function fetchRealGitHubRepos(): Promise<
           const repos = await scopedVcs.repos.listOrg(org.login);
           orgRepos[org.login] = repos.map((r) => ({
             ...mapToGitHubRepo(r),
-            owner: { ...mapToGitHubRepo(r).owner, type: "Organization" as const },
+            owner: {
+              ...mapToGitHubRepo(r).owner,
+              type: "Organization" as const,
+            },
           }));
         } catch (error) {
           console.warn(`Could not fetch repos for org ${org.login}:`, error);

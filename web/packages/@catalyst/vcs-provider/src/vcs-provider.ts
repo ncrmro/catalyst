@@ -466,6 +466,19 @@ export class ScopedVCSProvider {
     private providerId: ProviderId,
   ) {}
 
+  /**
+   * Check the connection status for this scoped provider
+   */
+  async checkConnection(): Promise<import("./types").ConnectionStatus> {
+    return this.provider.execute(
+      this.tokenSourceId,
+      this.providerId,
+      async (vcsProvider) => {
+        return vcsProvider.checkConnection(this.tokenSourceId);
+      },
+    );
+  }
+
   public get issues() {
     return {
       get: (owner: string, repo: string, issueNumber: number) =>
@@ -585,6 +598,11 @@ export class ScopedVCSProvider {
         this.provider.repos.listUser(this.tokenSourceId, this.providerId),
       listOrg: (org: string) =>
         this.provider.repos.listOrg(this.tokenSourceId, this.providerId, org),
+      listUserOrganizations: () =>
+        this.provider.repos.listUserOrganizations(
+          this.tokenSourceId,
+          this.providerId,
+        ),
     };
   }
 
@@ -884,6 +902,19 @@ class RepositoryOperations {
       providerId,
       (vcsProvider, client) => {
         return vcsProvider.listOrgRepositories(client, org);
+      },
+    );
+  }
+
+  async listUserOrganizations(
+    tokenSourceId: string,
+    providerId: ProviderId,
+  ): Promise<Array<{ login: string; id: string; avatarUrl: string }>> {
+    return this.provider.execute(
+      tokenSourceId,
+      providerId,
+      (vcsProvider, client) => {
+        return vcsProvider.listUserOrganizations(client);
       },
     );
   }

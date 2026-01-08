@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ProviderRegistry } from "../../provider-registry";
-import { getVCSClient } from "../../index";
 import type {
   VCSProvider,
   FileContent,
@@ -27,10 +26,9 @@ class MockProvider implements VCSProvider {
 
   authenticate: any;
   checkConnection = vi.fn().mockResolvedValue({ connected: true });
-  storeTokens = vi.fn().mockResolvedValue(undefined);
-  refreshTokensIfNeeded = vi.fn().mockResolvedValue(null);
 
   listUserRepositories = vi.fn().mockResolvedValue([]);
+  listUserOrganizations = vi.fn().mockResolvedValue([]);
   listOrgRepositories = vi.fn().mockResolvedValue([]);
   getRepository = vi.fn().mockImplementation(async (_client, owner, repo) => ({
     id: "1",
@@ -133,50 +131,6 @@ describe("VCS Provider Registry", () => {
   it("should throw error when setting default to unregistered provider", () => {
     expect(() => registry.setDefault("bitbucket")).toThrow(
       "Provider 'bitbucket' not registered",
-    );
-  });
-});
-
-describe("getVCSClient", () => {
-  // We need to mock the exported providerRegistry instance from the module
-  // depending on how it's used. Since getVCSClient uses the exported singleton,
-  // we might need to manipulate that singleton or mock the module.
-  // Ideally, for unit testing `getVCSClient` in isolation without side effects,
-  // we should be able to inject the registry, but the API doesn't allow it.
-
-  // A simpler approach for this specific codebase structure where a singleton is exported:
-  // We can just rely on the side-effects if we run tests sequentially or mock the module.
-
-  // Let's mock the module 'provider-registry' to return our test registry if possible,
-  // or just register our mocks into the actual singleton and clean up.
-  // Using the actual singleton is easier here given the simple state.
-
-  it("should return authenticated client for default provider", async () => {
-    // Import the actual singleton to register our mock
-    const { providerRegistry } = await import("../../provider-registry");
-    const mockProvider = new MockProvider("github", "GitHub");
-    providerRegistry.register(mockProvider);
-
-    const client = await getVCSClient("user-123");
-
-    expect(client).toBeDefined();
-    expect(mockProvider.authenticate).toHaveBeenCalledWith("user-123");
-  });
-
-  it("should return authenticated client for specific provider", async () => {
-    const { providerRegistry } = await import("../../provider-registry");
-    const mockProvider = new MockProvider("gitlab", "GitLab");
-    providerRegistry.register(mockProvider);
-
-    const client = await getVCSClient("user-456", "gitlab");
-
-    expect(client).toBeDefined();
-    expect(mockProvider.authenticate).toHaveBeenCalledWith("user-456");
-  });
-
-  it("should throw error for non-existent provider", async () => {
-    await expect(getVCSClient("user-789", "bitbucket")).rejects.toThrow(
-      "VCS provider 'bitbucket' not found",
     );
   });
 });

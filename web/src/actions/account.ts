@@ -7,7 +7,7 @@
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { githubUserTokens } from "@/db/schema";
-import { getGitHubTokens } from "@/lib/vcs/token";
+import { getGitHubTokens } from "@/lib/vcs-providers";
 import { vcs } from "@/lib/vcs";
 import { eq } from "drizzle-orm";
 

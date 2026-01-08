@@ -4,7 +4,6 @@
  * Server actions for fetching project specifications from repository
  */
 
-import { auth } from "@/auth";
 import { fetchProjectById } from "@/actions/projects";
 import { listDirectory } from "@/actions/version-control-provider";
 import { updateFile } from "@/actions/vcs";

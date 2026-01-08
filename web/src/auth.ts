@@ -193,7 +193,7 @@ export const {
           token.accessToken &&
           token.refreshToken
         ) {
-          const { storeGitHubTokens } = await import("@/lib/vcs/token");
+          const { storeGitHubTokens } = await import("@/lib/vcs-providers");
 
           // Calculate expiration time (8 hours for GitHub App tokens)
           const expiresAt = new Date();
@@ -209,7 +209,8 @@ export const {
           // Not a fresh signin - check if we need to refresh GitHub tokens
           // This runs on every session access to keep tokens fresh
           try {
-            const { refreshTokenIfNeeded } = await import("@/lib/vcs/refresh");
+            const { refreshTokenIfNeeded } =
+              await import("@/lib/vcs-providers");
             const refreshedTokens = await refreshTokenIfNeeded(existingUser.id);
 
             // If tokens were refreshed, update the JWT token
@@ -249,7 +250,7 @@ export const {
           token.accessToken &&
           token.refreshToken
         ) {
-          const { storeGitHubTokens } = await import("@/lib/vcs/token");
+          const { storeGitHubTokens } = await import("@/lib/vcs-providers");
 
           // Calculate expiration time (8 hours for GitHub App tokens)
           const expiresAt = new Date();

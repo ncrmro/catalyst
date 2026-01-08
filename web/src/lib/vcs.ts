@@ -1,7 +1,16 @@
-import { VCSProviderSingleton } from "@/lib/vcs-providers";
-import { getGitHubTokens, storeGitHubTokens } from "@/lib/vcs/token";
-import { exchangeRefreshToken } from "@/lib/vcs/auth";
-import "@/lib/vcs/config"; // Import to validate environment variables
+/**
+ * VCS Provider Singleton Initialization
+ *
+ * This file initializes the VCS Provider Singleton with the necessary callbacks
+ * for token management. Import this file to use the `vcs` singleton instance.
+ */
+
+import {
+  VCSProviderSingleton,
+  getGitHubTokens,
+  storeGitHubTokens,
+  exchangeRefreshToken,
+} from "@/lib/vcs-providers";
 
 // Initialize the VCS Provider Singleton
 // This should be done once, typically in a file like this that is imported by actions

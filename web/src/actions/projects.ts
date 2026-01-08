@@ -7,9 +7,7 @@
 import { getProjects } from "@/models/projects";
 import { auth } from "@/auth";
 import { getUserTeamIds } from "@/lib/team-auth";
-import {
-  type Branch,
-} from "@/lib/vcs-providers";
+import { type Branch } from "@/lib/vcs-providers";
 import type { PullRequest, Issue } from "@/types/reports";
 import { vcs } from "@/lib/vcs";
 import { db } from "@/db";

@@ -71,12 +71,15 @@ export interface PullRequest {
   id: string;
   number: number;
   title: string;
+  body?: string;
   state: "open" | "closed" | "merged";
   draft: boolean;
   author: string;
   authorAvatarUrl?: string;
   sourceBranch: string;
   targetBranch: string;
+  headRef?: string;
+  headSha?: string;
   htmlUrl: string;
   createdAt: Date;
   updatedAt: Date;
@@ -176,9 +179,9 @@ export interface VCSProvider {
   // Authentication
   authenticate(userId: string): Promise<AuthenticatedClient>;
   checkConnection(userId: string): Promise<ConnectionStatus>;
-  storeTokens(userId: string, tokens: TokenData): Promise<void>;
-  refreshTokensIfNeeded(userId: string): Promise<TokenData | null>;
-  listUserOrganizations(client: AuthenticatedClient): Promise<Array<{ login: string; id: string; avatarUrl: string }>>;
+  listUserOrganizations(
+    client: AuthenticatedClient,
+  ): Promise<Array<{ login: string; id: string; avatarUrl: string }>>;
 
   /**
    * Validate provider configuration (environment variables, etc.)
