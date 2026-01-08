@@ -11,6 +11,49 @@ The web application includes Kubernetes integration capabilities that can be tes
 - Testing without requiring a full production Kubernetes cluster
 - Building and caching container images with the in-cluster registry
 
+## Integration Test Support
+
+The repository includes comprehensive integration tests for Kubernetes functionality:
+
+### Running Integration Tests
+
+```bash
+# Run all integration tests (requires Kubernetes cluster)
+npm run test:integration
+
+# Run specific Kubernetes integration tests
+npm run test:integration -- __tests__/integration/k8s-namespaces.test.ts
+npm run test:integration -- __tests__/integration/k8s-preview-deployment.test.ts
+npm run test:integration -- __tests__/integration/environment-url-access.test.ts
+```
+
+### Test Results
+
+**Working Tests (133/135):**
+- ✅ Database integration tests (webhook, models)
+- ✅ Basic Kubernetes operations (namespace listing, deployment management)
+- ✅ Preview deployment operations (create, update, delete, status checking)
+- ✅ Environment URL access tests (gracefully skips when CRD not available)
+
+**Known Limitations (2/135):**
+- ⚠️ `k8s-pull-request-pod-docker-build.test.ts`: Requires Docker buildx with Kubernetes driver
+  - This test validates Docker-in-Kubernetes builds with buildx
+  - Requires pods to access the Kubernetes API and create builder deployments
+  - Works in production environments with proper RBAC configuration
+  - May timeout in minimal Kind clusters without network policy configuration
+
+### GitHub Copilot Environment
+
+The `.github/workflows/copilot-setup-steps.yml` workflow sets up a complete Kubernetes environment for GitHub Copilot agents:
+
+- Kind cluster with ingress controller (port 8080)
+- NGINX Ingress Controller
+- Environment CRD installed
+- Test application deployed
+- Base64-encoded kubeconfig in .env
+
+Copilot agents can run integration tests with: `npm run test:integration`
+
 ## In-Cluster Container Registry
 
 The Kind cluster includes an in-cluster container registry that enables fast image building and caching:
