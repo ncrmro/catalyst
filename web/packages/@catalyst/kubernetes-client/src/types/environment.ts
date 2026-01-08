@@ -28,6 +28,8 @@ export interface ProjectReference {
  * Source configuration for the environment
  */
 export interface EnvironmentSource {
+  /** Name identifies the component (matches Project.Sources[].Name) */
+  name: string;
   /** Git commit SHA to deploy */
   commitSha: string;
   /** Branch name */
@@ -75,6 +77,28 @@ export type EnvironmentPhase =
   | "Failed";
 
 /**
+ * Ingress TLS configuration
+ */
+export interface IngressTLSConfig {
+  /** Enabled controls whether to enable TLS */
+  enabled: boolean;
+  /** Issuer is the cert-manager ClusterIssuer name */
+  issuer?: string;
+}
+
+/**
+ * Ingress configuration for exposing the environment
+ */
+export interface IngressConfig {
+  /** Enabled controls whether to create an Ingress resource */
+  enabled: boolean;
+  /** Host is the hostname for the ingress */
+  host?: string;
+  /** TLS configuration for HTTPS */
+  tls?: IngressTLSConfig;
+}
+
+/**
  * EnvironmentSpec defines the desired state of Environment
  */
 export interface EnvironmentSpec {
@@ -84,10 +108,12 @@ export interface EnvironmentSpec {
   type: EnvironmentType;
   /** Deployment mode: "production", "development", or "workspace" (default) */
   deploymentMode?: DeploymentMode;
-  /** Source configuration */
-  source: EnvironmentSource;
+  /** Sources configuration for this specific environment */
+  sources: EnvironmentSource[];
   /** Configuration overrides */
   config?: EnvironmentConfig;
+  /** Ingress configuration for exposing the environment */
+  ingress?: IngressConfig;
 }
 
 /**

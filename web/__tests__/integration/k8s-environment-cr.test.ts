@@ -18,12 +18,16 @@ import {
   getClusterConfig,
   type Environment,
 } from "@catalyst/kubernetes-client";
-import { AppsV1Api, CoreV1Api, CustomObjectsApi } from "@kubernetes/client-node";
+import {
+  AppsV1Api,
+  CoreV1Api,
+  CustomObjectsApi,
+} from "@kubernetes/client-node";
 
 describe("Web <-> Operator Contract Integration", () => {
   const testNamespace = "default"; // CRs live in default or catalyst-system
   const testEnvName = `test-integration-${Date.now()}`;
-  
+
   // Test data
   const testProject = "test-project";
   const testRepo = "test-repo";
@@ -47,44 +51,52 @@ describe("Web <-> Operator Contract Integration", () => {
   afterAll(async () => {
     // Cleanup: Delete the test CR
     try {
-      await client.delete(testNamespace, testEnvName);
+      await client.delete(testEnvName, testNamespace);
       console.log(`Deleted test environment: ${testEnvName}`);
     } catch (error) {
-      console.warn(`Cleanup failed for ${testEnvName} (might not exist):`, error);
+      console.warn(
+        `Cleanup failed for ${testEnvName} (might not exist):`,
+        error,
+      );
     }
   });
 
   it("should create an Environment CR with the correct spec", async () => {
     // Act: Create the CR
-    const result = await client.create(testNamespace, {
-      metadata: {
-        name: testEnvName,
-        labels: {
-          "catalyst.dev/test": "true",
-          "catalyst.dev/project": testProject,
-        }
-      },
-      spec: {
-        projectRef: { name: testProject },
-        type: "development",
-        // New Array Structure for Sources
-        sources: [
-          {
-            name: "main",
-            commitSha: testCommit,
-            branch: testBranch,
-            prNumber: testPrNumber,
-          }
-        ],
-        config: {
-          envVars: [{ name: "TEST_MODE", value: "true" }]
+    const result = await client.create(
+      {
+        apiVersion: "catalyst.catalyst.dev/v1alpha1",
+        kind: "Environment",
+        metadata: {
+          name: testEnvName,
+          labels: {
+            "catalyst.dev/test": "true",
+            "catalyst.dev/project": testProject,
+          },
         },
-        ingress: {
-          enabled: true,
-          host: `${testEnvName}.test.local`
-        }
-      }
-    });
+        spec: {
+          projectRef: { name: testProject },
+          type: "development",
+          // New Array Structure for Sources
+          sources: [
+            {
+              name: "main",
+              commitSha: testCommit,
+              branch: testBranch,
+              prNumber: testPrNumber,
+            },
+          ],
+          config: {
+            envVars: [{ name: "TEST_MODE", value: "true" }],
+          },
+          ingress: {
+            enabled: true,
+            host: `${testEnvName}.test.local`,
+          },
+        },
+      },
+      testNamespace,
+    );
 
     // Assert: Check the returned object
     expect(result.metadata.name).toBe(testEnvName);
@@ -94,13 +106,13 @@ describe("Web <-> Operator Contract Integration", () => {
     expect(result.spec.sources[0].name).toBe("main");
 
     // Verify directly via raw CustomObjectsApi to ensure no client-side masking
-    const rawCr = await customApi.getNamespacedCustomObject(
-      "catalyst.catalyst.dev",
-      "v1alpha1",
-      testNamespace,
-      "environments",
-      testEnvName
-    ) as { spec: any };
+    const rawCr = (await customApi.getNamespacedCustomObject({
+      group: "catalyst.catalyst.dev",
+      version: "v1alpha1",
+      namespace: testNamespace,
+      plural: "environments",
+      name: testEnvName,
+    })) as { spec: { sources: Array<{ commitSha: string }> } };
 
     expect(rawCr.spec.sources[0].commitSha).toBe(testCommit);
   });
@@ -118,63 +130,69 @@ describe("Web <-> Operator Contract Integration", () => {
             status: "True",
             lastTransitionTime: new Date().toISOString(),
             reason: "IntegrationTest",
-            message: "Simulated readiness"
-          }
-        ]
-      }
+            message: "Simulated readiness",
+          },
+        ],
+      },
     };
 
     // Use raw API to patch status subresource
-    await customApi.patchNamespacedCustomObjectStatus(
-      "catalyst.catalyst.dev",
-      "v1alpha1",
-      testNamespace,
-      "environments",
-      testEnvName,
-      statusPatch,
-      undefined,
-      "application/merge-patch+json"
-    );
+    await customApi.patchNamespacedCustomObjectStatus({
+      group: "catalyst.catalyst.dev",
+      version: "v1alpha1",
+      namespace: testNamespace,
+      plural: "environments",
+      name: testEnvName,
+      body: statusPatch,
+    });
 
     // Act: Fetch using our Client
-    const updatedEnv = await client.get(testNamespace, testEnvName);
+    const updatedEnv = await client.get(testEnvName, testNamespace);
 
     // Assert: Verify client sees the new status
-    expect(updatedEnv.status).toBeDefined();
-    expect(updatedEnv.status?.phase).toBe("Ready");
-    expect(updatedEnv.status?.url).toBe(`https://${testEnvName}.test.local`);
-    expect(updatedEnv.status?.conditions).toHaveLength(1);
+    expect(updatedEnv).not.toBeNull();
+    expect(updatedEnv!.status).toBeDefined();
+    expect(updatedEnv!.status?.phase).toBe("Ready");
+    expect(updatedEnv!.status?.url).toBe(`https://${testEnvName}.test.local`);
+    expect(updatedEnv!.status?.conditions).toHaveLength(1);
   });
 
   it("should handle multi-source configuration", async () => {
     // Act: Update with multiple sources (e.g. frontend + backend)
     const multiSourceEnvName = `${testEnvName}-multi`;
-    
-    const result = await client.create(testNamespace, {
-      metadata: { name: multiSourceEnvName },
-      spec: {
-        projectRef: { name: testProject },
-        type: "development",
-        sources: [
-          {
-            name: "frontend",
-            commitSha: "sha-frontend",
-            branch: "main"
-          },
-          {
-            name: "backend",
-            commitSha: "sha-backend",
-            branch: "main"
-          }
-        ]
-      }
-    });
+
+    const result = await client.create(
+      {
+        apiVersion: "catalyst.catalyst.dev/v1alpha1",
+        kind: "Environment",
+        metadata: { name: multiSourceEnvName },
+        spec: {
+          projectRef: { name: testProject },
+          type: "development",
+          sources: [
+            {
+              name: "frontend",
+              commitSha: "sha-frontend",
+              branch: "main",
+            },
+            {
+              name: "backend",
+              commitSha: "sha-backend",
+              branch: "main",
+            },
+          ],
+        },
+      },
+      testNamespace,
+    );
 
     expect(result.spec.sources).toHaveLength(2);
-    expect(result.spec.sources.find(s => s.name === "frontend")).toBeDefined();
-    expect(result.spec.sources.find(s => s.name === "backend")).toBeDefined();
+    expect(
+      result.spec.sources.find((s) => s.name === "frontend"),
+    ).toBeDefined();
+    expect(result.spec.sources.find((s) => s.name === "backend")).toBeDefined();
 
     // Cleanup
-    await client.delete(testNamespace, multiSourceEnvName);
+    await client.delete(multiSourceEnvName, testNamespace);
   });
 });
