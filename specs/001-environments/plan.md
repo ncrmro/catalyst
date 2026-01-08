@@ -1,251 +1,322 @@
-# Implementation Plan: [FR-ENV-002] Local URL Testing
+# 001-environments Implementation Plan
 
-**Branch**: `001-environments` | **Date**: 2025-12-28 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `/specs/001-environments/spec.md`
+## Overview
 
-## Summary
+Kubernetes functionality is split across two packages:
 
-Implement local URL testing for development environments using hostname-based routing via `*.localhost` (e.g., `http://namespace.localhost:8080/`) alongside the existing Cloudflare proxy integration. This ensures agents and developers can access and test preview environments in offline, rootless local setups without public DNS dependencies. Modern browsers automatically resolve `*.localhost` to `127.0.0.1`, maintaining parity with production hostname-based routing patterns.
+1. **@catalyst/kubernetes-client** (`/web/packages/catalyst-kubernetes-client`) - TypeScript client for Catalyst CRDs and pod operations
+2. **kube-operator** (`/operator`) - Kubernetes operator handling environment lifecycle
 
-The Operator must now distinguish between 'managed' deployments (where it creates Deployment/Service) and 'helm' deployments (where it only creates Ingress for routing). This ensures Ingress policies (like local hostname-based routing) are applied regardless of how the app is deployed.
+This plan covers the `@catalyst/kubernetes-client` package. The operator is a separate implementation effort with its own [spec](../../operator/spec.md).
 
-## Technical Context
+## Related Research
 
-**Language/Version**: TypeScript 5.3 (Web), Go 1.21 (Operator)
-**Primary Dependencies**: `ingress-nginx` (Kubernetes), `@catalyst/kubernetes-client` (Web)
-**Storage**: Kubernetes CRDs (Environment status), PostgreSQL (Web app state)
-**Testing**: Vitest (Unit), Playwright (E2E), Go Test (Operator)
-**Target Platform**: Linux/K3s (Local), Kubernetes (Production)
-**Project Type**: Web application + Kubernetes Operator
-**Performance Goals**: <50ms routing overhead
-**Constraints**: Must work offline, rootless, and without manual host file edits
-**Scale/Scope**: Support 10+ concurrent local preview environments
+- [research.web-terminal.md](./research.web-terminal.md) - Web terminal implementation approaches (WebSocket, SSE, polling, custom servers)
 
-## Constitution Check
+## Current Status
 
-_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
+### Implemented
 
-- [x] **Agentic-First Design**: Local URLs are deterministic and machine-accessible (localhost:port/path).
-- [x] **Fast Feedback Loops**: Enables testing without full internet round-trip or DNS propagation.
-- [x] **Deployment Portability**: Uses standard NGINX Ingress, compatible with standard K8s.
-- [x] **Security by Default**: No new secrets; leverages existing cluster security.
-- [x] **Test-Driven Quality**: Feature explicitly enables Playwright testing of preview envs.
-- [x] **Layered Architecture**: Updates restricted to Operator (Ingress gen) and Web (display).
+- **@catalyst/kubernetes-client package** - Complete with:
+  - Environment CR operations (CRUD, watch with auto-reconnection)
+  - Pod operations (list, logs, metrics)
+  - Exec/shell functionality (command execution)
+  - Multi-cluster KubeConfig support
+  - Dynamic ESM loading for @kubernetes/client-node
 
-## Project Structure
+- **Terminal UI component** - `web/src/components/terminal.tsx` using xterm.js
+  - Command-by-command execution via server actions
+  - Fully integrated with `exec` from `@catalyst/kubernetes-client`
 
-### Documentation (this feature)
+- **Exec server action** - `web/src/actions/pod-exec.ts`
+  - Executes commands in pod containers using new client package
 
-```text
-specs/001-environments/
-├── plan.md              # This file
-├── research.md          # Consolidated research decision
-├── research.local-url-testing.md # Detailed analysis
-├── data-model.md        # Environment CRD updates
-├── quickstart.md        # Usage guide
-└── tasks.md             # To be created
+### Remaining Integration Work
+
+1. **Package Dependency**:
+   - Add `"@catalyst/kubernetes-client": "workspace:*"` to `web/package.json`
+
+2. **Real Data Integration**:
+   - Update `web/src/actions/preview-environments.ts` to use `@catalyst/kubernetes-client`
+   - Fetch real Pod/Container status in `web/src/app/(dashboard)/projects/[slug]/env/[envSlug]/page.tsx`
+   - Replace `mockContainers` in `EnvironmentDetailView` with real data
+
+3. **Legacy Cleanup**:
+   - Migrate usages of `web/src/lib/k8s-operator.ts` to new client
+   - Delete legacy files:
+     - `web/src/lib/k8s-operator.ts`
+     - `web/src/lib/k8s-pods.ts`
+     - `web/src/lib/k8s-namespaces.ts`
+
+### Operator Implementation Plan
+
+**1. Build Controller Logic (Docker/Auto-detect)**
+   - **Goal**: Build source code into a container image inside the cluster using Kaniko.
+   - **File**: `operator/internal/controller/environment_controller.go` (logic) & `operator/internal/controller/build.go` (resource definitions).
+   - **Workflow**:
+     1. **Check State**: If `Environment.Status.Phase` is empty or "Pending".
+     2. **Check Job**: Look for an existing Job named `build-<project>-<commit-short>` in the target namespace.
+     3. **Create Job (if missing)**:
+        - **Image**: `gcr.io/kaniko-project/executor:latest`
+        - **Args**:
+          - `--context=git://github.com/<org>/<repo>.git#<commit-sha>` (Requires git secret if private)
+          - `--destination=registry.cluster.local:5000/<project>:<commit-sha>`
+          - `--dockerfile=Dockerfile` (Default, or from `Project.Spec.Deployment.Path`)
+          - `--insecure` (For internal registry)
+          - `--cache=true` (Speed up builds)
+        - **Resources**: Set reasonable requests/limits (e.g., 1GB RAM).
+     4. **Update Status**: Set `Environment.Status.Phase` to "Building".
+     5. **Watch Job**:
+        - If **Succeeded**: Transition Phase to "Deploying".
+        - If **Failed**: Transition Phase to "Failed" (User must push new commit to retry).
+   - **Job Spec Example**:
+     ```yaml
+     apiVersion: batch/v1
+     kind: Job
+     metadata:
+       name: build-myproj-a1b2c3d
+       namespace: env-myproj-pr-123
+     spec:
+       ttlSecondsAfterFinished: 3600 # Cleanup successful builds
+       template:
+         spec:
+           containers:
+           - name: kaniko
+             image: gcr.io/kaniko-project/executor:latest
+             args:
+             - "--context=git://github.com/org/repo.git#commit-sha"
+             - "--destination=registry.cluster.local:5000/myproj:commit-sha"
+             - "--insecure"
+             env:
+             - name: GIT_TOKEN # If private repo
+               valueFrom: { secretKeyRef: { ... } }
+           restartPolicy: Never
+     ```
+
+**2. Generic Deployment Logic (Docker/Auto-detect)**
+   - **Goal**: Deploy the built image using standard K8s resources.
+   - **File**: `operator/internal/controller/environment_controller.go`
+   - **Logic**:
+     - Once Build Job succeeds, call existing (unused) helpers in `deploy.go`:
+       - `desiredDeployment`: Creates Deployment using the image from step 1.
+       - `desiredService`: Creates ClusterIP service.
+       - `desiredIngress`: Creates Ingress with TLS.
+     - Apply these resources to the target namespace.
+     - Update `Environment.Status.Phase` to "Ready".
+
+**3. Helm Deployment Logic**
+   - **Goal**: Deploy using a Helm chart defined in the repo.
+   - **File**: `operator/internal/controller/environment_controller.go`
+   - **Logic**:
+     - If `Project.Spec.Deployment.Type` is "helm".
+     - Import Helm Go SDK (`helm.sh/helm/v3`).
+     - Create a Helm `ActionConfig` pointed at the target namespace.
+     - Run `RunInstall` or `RunUpgrade`.
+     - Map `Environment.Spec.Config.EnvVars` to Helm values (e.g., `--set env.foo=bar`).
+
+**4. Prerequisites & Security**
+   - **RBAC Permissions**:
+     - Operator needs `create, get, list, watch, delete` on `batch/v1/jobs` to manage builds.
+     - Operator needs `create, get` on `core/v1/secrets` to copy/mount git credentials.
+   - **Secret Management**:
+     - **Git Auth**: The Operator should expect a `git-credentials` Secret in its own namespace (or a referenced Secret in `Project`). It must mount this into the Kaniko pod (via `GIT_TOKEN` env var or `.git-credentials` file).
+     - **Registry Auth**: Since we use `--insecure` for the internal registry, explicit auth config might be skipped for now, but production setups should mount a `docker-config` Secret.
+   - **Network Policy**: The Build Job needs egress access to:
+     - GitHub (to clone source).
+     - Internal Registry (to push image).
+     - *Note*: The `default-deny` policy created for the namespace must allow these.
+
+**5. CI/Job Orchestration (Future/Extension)**
+   - **Goal**: Run user-defined tasks (tests, migrations) within the environment.
+   - **Design**: See `specs/001-environments/research.ci-jobs.md`.
+   - **Implementation**:
+     - Extend `Project` CRD with `jobs: []JobConfig`.
+     - In `EnvironmentReconciler`, check for jobs matching current lifecycle phase (e.g., `PostBuild`).
+     - Create K8s `Job` resources in the environment namespace.
+     - Block/Advance `Environment` phase based on Job success.
+
+**6. Schema Updates (Implemented)**
+   - **Project CRD**: Updated to support multiple sources.
+     - Changed `spec.source` (single) to `spec.sources` (array).
+     - Added `name` field to `SourceConfig` to identify components (e.g., "frontend", "backend").
+   - **Environment CRD**: Updated to match Project structure.
+     - Changed `spec.source` (single) to `spec.sources` (array).
+     - Added `name` field to `EnvironmentSource`.
+   - **Impact**: Operator logic must now iterate over `sources` when reconciling builds and deployments.
+
+### Deferred
+
+- **True interactive terminal** - Requires WebSocket support
+  - Next.js 15 doesn't support WebSocket route handlers natively
+  - `next-ws` package not compatible with Next.js 15
+  - See [research.web-terminal.md](./research.web-terminal.md) for alternatives
+
+## Package Structure
+
 ```
-
-### Source Code (repository root)
-
-```text
-operator/
-├── api/v1alpha1/        # Environment CRD definition
-└── internal/controller/ # Ingress resource generation logic
-
-web/
+web/packages/catalyst-kubernetes-client/
+├── package.json
+├── tsconfig.json
+├── README.md
+├── index.ts                        # Main exports
 └── src/
-    └── components/      # UI updates to show local URLs
+    ├── config.ts                   # KubeConfig, registry, TLS handling
+    ├── loader.ts                   # Dynamic ESM loading for @kubernetes/client-node
+    ├── errors.ts                   # KubernetesError, ExecError, ConnectionError
+    ├── types/
+    │   ├── index.ts
+    │   ├── environment.ts          # Environment CR types (catalyst.catalyst.dev/v1alpha1)
+    │   ├── project.ts              # Project CR types
+    │   └── common.ts               # K8s metadata, conditions, etc.
+    ├── environments/
+    │   ├── index.ts
+    │   ├── client.ts               # get, list, create, update, delete, apply
+    │   └── watcher.ts              # watch with auto-reconnection
+    ├── pods/
+    │   ├── index.ts
+    │   ├── list.ts                 # List pods in namespace
+    │   ├── logs.ts                 # Get/stream pod logs
+    │   └── metrics.ts              # Get pod resource usage
+    ├── exec/
+    │   ├── index.ts
+    │   ├── exec.ts                 # Run command and get result
+    │   ├── shell.ts                # Interactive shell session (WebSocket)
+    │   └── resize.ts               # Terminal resize handling
+    └── namespaces/
+        └── index.ts                # Namespace CRUD with policies
 ```
 
-**Structure Decision**: Standard Operator pattern + Web UI update.
+## API Group
 
-## Complexity Tracking
+All Catalyst CRDs use: `catalyst.catalyst.dev/v1alpha1`
 
-> **Fill ONLY if Constitution Check has violations that must be justified**
+This follows kubebuilder convention: `{group}.{domain}/{version}` where group=`catalyst`, domain=`catalyst.dev`.
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-| --------- | ---------- | ------------------------------------ |
-| N/A       |            |                                      |
+## Rationale
 
----
+### Why a Separate Package?
 
-## [FR-ENV-003/004/005] Self-Deployment & Deployment Modes
+1. **Dependency Isolation**: `@kubernetes/client-node` has ESM/CommonJS compatibility issues. Containing it in one package simplifies workarounds.
 
-### Summary
+2. **Type Safety**: A single package with explicit exports ensures all Kubernetes interactions go through a well-typed API surface.
 
-Enable Catalyst to deploy itself within the local K3s environment with both production and development modes, controlled by the `SEED_SELF_DEPLOY=true` environment flag.
+3. **Focused Testing**: The package can have its own test suite with proper mocking.
 
-### Architecture
+4. **Clean API**: Provides typed interfaces matching Go operator CRD definitions.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  ENV FLAG: SEED_SELF_DEPLOY=true                            │
-└─────────────────────────────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│  SEEDING SCRIPT (web/src/lib/seed.ts)                       │
-│  1. Create Catalyst project in DB                           │
-│  2. Create environment records with deploymentConfig        │
-│  3. Create Environment CRs via k8s-operator.ts              │
-└─────────────────────────────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│  KUBERNETES OPERATOR (operator/)                            │
-│  1. Watch Environment CRs in "default" namespace            │
-│  2. Branch reconciliation by spec.deploymentMode            │
-│  3. Create namespace with resources per mode:               │
-│     - "production": Deployment + Service + Ingress          │
-│     - "development": PVCs + Init containers + Hot-reload    │
-└─────────────────────────────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│  TARGET NAMESPACES                                          │
-│  catalyst-production/  - Production deployment              │
-│  catalyst-dev-local/   - Development with hot-reload        │
-└─────────────────────────────────────────────────────────────┘
-```
+### Why Two Components (Client + Operator)?
 
-### CRD Extension (Gradual Approach)
+1. **Separation of Concerns**: Web app needs read access + exec. Deployment orchestration belongs in the operator.
 
-Add `DeploymentMode` field only for MVP. Store detailed config in DB as JSONB. Operator reads mode and applies hardcoded templates.
+2. **Security Model**: Web app runs with limited permissions. Operator runs with elevated cluster permissions.
 
-```go
-// operator/api/v1alpha1/environment_types.go
-type EnvironmentSpec struct {
-    // ... existing fields ...
+3. **Reliability**: Operator's reconciliation loop handles failures and drift.
 
-    // DeploymentMode: "production" | "development" | "workspace" (default)
-    // +optional
-    DeploymentMode string `json:"deploymentMode,omitempty"`
-}
-```
+4. **Independence**: Operator can be developed, tested, and deployed separately.
 
-### Database Schema Extension
-
-Add `deploymentConfig` JSONB column to `projectEnvironments` table for storing detailed deployment configuration:
+## Usage
 
 ```typescript
-// web/src/db/schema.ts
-deploymentConfig: jsonb("deployment_config").$type<DeploymentConfig>();
+import {
+  createEnvironmentClient,
+  EnvironmentWatcher,
+  getClusterConfig,
+  exec,
+} from "@catalyst/kubernetes-client";
+
+// List environments
+const client = await createEnvironmentClient();
+const envs = await client.list({ namespace: "catalyst-system" });
+
+// Execute command in pod
+const kubeConfig = await getClusterConfig();
+const result = await exec(kubeConfig, {
+  namespace: "pr-123",
+  pod: "app-0",
+  command: ["ls", "-la"],
+});
 ```
 
-### Operator Reconciliation Branching
+## Web App Integration
 
-```go
-// operator/internal/controller/environment_controller.go
-switch env.Spec.DeploymentMode {
-case "development":
-    return r.reconcileDevelopment(ctx, env, targetNamespace)
-case "production":
-    return r.reconcileProduction(ctx, env, targetNamespace)
-default:
-    return r.reconcileWorkspace(ctx, env, targetNamespace)
-}
-```
-
-### Development Mode Resources (Hardcoded Templates)
-
-Based on `.k3s-vm/manifests/base.json`:
-
-```go
-// operator/internal/controller/development_deploy.go
-const (
-    BaseImage       = "node:22"
-    HostPath        = "/code"
-    WorkDir         = "/code/web"
-    PostgresImage   = "postgres:16"
-)
-```
-
-Creates:
-
-1. PVCs: `{namespace}-node-modules` (2Gi), `{namespace}-next-cache` (1Gi)
-2. PostgreSQL: Deployment + Service + PVC
-3. App Deployment: hostPath, init containers (npm-install, db-migrate), hot-reload
-4. Service and Ingress
-
-### Seeding Integration
+The web app uses the package via a re-export:
 
 ```typescript
-// web/src/lib/seed.ts
-if (process.env.SEED_SELF_DEPLOY === "true") {
-  await seedCatalystSelfDeploy(teamId);
-}
+// web/src/lib/kubernetes-client.ts
+export * from "@catalyst/kubernetes-client";
 ```
 
-### Environment Variable Injection
-
-Port `get_web_env_vars()` from `bin/k3s-vm` to TypeScript for consistent env var injection into operator-created pods.
-
----
-
-## [MVP] Preview Environments Without DB Sync
-
-### Summary
-
-For MVP, database sync is disabled in preview environment creation. The system uses Kubernetes API as source of truth for environment status and GitHub API (via VCS provider) for PR data and authentication.
-
-### Rationale
-
-1. **Simplicity**: Avoids complex DB sync logic during initial development
-2. **Source of Truth**: K8s already tracks environment state via Environment CRs
-3. **VCS Provider**: GitHub API provides PR data directly without caching
-
-### Implementation
-
-**Commented out in `web/src/models/preview-environments.ts`:**
-
-- `upsertPullRequestPod` call (line 669)
-- `updatePodStatus` calls (lines 737, 762)
-- Repo/PR/pod DB lookups in `findOrCreateEnvironment` (lines 1478-1551)
-
-**Changes:**
-
-- `pullRequestId` made optional in `CreatePreviewDeploymentParams`
-- `installationId` made optional - uses PAT fallback for local development
-- GitHub comment posting is non-blocking (errors logged, deployment continues)
-- Temporary podId generated for logging: `preview-${prNumber}-${commitSha.slice(0, 7)}`
-
-### GitHub Authentication Fallback
-
-The VCS provider now supports PAT fallback for GitHub API operations:
+And is configured in `next.config.ts`:
 
 ```typescript
-// In @catalyst/vcs-provider/src/providers/github/client.ts
-export async function getOctokitForComments(installationId?: number) {
-  // 1. Use PAT if available (local development)
-  if (isPATAllowed && GITHUB_CONFIG.PAT) {
-    return new Octokit({ auth: GITHUB_CONFIG.PAT });
-  }
-  // 2. Fall back to installation octokit
-  if (installationId) {
-    return getInstallationOctokit(installationId);
-  }
-  throw new Error("No GitHub authentication available");
-}
+transpilePackages: [
+  "@tetrastack/react-glass-components",
+  "@catalyst/kubernetes-client",
+],
 ```
 
-This ensures local development works without GitHub App installation, using `GITHUB_PAT` or `GITHUB_TOKEN` environment variables.
+## Old Code Migration
 
-### Future Work
+The following files in `web/src/lib/` remain for app-specific logic (gradual migration):
 
-All DB operations have TODOs for re-enablement when caching layer is implemented. See Phase 6 in tasks.md.
+| File                        | Status        | Notes                            |
+| --------------------------- | ------------- | -------------------------------- |
+| `k8s-client.ts`             | Keep          | Re-exports new package           |
+| `k8s-namespaces.ts`         | Migrate later | Namespace create/delete logic    |
+| `k8s-pods.ts`               | Migrate later | Pod listing (uses new package)   |
+| `k8s-operator.ts`           | Keep          | Environment CR operations        |
+| `k8s-preview-deployment.ts` | Keep          | Preview deployment orchestration |
+| `k8s-pull-request-pod.ts`   | Keep          | PR pod operations                |
+| `k8s-github-oidc.ts`        | Keep          | GitHub OIDC configuration        |
 
----
+## Success Criteria
 
-## [FR-ENV-006 through FR-ENV-011] Automatic Project Type Detection
+- [x] Environment CR operations in package
+- [x] Pod operations in package
+- [x] Exec functionality in package
+- [x] Terminal UI component with xterm.js
+- [x] Server action for command execution
+- [x] Package integrated into web app
+- [x] TypeCheck and lint passing
+- [ ] Interactive terminal (blocked by Next.js 15 WebSocket support)
+- [ ] Full migration of old k8s-\*.ts files
+- [ ] Integration tests with K3s VM
+- [ ] Verify Namespace naming: `<team>-<project>-<env>` with labels
+- [ ] FR-ENV-001: Graceful handling of missing Kubernetes resources in web UI
 
-See [research.project-detection.md](./research.project-detection.md) for full implementation details including:
+## FR-ENV-001: Graceful Handling of Missing Kubernetes Resources
 
-- Detection module architecture and TypeScript interfaces
-- Node.js/package manager detection logic
-- Monorepo detection patterns (FR-ENV-009)
-- CRD extensions for `spec.devCommand` and `spec.workdir`
-- Failure recovery with `Degraded` status (FR-ENV-010)
-- Override persistence in database (FR-ENV-011)
-- UI integration for detection preview
-- Testing strategy and performance considerations
+### Approach
+
+1. **Create reusable `KubeResourceNotFound` component** (`web/src/components/kube-resource-not-found.tsx`):
+   - Accepts resource type (e.g., "Environment"), resource name, and optional retry callback
+   - Displays clear message that resource was not found in cluster
+   - Lists possible causes (deleted externally, `make reset`, cluster connectivity, operator not reconciled)
+   - Provides retry button to re-fetch from cluster
+
+2. **Update environment page** (`web/src/app/(dashboard)/projects/[slug]/env/[envSlug]/page.tsx`):
+   - Use `KubeResourceNotFound` component when environment CR is not found
+   - Pass resource type and name for context
+
+## Operator Integration
+
+The web application uses a declarative operator-based workflow:
+
+**Web App Responsibilities:**
+
+- Create Environment CRs
+- Read CR status
+- Delete CRs
+- Poll CR status to update database and UI
+- Execute commands in environment pods
+
+**Operator Responsibilities:**
+
+- Define Project and Environment CRDs
+- Handle namespace creation with ResourceQuota and NetworkPolicy
+- Orchestrate Helm and manifest deployments
+- Manage build jobs for PR images
+- Update CR status (phase: Pending → Building → Deploying → Ready)
+- Cleanup on CR deletion (finalizer pattern)
+
+See [Operator Specification](../../operator/spec.md) for implementation details.

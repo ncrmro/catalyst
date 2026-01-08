@@ -24,8 +24,8 @@ import (
 // ProjectSpec defines the desired state of Project
 // Spec referenced from operator/spec.md
 type ProjectSpec struct {
-	// Source configuration for the project
-	Source SourceConfig `json:"source"`
+	// Sources configuration for the project (supports multiple repos)
+	Sources []SourceConfig `json:"sources"`
 
 	// Deployment strategy configuration
 	Deployment DeploymentConfig `json:"deployment"`
@@ -35,6 +35,9 @@ type ProjectSpec struct {
 }
 
 type SourceConfig struct {
+	// Name to identify this source component (e.g. "frontend", "backend")
+	Name string `json:"name"`
+
 	// RepositoryURL is the git repository URL
 	RepositoryURL string `json:"repositoryUrl"`
 
