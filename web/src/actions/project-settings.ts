@@ -37,11 +37,13 @@ export async function updateProjectDomainSettings(
 
     // Validate custom domain format if provided
     if (customDomain && customDomain.trim() !== "") {
-      const domainRegex = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
+      const domainRegex =
+        /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
       if (!domainRegex.test(customDomain.trim())) {
         return {
           success: false,
-          error: "Invalid domain format. Please use a valid domain name (e.g., previews.example.com)",
+          error:
+            "Invalid domain format. Please use a valid domain name (e.g., previews.example.com)",
         };
       }
     }

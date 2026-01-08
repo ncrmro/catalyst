@@ -22,6 +22,7 @@ To enable preview environments on your domain, you need to create a wildcard CNA
 ```
 
 This allows preview environments to be accessible at URLs like:
+
 - `https://env-preview-123.preview.example.com`
 - `https://env-preview-456.preview.example.com`
 
@@ -77,6 +78,7 @@ Projects can specify custom domains instead of using the default preview domain.
 ### Custom Domain Behavior
 
 When a project has a custom domain configured:
+
 - Preview URLs use the custom domain: `https://env-preview-123.previews.myapp.com`
 - TLS certificates are automatically provisioned if TLS is enabled for the project
 - The default domain is not used for this project
@@ -109,11 +111,13 @@ Use this IP address as the target for your CNAME records.
 ### Preview Environment Not Accessible
 
 1. **Check DNS propagation:**
+
    ```bash
    dig env-preview-123.preview.example.com
    ```
 
 2. **Verify ingress resource:**
+
    ```bash
    kubectl get ingress -n env-preview-123
    kubectl describe ingress -n env-preview-123
@@ -134,6 +138,7 @@ kubectl logs -n cert-manager deployment/cert-manager
 ```
 
 Common issues:
+
 - DNS not properly configured
 - Rate limiting (use staging issuer for testing)
 - Firewall blocking HTTP-01 challenge

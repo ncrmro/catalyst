@@ -39,31 +39,37 @@ describe("Preview Environment Domain Generation", () => {
   });
 
   describe("generatePublicUrl", () => {
-    const originalEnv = process.env.DEFAULT_PREVIEW_DOMAIN;
+    const originalDomain = process.env.DEFAULT_PREVIEW_DOMAIN;
+    const originalLocalRouting = process.env.LOCAL_PREVIEW_ROUTING;
 
     afterEach(() => {
-      if (originalEnv) {
-        process.env.DEFAULT_PREVIEW_DOMAIN = originalEnv;
+      // Restore original values
+      if (originalDomain) {
+        process.env.DEFAULT_PREVIEW_DOMAIN = originalDomain;
       } else {
         delete process.env.DEFAULT_PREVIEW_DOMAIN;
+      }
+      if (originalLocalRouting) {
+        process.env.LOCAL_PREVIEW_ROUTING = originalLocalRouting;
+      } else {
+        delete process.env.LOCAL_PREVIEW_ROUTING;
       }
     });
 
     it("should use default domain from environment", () => {
+      delete process.env.LOCAL_PREVIEW_ROUTING; // Ensure non-local mode
       process.env.DEFAULT_PREVIEW_DOMAIN = "preview.example.com";
       const url = generatePublicUrl("env-preview-123");
       expect(url).toBe("https://env-preview-123.preview.example.com");
     });
 
     it("should use custom domain when provided", () => {
-      const url = generatePublicUrl(
-        "env-preview-456",
-        "custom.previews.com",
-      );
+      const url = generatePublicUrl("env-preview-456", "custom.previews.com");
       expect(url).toBe("https://env-preview-456.custom.previews.com");
     });
 
     it("should fallback to localhost when env not set", () => {
+      delete process.env.LOCAL_PREVIEW_ROUTING; // Ensure non-local mode
       delete process.env.DEFAULT_PREVIEW_DOMAIN;
       const url = generatePublicUrl("env-preview-789");
       expect(url).toBe("https://env-preview-789.preview.localhost");
@@ -73,6 +79,13 @@ describe("Preview Environment Domain Generation", () => {
       process.env.DEFAULT_PREVIEW_DOMAIN = "default.example.com";
       const url = generatePublicUrl("env-preview-999", "override.example.com");
       expect(url).toBe("https://env-preview-999.override.example.com");
+    });
+
+    it("should use localhost routing when LOCAL_PREVIEW_ROUTING is true", () => {
+      process.env.LOCAL_PREVIEW_ROUTING = "true";
+      process.env.INGRESS_PORT = "8080";
+      const url = generatePublicUrl("env-preview-local");
+      expect(url).toBe("http://env-preview-local.localhost:8080/");
     });
   });
 
@@ -115,7 +128,10 @@ describe("Domain Configuration Integration", () => {
     });
 
     it("should handle subdomain nesting correctly", () => {
-      const url = generatePublicUrl("env-preview-123", "dev.preview.example.com");
+      const url = generatePublicUrl(
+        "env-preview-123",
+        "dev.preview.example.com",
+      );
       expect(url).toBe("https://env-preview-123.dev.preview.example.com");
     });
   });

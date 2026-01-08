@@ -90,6 +90,11 @@ export function generateNamespace(repoName: string, prNumber: number): string {
  * @returns Full URL for the preview environment
  */
 export function generatePublicUrl(namespace: string, domain?: string): string {
+  // If explicit domain provided, always use it (production mode)
+  if (domain) {
+    return `https://${namespace}.${domain}`;
+  }
+
   // Local development: hostname-based routing via *.localhost
   // Modern browsers auto-resolve *.localhost to 127.0.0.1
   if (process.env.LOCAL_PREVIEW_ROUTING === "true") {
@@ -98,15 +103,14 @@ export function generatePublicUrl(namespace: string, domain?: string): string {
   }
 
   // Production: hostname-based routing with TLS
-  const baseDomain =
-    domain || process.env.DEFAULT_PREVIEW_DOMAIN || "preview.localhost";
+  const baseDomain = process.env.DEFAULT_PREVIEW_DOMAIN || "preview.localhost";
   return `https://${namespace}.${baseDomain}`;
 }
 
 /**
  * Generate image tag for a PR deployment.
  *
- * @param repoName - Repository name
+ * @param repoName - Repository name (e.g., "owner/repo")
  * @param prNumber - Pull request number
  * @param commitSha - Commit SHA (short version used)
  * @returns Image tag string
@@ -117,7 +121,13 @@ export function generateImageTag(
   commitSha: string,
 ): string {
   const shortSha = commitSha.slice(0, 7);
-  return `pr-${prNumber}-${shortSha}`;
+  // Sanitize repo name: lowercase, replace non-alphanumeric with hyphens
+  const sanitizedRepo = repoName
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return `${sanitizedRepo}-pr-${prNumber}-${shortSha}`;
 }
 
 // ============================================================================
