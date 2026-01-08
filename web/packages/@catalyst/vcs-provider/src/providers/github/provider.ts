@@ -975,7 +975,3 @@ export class GitHubProvider implements VCSProvider {
     }
   }
 }
-
-// Register the GitHub provider
-import { providerRegistry } from "../../provider-registry";
-providerRegistry.register(new GitHubProvider());

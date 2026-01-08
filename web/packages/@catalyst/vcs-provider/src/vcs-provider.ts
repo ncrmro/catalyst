@@ -102,6 +102,12 @@ import { providerRegistry } from "./provider-registry";
  */
 export interface VCSProviderConfig {
   /**
+   * Array of VCS provider instances to register
+   * The application must explicitly provide the providers it wants to use
+   */
+  providers: VCSProvider[];
+
+  /**
    * Callback to retrieve token data from storage
    *
    * @param tokenSourceId - Generic identifier (userId, teamId, projectId, etc.)
@@ -195,12 +201,27 @@ export class VCSProviderSingleton {
   /**
    * Initialize the VCS Provider Singleton
    *
-   * @param config - Configuration with token callbacks and env requirements
+   * @param config - Configuration with providers to register and token callbacks
    * @throws Error if already initialized or if required env vars are missing
    */
   public static initialize(config: VCSProviderConfig): void {
     if (VCSProviderSingleton.instance !== null) {
       throw new Error("VCSProviderSingleton already initialized");
+    }
+
+    // Register all provided providers
+    if (!config.providers || config.providers.length === 0) {
+      throw new Error(
+        "At least one provider must be specified in VCSProviderConfig.providers",
+      );
+    }
+
+    for (const provider of config.providers) {
+      // Validate provider configuration if it has a validateConfig method
+      if ("validateConfig" in provider && typeof provider.validateConfig === "function") {
+        provider.validateConfig();
+      }
+      providerRegistry.register(provider);
     }
 
     // Check required environment variables

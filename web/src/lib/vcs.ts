@@ -7,6 +7,7 @@
 
 import {
   VCSProviderSingleton,
+  GitHubProvider,
   getGitHubTokens,
   storeGitHubTokens,
   exchangeRefreshToken,
@@ -25,6 +26,10 @@ try {
 
 if (!isInitialized) {
   VCSProviderSingleton.initialize({
+    // Explicitly register the providers the application wants to use
+    // Each provider will validate its configuration on registration
+    providers: [new GitHubProvider()],
+
     // Get token data from our database
     getTokenData: async (userId, providerId) => {
       if (providerId === "github") {

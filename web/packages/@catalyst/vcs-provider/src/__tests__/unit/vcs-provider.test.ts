@@ -13,14 +13,12 @@ import type {
   AuthenticatedClient,
   VCSProvider,
 } from "../../types";
-import { providerRegistry } from "../../provider-registry";
 import { GitHubProvider } from "../../providers/github/provider";
 
 describe("VCSProviderSingleton", () => {
-  // Register GitHub provider before tests
+  // Reset singleton before each test
   beforeEach(() => {
     VCSProviderSingleton.reset();
-    providerRegistry.register(new GitHubProvider());
   });
 
   describe("Initialization", () => {
@@ -32,6 +30,7 @@ describe("VCSProviderSingleton", () => {
 
     it("should throw error if initialize is called twice", () => {
       const config: VCSProviderConfig = {
+        providers: [new GitHubProvider()],
         getTokenData: vi.fn(),
         refreshToken: vi.fn(),
         storeTokenData: vi.fn(),
@@ -46,6 +45,7 @@ describe("VCSProviderSingleton", () => {
 
     it("should return same instance on multiple getInstance calls", () => {
       const config: VCSProviderConfig = {
+        providers: [new GitHubProvider()],
         getTokenData: vi.fn(),
         refreshToken: vi.fn(),
         storeTokenData: vi.fn(),
@@ -67,6 +67,7 @@ describe("VCSProviderSingleton", () => {
       delete process.env.TEST_REQUIRED_VAR;
 
       const config: VCSProviderConfig = {
+        providers: [new GitHubProvider()],
         getTokenData: vi.fn(),
         refreshToken: vi.fn(),
         storeTokenData: vi.fn(),
@@ -85,6 +86,7 @@ describe("VCSProviderSingleton", () => {
       process.env.TEST_REQUIRED_VAR = "test_value";
 
       const config: VCSProviderConfig = {
+        providers: [new GitHubProvider()],
         getTokenData: vi.fn(),
         refreshToken: vi.fn(),
         storeTokenData: vi.fn(),
@@ -98,6 +100,7 @@ describe("VCSProviderSingleton", () => {
 
     it("should allow re-initialization after reset", () => {
       const config: VCSProviderConfig = {
+        providers: [new GitHubProvider()],
         getTokenData: vi.fn(),
         refreshToken: vi.fn(),
         storeTokenData: vi.fn(),
@@ -124,6 +127,7 @@ describe("VCSProviderSingleton", () => {
       const storeTokenData = vi.fn();
 
       VCSProviderSingleton.initialize({
+        providers: [new GitHubProvider()],
         getTokenData,
         refreshToken,
         storeTokenData,
@@ -162,6 +166,7 @@ describe("VCSProviderSingleton", () => {
       const storeTokenData = vi.fn();
 
       VCSProviderSingleton.initialize({
+        providers: [new GitHubProvider()],
         getTokenData,
         refreshToken,
         storeTokenData,
@@ -187,6 +192,7 @@ describe("VCSProviderSingleton", () => {
       const getTokenData = vi.fn().mockResolvedValue(null);
 
       VCSProviderSingleton.initialize({
+        providers: [new GitHubProvider()],
         getTokenData,
         refreshToken: vi.fn(),
         storeTokenData: vi.fn(),
@@ -202,6 +208,7 @@ describe("VCSProviderSingleton", () => {
     it("should trigger onAuthError when tokens are missing", async () => {
       const onAuthError = vi.fn();
       VCSProviderSingleton.initialize({
+        providers: [new GitHubProvider()],
         getTokenData: vi.fn().mockResolvedValue(null),
         refreshToken: vi.fn(),
         storeTokenData: vi.fn(),
@@ -226,6 +233,7 @@ describe("VCSProviderSingleton", () => {
 
       const onAuthError = vi.fn();
       VCSProviderSingleton.initialize({
+        providers: [new GitHubProvider()],
         getTokenData: vi.fn().mockResolvedValue(expiredToken),
         refreshToken: vi.fn().mockRejectedValue(new Error("Refresh failed")),
         storeTokenData: vi.fn(),
@@ -245,6 +253,7 @@ describe("VCSProviderSingleton", () => {
   describe("Namespaced Operations", () => {
     it("should provide issues namespace", () => {
       VCSProviderSingleton.initialize({
+        providers: [new GitHubProvider()],
         getTokenData: vi.fn(),
         refreshToken: vi.fn(),
         storeTokenData: vi.fn(),
@@ -259,6 +268,7 @@ describe("VCSProviderSingleton", () => {
 
     it("should provide pullRequests namespace", () => {
       VCSProviderSingleton.initialize({
+        providers: [new GitHubProvider()],
         getTokenData: vi.fn(),
         refreshToken: vi.fn(),
         storeTokenData: vi.fn(),
@@ -278,6 +288,7 @@ describe("VCSProviderSingleton", () => {
 
     it("should provide repos namespace", () => {
       VCSProviderSingleton.initialize({
+        providers: [new GitHubProvider()],
         getTokenData: vi.fn(),
         refreshToken: vi.fn(),
         storeTokenData: vi.fn(),
@@ -293,6 +304,7 @@ describe("VCSProviderSingleton", () => {
 
     it("should provide branches namespace", () => {
       VCSProviderSingleton.initialize({
+        providers: [new GitHubProvider()],
         getTokenData: vi.fn(),
         refreshToken: vi.fn(),
         storeTokenData: vi.fn(),
@@ -307,6 +319,7 @@ describe("VCSProviderSingleton", () => {
 
     it("should provide files namespace", () => {
       VCSProviderSingleton.initialize({
+        providers: [new GitHubProvider()],
         getTokenData: vi.fn(),
         refreshToken: vi.fn(),
         storeTokenData: vi.fn(),
@@ -367,10 +380,8 @@ describe("VCSProviderSingleton", () => {
         parseWebhookEvent: vi.fn(),
       };
 
-      // Mock the registry to return our mock provider
-      vi.spyOn(providerRegistry, "get").mockReturnValue(mockProvider);
-
       VCSProviderSingleton.initialize({
+        providers: [mockProvider],
         getTokenData: vi.fn().mockResolvedValue(mockTokenData),
         refreshToken: vi.fn(),
         storeTokenData: vi.fn(),
@@ -390,6 +401,7 @@ describe("VCSProviderSingleton", () => {
   describe("Default Provider", () => {
     it("should use github as default provider", async () => {
       VCSProviderSingleton.initialize({
+        providers: [new GitHubProvider()],
         getTokenData: vi.fn().mockResolvedValue(null),
         refreshToken: vi.fn(),
         storeTokenData: vi.fn(),
@@ -405,6 +417,7 @@ describe("VCSProviderSingleton", () => {
 
     it("should allow custom default provider", async () => {
       VCSProviderSingleton.initialize({
+        providers: [new GitHubProvider()],
         getTokenData: vi.fn().mockResolvedValue(null),
         refreshToken: vi.fn(),
         storeTokenData: vi.fn(),
@@ -430,6 +443,7 @@ describe("VCSProviderSingleton", () => {
       };
 
       VCSProviderSingleton.initialize({
+        providers: [new GitHubProvider()],
         getTokenData: vi.fn().mockResolvedValue(validTokens),
         refreshToken: vi.fn(),
         storeTokenData: vi.fn(),
@@ -479,6 +493,7 @@ describe("VCSProviderSingleton", () => {
       const storeTokenData = vi.fn();
 
       VCSProviderSingleton.initialize({
+        providers: [new GitHubProvider()],
         getTokenData,
         refreshToken,
         storeTokenData,

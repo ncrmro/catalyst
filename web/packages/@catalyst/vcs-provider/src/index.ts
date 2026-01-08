@@ -8,10 +8,6 @@
  * to avoid circular dependencies with @/db.
  */
 
-// Import providers to trigger their registration
-// This ensures providers register themselves with the providerRegistry
-import "./providers/github/provider";
-
 // 1. Export core types
 export type {
   ProviderId,
@@ -33,6 +29,9 @@ export type {
 // 2. VCS Provider Singleton - The primary entry point
 export { VCSProviderSingleton } from "./vcs-provider";
 export type { VCSProviderConfig } from "./vcs-provider";
+
+// Export provider classes for explicit registration
+export { GitHubProvider } from "./providers/github/provider";
 
 // 3. GitHub Specific Exports (Still needed by the web app for now)
 // TODO: Refactor web app to use the Singleton for these operations
