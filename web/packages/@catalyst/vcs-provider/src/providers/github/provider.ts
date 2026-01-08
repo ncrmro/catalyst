@@ -31,6 +31,11 @@ import type {
 import { getUserOctokit, GITHUB_CONFIG } from "./client";
 import { createHmac, timingSafeEqual } from "crypto";
 
+// Check if we're in NextJS build phase - don't validate env vars during build
+const isNextJsBuild =
+  process.env.NEXT_PHASE === "phase-production-build" ||
+  process.env.npm_lifecycle_event === "build";
+
 /**
  * GitHub VCS Provider implementation
  */
@@ -54,6 +59,11 @@ export class GitHubProvider implements VCSProvider {
    * Validate provider configuration
    */
   validateConfig(): void {
+    // Skip validation during build or if explicitly disabled
+    if (isNextJsBuild || GITHUB_CONFIG.DISABLE_APP_CHECKS) {
+      return;
+    }
+
     const missingVars: string[] = [];
 
     if (!GITHUB_CONFIG.APP_ID) missingVars.push("GITHUB_APP_ID");

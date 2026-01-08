@@ -41,7 +41,9 @@ export interface EnrichedIssue {
 }
 
 // Check if we're in NextJS build phase - don't validate env vars during build
-const isNextJsBuild = process.env.NEXT_PHASE === "phase-production-build";
+const isNextJsBuild =
+  process.env.NEXT_PHASE === "phase-production-build" ||
+  process.env.npm_lifecycle_event === "build";
 
 /**
  * Centralized GitHub environment variables configuration
