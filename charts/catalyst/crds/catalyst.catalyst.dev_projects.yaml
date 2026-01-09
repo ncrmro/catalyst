@@ -39,23 +39,6 @@ spec:
           spec:
             description: spec defines the desired state of Project
             properties:
-              deployment:
-                description: Deployment strategy configuration
-                properties:
-                  path:
-                    description: Path to the deployment definition (e.g. chart path)
-                    type: string
-                  type:
-                    description: Type of deployment (helm, manifest, kustomize)
-                    type: string
-                  values:
-                    description: Values are the default values to inject
-                    type: object
-                    x-kubernetes-preserve-unknown-fields: true
-                required:
-                - path
-                - type
-                type: object
               resources:
                 description: Resources configuration (quotas, limits)
                 properties:
@@ -92,8 +75,31 @@ spec:
                   - repositoryUrl
                   type: object
                 type: array
+              templates:
+                additionalProperties:
+                  properties:
+                    path:
+                      description: Path to the deployment definition (e.g. chart path)
+                      type: string
+                    sourceRef:
+                      description: |-
+                        SourceRef refers to one of the sources defined in Project.Sources
+                        If empty, assumes the first source or a primary source.
+                      type: string
+                    type:
+                      description: Type of deployment (helm, manifest, kustomize)
+                      type: string
+                    values:
+                      description: Values are the default values to inject
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                  required:
+                  - type
+                  type: object
+                description: Templates for different environment types (e.g., "development",
+                  "production")
+                type: object
             required:
-            - deployment
             - sources
             type: object
           status:

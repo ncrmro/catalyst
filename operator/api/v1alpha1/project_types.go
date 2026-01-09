@@ -27,8 +27,9 @@ type ProjectSpec struct {
 	// Sources configuration for the project (supports multiple repos)
 	Sources []SourceConfig `json:"sources"`
 
-	// Deployment strategy configuration
-	Deployment DeploymentConfig `json:"deployment"`
+	// Templates for different environment types (e.g., "development", "production")
+	// +optional
+	Templates map[string]EnvironmentTemplate `json:"templates,omitempty"`
 
 	// Resources configuration (quotas, limits)
 	Resources ResourceConfig `json:"resources,omitempty"`
@@ -45,15 +46,22 @@ type SourceConfig struct {
 	Branch string `json:"branch"`
 }
 
-type DeploymentConfig struct {
+type EnvironmentTemplate struct {
+	// SourceRef refers to one of the sources defined in Project.Sources
+	// If empty, assumes the first source or a primary source.
+	// +optional
+	SourceRef string `json:"sourceRef,omitempty"`
+
 	// Type of deployment (helm, manifest, kustomize)
 	Type string `json:"type"`
 
 	// Path to the deployment definition (e.g. chart path)
-	Path string `json:"path"`
+	// +optional
+	Path string `json:"path,omitempty"`
 
 	// Values are the default values to inject
 	// +kubebuilder:pruning:PreserveUnknownFields
+	// +optional
 	Values runtime.RawExtension `json:"values,omitempty"`
 }
 

@@ -33,8 +33,8 @@ export { ENVIRONMENT_API } from "./environment";
 
 // Project types
 export type {
-  DeploymentConfig,
   DeploymentType,
+  EnvironmentTemplate,
   Project,
   ProjectInput,
   ProjectList,

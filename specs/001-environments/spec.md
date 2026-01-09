@@ -48,9 +48,18 @@ As a developer, I want to use development environments with as little friction a
 
 Deployment environments run production and staging workloads. They are long-lived, updated through CI/CD pipelines, and configured for reliability and observability.
 
+**Environment Templates:**
+
+Projects define **templates** that specify how different types of environments (e.g., "development", "staging", "production") should be deployed. These templates allow for different configurations, such as:
+
+- **Development**: Hot-reload setup, smaller resource limits, "preview" values.
+- **Production**: optimized container builds, higher resource limits, "production" values, different Helm chart or manifest paths.
+
 **Deployment Methods:**
 
-- **Kubernetes Manifests**: Direct YAML definitions for full control
+The templates support various deployment strategies:
+
+- **Kubernetes Manifests**: Direct YAML definitions for full control (stored in the user's repo)
 - **Helm Charts**: Templated deployments with configurable values
 - **Docker Images**: Container images deployed to managed infrastructure
 
@@ -301,9 +310,9 @@ A dedicated Kubernetes operator that manages environment lifecycle through Custo
 
 **Responsibilities:**
 
-- **Project CRD**: Defines deployment configuration (Helm, manifests, images)
+- **Project CRD**: Defines deployment configuration using **templates** for different environment types (dev, prod)
 - **Environment CRD**: Represents dev/staging/production environments
-- **Deployment Orchestration**: Helm chart deployment, manifest application
+- **Deployment Orchestration**: Helm chart deployment, manifest application based on selected template
 - **Preview Environment Lifecycle**: Create/update/delete on PR events
 - **Policy Application**: ResourceQuota and NetworkPolicy per namespace
 - **Build Jobs**: Container image builds from PR branches
