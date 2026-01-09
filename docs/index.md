@@ -117,6 +117,11 @@ kubectl get ingress -n catalyst
 - **Agent-Friendly**: Designed for agentic workflows with MCP server integration
 - **PostgreSQL Included**: Optional PostgreSQL database deployment
 
+## Platform Guides
+
+- [Developer Workflow](./platform/developer-workflow.spec.md) - Local development options (Docker Compose vs K3s-VM)
+- [Yazi File Picker Setup](./platform/yazi-file-picker.md) - Configure Yazi as your default file picker on Linux
+
 ## Next Steps
 
 - [Local Development Guide](../web/README.md)
