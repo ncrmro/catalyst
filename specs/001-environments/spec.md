@@ -60,6 +60,8 @@ Projects define **templates** that specify how different types of environments s
 
 Projects may define additional custom templates if necessary, but these two are the primary conventions.
 
+> **Reference**: See [`operator/examples/project-reference.yaml`](../../operator/examples/project-reference.yaml) for comprehensive examples of templates including Dockerfile builds, prebuilt images, and managed services configuration. This file serves as the source of truth for template capabilities.
+
 **Deployment Methods:**
 
 The templates support various deployment strategies:
@@ -70,12 +72,13 @@ The templates support various deployment strategies:
 
 **Managed Services:**
 
-The platform provisions and manages common infrastructure dependencies if the user's helm chart or manifest don't already:
+The platform provisions and manages common infrastructure dependencies. These are configured directly within the Environment Template `values`:
 
-- PostgreSQL databases with automatic backups
-- Redis for caching and queues
-- Object storage (S3-compatible)
-- Other services as configured per project
+- **PostgreSQL**: `services.postgres.enabled: true`
+- **Redis**: `services.redis.enabled: true`
+- **Object Storage**: `services.s3.enabled: true`
+
+See [`operator/examples/project-reference.yaml`](../../operator/examples/project-reference.yaml) for exact configuration syntax.
 
 **Lifecycle:**
 

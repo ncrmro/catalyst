@@ -1,0 +1,62 @@
+apiVersion: catalyst.catalyst.dev/v1alpha1
+kind: Project
+metadata:
+  name: example-project
+  namespace: catalyst-system
+spec:
+  sources:
+    - name: backend
+      repositoryUrl: https://github.com/example/backend.git
+      branch: main
+  
+  # Templates define how different environment types are deployed.
+  # Standard keys: "development" (previews), "deployment" (production/staging).
+  templates:
+    
+    # --- Example: Dockerfile Build (Development) ---
+    # Builds container from source on PRs.
+    development:
+      type: helm
+      path: charts/generic-service # Uses platform's generic chart
+      sourceRef: backend
+      values:
+        build:
+          method: dockerfile
+          path: Dockerfile
+          context: .
+        environment: development
+        services:
+          postgres:
+            enabled: true
+            version: "15"
+
+    # --- Example: Prebuilt Image (Deployment) ---
+    # Deploys existing image from registry.
+    deployment:
+      type: helm
+      path: charts/my-custom-chart
+      sourceRef: backend
+      values:
+        image:
+          repository: ghcr.io/example/backend
+          pullPolicy: Always
+        environment: production
+        services:
+          redis:
+            enabled: true
+            version: "7"
+          s3:
+            enabled: true
+            bucket: my-app-data
+
+    # --- Example: Manifest Based (Alternative) ---
+    # Uses raw Kubernetes manifests instead of Helm.
+    legacy-mode:
+      type: manifest
+      path: k8s/deploy.yaml
+      sourceRef: backend
+
+  resources:
+    defaultQuota:
+      cpu: "4"
+      memory: "8Gi"
