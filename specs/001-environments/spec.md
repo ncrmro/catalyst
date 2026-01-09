@@ -50,10 +50,15 @@ Deployment environments run production and staging workloads. They are long-live
 
 **Environment Templates:**
 
-Projects define **templates** that specify how different types of environments (e.g., "development", "staging", "production") should be deployed. These templates allow for different configurations, such as:
+Projects define **templates** that specify how different types of environments should be deployed. To ensure consistency across the platform, projects should define two standard templates:
 
-- **Development**: Hot-reload setup, smaller resource limits, "preview" values.
-- **Production**: optimized container builds, higher resource limits, "production" values, different Helm chart or manifest paths.
+1.  **`development`**: Used for interactive, ephemeral environments (e.g., PR previews, local dev).
+    *   Features: Hot-reload setup, smaller resource limits, "preview" configuration values.
+2.  **`deployment`**: Used for stable, long-lived workloads (e.g., Staging, Production).
+    *   Features: Optimized container builds, higher resource limits, production-grade configuration.
+    *   Note: A "staging" environment is simply an instance that uses the `deployment` template (potentially with specific override values), ensuring parity with production.
+
+Projects may define additional custom templates if necessary, but these two are the primary conventions.
 
 **Deployment Methods:**
 

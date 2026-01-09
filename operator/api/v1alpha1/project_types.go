@@ -27,7 +27,8 @@ type ProjectSpec struct {
 	// Sources configuration for the project (supports multiple repos)
 	Sources []SourceConfig `json:"sources"`
 
-	// Templates for different environment types (e.g., "development", "production")
+	// Templates for different environment types.
+	// Standard keys: "development" (previews) and "deployment" (production/staging).
 	// +optional
 	Templates map[string]EnvironmentTemplate `json:"templates,omitempty"`
 

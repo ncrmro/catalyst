@@ -72,7 +72,7 @@ export interface ResourceConfig {
 export interface ProjectSpec {
   /** Sources configuration */
   sources: SourceConfig[];
-  /** Templates for different environment types */
+  /** Templates for different environment types. Standard keys: "development" and "deployment". */
   templates?: Record<string, EnvironmentTemplate>;
   /** Resource configuration */
   resources?: ResourceConfig;

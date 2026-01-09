@@ -22,8 +22,8 @@ spec:
         image:
           pullPolicy: IfNotPresent
     
-    # Production environment: Optimized, production values
-    production:
+    # Deployment environment: Optimized, production values (used for Staging/Prod)
+    deployment:
       type: helm
       path: charts/catalyst
       sourceRef: catalyst

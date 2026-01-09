@@ -96,8 +96,9 @@ spec:
                   required:
                   - type
                   type: object
-                description: Templates for different environment types (e.g., "development",
-                  "production")
+                description: |-
+                  Templates for different environment types.
+                  Standard keys: "development" (previews) and "deployment" (production/staging).
                 type: object
             required:
             - sources
