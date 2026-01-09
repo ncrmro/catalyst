@@ -694,7 +694,6 @@ export async function createPreviewDeployment(
     targetNamespace,
     customDomain || undefined,
   );
-  const _imageTag = generateImageTag(repoFullName, prNumber, commitSha);
 
   // Start deployment timer for performance tracking
   void startTimer("preview-deployment-creation");
@@ -815,7 +814,7 @@ export async function createPreviewDeployment(
     ingress: ingressEnabled
       ? {
           enabled: true,
-          host: publicUrl.replace("https://", "").replace("http://", ""),
+          host: new URL(publicUrl).hostname,
           tls: tlsEnabled
             ? {
                 enabled: true,

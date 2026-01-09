@@ -6,10 +6,12 @@
 
 "use server";
 
+import { auth } from "@/auth";
 import { db } from "@/db";
 import { projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { isUserTeamMember } from "@/lib/team-auth";
 
 export interface UpdateProjectDomainSettingsParams {
   projectId: string;
@@ -34,6 +36,35 @@ export async function updateProjectDomainSettings(
 ): Promise<UpdateProjectDomainSettingsResult> {
   try {
     const { projectId, customDomain, ingressEnabled, tlsEnabled } = params;
+
+    // Check authentication
+    const session = await auth();
+    if (!session?.user?.id) {
+      return {
+        success: false,
+        error: "Unauthorized: You must be logged in to update project settings",
+      };
+    }
+
+    // Fetch project to verify team membership
+    const project = await db
+      .select({ teamId: projects.teamId })
+      .from(projects)
+      .where(eq(projects.id, projectId))
+      .limit(1);
+
+    if (project.length === 0) {
+      return { success: false, error: "Project not found" };
+    }
+
+    // Check if user is a member of the project's team
+    const hasAccess = await isUserTeamMember(project[0].teamId);
+    if (!hasAccess) {
+      return {
+        success: false,
+        error: "Unauthorized: You do not have access to this project",
+      };
+    }
 
     // Validate custom domain format if provided
     if (customDomain && customDomain.trim() !== "") {
@@ -89,11 +120,22 @@ export async function getProjectDomainSettings(projectId: string): Promise<{
   error?: string;
 }> {
   try {
+    // Check authentication
+    const session = await auth();
+    if (!session?.user?.id) {
+      return {
+        success: false,
+        error: "Unauthorized: You must be logged in to view project settings",
+      };
+    }
+
+    // Fetch project with team info
     const result = await db
       .select({
         customDomain: projects.customDomain,
         ingressEnabled: projects.ingressEnabled,
         tlsEnabled: projects.tlsEnabled,
+        teamId: projects.teamId,
       })
       .from(projects)
       .where(eq(projects.id, projectId))
@@ -103,7 +145,23 @@ export async function getProjectDomainSettings(projectId: string): Promise<{
       return { success: false, error: "Project not found" };
     }
 
-    return { success: true, settings: result[0] };
+    // Check if user is a member of the project's team
+    const hasAccess = await isUserTeamMember(result[0].teamId);
+    if (!hasAccess) {
+      return {
+        success: false,
+        error: "Unauthorized: You do not have access to this project",
+      };
+    }
+
+    return {
+      success: true,
+      settings: {
+        customDomain: result[0].customDomain,
+        ingressEnabled: result[0].ingressEnabled,
+        tlsEnabled: result[0].tlsEnabled,
+      },
+    };
   } catch (error) {
     console.error("Error fetching project domain settings:", error);
     return {
