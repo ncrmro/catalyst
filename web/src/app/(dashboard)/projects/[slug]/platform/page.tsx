@@ -156,12 +156,12 @@ export default async function PlatformPage({ params }: PlatformPageProps) {
             defined by <code>Environment Templates</code> in your Project
             configuration. See the{" "}
             <a
-              href="https://github.com/ncrmro/catalyst/blob/main/operator/examples/project-reference.yaml"
+              href="https://github.com/ncrmro/catalyst/tree/main/operator/examples"
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:underline"
             >
-              templates reference
+              examples directory
             </a>{" "}
             for configuration options (Dockerfile, Helm, Managed Services).
           </p>

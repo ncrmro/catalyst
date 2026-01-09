@@ -15,20 +15,20 @@ This plan covers the `@catalyst/kubernetes-client` package. The operator is a se
 
 **Completed**:
 - **Standardized Keys**: Mandated `development` and `deployment` as the standard template keys in `Project` CRD.
-- **Reference Examples**: Created `operator/examples/project-reference.yaml` as the source of truth for template configurations (Helm, Dockerfile, Managed Services).
+- **Reference Examples**: Created standardized example pairs in `operator/examples/` (`catalyst.*`, `compose.*`, `prebuilt.*`, `custom-helm.*`) as the source of truth.
 - **Spec Updates**: Updated `spec.md` to document standard templates and managed services.
 
 **Upcoming Work**:
 1. **Docker Compose Support (FR-ENV-012)**:
-   - Design: Allow `type: docker-compose` in templates. See [`operator/examples/docker-compose.yaml`](../../operator/examples/docker-compose.yaml).
+   - Design: Allow `type: docker-compose` in templates. See [`operator/examples/compose.project.yaml`](../../operator/examples/compose.project.yaml).
    - Implementation: Operator translates `docker-compose.yml` to Kubernetes manifests (or delegates to a tool).
 
 2. **Prebuilt Image Overrides (FR-ENV-013)**:
-   - Design: Allow templates to define a base image, with the specific tag/SHA provided by the `Environment` CR instance. See [`operator/examples/prebuilt-image.yaml`](../../operator/examples/prebuilt-image.yaml).
+   - Design: Allow templates to define a base image, with the specific tag/SHA provided by the `Environment` CR instance. See [`operator/examples/prebuilt.project.yaml`](../../operator/examples/prebuilt.project.yaml).
    - Implementation: Operator logic to inject `Environment.Spec.Sources[0].CommitSha` or `Config.Image` into the template values.
 
 3. **User-Managed Helm (FR-ENV-014)**:
-   - Design: Support templates where the user provides the full chart and values, with minimal operator interference. See [`operator/examples/user-helm.yaml`](../../operator/examples/user-helm.yaml).
+   - Design: Support templates where the user provides the full chart and values, with minimal operator interference. See [`operator/examples/custom-helm.project.yaml`](../../operator/examples/custom-helm.project.yaml).
    - Implementation: Ensure operator supports "passthrough" mode for Helm values.
 
 4. **UI Updates**:

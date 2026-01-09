@@ -9,9 +9,7 @@ spec:
       repositoryUrl: https://github.com/ncrmro/catalyst.git
       branch: main
   
-  # Templates define how different environment types are deployed
   templates:
-    # Development environment: Hot-reload, local values
     development:
       type: helm
       path: charts/catalyst
@@ -22,7 +20,6 @@ spec:
         image:
           pullPolicy: IfNotPresent
     
-    # Deployment environment: Optimized, production values (used for Staging/Prod)
     deployment:
       type: helm
       path: charts/catalyst

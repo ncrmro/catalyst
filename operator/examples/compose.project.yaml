@@ -1,12 +1,8 @@
-# Design Example: Docker Compose Template
-# FR-ENV-012: Docker Compose Support
-# Allows using docker-compose.yml as the definition for environments.
-# The operator translates this into Kubernetes manifests (Deployment/Service).
-
 apiVersion: catalyst.catalyst.dev/v1alpha1
 kind: Project
 metadata:
   name: compose-project
+  namespace: catalyst-system
 spec:
   sources:
     - name: app
@@ -14,18 +10,15 @@ spec:
       branch: main
 
   templates:
-    # Development Template using Docker Compose
     development:
       type: docker-compose
       path: docker-compose.yml
       sourceRef: app
       values:
-        # Override compose services if needed
         services:
           web:
             replicas: 1
             
-    # Production Template using Docker Compose (less common, but requested)
     deployment:
       type: docker-compose
       path: docker-compose.prod.yml

@@ -7,23 +7,18 @@ spec:
   projectRef:
     name: catalyst
 
-  # Matches one of the keys in Project.spec.templates
   type: development
-
-  # Optional: Operator-specific deployment mode 
-  # (development = hot reload support, production = static)
-  deploymentMode: development
 
   sources:
     - name: catalyst
       branch: main
-      commitSha: latest # In real usage, this would be a specific SHA
+      commitSha: latest
 
   config:
     envVars:
       - name: DEBUG
         value: "true"
-    image: "ghcr.io/ncrmro/catalyst:local" # Optional override
+    image: "ghcr.io/ncrmro/catalyst:local"
 
   ingress:
     enabled: true

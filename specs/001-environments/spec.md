@@ -79,7 +79,7 @@ The platform provisions and manages common infrastructure dependencies. These ar
 - **Redis**: `services.redis.enabled: true`
 - **Object Storage**: `services.s3.enabled: true`
 
-See [`operator/examples/project-reference.yaml`](../../operator/examples/project-reference.yaml) for exact configuration syntax.
+See [`operator/examples/catalyst.project.yaml`](../../operator/examples/catalyst.project.yaml) for exact configuration syntax.
 
 **Lifecycle:**
 
@@ -248,21 +248,21 @@ User overrides to detected configuration follow these rules:
 **[FR-ENV-012] Docker Compose Support**:
 The platform supports using `docker-compose.yml` files as the definition for environments. This allows projects to reuse their existing local development configuration for Catalyst environments.
 - **Mechanism**: The template specifies `type: docker-compose` and points to the file.
-- **Example**: See [`operator/examples/docker-compose.yaml`](../../operator/examples/docker-compose.yaml).
+- **Example**: See [`operator/examples/compose.project.yaml`](../../operator/examples/compose.project.yaml).
 - **Behavior**: The operator translates the Compose services into Kubernetes Deployments and Services (e.g., using Kompose logic or internal translation).
 - **Scope**: Supports both "development" (hot-reload, mapped volumes if feasible) and "deployment" (static build) modes.
 
 **[FR-ENV-013] Prebuilt Image Deployment**:
 Projects can define templates that use prebuilt container images from a registry, rather than building from source.
 - **Template**: Defines the repository URL and default configuration.
-- **Example**: See [`operator/examples/prebuilt-image.yaml`](../../operator/examples/prebuilt-image.yaml).
+- **Example**: See [`operator/examples/prebuilt.project.yaml`](../../operator/examples/prebuilt.project.yaml).
 - **Environment Instance**: Specifies the specific image tag or Git commit SHA to deploy.
 - **Use Case**: Staging environments that deploy a specific artifact from CI, or "promotion" workflows.
 
 **[FR-ENV-014] Custom/External Helm Chart Support**:
 Advanced users can provide their own Helm charts for full control over the deployment.
 - **Internal**: Path to a chart within the repository.
-- **Example**: See [`operator/examples/user-helm.yaml`](../../operator/examples/user-helm.yaml).
+- **Example**: See [`operator/examples/custom-helm.project.yaml`](../../operator/examples/custom-helm.project.yaml).
 - **External**: URL to an external Helm chart repository (future).
 - **Behavior**: The operator acts as a "passthrough", applying the chart with the provided values, injecting only essential platform metadata (labels/annotations) without interfering with the workload structure.
 
