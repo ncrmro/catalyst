@@ -60,7 +60,7 @@ Projects define **templates** that specify how different types of environments s
 
 Projects may define additional custom templates if necessary, but these two are the primary conventions.
 
-> **Reference**: See [`operator/examples/project-reference.yaml`](../../operator/examples/project-reference.yaml) for comprehensive examples of templates including Dockerfile builds, prebuilt images, and managed services configuration. This file serves as the source of truth for template capabilities.
+> **Reference**: See the [`operator/examples/`](../../operator/examples/) directory for comprehensive examples of templates including Dockerfile builds, prebuilt images, Docker Compose, and managed services configuration. These files serve as the source of truth for template capabilities.
 
 **Deployment Methods:**
 
@@ -69,6 +69,7 @@ The templates support various deployment strategies:
 - **Kubernetes Manifests**: Direct YAML definitions for full control (stored in the user's repo)
 - **Helm Charts**: Templated deployments with configurable values
 - **Docker Images**: Container images deployed to managed infrastructure
+- **Docker Compose**: Definition reuse from local development
 
 **Managed Services:**
 
@@ -247,18 +248,21 @@ User overrides to detected configuration follow these rules:
 **[FR-ENV-012] Docker Compose Support**:
 The platform supports using `docker-compose.yml` files as the definition for environments. This allows projects to reuse their existing local development configuration for Catalyst environments.
 - **Mechanism**: The template specifies `type: docker-compose` and points to the file.
+- **Example**: See [`operator/examples/docker-compose.yaml`](../../operator/examples/docker-compose.yaml).
 - **Behavior**: The operator translates the Compose services into Kubernetes Deployments and Services (e.g., using Kompose logic or internal translation).
 - **Scope**: Supports both "development" (hot-reload, mapped volumes if feasible) and "deployment" (static build) modes.
 
 **[FR-ENV-013] Prebuilt Image Deployment**:
 Projects can define templates that use prebuilt container images from a registry, rather than building from source.
 - **Template**: Defines the repository URL and default configuration.
+- **Example**: See [`operator/examples/prebuilt-image.yaml`](../../operator/examples/prebuilt-image.yaml).
 - **Environment Instance**: Specifies the specific image tag or Git commit SHA to deploy.
 - **Use Case**: Staging environments that deploy a specific artifact from CI, or "promotion" workflows.
 
 **[FR-ENV-014] Custom/External Helm Chart Support**:
 Advanced users can provide their own Helm charts for full control over the deployment.
 - **Internal**: Path to a chart within the repository.
+- **Example**: See [`operator/examples/user-helm.yaml`](../../operator/examples/user-helm.yaml).
 - **External**: URL to an external Helm chart repository (future).
 - **Behavior**: The operator acts as a "passthrough", applying the chart with the provided values, injecting only essential platform metadata (labels/annotations) without interfering with the workload structure.
 
