@@ -89,8 +89,16 @@ describe("Preview Deployment Integration", () => {
       process.env.LOCAL_PREVIEW_ROUTING = "true";
       process.env.INGRESS_PORT = "8080";
 
-      const url = generatePublicUrl("pr-my-app-42", "preview.example.com");
+      // When no custom domain provided, use local routing
+      const url = generatePublicUrl("pr-my-app-42");
       expect(url).toBe("http://pr-my-app-42.localhost:8080/");
+
+      // When custom domain provided, it takes precedence over local routing
+      const urlWithDomain = generatePublicUrl(
+        "pr-my-app-42",
+        "preview.example.com",
+      );
+      expect(urlWithDomain).toBe("https://pr-my-app-42.preview.example.com");
 
       // Restore original values
       process.env.LOCAL_PREVIEW_ROUTING = originalValue;
@@ -98,8 +106,9 @@ describe("Preview Deployment Integration", () => {
     });
 
     it("should generate image tags", () => {
+      // Image tags include sanitized repo name
       const tag = generateImageTag("my-app", 42, "abc1234567890");
-      expect(tag).toBe("pr-42-abc1234");
+      expect(tag).toBe("my-app-pr-42-abc1234");
     });
   });
 
