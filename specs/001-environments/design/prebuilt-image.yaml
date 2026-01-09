@@ -1,0 +1,41 @@
+# Design Example: Prebuilt Image with Environment Tag Override
+# FR-ENV-013: Prebuilt Image Deployment
+# The Project template defines the image repository.
+# The Environment CR specifies the tag/SHA to deploy.
+
+# --- Project Definition ---
+apiVersion: catalyst.catalyst.dev/v1alpha1
+kind: Project
+metadata:
+  name: prebuilt-project
+spec:
+  templates:
+    # Staging uses a prebuilt image from the registry
+    staging:
+      type: helm
+      path: charts/generic-app # Platform generic chart
+      values:
+        image:
+          repository: ghcr.io/example/app
+          pullPolicy: Always
+          # 'tag' is deliberately omitted here to be injected by Environment
+
+# --- Environment Definition ---
+apiVersion: catalyst.catalyst.dev/v1alpha1
+kind: Environment
+metadata:
+  name: staging-v2
+spec:
+  projectRef:
+    name: prebuilt-project
+  type: staging # Matches the template key
+  
+  # The commitSha here is used as the image tag by the operator logic
+  sources:
+    - name: app
+      branch: main
+      commitSha: "sha-12345abc" 
+
+  # OR explicitly override the image tag in config
+  config:
+    image: "ghcr.io/example/app:v2.0.0"

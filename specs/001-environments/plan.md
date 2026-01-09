@@ -9,6 +9,32 @@ Kubernetes functionality is split across two packages:
 
 This plan covers the `@catalyst/kubernetes-client` package. The operator is a separate implementation effort with its own [spec](../../operator/spec.md).
 
+## Environment Templates Standardization
+
+**Goal**: Standardize how environments are defined and deployed, ensuring the web UI, operator, and specs are aligned.
+
+**Completed**:
+- **Standardized Keys**: Mandated `development` and `deployment` as the standard template keys in `Project` CRD.
+- **Reference Examples**: Created `operator/examples/project-reference.yaml` as the source of truth for template configurations (Helm, Dockerfile, Managed Services).
+- **Spec Updates**: Updated `spec.md` to document standard templates and managed services.
+
+**Upcoming Work**:
+1. **Docker Compose Support (FR-ENV-012)**:
+   - Design: Allow `type: docker-compose` in templates.
+   - Implementation: Operator translates `docker-compose.yml` to Kubernetes manifests (or delegates to a tool).
+
+2. **Prebuilt Image Overrides (FR-ENV-013)**:
+   - Design: Allow templates to define a base image, with the specific tag/SHA provided by the `Environment` CR instance.
+   - Implementation: Operator logic to inject `Environment.Spec.Sources[0].CommitSha` or `Config.Image` into the template values.
+
+3. **User-Managed Helm (FR-ENV-014)**:
+   - Design: Support templates where the user provides the full chart and values, with minimal operator interference.
+   - Implementation: Ensure operator supports "passthrough" mode for Helm values.
+
+4. **UI Updates**:
+   - Update Platform page to reflect these capabilities (partially done with cross-linking).
+   - Create UI forms for configuring these advanced template types.
+
 ## Related Research
 
 - [research.web-terminal.md](./research.web-terminal.md) - Web terminal implementation approaches (WebSocket, SSE, polling, custom servers)

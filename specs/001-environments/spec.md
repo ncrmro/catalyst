@@ -244,6 +244,24 @@ User overrides to detected configuration follow these rules:
 - **Persistence**: Overrides are stored in the database `projectEnvironments.deploymentConfig` field
 - **PR updates**: When a PR is updated (new commits), existing overrides are preserved unless the user explicitly resets to auto-detect
 
+**[FR-ENV-012] Docker Compose Support**:
+The platform supports using `docker-compose.yml` files as the definition for environments. This allows projects to reuse their existing local development configuration for Catalyst environments.
+- **Mechanism**: The template specifies `type: docker-compose` and points to the file.
+- **Behavior**: The operator translates the Compose services into Kubernetes Deployments and Services (e.g., using Kompose logic or internal translation).
+- **Scope**: Supports both "development" (hot-reload, mapped volumes if feasible) and "deployment" (static build) modes.
+
+**[FR-ENV-013] Prebuilt Image Deployment**:
+Projects can define templates that use prebuilt container images from a registry, rather than building from source.
+- **Template**: Defines the repository URL and default configuration.
+- **Environment Instance**: Specifies the specific image tag or Git commit SHA to deploy.
+- **Use Case**: Staging environments that deploy a specific artifact from CI, or "promotion" workflows.
+
+**[FR-ENV-014] Custom/External Helm Chart Support**:
+Advanced users can provide their own Helm charts for full control over the deployment.
+- **Internal**: Path to a chart within the repository.
+- **External**: URL to an external Helm chart repository (future).
+- **Behavior**: The operator acts as a "passthrough", applying the chart with the provided values, injecting only essential platform metadata (labels/annotations) without interfering with the workload structure.
+
 ### User Interfaces
 
 **CLI/TUI:**
