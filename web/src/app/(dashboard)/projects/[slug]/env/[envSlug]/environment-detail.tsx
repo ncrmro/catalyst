@@ -116,7 +116,7 @@ export default function EnvironmentDetailView({
     setTerminalOpen(true);
   };
 
-  const branchName = environment.spec.source.branch;
+  const branchName = environment.spec.sources[0]?.branch || "unknown";
   const status = environment.status?.phase || "Pending";
   const previewUrl = environment.status?.url;
 

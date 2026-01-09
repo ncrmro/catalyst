@@ -3,6 +3,13 @@ export type EnvironmentType = "deployment" | "development";
 // DeploymentMode specifies how the operator deploys the environment
 export type DeploymentMode = "production" | "development" | "workspace";
 
+export interface EnvironmentSource {
+  name: string; // Identifies the component (e.g., "frontend", "backend")
+  commitSha: string;
+  branch: string;
+  prNumber?: number;
+}
+
 export interface EnvironmentCRSpec {
   projectRef: {
     name: string;
@@ -10,13 +17,10 @@ export interface EnvironmentCRSpec {
   type: EnvironmentType;
   // DeploymentMode: "production" | "development" | "workspace" (default)
   deploymentMode?: DeploymentMode;
-  source: {
-    commitSha: string;
-    branch: string;
-    prNumber?: number;
-  };
+  sources: EnvironmentSource[];
   config?: {
     envVars?: Array<{ name: string; value: string }>;
+    image?: string; // Optional container image override
   };
   ingress?: {
     enabled: boolean;
@@ -42,11 +46,14 @@ export interface EnvironmentCR {
   };
 }
 
+export interface SourceConfig {
+  name: string; // Identifies this source component
+  repositoryUrl: string;
+  branch: string;
+}
+
 export interface ProjectCRSpec {
-  source: {
-    repositoryUrl: string;
-    branch: string;
-  };
+  sources: SourceConfig[];
   deployment: {
     type: string;
     path: string;
