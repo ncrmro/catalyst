@@ -131,6 +131,13 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	err := r.Get(ctx, client.ObjectKey{Name: targetNamespace}, ns)
 	if err != nil && apierrors.IsNotFound(err) {
 		log.Info("Creating Namespace", "namespace", targetNamespace)
+
+		// Use first source branch if available
+		branch := "main"
+		if len(env.Spec.Sources) > 0 {
+			branch = env.Spec.Sources[0].Branch
+		}
+
 		ns = &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: targetNamespace,
@@ -138,7 +145,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 					"catalyst.dev/team":        "catalyst", // TODO: Get from Project or Env
 					"catalyst.dev/project":     sanitizeLabelValue(env.Spec.ProjectRef.Name),
 					"catalyst.dev/environment": sanitizeLabelValue(env.Name),
-					"catalyst.dev/branch":      sanitizeLabelValue(env.Spec.Source.Branch),
+					"catalyst.dev/branch":      sanitizeLabelValue(branch),
 				},
 			},
 		}

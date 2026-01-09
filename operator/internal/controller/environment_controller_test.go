@@ -53,9 +53,16 @@ var _ = Describe("Environment Controller", func() {
 					Namespace: namespace,
 				},
 				Spec: catalystv1alpha1.ProjectSpec{
-					Source: catalystv1alpha1.SourceConfig{
-						RepositoryURL: "https://github.com/org/repo",
-						Branch:        "main",
+					Sources: []catalystv1alpha1.SourceConfig{
+						{
+							Name:          "main",
+							RepositoryURL: "https://github.com/org/repo",
+							Branch:        "main",
+						},
+					},
+					Deployment: catalystv1alpha1.DeploymentConfig{
+						Type: "helm",
+						Path: "./charts/app",
 					},
 				},
 			}
@@ -72,9 +79,12 @@ var _ = Describe("Environment Controller", func() {
 				Spec: catalystv1alpha1.EnvironmentSpec{
 					ProjectRef: catalystv1alpha1.ProjectReference{Name: projectName},
 					Type:       "development",
-					Source: catalystv1alpha1.EnvironmentSource{
-						CommitSha: "abc1234",
-						Branch:    "main",
+					Sources: []catalystv1alpha1.EnvironmentSource{
+						{
+							Name:      "main",
+							CommitSha: "abc1234",
+							Branch:    "main",
+						},
 					},
 				},
 			}

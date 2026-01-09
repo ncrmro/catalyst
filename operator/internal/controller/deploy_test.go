@@ -20,9 +20,12 @@ func TestDesiredIngress_LocalMode(t *testing.T) {
 		Spec: catalystv1alpha1.EnvironmentSpec{
 			ProjectRef: catalystv1alpha1.ProjectReference{Name: "my-project"},
 			Type:       "development",
-			Source: catalystv1alpha1.EnvironmentSource{
-				CommitSha: "abc1234",
-				Branch:    "main",
+			Sources: []catalystv1alpha1.EnvironmentSource{
+				{
+					Name:      "main",
+					CommitSha: "abc1234",
+					Branch:    "main",
+				},
 			},
 		},
 	}
@@ -62,7 +65,7 @@ func TestDesiredIngress_LocalMode(t *testing.T) {
 }
 
 func TestDesiredIngress_ProductionMode(t *testing.T) {
-	// Create a test environment
+	// Create a test environment with ingress configuration
 	env := &catalystv1alpha1.Environment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-env",
@@ -71,9 +74,19 @@ func TestDesiredIngress_ProductionMode(t *testing.T) {
 		Spec: catalystv1alpha1.EnvironmentSpec{
 			ProjectRef: catalystv1alpha1.ProjectReference{Name: "my-project"},
 			Type:       "deployment",
-			Source: catalystv1alpha1.EnvironmentSource{
-				CommitSha: "abc1234",
-				Branch:    "main",
+			Sources: []catalystv1alpha1.EnvironmentSource{
+				{
+					Name:      "main",
+					CommitSha: "abc1234",
+					Branch:    "main",
+				},
+			},
+			Ingress: &catalystv1alpha1.IngressConfig{
+				Enabled: true,
+				TLS: &catalystv1alpha1.IngressTLSConfig{
+					Enabled: true,
+					Issuer:  "letsencrypt-prod",
+				},
 			},
 		},
 	}
@@ -166,9 +179,12 @@ func TestGetImageForDeployment_FromSpec(t *testing.T) {
 			ProjectRef:     catalystv1alpha1.ProjectReference{Name: "catalyst"},
 			Type:           "deployment",
 			DeploymentMode: "production",
-			Source: catalystv1alpha1.EnvironmentSource{
-				CommitSha: "abc1234",
-				Branch:    "main",
+			Sources: []catalystv1alpha1.EnvironmentSource{
+				{
+					Name:      "main",
+					CommitSha: "abc1234",
+					Branch:    "main",
+				},
 			},
 			Config: catalystv1alpha1.EnvironmentConfig{
 				Image: "ghcr.io/ncrmro/catalyst:latest",
@@ -192,9 +208,12 @@ func TestGetImageForDeployment_FallbackToClusterRegistry(t *testing.T) {
 			ProjectRef:     catalystv1alpha1.ProjectReference{Name: "catalyst"},
 			Type:           "development",
 			DeploymentMode: "workspace",
-			Source: catalystv1alpha1.EnvironmentSource{
-				CommitSha: "abc1234",
-				Branch:    "main",
+			Sources: []catalystv1alpha1.EnvironmentSource{
+				{
+					Name:      "main",
+					CommitSha: "abc1234",
+					Branch:    "main",
+				},
 			},
 			// No image in config - should fallback to cluster registry
 		},
@@ -215,9 +234,12 @@ func TestGetImageForDeployment_CustomImage(t *testing.T) {
 		Spec: catalystv1alpha1.EnvironmentSpec{
 			ProjectRef: catalystv1alpha1.ProjectReference{Name: "my-project"},
 			Type:       "deployment",
-			Source: catalystv1alpha1.EnvironmentSource{
-				CommitSha: "def5678",
-				Branch:    "feature",
+			Sources: []catalystv1alpha1.EnvironmentSource{
+				{
+					Name:      "main",
+					CommitSha: "def5678",
+					Branch:    "feature",
+				},
 			},
 			Config: catalystv1alpha1.EnvironmentConfig{
 				Image: "nginx:alpine",
