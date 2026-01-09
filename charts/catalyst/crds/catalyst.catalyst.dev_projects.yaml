@@ -71,22 +71,30 @@ spec:
                         type: string
                     type: object
                 type: object
-              source:
-                description: Source configuration for the project
-                properties:
-                  branch:
-                    description: Branch is the default branch to use
-                    type: string
-                  repositoryUrl:
-                    description: RepositoryURL is the git repository URL
-                    type: string
-                required:
-                - branch
-                - repositoryUrl
-                type: object
+              sources:
+                description: Sources configuration for the project (supports multiple
+                  repos)
+                items:
+                  properties:
+                    branch:
+                      description: Branch is the default branch to use
+                      type: string
+                    name:
+                      description: Name to identify this source component (e.g. "frontend",
+                        "backend")
+                      type: string
+                    repositoryUrl:
+                      description: RepositoryURL is the git repository URL
+                      type: string
+                  required:
+                  - branch
+                  - name
+                  - repositoryUrl
+                  type: object
+                type: array
             required:
             - deployment
-            - source
+            - sources
             type: object
           status:
             description: status defines the observed state of Project
