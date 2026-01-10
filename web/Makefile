@@ -12,7 +12,7 @@ help: ## Show this help message
 	@echo 'Usage: make <target>'
 	@echo ''
 	@echo 'Targets:'
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %%-15s %%s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 
 lint: ## Run code quality checks (Prettier, ESLint, Typecheck)
@@ -158,8 +158,8 @@ ci: ## Run comprehensive CI tests (unit, integration, and e2e)
 	@echo "All tests completed successfully!"
 
 ci-docker: ## Run comprehensive CI tests in Docker (unit, integration, and e2e)
-	$(DC) run --env NODE_ENV=production --rm -it app npm run lint
-	$(DC) run --env NODE_ENV=production --rm -it app npm test
+	$(DC) run --env NODE_ENV=production --rm -it web npm run lint
+	$(DC) run --env NODE_ENV=production --rm -it web npm test
 	$(DC) run --no-deps e2e
 
 e2e: ## Run e2e tests in Docker
