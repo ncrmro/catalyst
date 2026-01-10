@@ -78,12 +78,46 @@ spec:
               templates:
                 additionalProperties:
                   properties:
+                    builds:
+                      description: |-
+                        Builds defines the artifacts (container images) to be built from sources before deployment.
+                        This separates the "deployment logic" (e.g. Helm Chart) from the "application code" (e.g. Dockerfiles).
+                        The operator will build these images and can inject them into the deployment (e.g. via Helm values).
+                      items:
+                        properties:
+                          dockerfile:
+                            description: |-
+                              Dockerfile is the path to the Dockerfile relative to Path.
+                              If empty, auto-detection or default "Dockerfile" is assumed.
+                            type: string
+                          name:
+                            description: |-
+                              Name identifies this build artifact (e.g. "frontend", "api").
+                              This name is used to inject the built image into the deployment values.
+                              Example: for name "frontend", values might receive global.images.frontend.repository
+                            type: string
+                          path:
+                            description: |-
+                              Path is the build context directory relative to the SourceRef root.
+                              Defaults to root if empty.
+                            type: string
+                          sourceRef:
+                            description: SourceRef refers to the Project.Source containing
+                              the application code.
+                            type: string
+                        required:
+                        - name
+                        - sourceRef
+                        type: object
+                      type: array
                     path:
                       description: Path to the deployment definition (e.g. chart path)
+                        relative to SourceRef root.
                       type: string
                     sourceRef:
                       description: |-
                         SourceRef refers to one of the sources defined in Project.Sources
+                        containing the deployment configuration (e.g. Chart.yaml or k8s manifests).
                         If empty, assumes the first source or a primary source.
                       type: string
                     type:
