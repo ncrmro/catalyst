@@ -103,17 +103,10 @@ The North Star goal will be delivered through a prioritized sequence:
 3. **Legacy Cleanup**: Remove old `lib/k8s-*` files.
 
 ### Operator Implementation Roadmap
-
 1. **Build Controller**: Kaniko-based builds for Docker/Auto-detect.
-
 2. **Generic Deployment**: Standard K8s resources (Deployment/Service/Ingress).
-
 3. **Helm Deployment**: Helm SDK integration for template-driven deployments.
-
 4. **Registry Support**: Secret management for private image pulling/pushing.
-
 5. **CI/Job Orchestration**: Future support for lifecycle hooks.
-
-
 
 See `tasks.md` for the detailed execution list.
