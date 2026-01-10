@@ -1,5 +1,5 @@
 {
-  description = "Catalyst Development Environment";
+  description = "Catalyst Development and Production Environment";
 
   inputs = { nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable"; };
 
@@ -11,6 +11,60 @@
     in {
       formatter = forAllSystems
         (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
+
+      packages = forAllSystems (system:
+        let
+          pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
+          };
+
+          # 1. Catalyst Operator Binary
+          operator-bin = pkgs.buildGoModule {
+            pname = "catalyst-operator";
+            version = "0.1.0";
+            src = ./operator;
+            vendorHash = null; # Set to correct hash after first build
+            subPackages = [ "cmd/main.go" ];
+          };
+
+          # 2. Catalyst Web Application
+          web-app = pkgs.buildNpmPackage {
+            pname = "catalyst-web";
+            version = "0.1.0";
+            src = ./web;
+            npmDepsHash = ""; # Set to correct hash after first build
+            installPhase = ''
+              mkdir -p $out
+              cp -r .next/standalone/* $out/
+              cp -r public $out/.next/standalone/public
+              cp -r .next/static $out/.next/standalone/.next/static
+            '';
+          };
+        in {
+          # 3. Operator Container Image
+          operator-image = pkgs.dockerTools.buildLayeredImage {
+            name = "ghcr.io/ncrmro/catalyst/operator";
+            tag = "latest";
+            contents = [ pkgs.cacert operator-bin ];
+            config = {
+              Cmd = [ "${operator-bin}/bin/main" ];
+              ExposedPorts = { "8080/tcp" = { }; };
+            };
+          };
+
+          # 4. Web Container Image
+          web-image = pkgs.dockerTools.buildLayeredImage {
+            name = "ghcr.io/ncrmro/catalyst/web";
+            tag = "latest";
+            contents = [ pkgs.nodejs_22 pkgs.cacert ];
+            config = {
+              Cmd = [ "${pkgs.nodejs_22}/bin/node" "${web-app}/server.js" ];
+              ExposedPorts = { "3000/tcp" = { }; };
+              Env = [ "NODE_ENV=production" ];
+            };
+          };
+        });
 
       devShells = forAllSystems (system:
         let
