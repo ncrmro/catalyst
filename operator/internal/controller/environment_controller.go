@@ -29,6 +29,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -43,6 +44,7 @@ const environmentFinalizer = "catalyst.dev/finalizer"
 type EnvironmentReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	Config *rest.Config
 }
 
 // sanitizeLabelValue sanitizes a string for use as a Kubernetes label value.
@@ -217,7 +219,9 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// Infer mode from env.Spec.Type if DeploymentMode is not explicitly set
 	deploymentMode := env.Spec.DeploymentMode
 	if deploymentMode == "" {
-		if env.Spec.Type == "development" {
+		if envTemplate != nil && envTemplate.Type == "helm" {
+			deploymentMode = "helm"
+		} else if env.Spec.Type == "development" {
 			deploymentMode = "development"
 		} else if env.Spec.Type == "deployment" || env.Spec.Type == "staging" || env.Spec.Type == "production" {
 			deploymentMode = "production"
@@ -235,9 +239,56 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	case "production":
 		return r.reconcileProductionModeWithStatus(ctx, env, targetNamespace, isLocal, ingressPort, envTemplate)
 
+	case "helm":
+		return r.reconcileHelmModeWithStatus(ctx, env, targetNamespace, isLocal, ingressPort, envTemplate)
+
 	default: // "workspace" or any unrecognized value defaults to workspace
 		return r.reconcileWorkspaceMode(ctx, env, targetNamespace)
 	}
+}
+
+// reconcileHelmModeWithStatus handles helm deployment with status updates
+func (r *EnvironmentReconciler) reconcileHelmModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, ingressPort string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
+	log := logf.FromContext(ctx)
+
+	// Wait for default service account
+	sa := &corev1.ServiceAccount{}
+	if err := r.Get(ctx, client.ObjectKey{Name: "default", Namespace: namespace}, sa); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("Waiting for default ServiceAccount", "namespace", namespace)
+			return ctrl.Result{RequeueAfter: time.Second}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	// Set provisioning status
+	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" {
+		env.Status.Phase = "Provisioning"
+		if err := r.Status().Update(ctx, env); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	// Run helm reconciliation
+	ready, err := r.ReconcileHelmMode(ctx, env, namespace, template)
+	if err != nil {
+		env.Status.Phase = "Failed"
+		_ = r.Status().Update(ctx, env)
+		return ctrl.Result{}, err
+	}
+
+	if ready {
+		if env.Status.Phase != "Ready" {
+			env.Status.Phase = "Ready"
+			if err := r.Status().Update(ctx, env); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
+	}
+
+	// Not ready yet, requeue
+	return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 }
 
 // reconcileDevelopmentModeWithStatus handles development mode deployment with status updates
@@ -401,6 +452,7 @@ func (r *EnvironmentReconciler) reconcileWorkspaceMode(ctx context.Context, env 
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *EnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Config = mgr.GetConfig()
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&catalystv1alpha1.Environment{}).
 		// Note: Resources in target namespace are not owned via OwnerRef due to cross-namespace restrictions.

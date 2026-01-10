@@ -59,9 +59,11 @@ var _ = Describe("Project Controller", func() {
 								Branch:        "main",
 							},
 						},
-						Deployment: catalystv1alpha1.DeploymentConfig{
-							Type: "helm",
-							Path: "./charts/app",
+						Templates: map[string]catalystv1alpha1.EnvironmentTemplate{
+							"production": {
+								Type: "helm",
+								Path: "./charts/app",
+							},
 						},
 					},
 				}
