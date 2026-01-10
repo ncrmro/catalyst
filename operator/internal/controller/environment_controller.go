@@ -224,6 +224,8 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if deploymentMode == "" {
 		if envTemplate != nil && envTemplate.Type == "helm" {
 			deploymentMode = "helm"
+		} else if envTemplate != nil && envTemplate.Type == "docker-compose" {
+			deploymentMode = "docker-compose"
 		} else if env.Spec.Type == "development" {
 			deploymentMode = "development"
 		} else if env.Spec.Type == "deployment" || env.Spec.Type == "staging" || env.Spec.Type == "production" {
@@ -245,9 +247,56 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	case "helm":
 		return r.reconcileHelmModeWithStatus(ctx, env, project, targetNamespace, isLocal, ingressPort, envTemplate)
 
+	case "docker-compose":
+		return r.reconcileComposeModeWithStatus(ctx, env, project, targetNamespace, isLocal, ingressPort, envTemplate)
+
 	default: // "workspace" or any unrecognized value defaults to workspace
 		return r.reconcileWorkspaceMode(ctx, env, targetNamespace)
 	}
+}
+
+// reconcileComposeModeWithStatus handles docker-compose deployment with status updates
+func (r *EnvironmentReconciler) reconcileComposeModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, isLocal bool, ingressPort string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
+	log := logf.FromContext(ctx)
+
+	// Wait for default service account
+	sa := &corev1.ServiceAccount{}
+	if err := r.Get(ctx, client.ObjectKey{Name: "default", Namespace: namespace}, sa); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("Waiting for default ServiceAccount", "namespace", namespace)
+			return ctrl.Result{RequeueAfter: time.Second}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	// Set provisioning status
+	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" && env.Status.Phase != "Building" {
+		env.Status.Phase = "Provisioning"
+		if err := r.Status().Update(ctx, env); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	// Run compose reconciliation
+	ready, err := r.ReconcileComposeMode(ctx, env, project, namespace, template)
+	if err != nil {
+		env.Status.Phase = "Failed"
+		_ = r.Status().Update(ctx, env)
+		return ctrl.Result{}, err
+	}
+
+	if ready {
+		if env.Status.Phase != "Ready" {
+			env.Status.Phase = "Ready"
+			if err := r.Status().Update(ctx, env); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
+	}
+
+	// Not ready yet (re-reconcile for builds or resources)
+	return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 }
 
 // reconcileHelmModeWithStatus handles helm deployment with status updates

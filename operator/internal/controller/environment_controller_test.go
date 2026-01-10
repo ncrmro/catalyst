@@ -765,11 +765,7 @@ var _ = Describe("Environment Controller", func() {
 			}, time.Second*10, time.Millisecond*250).Should(Succeed())
 
 			// 2. Verify Init Containers
-<<<<<<< HEAD
 			Expect(job.Spec.Template.Spec.InitContainers).To(HaveLen(2))
-=======
-			Expect(len(job.Spec.Template.Spec.InitContainers)).To(Equal(2))
->>>>>>> 9de4f60 (feat(operator): use git-sync sidecar for build cloning (T148))
 			Expect(job.Spec.Template.Spec.InitContainers[0].Name).To(Equal("git-sync"))
 			Expect(job.Spec.Template.Spec.InitContainers[1].Name).To(Equal("dockerfile-gen"))
 
@@ -787,6 +783,161 @@ var _ = Describe("Environment Controller", func() {
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
+		})
+	})
+
+	Context("When reconciling a Docker Compose environment", func() {
+		const resourceName = "compose-test"
+		const projectName = "compose-project"
+		const namespace = "default"
+
+		ctx := context.Background()
+
+		typeNamespacedName := types.NamespacedName{
+			Name:      resourceName,
+			Namespace: namespace,
+		}
+
+		BeforeEach(func() {
+			By("Creating the Git Secret")
+			gitSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "github-pat-secret",
+					Namespace: namespace,
+				},
+				Data: map[string][]byte{
+					"token": []byte("dummy-token"),
+				},
+			}
+			_ = k8sClient.Delete(ctx, gitSecret)
+			Expect(k8sClient.Create(ctx, gitSecret)).To(Succeed())
+
+			By("Creating the Project CR with Compose template")
+			project := &catalystv1alpha1.Project{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      projectName,
+					Namespace: namespace,
+				},
+				Spec: catalystv1alpha1.ProjectSpec{
+					Sources: []catalystv1alpha1.SourceConfig{
+						{
+							Name:          "app",
+							RepositoryURL: "https://github.com/org/app",
+							Branch:        "main",
+						},
+					},
+					Templates: map[string]catalystv1alpha1.EnvironmentTemplate{
+						"compose": {
+							Type: "docker-compose",
+							Path: "./testdata/compose",
+						},
+					},
+				},
+			}
+			_ = k8sClient.Delete(ctx, project)
+			Expect(k8sClient.Create(ctx, project)).To(Succeed())
+
+			By("Creating the Environment CR")
+			resource := &catalystv1alpha1.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      resourceName,
+					Namespace: namespace,
+				},
+				Spec: catalystv1alpha1.EnvironmentSpec{
+					ProjectRef: catalystv1alpha1.ProjectReference{Name: projectName},
+					Type:       "compose",
+					Sources: []catalystv1alpha1.EnvironmentSource{
+						{
+							Name:      "app",
+							CommitSha: "abc1234",
+							Branch:    "main",
+						},
+					},
+				},
+			}
+			_ = k8sClient.Delete(ctx, resource)
+			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			resource := &catalystv1alpha1.Environment{}
+			if err := k8sClient.Get(ctx, typeNamespacedName, resource); err == nil {
+				controllerutil.RemoveFinalizer(resource, "catalyst.dev/finalizer")
+				k8sClient.Update(ctx, resource)
+				k8sClient.Delete(ctx, resource)
+			}
+			targetNsName := projectName + "-" + resourceName
+			k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
+		})
+
+		It("should successfully translate Compose to K8s resources", func() {
+			controllerReconciler := &EnvironmentReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+				Config: cfg,
+			}
+
+			// Reconcile
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			targetNsName := projectName + "-" + resourceName
+
+			// Simulate Controller Manager: Create default ServiceAccount
+			sa := &corev1.ServiceAccount{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "default",
+					Namespace: targetNsName,
+				},
+			}
+			ns := &corev1.Namespace{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: targetNsName}, ns)
+			}, time.Second*10, time.Millisecond*250).Should(Succeed())
+			Expect(k8sClient.Create(ctx, sa)).To(Succeed())
+
+			// Trigger Reconcile again
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			// 1. Verify Build Job created for 'web' service
+			jobName := "build-web-abc1234"
+			job := &batchv1.Job{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: jobName, Namespace: targetNsName}, job)
+			}, time.Second*10, time.Millisecond*250).Should(Succeed())
+
+			// 2. Simulate Build Success
+			job.Status.Succeeded = 1
+			Expect(k8sClient.Status().Update(ctx, job)).To(Succeed())
+
+			// Trigger Reconcile again
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			// 3. Verify Deployments created for both 'web' and 'db'
+			webDeploy := &appsv1.Deployment{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: "web", Namespace: targetNsName}, webDeploy)
+			}, time.Second*10, time.Millisecond*250).Should(Succeed())
+
+			dbDeploy := &appsv1.Deployment{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: "db", Namespace: targetNsName}, dbDeploy)
+			}, time.Second*10, time.Millisecond*250).Should(Succeed())
+
+			// 4. Verify Service created for 'web'
+			webSvc := &corev1.Service{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: "web", Namespace: targetNsName}, webSvc)
+			}, time.Second*10, time.Millisecond*250).Should(Succeed())
+			Expect(webSvc.Spec.Ports[0].Port).To(Equal(int32(80)))
 		})
 	})
 })
