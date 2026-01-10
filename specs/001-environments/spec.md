@@ -27,20 +27,135 @@ Environments provide isolated and pre-configured contexts for code to run. The p
 
 This separation ensures production stability while enabling rapid experimentation. Development environments extend the traditional "preview environment" concept—they're not just view-only deployments, but fully interactive spaces where developers can shell in, agents can autonomously code, and both can inspect their work through real public URLs.
 
-## User Stories
+## User Scenarios & Testing
 
-### US-1: Zero-Friction Development Environments (P1)
+### User Story 1 - Zero-Friction Development Environments (Priority: P1)
 
 As a developer, I want to use development environments with as little friction as possible so that I can adopt the platform quickly and get to deploying features faster.
 
-**Acceptance Criteria**:
+**Why this priority**: Core value proposition. Without automatic, easy-to-use environments, the platform adds friction rather than removing it.
 
-1. **Given** a repository with a standard project structure (e.g., `package.json` with `dev` script), **When** a PR is opened, **Then** a development environment is automatically provisioned with the correct dev server command inferred—no manual configuration required.
+**Independent Test**: Create a Pull Request in a repository with a standard `package.json`, verify a comment is posted with a working preview URL within 3 minutes.
+
+**Acceptance Scenarios**:
+
+1. **Given** a repository with `package.json` having a `dev` script, **When** a PR is opened, **Then** a development environment is automatically provisioned with the correct dev server command inferred.
 2. **Given** the system detects an incorrect project type, **When** I view the environment configuration, **Then** I can override the dev command via UI or API.
-3. **Given** a PR is opened, **When** the environment is ready, **Then** I receive a public URL within 2 minutes without any setup steps.
+3. **Given** a PR is opened, **When** the environment is ready, **Then** I receive a public URL within 3 minutes without any setup steps.
 4. **Given** I need to debug an issue, **When** I access the environment, **Then** I can shell in immediately without additional authentication steps.
 
-**Related Requirements**: [FR-ENV-006] Automatic Project Type Detection
+---
+
+### User Story 2 - Deployment Visibility & Logs (Priority: P2)
+
+As a developer, I want to view deployment progress and container logs so that I can troubleshoot issues when an environment fails to start.
+
+**Why this priority**: Essential for debugging. "Black box" failures lead to user abandonment.
+
+**Independent Test**: Navigate to the preview environment detail page in the UI, trigger a deployment error (e.g., bad build command), and verify error logs are visible.
+
+**Acceptance Scenarios**:
+
+1. **Given** a deployment is in progress, **When** I view the dashboard, **Then** I see the real-time status (Pending, Building, Deploying, Ready).
+2. **Given** a deployment failed, **When** I click on the environment, **Then** I can see the container logs (stdout/stderr) to identify the error.
+
+---
+
+### User Story 3 - Continuous Feedback & Auto-Redeploy (Priority: P2)
+
+As a developer, I want my preview environment to automatically update when I push code so that I'm always testing the latest version.
+
+**Why this priority**: Matches standard CI/CD expectations. Stale previews are misleading.
+
+**Independent Test**: Push a new commit to an open PR branch, verify the environment status changes to "Building/Deploying" and eventually updates with the new code.
+
+**Acceptance Scenarios**:
+
+1. **Given** an active preview environment, **When** I push a new commit to the PR branch, **Then** the environment automatically redeploys with the new code.
+2. **Given** a redeployment completes, **When** I check the PR, **Then** the deployment comment is updated with the new status/timestamp.
+
+---
+
+### User Story 4 - Resource Hygiene & Cleanup (Priority: P3)
+
+As a platform owner, I want preview environments to be deleted automatically when PRs are closed so that I don't waste cluster resources.
+
+**Why this priority**: Cost control and cluster health. Prevents "zombie" environments.
+
+**Independent Test**: Close a Pull Request, verify that the corresponding Kubernetes namespace and resources are deleted within 5 minutes.
+
+**Acceptance Scenarios**:
+
+1. **Given** an open PR with an environment, **When** the PR is closed or merged, **Then** the environment and all its resources are deleted.
+2. **Given** an environment needs to be kept, **When** I disable auto-deletion (future), **Then** it persists after PR close (Edge Case).
+
+---
+
+### User Story 5 - Platform Operator Resource Visibility (Priority: P3)
+
+As a platform operator, I want to see resource usage across all environments so that I can identify expensive or stuck deployments.
+
+**Why this priority**: Operational management. Necessary for scaling beyond a single team.
+
+**Independent Test**: View the global environments list, verify CPU/Memory usage metrics are displayed for each environment.
+
+**Acceptance Scenarios**:
+
+1. **Given** multiple running environments, **When** I view the admin list, **Then** I see CPU and Memory usage for each.
+2. **Given** an environment is stuck or consuming excessive resources, **When** I click delete/stop, **Then** the environment is forcefully removed.
+
+---
+
+### User Story 6 - Advanced Configuration & Templates (Priority: P2)
+
+As a power user, I want to configure deployments using standard tools (Docker Compose, Nix, Helm) so that I can support complex applications beyond simple Node.js apps.
+
+**Why this priority**: Enables adoption by complex/legacy projects and "production-grade" usage.
+
+**Independent Test**: Configure a project with a `nix-flake` or `docker-compose` template, trigger a deployment, and verify the environment matches the specification.
+
+**Acceptance Scenarios**:
+
+1. **Given** a project with a `docker-compose.yml`, **When** I set the template type to `docker-compose`, **Then** the operator creates deployments/services matching the compose file.
+2. **Given** a project using Nix, **When** I set the template type to `nix-flake`, **Then** the environment is provisioned with the correct devShell.
+3. **Given** a production requirement, **When** I configure `services.postgres.enabled: true` in the template, **Then** a managed PostgreSQL instance is provisioned alongside the app.
+
+---
+
+## Success Criteria
+
+### Measurable Outcomes
+
+- **SC-001**: Users receive a working preview URL within **3 minutes** of PR creation for standard project types.
+- **SC-002**: Environment cleanup occurs within **5 minutes** of PR closure.
+- **SC-003**: System successfully detects project type for **90%** of supported standard repositories.
+- **SC-004**: Users can troubleshoot a failed deployment using UI logs within **1 minute** (without needing kubectl).
+
+## Requirements
+
+### Functional Requirements
+
+- **FR-ENV-001**: System MUST gracefully handle missing Kubernetes resources in web UI (e.g. display "Pending" instead of crash).
+- **FR-ENV-002**: System MUST support local URL testing via `*.localhost` hostname routing (no DNS/hosts config required).
+- **FR-ENV-003**: System MUST support self-deployment via `SEED_SELF_DEPLOY` flag for end-to-end testing.
+- **FR-ENV-004**: Operator MUST support "production" deployment mode (static deployment, no hot-reload).
+- **FR-ENV-005**: Operator MUST support "development" deployment mode (hot-reload, volume mounts).
+- **FR-ENV-006**: System MUST automatically detect project type and infer dev server command (Zero-Config).
+- **FR-ENV-007**: System MUST follow precedence rules when multiple project indicators exist (Compose > Dockerfile > Node).
+- **FR-ENV-008**: System MUST provide a fallback mechanism when no project type is detected (generic container + manual config).
+- **FR-ENV-009**: System MUST support monorepo and nested project structures via `workdir` configuration.
+- **FR-ENV-010**: System MUST handle dev command failures gracefully (status=Degraded, shell access preserved).
+- **FR-ENV-011**: System MUST persist user overrides for deployment configuration across PR updates.
+- **FR-ENV-012**: System MUST support `docker-compose.yml` as a deployment template source.
+- **FR-ENV-013**: System MUST support prebuilt image deployments with tag overrides (for staging/promotion).
+- **FR-ENV-014**: System MUST support custom/external Helm charts for advanced deployment control.
+- **FR-ENV-015**: System MUST support Nix Flakes for reproducible build/dev environments.
+
+### Key Entities
+
+- **Project**: Represents a code repository and its deployment configuration (Templates).
+- **Environment**: Represents a running instance of the application (Development or Deployment).
+- **EnvironmentTemplate**: Defines the deployment strategy (Helm, Nix, Compose) for a specific environment type.
 
 ## What
 
