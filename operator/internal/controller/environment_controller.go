@@ -240,7 +240,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return r.reconcileProductionModeWithStatus(ctx, env, targetNamespace, isLocal, ingressPort, envTemplate)
 
 	case "helm":
-		return r.reconcileHelmModeWithStatus(ctx, env, targetNamespace, isLocal, ingressPort, envTemplate)
+		return r.reconcileHelmModeWithStatus(ctx, env, project, targetNamespace, isLocal, ingressPort, envTemplate)
 
 	default: // "workspace" or any unrecognized value defaults to workspace
 		return r.reconcileWorkspaceMode(ctx, env, targetNamespace)
@@ -248,7 +248,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 }
 
 // reconcileHelmModeWithStatus handles helm deployment with status updates
-func (r *EnvironmentReconciler) reconcileHelmModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, ingressPort string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
+func (r *EnvironmentReconciler) reconcileHelmModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, isLocal bool, ingressPort string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
 	// Wait for default service account
@@ -270,7 +270,7 @@ func (r *EnvironmentReconciler) reconcileHelmModeWithStatus(ctx context.Context,
 	}
 
 	// Run helm reconciliation
-	ready, err := r.ReconcileHelmMode(ctx, env, namespace, template)
+	ready, err := r.ReconcileHelmMode(ctx, env, project, namespace, template)
 	if err != nil {
 		env.Status.Phase = "Failed"
 		_ = r.Status().Update(ctx, env)
