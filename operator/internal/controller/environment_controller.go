@@ -261,8 +261,34 @@ func (r *EnvironmentReconciler) reconcileHelmModeWithStatus(ctx context.Context,
 		return ctrl.Result{}, err
 	}
 
-	// Set provisioning status
-	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" {
+	// Reconcile Builds (Zero-Config / Dockerfile Builds)
+	var builtImages map[string]string
+	if len(template.Builds) > 0 {
+		// Update status to Building if not already (and not failed)
+		if env.Status.Phase != "Building" && env.Status.Phase != "Ready" && env.Status.Phase != "Failed" {
+			env.Status.Phase = "Building"
+			if err := r.Status().Update(ctx, env); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+
+		var err error
+		builtImages, err = r.reconcileBuilds(ctx, env, project, namespace, template)
+		if err != nil {
+			log.Error(err, "Build failed")
+			env.Status.Phase = "Failed"
+			_ = r.Status().Update(ctx, env)
+			return ctrl.Result{}, err
+		}
+
+		if builtImages == nil {
+			log.Info("Builds in progress...")
+			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+		}
+	}
+
+	// Set provisioning status (if not building)
+	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" && env.Status.Phase != "Building" {
 		env.Status.Phase = "Provisioning"
 		if err := r.Status().Update(ctx, env); err != nil {
 			return ctrl.Result{}, err
@@ -270,7 +296,7 @@ func (r *EnvironmentReconciler) reconcileHelmModeWithStatus(ctx context.Context,
 	}
 
 	// Run helm reconciliation
-	ready, err := r.ReconcileHelmMode(ctx, env, project, namespace, template)
+	ready, err := r.ReconcileHelmMode(ctx, env, project, namespace, template, builtImages)
 	if err != nil {
 		env.Status.Phase = "Failed"
 		_ = r.Status().Update(ctx, env)
