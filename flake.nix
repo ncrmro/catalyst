@@ -25,6 +25,7 @@
             version = "0.1.0";
             src = ./operator;
             vendorHash = null; # Set to correct hash after first build
+            proxyVendor = true;
             subPackages = [ "cmd/main.go" ];
           };
 
@@ -33,7 +34,8 @@
             pname = "catalyst-web";
             version = "0.1.0";
             src = ./web;
-            npmDepsHash = ""; # Set to correct hash after first build
+            npmDepsHash = "sha256-ZXavWAu7Zmxei4loUrAh7YhH20cDOr2SiFB1AsYv8TA=";
+            makeCacheWritable = true;
             installPhase = ''
               mkdir -p $out
               cp -r .next/standalone/* $out/
