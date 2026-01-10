@@ -270,13 +270,6 @@ func (r *EnvironmentReconciler) reconcileHelmModeWithStatus(ctx context.Context,
 	}
 
 	// Run helm reconciliation
-	// Note: PR 2 does not have builtImages parameter yet (it's added in PR 3 or 5)
-	// So I should match what PR 2 expects if I am on PR 2 branch.
-	// But I cherry-picked PR 2 commit.
-	// Wait, PR 2 commit calls ReconcileHelmMode WITHOUT builtImages (that was added in Zero-Config PR 3).
-	// So I should verify what ReconcileHelmMode signature is in THIS state.
-	// In THIS state (PR 2), ReconcileHelmMode does NOT accept builtImages.
-	
 	ready, err := r.ReconcileHelmMode(ctx, env, project, namespace, template)
 	if err != nil {
 		env.Status.Phase = "Failed"

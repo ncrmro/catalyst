@@ -20,7 +20,10 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/release"
@@ -38,30 +41,21 @@ import (
 )
 
 // ReconcileHelmMode handles the reconciliation for Helm deployment mode.
-func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, template *catalystv1alpha1.EnvironmentTemplate) (bool, error) {
+func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, template *catalystv1alpha1.EnvironmentTemplate) (bool, error) {
 	log := logf.FromContext(ctx)
 
 	if template == nil {
 		return false, fmt.Errorf("helm template is required")
 	}
 
-	chartPath := template.Path
-	if chartPath == "" {
-		return false, fmt.Errorf("chart path is required in template")
+	// Prepare chart source (local path or clone from git)
+	chartPath, cleanup, err := r.prepareChartSource(ctx, env, project, template)
+	if cleanup != nil {
+		defer cleanup()
 	}
-
-	// For local testing/development, we use the local filesystem path.
-	// In production, this would likely involve cloning the git repo first.
-	// If the path starts with "/", assume absolute path (e.g. injected by test or volume)
-	// If relative, we might need to resolve it relative to the controller's CWD
-	if _, err := os.Stat(chartPath); os.IsNotExist(err) {
-		// Try to see if we can find it in the current working directory or up a few levels (for tests)
-		// This is a simple heuristic for the test environment
-		if _, err := os.Stat("../../" + chartPath); err == nil {
-			chartPath = "../../" + chartPath
-		} else {
-			return false, fmt.Errorf("chart not found at path: %s", chartPath)
-		}
+	if err != nil {
+		log.Error(err, "Failed to prepare chart source")
+		return false, err
 	}
 
 	// Initialize Helm Action Config
@@ -143,6 +137,103 @@ func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *cata
 	}
 
 	return false, nil
+}
+
+// prepareChartSource resolves the chart path, cloning the repository if necessary.
+func (r *EnvironmentReconciler) prepareChartSource(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, template *catalystv1alpha1.EnvironmentTemplate) (string, func(), error) {
+	log := logf.FromContext(ctx)
+
+	// If no SourceRef, assume local path (for testing or pre-baked images)
+	if template.SourceRef == "" {
+		chartPath := template.Path
+		if chartPath == "" {
+			return "", nil, fmt.Errorf("chart path is required")
+		}
+
+		// Check if local path exists
+		if _, err := os.Stat(chartPath); os.IsNotExist(err) {
+			// Try heuristics for tests
+			if _, err := os.Stat("../../" + chartPath); err == nil {
+				chartPath = "../../" + chartPath
+			} else {
+				return "", nil, fmt.Errorf("chart not found at path: %s", chartPath)
+			}
+		}
+		return chartPath, nil, nil
+	}
+
+	// Resolve SourceRef
+	var sourceConfig *catalystv1alpha1.SourceConfig
+	for _, s := range project.Spec.Sources {
+		if s.Name == template.SourceRef {
+			sourceConfig = &s
+			break
+		}
+	}
+	if sourceConfig == nil {
+		return "", nil, fmt.Errorf("source ref '%s' not found in project", template.SourceRef)
+	}
+
+	// Determine Commit/Branch
+	var commitSha string
+	// Find the source in Environment spec to get specific commit
+	for _, s := range env.Spec.Sources {
+		if s.Name == template.SourceRef {
+			commitSha = s.CommitSha
+			break
+		}
+	}
+
+	// Clone Repository
+	tempDir, err := os.MkdirTemp("", "catalyst-chart-*")
+	if err != nil {
+		return "", nil, err
+	}
+
+	cleanup := func() {
+		os.RemoveAll(tempDir)
+	}
+
+	log.Info("Cloning repository for chart", "url", sourceConfig.RepositoryURL, "commit", commitSha, "tempDir", tempDir)
+
+	_, err = git.PlainClone(tempDir, false, &git.CloneOptions{
+		URL: sourceConfig.RepositoryURL,
+		// Depth: 1, // Can't use Depth 1 with Hash checkout usually, unless server supports it
+	})
+	if err != nil {
+		cleanup()
+		return "", nil, fmt.Errorf("failed to clone repo: %w", err)
+	}
+
+	// Checkout Commit if specified
+	if commitSha != "" {
+		repo, err := git.PlainOpen(tempDir)
+		if err != nil {
+			cleanup()
+			return "", nil, fmt.Errorf("failed to open repo: %w", err)
+		}
+		w, err := repo.Worktree()
+		if err != nil {
+			cleanup()
+			return "", nil, fmt.Errorf("failed to get worktree: %w", err)
+		}
+		err = w.Checkout(&git.CheckoutOptions{
+			Hash: plumbing.NewHash(commitSha),
+		})
+		if err != nil {
+			cleanup()
+			return "", nil, fmt.Errorf("failed to checkout commit %s: %w", commitSha, err)
+		}
+	}
+
+	// Resolve Path within repo
+	chartPath := filepath.Join(tempDir, template.Path)
+	if _, err := os.Stat(chartPath); os.IsNotExist(err) {
+		cleanup()
+		return "", nil, fmt.Errorf("chart not found at %s in repo %s", template.Path, sourceConfig.RepositoryURL)
+	}
+
+	return chartPath, cleanup, nil
 }
 
 // genericRESTClientGetter adapts the controller's rest.Config to Helm's RESTClientGetter interface
