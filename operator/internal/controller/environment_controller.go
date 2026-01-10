@@ -95,6 +95,21 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	targetNamespace := fmt.Sprintf("%s-%s", env.Spec.ProjectRef.Name, env.Name)
 
+	// Fetch Project to access Templates
+	project := &catalystv1alpha1.Project{}
+	if err := r.Get(ctx, client.ObjectKey{Name: env.Spec.ProjectRef.Name, Namespace: env.Namespace}, project); err != nil {
+		log.Error(err, "Failed to fetch Project", "projectName", env.Spec.ProjectRef.Name)
+		return ctrl.Result{}, err
+	}
+
+	// Resolve Template
+	var envTemplate *catalystv1alpha1.EnvironmentTemplate
+	if t, ok := project.Spec.Templates[env.Spec.Type]; ok {
+		envTemplate = &t
+	} else {
+		log.Info("No template found for environment type, using defaults", "type", env.Spec.Type)
+	}
+
 	// Finalizer logic
 	if !env.ObjectMeta.DeletionTimestamp.IsZero() {
 		if controllerutil.ContainsFinalizer(env, environmentFinalizer) {
@@ -199,20 +214,26 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// 4. Deployment Mode Branching
-	// Determine deployment mode: "development", "production", or "workspace" (default)
+	// Infer mode from env.Spec.Type if DeploymentMode is not explicitly set
 	deploymentMode := env.Spec.DeploymentMode
 	if deploymentMode == "" {
-		deploymentMode = "workspace" // Default to workspace mode
+		if env.Spec.Type == "development" {
+			deploymentMode = "development"
+		} else if env.Spec.Type == "deployment" || env.Spec.Type == "staging" || env.Spec.Type == "production" {
+			deploymentMode = "production"
+		} else {
+			deploymentMode = "workspace" // Default fallback
+		}
 	}
 
-	log.Info("Reconciling deployment mode", "mode", deploymentMode, "namespace", targetNamespace)
+	log.Info("Reconciling deployment mode", "mode", deploymentMode, "namespace", targetNamespace, "templateFound", envTemplate != nil)
 
 	switch deploymentMode {
 	case "development":
-		return r.reconcileDevelopmentModeWithStatus(ctx, env, targetNamespace, isLocal, ingressPort)
+		return r.reconcileDevelopmentModeWithStatus(ctx, env, targetNamespace, isLocal, ingressPort, envTemplate)
 
 	case "production":
-		return r.reconcileProductionModeWithStatus(ctx, env, targetNamespace, isLocal, ingressPort)
+		return r.reconcileProductionModeWithStatus(ctx, env, targetNamespace, isLocal, ingressPort, envTemplate)
 
 	default: // "workspace" or any unrecognized value defaults to workspace
 		return r.reconcileWorkspaceMode(ctx, env, targetNamespace)
@@ -220,7 +241,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 }
 
 // reconcileDevelopmentModeWithStatus handles development mode deployment with status updates
-func (r *EnvironmentReconciler) reconcileDevelopmentModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, ingressPort string) (ctrl.Result, error) {
+func (r *EnvironmentReconciler) reconcileDevelopmentModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, ingressPort string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
 	// Wait for default service account
@@ -242,7 +263,7 @@ func (r *EnvironmentReconciler) reconcileDevelopmentModeWithStatus(ctx context.C
 	}
 
 	// Run development mode reconciliation
-	ready, err := r.ReconcileDevelopmentMode(ctx, env, namespace)
+	ready, err := r.ReconcileDevelopmentMode(ctx, env, namespace, template)
 	if err != nil {
 		env.Status.Phase = "Failed"
 		_ = r.Status().Update(ctx, env)
@@ -264,7 +285,7 @@ func (r *EnvironmentReconciler) reconcileDevelopmentModeWithStatus(ctx context.C
 }
 
 // reconcileProductionModeWithStatus handles production mode deployment with status updates
-func (r *EnvironmentReconciler) reconcileProductionModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, ingressPort string) (ctrl.Result, error) {
+func (r *EnvironmentReconciler) reconcileProductionModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, ingressPort string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
 	// Wait for default service account
@@ -286,7 +307,7 @@ func (r *EnvironmentReconciler) reconcileProductionModeWithStatus(ctx context.Co
 	}
 
 	// Run production mode reconciliation
-	ready, err := r.ReconcileProductionMode(ctx, env, namespace, isLocal)
+	ready, err := r.ReconcileProductionMode(ctx, env, namespace, isLocal, template)
 	if err != nil {
 		env.Status.Phase = "Failed"
 		_ = r.Status().Update(ctx, env)

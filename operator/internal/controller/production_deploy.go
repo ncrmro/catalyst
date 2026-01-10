@@ -29,7 +29,7 @@ import (
 
 // ReconcileProductionMode handles the reconciliation for production deployment mode.
 // It deploys a pre-built container image using the existing desiredDeployment/desiredService patterns.
-func (r *EnvironmentReconciler) ReconcileProductionMode(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool) (bool, error) {
+func (r *EnvironmentReconciler) ReconcileProductionMode(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, template *catalystv1alpha1.EnvironmentTemplate) (bool, error) {
 	log := logf.FromContext(ctx)
 
 	// 1. Create/update deployment using pre-built image from registry
