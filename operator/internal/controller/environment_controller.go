@@ -226,7 +226,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			deploymentMode = "helm"
 		} else if env.Spec.Type == "development" {
 			deploymentMode = "development"
-		} else if env.Spec.Type == "staging" || env.Spec.Type == "production" {
+		} else if env.Spec.Type == "deployment" || env.Spec.Type == "staging" || env.Spec.Type == "production" {
 			deploymentMode = "production"
 		} else {
 			deploymentMode = "workspace" // Default fallback
