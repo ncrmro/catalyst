@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	gitCloneImage      = "alpine/git:2.43.0"
+	gitSyncImage       = "registry.k8s.io/git-sync/git-sync:v4.4.0"
 	dockerfileGenImage = "alpine:3.19"
 	kanikoImage        = "gcr.io/kaniko-project/executor:v1.20.0"
 	gitSecretName      = "github-pat-secret"
@@ -155,10 +155,6 @@ func (r *EnvironmentReconciler) ensureGitSecret(ctx context.Context, sourceNs, t
 	sourceSecret := &corev1.Secret{}
 	if err := r.Get(ctx, client.ObjectKey{Name: gitSecretName, Namespace: sourceNs}, sourceSecret); err != nil {
 		if apierrors.IsNotFound(err) {
-			// Instead of erroring out, assume secret is not needed or handled elsewhere if missing
-			// But for private repos, this will fail build.
-			// Warn and continue? Or hard error?
-			// Let's hard error for now as it's required for T148 plan.
 			return fmt.Errorf("git secret '%s' not found in namespace '%s' - required for build", gitSecretName, sourceNs)
 		}
 		return err
@@ -183,6 +179,13 @@ func desiredBuildJob(name, namespace, destination, repoURL, commit, branch strin
 	workspaceVolume := corev1.VolumeMount{Name: "workspace", MountPath: "/workspace"}
 	gitSecretVolume := corev1.VolumeMount{Name: "git-secret", MountPath: "/etc/git-secret", ReadOnly: true}
 
+	// Git Sync Configuration
+	// Clone to /workspace/source
+	gitSyncRoot := "/workspace"
+	gitSyncDest := "source"
+	// Workdir for subsequent steps is /workspace/source + build.Path
+	workdir := fmt.Sprintf("/workspace/%s%s", gitSyncDest, build.Path)
+
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -202,18 +205,23 @@ func desiredBuildJob(name, namespace, destination, repoURL, commit, branch strin
 						{Name: "git-secret", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: gitSecretName}}},
 					},
 					InitContainers: []corev1.Container{
-						// 1. Git Clone
+						// 1. Git Sync (One-Time Clone)
 						{
-							Name:    "git-clone",
-							Image:   gitCloneImage,
-							Command: []string{"/bin/sh", "-c"},
-							Args: []string{
-								`git config --global credential.helper '!f() { echo "username=x-access-token"; echo "password=$(cat /etc/git-secret/token)"; }; f' && ` +
-									`git clone ` + repoURL + ` /workspace && ` +
-									`cd /workspace && ` +
-									`git checkout ` + commit,
+							Name:  "git-sync",
+							Image: gitSyncImage,
+							Env: []corev1.EnvVar{
+								{Name: "GIT_SYNC_REPO", Value: repoURL},
+								{Name: "GIT_SYNC_REV", Value: commit}, // Use commit hash
+								{Name: "GIT_SYNC_ONE_TIME", Value: "true"},
+								{Name: "GIT_SYNC_ROOT", Value: gitSyncRoot},
+								{Name: "GIT_SYNC_DEST", Value: gitSyncDest},
+								{Name: "GIT_SYNC_USERNAME", Value: "x-access-token"},
+								{Name: "GIT_SYNC_PASSWORD_FILE", Value: "/etc/git-secret/token"},
 							},
 							VolumeMounts: []corev1.VolumeMount{workspaceVolume, gitSecretVolume},
+							SecurityContext: &corev1.SecurityContext{
+								RunAsUser: ptr(int64(65533)), // git-sync user
+							},
 						},
 						// 2. Dockerfile Generator (Zero-Config)
 						{
@@ -221,7 +229,8 @@ func desiredBuildJob(name, namespace, destination, repoURL, commit, branch strin
 							Image:   dockerfileGenImage,
 							Command: []string{"/bin/sh", "-c"},
 							Args: []string{
-								`cd /workspace` + (build.Path) + ` && ` +
+								// Check if Dockerfile exists in the source directory
+								`cd ` + workdir + ` && ` +
 									`if [ ! -f Dockerfile ]; then 
 									echo "No Dockerfile found. Generating default Node.js Dockerfile..."
 									cat <<EOF > Dockerfile
@@ -245,9 +254,9 @@ EOF
 							Image: kanikoImage,
 							Args: []string{
 								"--dockerfile=Dockerfile",
-								"--context=dir:///workspace" + build.Path, // Append subpath if set
+								"--context=dir://" + workdir,
 								"--destination=" + destination,
-								"--insecure", // Internal registry is insecure
+								"--insecure",
 								"--cache=true",
 							},
 							VolumeMounts: []corev1.VolumeMount{workspaceVolume},

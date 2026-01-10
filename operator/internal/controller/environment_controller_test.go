@@ -761,7 +761,7 @@ var _ = Describe("Environment Controller", func() {
 
 			// 2. Verify Init Containers
 			Expect(len(job.Spec.Template.Spec.InitContainers)).To(Equal(2))
-			Expect(job.Spec.Template.Spec.InitContainers[0].Name).To(Equal("git-clone"))
+			Expect(job.Spec.Template.Spec.InitContainers[0].Name).To(Equal("git-sync"))
 			Expect(job.Spec.Template.Spec.InitContainers[1].Name).To(Equal("dockerfile-gen"))
 
 			// 3. Verify Env Status
