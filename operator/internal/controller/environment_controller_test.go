@@ -765,7 +765,11 @@ var _ = Describe("Environment Controller", func() {
 			}, time.Second*10, time.Millisecond*250).Should(Succeed())
 
 			// 2. Verify Init Containers
+<<<<<<< HEAD
 			Expect(job.Spec.Template.Spec.InitContainers).To(HaveLen(2))
+=======
+			Expect(len(job.Spec.Template.Spec.InitContainers)).To(Equal(2))
+>>>>>>> 9de4f60 (feat(operator): use git-sync sidecar for build cloning (T148))
 			Expect(job.Spec.Template.Spec.InitContainers[0].Name).To(Equal("git-sync"))
 			Expect(job.Spec.Template.Spec.InitContainers[1].Name).To(Equal("dockerfile-gen"))
 
