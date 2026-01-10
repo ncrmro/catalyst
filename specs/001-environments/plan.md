@@ -1,251 +1,111 @@
-# Implementation Plan: [FR-ENV-002] Local URL Testing
+# Implementation Plan: Environments & Templates
 
-**Branch**: `001-environments` | **Date**: 2025-12-28 | **Spec**: [spec.md](./spec.md)
+**Branch**: `copilot/update-deployment-ingresses-system` | **Date**: 2026-01-09 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/001-environments/spec.md`
 
 ## Summary
 
-Implement local URL testing for development environments using hostname-based routing via `*.localhost` (e.g., `http://namespace.localhost:8080/`) alongside the existing Cloudflare proxy integration. This ensures agents and developers can access and test preview environments in offline, rootless local setups without public DNS dependencies. Modern browsers automatically resolve `*.localhost` to `127.0.0.1`, maintaining parity with production hostname-based routing patterns.
-
-The Operator must now distinguish between 'managed' deployments (where it creates Deployment/Service) and 'helm' deployments (where it only creates Ingress for routing). This ensures Ingress policies (like local hostname-based routing) are applied regardless of how the app is deployed.
+Standardize environment deployment strategies using **Environment Templates** within the `Project` CRD. This enables supporting diverse project types (Helm, Docker Compose, Nix) with a consistent operator and UI surface.
 
 ## Technical Context
 
-**Language/Version**: TypeScript 5.3 (Web), Go 1.21 (Operator)
-**Primary Dependencies**: `ingress-nginx` (Kubernetes), `@catalyst/kubernetes-client` (Web)
-**Storage**: Kubernetes CRDs (Environment status), PostgreSQL (Web app state)
-**Testing**: Vitest (Unit), Playwright (E2E), Go Test (Operator)
-**Target Platform**: Linux/K3s (Local), Kubernetes (Production)
-**Project Type**: Web application + Kubernetes Operator
-**Performance Goals**: <50ms routing overhead
-**Constraints**: Must work offline, rootless, and without manual host file edits
-**Scale/Scope**: Support 10+ concurrent local preview environments
+**Language/Version**: Go 1.22+ (Operator), TypeScript/Next.js 15 (Web)
+**Target Platform**: Kubernetes (K3s/Kind/EKS/GKE)
+**Project Type**: System (Operator + Web Platform)
 
 ## Constitution Check
 
-_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
-
-- [x] **Agentic-First Design**: Local URLs are deterministic and machine-accessible (localhost:port/path).
-- [x] **Fast Feedback Loops**: Enables testing without full internet round-trip or DNS propagation.
-- [x] **Deployment Portability**: Uses standard NGINX Ingress, compatible with standard K8s.
-- [x] **Security by Default**: No new secrets; leverages existing cluster security.
-- [x] **Test-Driven Quality**: Feature explicitly enables Playwright testing of preview envs.
-- [x] **Layered Architecture**: Updates restricted to Operator (Ingress gen) and Web (display).
+*GATE: Passed. Standardization reduces complexity by unifying deployment paths.*
 
 ## Project Structure
 
-### Documentation (this feature)
+### Documentation
 
 ```text
 specs/001-environments/
 ├── plan.md              # This file
-├── research.md          # Consolidated research decision
-├── research.local-url-testing.md # Detailed analysis
-├── data-model.md        # Environment CRD updates
-├── quickstart.md        # Usage guide
-└── tasks.md             # To be created
+├── spec.md              # Functional requirements & User Stories
+├── research.*.md        # Deep dives
+└── tasks.md             # Implementation tasks
 ```
 
-### Source Code (repository root)
+### Source Code
 
 ```text
 operator/
-├── api/v1alpha1/        # Environment CRD definition
-└── internal/controller/ # Ingress resource generation logic
+├── api/v1alpha1/        # CRD Definitions
+├── internal/controller/ # Reconciliation Logic
+└── examples/            # Standardized Manifest Examples
 
 web/
-└── src/
-    └── components/      # UI updates to show local URLs
+├── src/app/(dashboard)/ # UI Pages
+├── packages/@catalyst/kubernetes-client/ # Client Lib
+└── __tests__/integration/ # Contract Tests
 ```
-
-**Structure Decision**: Standard Operator pattern + Web UI update.
-
-## Complexity Tracking
-
-> **Fill ONLY if Constitution Check has violations that must be justified**
-
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-| --------- | ---------- | ------------------------------------ |
-| N/A       |            |                                      |
 
 ---
 
-## [FR-ENV-003/004/005] Self-Deployment & Deployment Modes
+## North Star Goals (Amendment 2026-01-09)
 
-### Summary
+We are focusing on enabling fully functional **development environments** for three distinct use cases:
 
-Enable Catalyst to deploy itself within the local K3s environment with both production and development modes, controlled by the `SEED_SELF_DEPLOY=true` environment flag.
+1.  **Catalyst (Self-hosting)**:
+    -   **Strategy**: Helm-based for both development (hot-reload) and production.
+    -   **Goal**: Prove the platform can host itself using standard Helm charts.
 
-### Architecture
+2.  **Next.js App + LibSQL**:
+    -   **Strategy**: Zero-config (no Dockerfile) build. Managed database service (LibSQL/Turso).
+    -   **Goal**: Prove "Zero-Friction" onboarding for modern web apps without containers.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  ENV FLAG: SEED_SELF_DEPLOY=true                            │
-└─────────────────────────────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│  SEEDING SCRIPT (web/src/lib/seed.ts)                       │
-│  1. Create Catalyst project in DB                           │
-│  2. Create environment records with deploymentConfig        │
-│  3. Create Environment CRs via k8s-operator.ts              │
-└─────────────────────────────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│  KUBERNETES OPERATOR (operator/)                            │
-│  1. Watch Environment CRs in "default" namespace            │
-│  2. Branch reconciliation by spec.deploymentMode            │
-│  3. Create namespace with resources per mode:               │
-│     - "production": Deployment + Service + Ingress          │
-│     - "development": PVCs + Init containers + Hot-reload    │
-└─────────────────────────────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│  TARGET NAMESPACES                                          │
-│  catalyst-production/  - Production deployment              │
-│  catalyst-dev-local/   - Development with hot-reload        │
-└─────────────────────────────────────────────────────────────┘
-```
+3.  **Rails App**:
+    -   **Strategy**: `docker-compose.yml` for development (complex local setup reuse). Helm for production.
+    -   **Goal**: Prove support for legacy/complex stacks that rely on Docker Compose for local dev.
 
-### CRD Extension (Gradual Approach)
+## Implementation Strategy (Phase 14 Amendment)
 
-Add `DeploymentMode` field only for MVP. Store detailed config in DB as JSONB. Operator reads mode and applies hardcoded templates.
+The North Star goal will be delivered through a prioritized sequence:
 
-```go
-// operator/api/v1alpha1/environment_types.go
-type EnvironmentSpec struct {
-    // ... existing fields ...
+1.  **Operator Logic**: Implement the core translation and deployment logic for the three template types (Helm, Compose, Zero-Config).
+2.  **Local Validation (Extended Test)**: Developers validate all three use cases in a local K3s cluster.
+    -   **Note**: Builds are specifically deferred for now. The primary focus is getting the Next.js configuration running in a preview environment using a boilerplate Next.js app.
+    -   **Requirement**: Use a boilerplate Next.js application with a readiness check that verifies it can reach a LibSQL database.
+    -   A `make validate` script will be created to automate these checks.
+3.  **UI Validation**: Manual verification that the Web UI reflects the state and allows configuration of these environments.
+4.  **CI Integration (Lightweight)**: Automated regression testing for the most common use case (Next.js/Zero-Config) in Kind to manage resource constraints.
 
-    // DeploymentMode: "production" | "development" | "workspace" (default)
-    // +optional
-    DeploymentMode string `json:"deploymentMode,omitempty"`
-}
-```
+## Environment Templates Standardization (Amendment 2026-01-09)
 
-### Database Schema Extension
+**Goal**: Standardize how environments are defined and deployed to support the North Star use cases.
 
-Add `deploymentConfig` JSONB column to `projectEnvironments` table for storing detailed deployment configuration:
+**Completed**:
+- **Standardized Keys**: Mandated `development` and `deployment` as the standard template keys in `Project` CRD.
+- **Reference Examples**: Created standardized example pairs in `operator/examples/` (`catalyst.*`, `compose.*`, `prebuilt.*`, `custom-helm.*`) as the source of truth.
+- **Spec Updates**: Updated `spec.md` to document standard templates and managed services.
 
-```typescript
-// web/src/db/schema.ts
-deploymentConfig: jsonb("deployment_config").$type<DeploymentConfig>();
-```
-
-### Operator Reconciliation Branching
-
-```go
-// operator/internal/controller/environment_controller.go
-switch env.Spec.DeploymentMode {
-case "development":
-    return r.reconcileDevelopment(ctx, env, targetNamespace)
-case "production":
-    return r.reconcileProduction(ctx, env, targetNamespace)
-default:
-    return r.reconcileWorkspace(ctx, env, targetNamespace)
-}
-```
-
-### Development Mode Resources (Hardcoded Templates)
-
-Based on `.k3s-vm/manifests/base.json`:
-
-```go
-// operator/internal/controller/development_deploy.go
-const (
-    BaseImage       = "node:22"
-    HostPath        = "/code"
-    WorkDir         = "/code/web"
-    PostgresImage   = "postgres:16"
-)
-```
-
-Creates:
-
-1. PVCs: `{namespace}-node-modules` (2Gi), `{namespace}-next-cache` (1Gi)
-2. PostgreSQL: Deployment + Service + PVC
-3. App Deployment: hostPath, init containers (npm-install, db-migrate), hot-reload
-4. Service and Ingress
-
-### Seeding Integration
-
-```typescript
-// web/src/lib/seed.ts
-if (process.env.SEED_SELF_DEPLOY === "true") {
-  await seedCatalystSelfDeploy(teamId);
-}
-```
-
-### Environment Variable Injection
-
-Port `get_web_env_vars()` from `bin/k3s-vm` to TypeScript for consistent env var injection into operator-created pods.
+**Upcoming Work**:
+1. **Docker Compose Support (FR-ENV-012)**: Allow `type: docker-compose` in templates.
+2. **Prebuilt Image Overrides (FR-ENV-013)**: Allow templates to define a base image with tag/SHA provided by the Environment CR.
+3. **User-Managed Helm (FR-ENV-014)**: Support "passthrough" mode for custom Helm charts.
+4. **Nix Flake Support (FR-ENV-015)**: Support Nix devShells and builds.
 
 ---
 
-## [MVP] Preview Environments Without DB Sync
+## Current Status
 
-### Summary
+### Implemented (Client & UI)
+- **@catalyst/kubernetes-client package**: Complete with CRUD, Watch, Pod Ops, and Exec/Shell support.
+- **Terminal UI component**: xterm.js integration via server actions.
+- **Exec server action**: Command execution in pod containers.
 
-For MVP, database sync is disabled in preview environment creation. The system uses Kubernetes API as source of truth for environment status and GitHub API (via VCS provider) for PR data and authentication.
+### Remaining Integration Work
+1. **Package Dependency**: Add client package to web app.
+2. **Real Data Integration**: Use client package for real Pod/Container status in UI.
+3. **Legacy Cleanup**: Remove old `lib/k8s-*` files.
 
-### Rationale
+### Operator Implementation Roadmap
+1. **Build Controller**: Kaniko-based builds for Docker/Auto-detect.
+2. **Generic Deployment**: Standard K8s resources (Deployment/Service/Ingress).
+3. **Helm Deployment**: Helm SDK integration for template-driven deployments.
+4. **CI/Job Orchestration**: Future support for lifecycle hooks.
 
-1. **Simplicity**: Avoids complex DB sync logic during initial development
-2. **Source of Truth**: K8s already tracks environment state via Environment CRs
-3. **VCS Provider**: GitHub API provides PR data directly without caching
-
-### Implementation
-
-**Commented out in `web/src/models/preview-environments.ts`:**
-
-- `upsertPullRequestPod` call (line 669)
-- `updatePodStatus` calls (lines 737, 762)
-- Repo/PR/pod DB lookups in `findOrCreateEnvironment` (lines 1478-1551)
-
-**Changes:**
-
-- `pullRequestId` made optional in `CreatePreviewDeploymentParams`
-- `installationId` made optional - uses PAT fallback for local development
-- GitHub comment posting is non-blocking (errors logged, deployment continues)
-- Temporary podId generated for logging: `preview-${prNumber}-${commitSha.slice(0, 7)}`
-
-### GitHub Authentication Fallback
-
-The VCS provider now supports PAT fallback for GitHub API operations:
-
-```typescript
-// In @catalyst/vcs-provider/src/providers/github/client.ts
-export async function getOctokitForComments(installationId?: number) {
-  // 1. Use PAT if available (local development)
-  if (isPATAllowed && GITHUB_CONFIG.PAT) {
-    return new Octokit({ auth: GITHUB_CONFIG.PAT });
-  }
-  // 2. Fall back to installation octokit
-  if (installationId) {
-    return getInstallationOctokit(installationId);
-  }
-  throw new Error("No GitHub authentication available");
-}
-```
-
-This ensures local development works without GitHub App installation, using `GITHUB_PAT` or `GITHUB_TOKEN` environment variables.
-
-### Future Work
-
-All DB operations have TODOs for re-enablement when caching layer is implemented. See Phase 6 in tasks.md.
-
----
-
-## [FR-ENV-006 through FR-ENV-011] Automatic Project Type Detection
-
-See [research.project-detection.md](./research.project-detection.md) for full implementation details including:
-
-- Detection module architecture and TypeScript interfaces
-- Node.js/package manager detection logic
-- Monorepo detection patterns (FR-ENV-009)
-- CRD extensions for `spec.devCommand` and `spec.workdir`
-- Failure recovery with `Degraded` status (FR-ENV-010)
-- Override persistence in database (FR-ENV-011)
-- UI integration for detection preview
-- Testing strategy and performance considerations
+See `tasks.md` for the detailed execution list.
