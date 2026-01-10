@@ -569,6 +569,30 @@ This delivers the core value proposition: automatic preview deployments with pub
 
 ---
 
+## Phase 14: North Star Implementation (Critical Path)
+
+**Purpose**: Deliver fully functional development environments for the three key use cases.
+
+### Step 1: Operator Implementation (Logic)
+- [ ] T147 [US6] Implement `type: helm` support using Helm SDK in `operator/internal/controller/`
+- [ ] T148 [US1] Implement "Zero-Config" build logic (Kaniko) for projects without Dockerfiles
+- [ ] T149 [US6] Implement `docker-compose` parser and Kubernetes translation logic (`FR-ENV-012`)
+
+### Step 2: Local Validation (Extended Test)
+- [ ] T150 [US6] Create `make validate` script (or `bin/validate-envs`) for local environment testing
+- [ ] T151 [US6] Validate Catalyst (Helm) environment in local K3s using `make validate`
+- [ ] T152 [US6] Validate Rails (Compose) environment in local K3s using `make validate`
+- [ ] T153 [US1] Validate Next.js (Zero-Config) environment in local K3s using `make validate`
+
+### Step 3: UI Manual Validation
+- [ ] T154 [US2] Manually verify "Platform" page displays correct template config for all North Star cases
+- [ ] T155 [US2] Manually verify "Environment" detail page shows logs/status for North Star environments
+
+### Step 4: CI Integration (Lightweight)
+- [ ] T156 [US1] Create lightweight GitHub Action workflow for Next.js (Zero-Config) integration test in Kind
+
+---
+
 ## Child Spec Reference
 
 Operator implementation tasks are tracked separately:
