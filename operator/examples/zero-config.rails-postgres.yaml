@@ -1,0 +1,51 @@
+# Zero-Config Example: Ruby on Rails + PostgreSQL
+#
+# This example demonstrates the "Zero-Config" capabilities for a Rails application.
+#
+# AUTOMATIC CONFIGURATION:
+# 1. Build: The Operator detects a Rails project (Gemfile, config.ru) and missing Dockerfile.
+#    It generates a Dockerfile using standard Rails patterns (assets:precompile, etc.).
+# 2. Database: The system automatically provisions a PostgreSQL container sidecar.
+# 3. Migrations: The deployment automatically runs 'bundle exec rails db:prepare' 
+#    (migrate + seed) in an init container.
+#
+# This provides a full-stack preview environment with zero infrastructure code.
+
+apiVersion: catalyst.catalyst.dev/v1alpha1
+kind: Project
+metadata:
+  name: rails-blog
+  namespace: default
+spec:
+  sources:
+    - name: api
+      repositoryUrl: https://github.com/example/rails-blog
+      branch: main
+
+  templates:
+    # Development Template
+    development:
+      type: helm
+      path: charts/catalyst-rails
+      
+      builds:
+        - name: api
+          sourceRef: api
+          # 'dockerfile' omitted -> Auto-generated for Rails
+
+---
+apiVersion: catalyst.catalyst.dev/v1alpha1
+kind: Environment
+metadata:
+  name: rails-pr-456
+  namespace: default
+spec:
+  projectRef:
+    name: rails-blog
+  
+  type: development
+  
+  sources:
+    - name: api
+      branch: fix/api-endpoint
+      commitSha: "987654321abc"
