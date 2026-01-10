@@ -392,20 +392,25 @@ See [Operator Specification](../../operator/spec.md) for implementation details.
 
 ## Phase 14: North Star Implementation (Critical Path)
 
-**Goal**: Deliver fully functional development environments for the three key use cases, validated locally and in CI.
+**Goal**: Deliver the three key use cases end-to-end.
 
-### Step 1: Operator Implementation (Logic)
-- [ ] **Catalyst (Helm)**: Implement `type: helm` support using Helm SDK (or internal emulation for MVP).
-- [ ] **Next.js (Zero-Config)**: Implement auto-build logic (Kaniko) defaulting to Node.js if no Dockerfile (`FR-ENV-006`). Add `services.libsql` support.
-- [ ] **Rails (Docker Compose)**: Implement `docker-compose` parser and translation logic (`FR-ENV-012`).
+### Use Case 1: Catalyst (Helm)
+*Current status: Partially supported via legacy logic.*
+- [ ] **Operator**: Implement `type: helm` support using Helm SDK (or internal emulation for MVP).
+- [ ] **Template**: Verify `catalyst.project.yaml` works with the operator.
 
-### Step 2: Local Validation (Extended Test)
-**Goal**: Developer can verify all 3 environments work in local K3s.
-- [ ] **Test Script**: Create `make validate` (or `bin/validate-envs`) that:
-    1. Applies the example Project/Environment CRs from `operator/examples/`.
-    2. Waits for `Ready` status.
-    3. Curls the local URL (`*.localhost:8080`) to verify availability.
-- [ ] **Execution**: Developer runs this locally to ensure the operator handles all template types correctly.
+### Use Case 2: Next.js + LibSQL (Zero-Config)
+*Requirement: No Dockerfile, managed database.*
+- [ ] **Build**: Implement "Zero-Config" build logic (Kaniko or similar) that defaults to a Node.js builder if no Dockerfile is found (`FR-ENV-006`).
+- [ ] **Services**: Implement `services.libsql` (or generic `services` hook) in the operator to provision a sidecar or external DB.
+- [ ] **Template**: Create `nextjs.project.yaml` example.
+
+### Use Case 3: Rails + Docker Compose
+*Requirement: Complex local dev setup reuse.*
+- [ ] **Parser**: Implement `docker-compose` parser in Operator (`FR-ENV-012`).
+- [ ] **Translation**: Map Compose services to Kubernetes `Deployment` and `Service` objects.
+- [ ] **Volume Mapping**: Handle `volumes:` for hot-reload in dev mode.
+- [ ] **Template**: Create `rails.project.yaml` example using `compose.project.yaml` as base.
 
 ### Step 3: UI Manual Validation
 **Goal**: Verify the Web UI correctly reflects the state of these diverse environments.
@@ -419,4 +424,3 @@ See [Operator Specification](../../operator/spec.md) for implementation details.
 - [ ] **Node.js Test**: Add a GitHub Action workflow that runs the `Next.js` (Zero-Config) scenario in Kind.
     - Why: It's the most common use case and lighter than Rails/Compose.
     - Check: Project creation -> Environment creation -> Status=Ready -> HTTP 200 OK.
->>>>>>> cc78622 (docs(plan): refine North Star phase with testing strategy)
