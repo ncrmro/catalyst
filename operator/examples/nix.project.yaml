@@ -1,0 +1,25 @@
+apiVersion: catalyst.catalyst.dev/v1alpha1
+kind: Project
+metadata:
+  name: nix-project
+  namespace: catalyst-system
+spec:
+  sources:
+    - name: app
+      repositoryUrl: https://github.com/example/nix-app.git
+      branch: main
+
+  templates:
+    # Development template using a Nix Flake devShell
+    development:
+      type: nix-flake
+      path: . # Path to flake.nix
+      sourceRef: app
+      values:
+        # Attribute path for the devShell
+        devShell: default
+        # Optional: command to run inside the shell
+        command: "npm run dev"
+        # Optional: additional nix configuration
+        nixConf:
+          experimental-features: "nix-command flakes"

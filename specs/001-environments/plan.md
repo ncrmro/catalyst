@@ -31,7 +31,11 @@ This plan covers the `@catalyst/kubernetes-client` package. The operator is a se
    - Design: Support templates where the user provides the full chart and values, with minimal operator interference. See [`operator/examples/custom-helm.project.yaml`](../../operator/examples/custom-helm.project.yaml).
    - Implementation: Ensure operator supports "passthrough" mode for Helm values.
 
-4. **UI Updates**:
+4. **Nix Flake Support (FR-ENV-015)**:
+   - Design: Support `type: nix-flake` to use Nix devShells for environment setup. See [`operator/examples/nix.project.yaml`](../../operator/examples/nix.project.yaml).
+   - Implementation: Provision environments using Nix-capable executors that can instantiate flakes.
+
+5. **UI Updates**:
    - Update Platform page to reflect these capabilities (partially done with cross-linking).
    - Create UI forms for configuring these advanced template types.
 

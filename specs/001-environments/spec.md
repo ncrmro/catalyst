@@ -266,6 +266,12 @@ Advanced users can provide their own Helm charts for full control over the deplo
 - **External**: URL to an external Helm chart repository (future).
 - **Behavior**: The operator acts as a "passthrough", applying the chart with the provided values, injecting only essential platform metadata (labels/annotations) without interfering with the workload structure.
 
+**[FR-ENV-015] Nix Flake Support**:
+The platform supports using Nix Flakes to define the development environment's toolchain and shell.
+- **Mechanism**: The template specifies `type: nix-flake` and points to the `flake.nix` location.
+- **Example**: See [`operator/examples/nix.project.yaml`](../../operator/examples/nix.project.yaml).
+- **Behavior**: The operator provisions an environment using the specified `devShell`. This ensures that all developers and agents have a bit-for-bit identical toolchain without manually configuring containers or Dockerfiles.
+
 ### User Interfaces
 
 **CLI/TUI:**

@@ -1,0 +1,14 @@
+apiVersion: catalyst.catalyst.dev/v1alpha1
+kind: Environment
+metadata:
+  name: nix-dev
+  namespace: catalyst-system
+spec:
+  projectRef:
+    name: nix-project
+  type: development
+  
+  sources:
+    - name: app
+      branch: feature-nix
+      commitSha: latest
