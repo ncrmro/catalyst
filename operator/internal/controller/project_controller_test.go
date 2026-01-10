@@ -59,6 +59,12 @@ var _ = Describe("Project Controller", func() {
 								Branch:        "main",
 							},
 						},
+						Templates: map[string]catalystv1alpha1.EnvironmentTemplate{
+							"production": {
+								Type: "helm",
+								Path: "./charts/app",
+							},
+						},
 					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
