@@ -41,7 +41,7 @@ import (
 )
 
 // ReconcileHelmMode handles the reconciliation for Helm deployment mode.
-func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, template *catalystv1alpha1.EnvironmentTemplate) (bool, error) {
+func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, template *catalystv1alpha1.EnvironmentTemplate, builtImages map[string]string) (bool, error) {
 	log := logf.FromContext(ctx)
 
 	if template == nil {
@@ -79,6 +79,50 @@ func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *cata
 
 	releaseName := env.Name // Use environment name as release name
 
+	// Values
+	// TODO: Merge values from template.Values and env.Spec.Config
+	vals := map[string]interface{}{}
+
+	// Inject built images
+	if len(builtImages) > 0 {
+		global := map[string]interface{}{}
+		images := map[string]interface{}{}
+
+		for name, tag := range builtImages {
+			// Tag format: registry/repo:tag
+			// We need to split if the chart expects repository and tag separately
+			// But simple injection: global.images.<name> = fullTag
+			// Or following common patterns:
+			// global.images.<name>.repository
+			// global.images.<name>.tag
+			// For now, let's inject the full reference string, assuming chart can handle it or we use --set-string behavior
+			// Actually, let's assume standard helm pattern: repository and tag
+			// tag is everything after the last colon
+			// repository is everything before
+
+			// Simple split on last colon
+			lastColon := -1
+			for i := len(tag) - 1; i >= 0; i-- {
+				if tag[i] == ':' {
+					lastColon = i
+					break
+				}
+			}
+
+			if lastColon != -1 {
+				repo := tag[:lastColon]
+				imgTag := tag[lastColon+1:]
+
+				images[name] = map[string]interface{}{
+					"repository": repo,
+					"tag":        imgTag,
+				}
+			}
+		}
+		global["images"] = images
+		vals["global"] = global
+	}
+
 	// Check if release exists
 	histClient := action.NewHistory(actionConfig)
 	histClient.Max = 1
@@ -96,10 +140,6 @@ func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *cata
 			return false, err
 		}
 
-		// Values
-		// TODO: Merge values from template.Values and env.Spec.Config
-		vals := map[string]interface{}{}
-
 		if _, err := install.Run(chartRequested, vals); err != nil {
 			return false, err
 		}
@@ -116,9 +156,6 @@ func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *cata
 		if err != nil {
 			return false, err
 		}
-
-		// Values
-		vals := map[string]interface{}{}
 
 		if _, err := upgrade.Run(releaseName, chartRequested, vals); err != nil {
 			return false, err
