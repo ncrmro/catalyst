@@ -32,8 +32,8 @@ This plan covers the `@catalyst/kubernetes-client` package. The operator is a se
    - Implementation: Ensure operator supports "passthrough" mode for Helm values.
 
 4. **Nix Flake Support (FR-ENV-015)**:
-   - Design: Support `type: nix-flake` to use Nix devShells for environment setup. See [`operator/examples/nix.project.yaml`](../../operator/examples/nix.project.yaml).
-   - Implementation: Provision environments using Nix-capable executors that can instantiate flakes.
+   - Design: Support `type: nix-flake` for devShells and Nix builds. See [`operator/examples/nix.project.yaml`](../../operator/examples/nix.project.yaml) and [`operator/examples/catalyst-nix.project.yaml`](../../operator/examples/catalyst-nix.project.yaml).
+   - Implementation: Provision environments using Nix-capable executors that can instantiate flakes and build images.
 
 5. **UI Updates**:
    - Update Platform page to reflect these capabilities (partially done with cross-linking).

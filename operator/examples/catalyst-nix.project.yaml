@@ -1,0 +1,47 @@
+apiVersion: catalyst.catalyst.dev/v1alpha1
+kind: Project
+metadata:
+  name: catalyst-nix
+  namespace: catalyst-system
+spec:
+  sources:
+    - name: catalyst
+      repositoryUrl: https://github.com/ncrmro/catalyst.git
+      branch: main
+
+  templates:
+    # Development: Use Nix devShell for environment
+    development:
+      type: nix-flake
+      path: .
+      sourceRef: catalyst
+      values:
+        devShell: default
+
+    # Production: Build images via Nix, Deploy via Helm
+    deployment:
+      type: helm
+      path: charts/catalyst
+      sourceRef: catalyst
+      values:
+        # Build Configuration (Operator Logic)
+        build:
+          method: nix-flake
+          path: .
+          artifacts:
+            - name: operator
+              attribute: packages.x86_64-linux.operator-image
+              destination: ghcr.io/ncrmro/catalyst/operator
+            - name: web
+              attribute: packages.x86_64-linux.web-image
+              destination: ghcr.io/ncrmro/catalyst/web
+
+        # Helm Values
+        operator:
+          image:
+            repository: ghcr.io/ncrmro/catalyst/operator
+            pullPolicy: Always
+        web:
+          image:
+            repository: ghcr.io/ncrmro/catalyst/web
+            pullPolicy: Always

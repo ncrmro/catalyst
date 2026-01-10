@@ -269,8 +269,10 @@ Advanced users can provide their own Helm charts for full control over the deplo
 **[FR-ENV-015] Nix Flake Support**:
 The platform supports using Nix Flakes to define the development environment's toolchain and shell.
 - **Mechanism**: The template specifies `type: nix-flake` and points to the `flake.nix` location.
-- **Example**: See [`operator/examples/nix.project.yaml`](../../operator/examples/nix.project.yaml).
-- **Behavior**: The operator provisions an environment using the specified `devShell`. This ensures that all developers and agents have a bit-for-bit identical toolchain without manually configuring containers or Dockerfiles.
+- **Example**: See [`operator/examples/nix.project.yaml`](../../operator/examples/nix.project.yaml) for dev shells, and [`operator/examples/catalyst-nix.project.yaml`](../../operator/examples/catalyst-nix.project.yaml) for production builds.
+- **Behavior**:
+    - **Development**: The operator provisions an environment using the specified `devShell`.
+    - **Production**: The operator builds container images using Nix attributes (e.g., `packages.x86_64-linux.image`) and deploys them using Helm.
 
 ### User Interfaces
 
