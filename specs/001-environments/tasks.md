@@ -593,6 +593,16 @@ This delivers the core value proposition: automatic preview deployments with pub
 
 ---
 
+## Phase 15: Registry Credentials Support (Priority: P1)
+
+**Purpose**: Enable private image pulling and pushing by managing registry secrets.
+
+- [ ] T157 [US6] Implement `ensureRegistrySecret` in `environment_controller.go` to copy project registry secrets to target namespace.
+- [ ] T158 [US6] Implement logic to patch `default` ServiceAccount with `imagePullSecrets`.
+- [ ] T159 [US6] Update `build_kaniko.go` to mount registry credentials if provided (for pushing).
+
+---
+
 ## Child Spec Reference
 
 Operator implementation tasks are tracked separately:
