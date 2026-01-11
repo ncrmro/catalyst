@@ -53,7 +53,7 @@ var (
 )
 
 // ReconcileHelmMode handles the reconciliation for Helm deployment mode.
-func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, template *catalystv1alpha1.EnvironmentTemplate) (bool, error) {
+func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, template *catalystv1alpha1.EnvironmentTemplate, builtImages map[string]string) (bool, error) {
 	log := logf.FromContext(ctx)
 
 	// Clean up stale temporary directories (older than 24 hours)
@@ -113,6 +113,60 @@ func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *cata
 
 	releaseName := env.Name // Use environment name as release name
 
+	// Values
+	// Merge values from template.Values and env.Spec.Config
+	vals, err := r.mergeHelmValues(template, env)
+	if err != nil {
+		return false, fmt.Errorf("failed to merge helm values: %w", err)
+	}
+
+	// Inject built images
+	if len(builtImages) > 0 {
+		global, ok := vals["global"].(map[string]interface{})
+		if !ok {
+			global = map[string]interface{}{}
+		}
+
+		images, ok := global["images"].(map[string]interface{})
+		if !ok {
+			images = map[string]interface{}{}
+		}
+
+		for name, tag := range builtImages {
+			// Tag format: registry/repo:tag
+			// We need to split if the chart expects repository and tag separately
+			// But simple injection: global.images.<name> = fullTag
+			// Or following common patterns:
+			// global.images.<name>.repository
+			// global.images.<name>.tag
+			// For now, let's inject the full reference string, assuming chart can handle it or we use --set-string behavior
+			// Actually, let's assume standard helm pattern: repository and tag
+			// tag is everything after the last colon
+			// repository is everything before
+
+			// Simple split on last colon
+			lastColon := -1
+			for i := len(tag) - 1; i >= 0; i-- {
+				if tag[i] == ':' {
+					lastColon = i
+					break
+				}
+			}
+
+			if lastColon != -1 {
+				repo := tag[:lastColon]
+				imgTag := tag[lastColon+1:]
+
+				images[name] = map[string]interface{}{
+					"repository": repo,
+					"tag":        imgTag,
+				}
+			}
+		}
+		global["images"] = images
+		vals["global"] = global
+	}
+
 	// Check if release exists
 	histClient := action.NewHistory(actionConfig)
 	histClient.Max = 1
@@ -130,12 +184,6 @@ func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *cata
 			return false, err
 		}
 
-		// Values
-		vals, err := r.mergeHelmValues(template, env)
-		if err != nil {
-			return false, fmt.Errorf("failed to merge helm values: %w", err)
-		}
-
 		if _, err := install.Run(chartRequested, vals); err != nil {
 			return false, err
 		}
@@ -151,12 +199,6 @@ func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *cata
 		chartRequested, err := loader.Load(chartPath)
 		if err != nil {
 			return false, err
-		}
-
-		// Values
-		vals, err := r.mergeHelmValues(template, env)
-		if err != nil {
-			return false, fmt.Errorf("failed to merge helm values: %w", err)
 		}
 
 		if _, err := upgrade.Run(releaseName, chartRequested, vals); err != nil {
@@ -232,7 +274,7 @@ func (r *EnvironmentReconciler) prepareChartSource(ctx context.Context, env *cat
 	}
 
 	cleanup := func() {
-		os.RemoveAll(tempDir)
+		_ = os.RemoveAll(tempDir)
 	}
 
 	log.Info("Cloning repository for chart", "url", sourceConfig.RepositoryURL, "commit", commitSha, "tempDir", tempDir)
@@ -367,11 +409,11 @@ func (l *genericConfigLoader) RawConfig() (clientcmdapi.Config, error) {
 	cluster := &clientcmdapi.Cluster{
 		Server: l.cfg.Host,
 	}
-	if l.cfg.TLSClientConfig.Insecure {
+	if l.cfg.Insecure {
 		cluster.InsecureSkipTLSVerify = true
 	}
-	if len(l.cfg.TLSClientConfig.CAData) > 0 {
-		cluster.CertificateAuthorityData = l.cfg.TLSClientConfig.CAData
+	if len(l.cfg.CAData) > 0 {
+		cluster.CertificateAuthorityData = l.cfg.CAData
 	}
 	cfg.Clusters[clusterName] = cluster
 
@@ -380,11 +422,11 @@ func (l *genericConfigLoader) RawConfig() (clientcmdapi.Config, error) {
 	if l.cfg.BearerToken != "" {
 		authInfo.Token = l.cfg.BearerToken
 	}
-	if len(l.cfg.TLSClientConfig.CertData) > 0 {
-		authInfo.ClientCertificateData = l.cfg.TLSClientConfig.CertData
+	if len(l.cfg.CertData) > 0 {
+		authInfo.ClientCertificateData = l.cfg.CertData
 	}
-	if len(l.cfg.TLSClientConfig.KeyData) > 0 {
-		authInfo.ClientKeyData = l.cfg.TLSClientConfig.KeyData
+	if len(l.cfg.KeyData) > 0 {
+		authInfo.ClientKeyData = l.cfg.KeyData
 	}
 	cfg.AuthInfos[authName] = authInfo
 
@@ -414,7 +456,7 @@ func (r *EnvironmentReconciler) mergeHelmValues(template *catalystv1alpha1.Envir
 	vals := make(map[string]interface{})
 
 	// Start with template values
-	if template.Values.Raw != nil && len(template.Values.Raw) > 0 {
+	if len(template.Values.Raw) > 0 {
 		if err := json.Unmarshal(template.Values.Raw, &vals); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal template values: %w", err)
 		}
