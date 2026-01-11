@@ -1,34 +1,79 @@
-# 001-environments Implementation Plan
+# Implementation Plan: Environments & Templates
 
-## Overview
+**Branch**: `copilot/update-deployment-ingresses-system` | **Date**: 2026-01-09 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `/specs/001-environments/spec.md`
 
-Kubernetes functionality is split across two packages:
+## Summary
 
-1. **@catalyst/kubernetes-client** (`/web/packages/catalyst-kubernetes-client`) - TypeScript client for Catalyst CRDs and pod operations
-2. **kube-operator** (`/operator`) - Kubernetes operator handling environment lifecycle
+Standardize environment deployment strategies using **Environment Templates** within the `Project` CRD. This enables supporting diverse project types (Helm, Docker Compose, Nix) with a consistent operator and UI surface.
 
-This plan covers the `@catalyst/kubernetes-client` package. The operator is a separate implementation effort with its own [spec](../../operator/spec.md).
+## Technical Context
 
-## North Star Goals
+**Language/Version**: Go 1.22+ (Operator), TypeScript/Next.js 15 (Web)
+**Target Platform**: Kubernetes (K3s/Kind/EKS/GKE)
+**Project Type**: System (Operator + Web Platform)
+
+## Constitution Check
+
+*GATE: Passed. Standardization reduces complexity by unifying deployment paths.*
+
+## Project Structure
+
+### Documentation
+
+```text
+specs/001-environments/
+├── plan.md              # This file
+├── spec.md              # Functional requirements & User Stories
+├── research.*.md        # Deep dives
+└── tasks.md             # Implementation tasks
+```
+
+### Source Code
+
+```text
+operator/
+├── api/v1alpha1/        # CRD Definitions
+├── internal/controller/ # Reconciliation Logic
+└── examples/            # Standardized Manifest Examples
+
+web/
+├── src/app/(dashboard)/ # UI Pages
+├── packages/@catalyst/kubernetes-client/ # Client Lib
+└── __tests__/integration/ # Contract Tests
+```
+
+---
+
+## North Star Goals (Amendment 2026-01-09)
 
 We are focusing on enabling fully functional **development environments** for three distinct use cases:
 
 1.  **Catalyst (Self-hosting)**:
-    -   **Tech**: Go + Next.js.
     -   **Strategy**: Helm-based for both development (hot-reload) and production.
     -   **Goal**: Prove the platform can host itself using standard Helm charts.
 
 2.  **Next.js App + LibSQL**:
-    -   **Tech**: Node.js (Next.js).
     -   **Strategy**: Zero-config (no Dockerfile) build. Managed database service (LibSQL/Turso).
     -   **Goal**: Prove "Zero-Friction" onboarding for modern web apps without containers.
 
 3.  **Rails App**:
-    -   **Tech**: Ruby on Rails.
     -   **Strategy**: `docker-compose.yml` for development (complex local setup reuse). Helm for production.
     -   **Goal**: Prove support for legacy/complex stacks that rely on Docker Compose for local dev.
 
-## Environment Templates Standardization
+## Implementation Strategy (Phase 14 Amendment)
+
+The North Star goal will be delivered through a prioritized sequence:
+
+1.  **Operator Logic**: Implement the core translation and deployment logic for the three template types (Helm, Compose, Zero-Config).
+2.  **Local Validation (Extended Test)**: Developers validate all three use cases in a local K3s cluster.
+    -   **Note**: Builds are specifically deferred for now. The primary focus is getting the Next.js configuration running in a preview environment using a boilerplate Next.js app.
+    -   **Requirement**: Use a boilerplate Next.js application with a readiness check that verifies it can reach a LibSQL database.
+    -   A `make validate` script will be created to automate these checks.
+3.  **UI Validation**: Manual verification that the Web UI reflects the state and allows configuration of these environments.
+4.  **CI Integration (Lightweight)**: Automated regression testing for the most common use case (Next.js/Zero-Config) in Kind to manage resource constraints.
+
+## Environment Templates Standardization (Amendment 2026-01-09)
 
 **Goal**: Standardize how environments are defined and deployed to support the North Star use cases.
 
@@ -54,7 +99,10 @@ We are focusing on enabling fully functional **development environments** for th
    - Design: Support `type: nix-flake` for devShells and Nix builds. See [`operator/examples/nix.project.yaml`](../../operator/examples/nix.project.yaml) and [`operator/examples/catalyst-nix.project.yaml`](../../operator/examples/catalyst-nix.project.yaml).
    - Implementation: Provision environments using Nix-capable executors that can instantiate flakes and build images.
 
-5. **UI Updates**:
+5. **Registry Support (FR-ENV-016/017)**:
+   - Support private image pulling/pushing by managing registry secrets.
+
+6. **UI Updates**:
    - Update Platform page to reflect these capabilities (partially done with cross-linking).
    - Create UI forms for configuring these advanced template types.
 
@@ -387,23 +435,33 @@ The web application uses a declarative operator-based workflow:
 - Cleanup on CR deletion (finalizer pattern)
 
 See [Operator Specification](../../operator/spec.md) for implementation details.
+=======
+1. **Docker Compose Support (FR-ENV-012)**: Allow `type: docker-compose` in templates.
+2. **Prebuilt Image Overrides (FR-ENV-013)**: Allow templates to define a base image with tag/SHA provided by the Environment CR.
+3. **User-Managed Helm (FR-ENV-014)**: Support "passthrough" mode for custom Helm charts.
+4. **Nix Flake Support (FR-ENV-015)**: Support Nix devShells and builds.
+>>>>>>> 370aa82 (docs: add container registry integration specs (GHCR + Self-Hosted))
 
 ---
 
-## Phase 14: North Star Implementation (Critical Path)
+## Current Status
 
-**Goal**: Deliver the three key use cases end-to-end.
+### Implemented (Client & UI)
+- **@catalyst/kubernetes-client package**: Complete with CRUD, Watch, Pod Ops, and Exec/Shell support.
+- **Terminal UI component**: xterm.js integration via server actions.
+- **Exec server action**: Command execution in pod containers.
 
-### Use Case 1: Catalyst (Helm)
-*Current status: Partially supported via legacy logic.*
-- [ ] **Operator**: Implement `type: helm` support using Helm SDK (or internal emulation for MVP).
-- [ ] **Template**: Verify `catalyst.project.yaml` works with the operator.
+### Remaining Integration Work
+1. **Package Dependency**: Add client package to web app.
+2. **Real Data Integration**: Use client package for real Pod/Container status in UI.
+3. **Legacy Cleanup**: Remove old `lib/k8s-*` files.
 
-### Use Case 2: Next.js + LibSQL (Zero-Config)
-*Requirement: No Dockerfile, managed database.*
-- [ ] **Build**: Implement "Zero-Config" build logic (Kaniko or similar) that defaults to a Node.js builder if no Dockerfile is found (`FR-ENV-006`).
-- [ ] **Services**: Implement `services.libsql` (or generic `services` hook) in the operator to provision a sidecar or external DB.
-- [ ] **Template**: Create `nextjs.project.yaml` example.
+### Operator Implementation Roadmap
+1. **Build Controller**: Kaniko-based builds for Docker/Auto-detect.
+2. **Generic Deployment**: Standard K8s resources (Deployment/Service/Ingress).
+3. **Helm Deployment**: Helm SDK integration for template-driven deployments.
+4. **Registry Support**: Secret management for private image pulling/pushing.
+5. **CI/Job Orchestration**: Future support for lifecycle hooks.
 
 ### Use Case 3: Rails + Docker Compose
 *Requirement: Complex local dev setup reuse.*
@@ -424,3 +482,5 @@ See [Operator Specification](../../operator/spec.md) for implementation details.
 - [ ] **Node.js Test**: Add a GitHub Action workflow that runs the `Next.js` (Zero-Config) scenario in Kind.
     - Why: It's the most common use case and lighter than Rails/Compose.
     - Check: Project creation -> Environment creation -> Status=Ready -> HTTP 200 OK.
+
+See `tasks.md` for the detailed execution list.
