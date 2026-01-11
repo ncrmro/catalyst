@@ -37,8 +37,17 @@ type EnvironmentSpec struct {
 	// +optional
 	DeploymentMode string `json:"deploymentMode,omitempty"`
 
-	// Sources configuration for this specific environment
-	Sources []EnvironmentSource `json:"sources"`
+	// Sources configuration for this specific environment.
+	// This is the preferred field and supersedes the legacy single Source field.
+	// +optional
+	Sources []EnvironmentSource `json:"sources,omitempty"`
+
+	// Source is a legacy single-source configuration retained for backward compatibility.
+	// Deprecated: Use Sources instead. This field allows older Environment resources
+	// that used "source" (singular) to continue to be deserialized and handled by the operator.
+	// The controller will automatically migrate this to Sources during reconciliation.
+	// +optional
+	Source *EnvironmentSource `json:"source,omitempty"`
 
 	// Config overrides
 	Config EnvironmentConfig `json:"config,omitempty"`

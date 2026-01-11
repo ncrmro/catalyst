@@ -95,6 +95,20 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	// Migrate legacy Source field to Sources array for backward compatibility
+	if env.Spec.Source != nil && len(env.Spec.Sources) == 0 {
+		log.Info("Migrating legacy Source field to Sources array")
+		env.Spec.Sources = []catalystv1alpha1.EnvironmentSource{*env.Spec.Source}
+		env.Spec.Source = nil // Clear the legacy field
+		if err := r.Update(ctx, env); err != nil {
+			return ctrl.Result{}, err
+		}
+		// Refetch to get updated resource version
+		if err := r.Get(ctx, req.NamespacedName, env); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
 	targetNamespace := fmt.Sprintf("%s-%s", env.Spec.ProjectRef.Name, env.Name)
 
 	// Fetch Project to access Templates
