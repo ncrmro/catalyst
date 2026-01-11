@@ -70,9 +70,16 @@ wait_for_env() {
     done
 }
 
-# Wait for both environments
-wait_for_env "nextjs-pr-123" || exit 1
-wait_for_env "rails-pr-456" || exit 1
+# Wait for environments
+ENV_NAMES=("$@")
+if [ ${#ENV_NAMES[@]} -eq 0 ]; then
+    echo "No environments specified, validating default examples..."
+    ENV_NAMES=("nextjs-pr-123" "rails-pr-456")
+fi
+
+for env in "${ENV_NAMES[@]}"; do
+    wait_for_env "$env" || exit 1
+done
 
 echo -e "${GREEN}=== Validation Complete: All Environments Ready ===${NC}"
 kubectl get environments
