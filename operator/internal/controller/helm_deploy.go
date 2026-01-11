@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -50,12 +51,15 @@ func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *cata
 
 	// Prepare chart source (local path or clone from git)
 	chartPath, cleanup, err := r.prepareChartSource(ctx, env, project, template)
-	if cleanup != nil {
-		defer cleanup()
-	}
 	if err != nil {
 		log.Error(err, "Failed to prepare chart source")
+		if cleanup != nil {
+			cleanup()
+		}
 		return false, err
+	}
+	if cleanup != nil {
+		defer cleanup()
 	}
 
 	// Initialize Helm Action Config
@@ -65,11 +69,21 @@ func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *cata
 		return false, fmt.Errorf("reconciler config is nil")
 	}
 
+	// Validate HELM_DRIVER to avoid passing unexpected values to Helm.
+	helmDriver := os.Getenv("HELM_DRIVER")
+	switch helmDriver {
+	case "", "secret", "configmap", "memory":
+		// allowed values; use as-is (empty string lets Helm pick its default)
+	default:
+		log.Info("Invalid HELM_DRIVER value detected, defaulting to 'secret'", "value", helmDriver)
+		helmDriver = "secret"
+	}
+
 	actionConfig := new(action.Configuration)
 	if err := actionConfig.Init(
 		&genericRESTClientGetter{cfg: cfg, namespace: namespace},
 		namespace,
-		os.Getenv("HELM_DRIVER"), // "secret", "configmap", "memory" or ""
+		helmDriver,
 		func(format string, v ...interface{}) {
 			log.Info(fmt.Sprintf(format, v...))
 		},
@@ -97,8 +111,10 @@ func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *cata
 		}
 
 		// Values
-		// TODO: Merge values from template.Values and env.Spec.Config
-		vals := map[string]interface{}{}
+		vals, err := r.mergeHelmValues(template, env)
+		if err != nil {
+			return false, fmt.Errorf("failed to merge helm values: %w", err)
+		}
 
 		if _, err := install.Run(chartRequested, vals); err != nil {
 			return false, err
@@ -118,7 +134,10 @@ func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *cata
 		}
 
 		// Values
-		vals := map[string]interface{}{}
+		vals, err := r.mergeHelmValues(template, env)
+		if err != nil {
+			return false, fmt.Errorf("failed to merge helm values: %w", err)
+		}
 
 		if _, err := upgrade.Run(releaseName, chartRequested, vals); err != nil {
 			return false, err
@@ -152,12 +171,7 @@ func (r *EnvironmentReconciler) prepareChartSource(ctx context.Context, env *cat
 
 		// Check if local path exists
 		if _, err := os.Stat(chartPath); os.IsNotExist(err) {
-			// Try heuristics for tests
-			if _, err := os.Stat("../../" + chartPath); err == nil {
-				chartPath = "../../" + chartPath
-			} else {
-				return "", nil, fmt.Errorf("chart not found at path: %s", chartPath)
-			}
+			return "", nil, fmt.Errorf("chart not found at path: %s", chartPath)
 		}
 		return chartPath, nil, nil
 	}
@@ -196,10 +210,19 @@ func (r *EnvironmentReconciler) prepareChartSource(ctx context.Context, env *cat
 
 	log.Info("Cloning repository for chart", "url", sourceConfig.RepositoryURL, "commit", commitSha, "tempDir", tempDir)
 
-	_, err = git.PlainClone(tempDir, false, &git.CloneOptions{
+	cloneOptions := &git.CloneOptions{
 		URL: sourceConfig.RepositoryURL,
-		// Depth: 1, // Can't use Depth 1 with Hash checkout usually, unless server supports it
-	})
+	}
+	// Use a shallow clone when no specific commit is requested to reduce time and disk usage.
+	// When a specific commit SHA is provided, we perform a full clone to ensure the commit is
+	// available locally, as not all servers reliably support fetching arbitrary commits with
+	// shallow history.
+	if commitSha == "" {
+		cloneOptions.Depth = 1
+		cloneOptions.SingleBranch = true
+	}
+
+	_, err = git.PlainClone(tempDir, false, cloneOptions)
 	if err != nil {
 		cleanup()
 		return "", nil, fmt.Errorf("failed to clone repo: %w", err)
@@ -283,11 +306,45 @@ type genericConfigLoader struct {
 }
 
 func (l *genericConfigLoader) ConfigAccess() clientcmd.ConfigAccess {
-	return nil
+	// Return default client config loading rules to satisfy the interface contract.
+	// This provides a non-nil ConfigAccess, though the actual REST configuration
+	// used by callers comes from ClientConfig(), which is derived from l.cfg.
+	return clientcmd.NewDefaultClientConfigLoadingRules()
 }
 
 func (l *genericConfigLoader) RawConfig() (clientcmdapi.Config, error) {
-	return clientcmdapi.Config{}, nil
+	// Construct a minimal kubeconfig that reflects the underlying rest.Config and namespace.
+	// This makes RawConfig safe to use by callers that expect a non-empty configuration.
+	cfg := clientcmdapi.NewConfig()
+
+	const contextName = "default"
+	const clusterName = "default"
+	const authName = "default"
+
+	// Initialize cluster information from the REST config.
+	cfg.Clusters[clusterName] = &clientcmdapi.Cluster{
+		Server:                   l.cfg.Host,
+		InsecureSkipTLSVerify:    l.cfg.TLSClientConfig.Insecure,
+		CertificateAuthorityData: l.cfg.TLSClientConfig.CAData,
+	}
+
+	// Initialize auth information from the REST config.
+	cfg.AuthInfos[authName] = &clientcmdapi.AuthInfo{
+		Token:                 l.cfg.BearerToken,
+		ClientCertificateData: l.cfg.TLSClientConfig.CertData,
+		ClientKeyData:         l.cfg.TLSClientConfig.KeyData,
+	}
+
+	// Bind cluster and auth info together in a context and set the namespace.
+	cfg.Contexts[contextName] = &clientcmdapi.Context{
+		Cluster:   clusterName,
+		AuthInfo:  authName,
+		Namespace: l.namespace,
+	}
+
+	cfg.CurrentContext = contextName
+
+	return *cfg, nil
 }
 
 func (l *genericConfigLoader) ClientConfig() (*rest.Config, error) {
@@ -296,4 +353,34 @@ func (l *genericConfigLoader) ClientConfig() (*rest.Config, error) {
 
 func (l *genericConfigLoader) Namespace() (string, bool, error) {
 	return l.namespace, true, nil
+}
+
+// mergeHelmValues merges values from template defaults and environment-specific config
+func (r *EnvironmentReconciler) mergeHelmValues(template *catalystv1alpha1.EnvironmentTemplate, env *catalystv1alpha1.Environment) (map[string]interface{}, error) {
+	vals := make(map[string]interface{})
+
+	// Start with template values
+	if template.Values.Raw != nil && len(template.Values.Raw) > 0 {
+		if err := json.Unmarshal(template.Values.Raw, &vals); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal template values: %w", err)
+		}
+	}
+
+	// Merge environment config (envVars, image, etc.)
+	// Create a config section in values if there are any environment-specific configs
+	if len(env.Spec.Config.EnvVars) > 0 {
+		envVarsMap := make(map[string]string)
+		for _, envVar := range env.Spec.Config.EnvVars {
+			envVarsMap[envVar.Name] = envVar.Value
+		}
+		vals["env"] = envVarsMap
+	}
+
+	if env.Spec.Config.Image != "" {
+		vals["image"] = map[string]interface{}{
+			"repository": env.Spec.Config.Image,
+		}
+	}
+
+	return vals, nil
 }
