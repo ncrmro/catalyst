@@ -128,11 +128,13 @@ export async function createProjectEnvironment(
         name: sanitizedProjectName,
       },
       type: validatedEnvType,
-      sources: [{
-        name: "main",
-        commitSha: "HEAD", // TODO: Get actual commit SHA
-        branch: "main", // TODO: Get actual branch
-      }],
+      sources: [
+        {
+          name: "main",
+          commitSha: "HEAD", // TODO: Get actual commit SHA
+          branch: "main", // TODO: Get actual branch
+        },
+      ],
       config: {
         envVars: [],
       },

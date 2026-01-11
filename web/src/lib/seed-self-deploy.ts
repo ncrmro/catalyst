@@ -233,11 +233,13 @@ async function createEnvironmentCRs(): Promise<{
       },
       type: "development",
       deploymentMode: "development",
-      sources: [{
-        name: "main",
-        commitSha: "HEAD",
-        branch: "main",
-      }],
+      sources: [
+        {
+          name: "main",
+          commitSha: "HEAD",
+          branch: "main",
+        },
+      ],
       config: {
         envVars: [
           { name: "NODE_ENV", value: "development" },
@@ -261,11 +263,13 @@ async function createEnvironmentCRs(): Promise<{
       },
       type: "deployment",
       deploymentMode: "production",
-      sources: [{
-        name: "main",
-        commitSha: "HEAD",
-        branch: "main",
-      }],
+      sources: [
+        {
+          name: "main",
+          commitSha: "HEAD",
+          branch: "main",
+        },
+      ],
       config: {
         envVars: [{ name: "NODE_ENV", value: "production" }],
         // Production uses pre-built image from GHCR
