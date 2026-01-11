@@ -93,6 +93,7 @@ This ensures you can fix the foundation while keeping the implementation based o
 **FR-PR-002**: Each PR description MUST link to the "Tracking Issue" (Release Plan).
 **FR-PR-003**: Each PR (except the first) MUST explicitly state its "Base Branch" if it's not `main` (for stacked reviews) or note that it depends on the previous PR.
 **FR-PR-004**: The title format MUST be `feat(scope): title` or `chore(scope): title`.
+<<<<<<< HEAD
 **FR-PR-005**: Branch names MUST follow the convention `<spec-id>-<spec-name>/<description>` (e.g., `001-environments/foundation`) for consistency.
 **FR-PR-006**: All PRs in the chain EXCEPT the first one MUST be opened as **Draft** until the preceding PR is merged or stable. This prevents premature review/merging of dependent code.
 
@@ -103,6 +104,7 @@ gh pr create --base main --head 001-environments/foundation --title "feat(founda
 
 # PR 2 (Draft, Depends on PR 1)
 gh pr create --draft --base main --head 001-environments/impl --title "feat(impl): logic" --body "Part 2 of #ISSUE. Depends on PR #<PR1>"
+```
 ```
 
 ## Example Breakdown
