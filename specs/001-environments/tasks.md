@@ -574,8 +574,8 @@ This delivers the core value proposition: automatic preview deployments with pub
 **Purpose**: Deliver fully functional development environments for the three key use cases.
 
 ### Step 1: Operator Implementation (Logic)
-- [ ] T147 [US6] Implement `type: helm` support using Helm SDK in `operator/internal/controller/`
-- [ ] T148 [US1] Implement "Zero-Config" build logic (Kaniko) for projects without Dockerfiles
+- [ ] T147 [US6] Implement `type: helm` support using Helm SDK, including source resolution (cloning repo defined in `SourceRef`) and finding the chart at `Path`
+- [ ] T148 [US1] Implement "Zero-Config" build logic (Kaniko) with init containers to clone source (`SourceRef`), generate Dockerfile if missing, and build
 - [ ] T149 [US6] Implement `docker-compose` parser and Kubernetes translation logic (`FR-ENV-012`)
 
 ### Step 2: Local Validation (Extended Test)

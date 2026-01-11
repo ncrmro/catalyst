@@ -16,7 +16,7 @@ import (
 // running commands, and debugging via exec from the UI.
 
 const (
-	registryHost   = "registry.cluster.local:5000"
+	registryHost   = "registry.default.svc.cluster.local:5000"
 	workspaceImage = "alpine:latest"
 )
 
