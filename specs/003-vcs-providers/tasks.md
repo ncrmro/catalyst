@@ -249,3 +249,9 @@
 - [ ] GitHub implementation complete and documented
 - [ ] Database schema supports multiple VCS providers
 - [ ] Provider-agnostic interface enables future provider implementations
+
+## Phase 11: Container Registry Integration
+
+- [ ] T120 Define `ProjectRegistrySecret` schema or convention in `web/src/db/schema.ts` (if needed) or utilize existing Secret management.
+- [ ] T121 Update VCS Provider logic to expose GHCR credentials (e.g. create Kubernetes Secret `registry-credentials` in project namespace).
+- [ ] T122 Implement UI for users to provide generic registry credentials (Docker Hub, etc.).

@@ -1,0 +1,55 @@
+# Zero-Config Example: Next.js + LibSQL
+#
+# This example demonstrates the "Zero-Config" capabilities of Catalyst.
+#
+# AUTOMATIC CONFIGURATION:
+# 1. Build: The Operator detects missing Dockerfiles in the 'web' source and automatically
+#    generates one optimized for Next.js (using multi-stage builds).
+# 2. Database: The 'catalyst-nextjs' chart (or system default) automatically provisions
+#    an ephemeral LibSQL database for this environment.
+# 3. Migrations: The build process detects 'drizzle-kit' or 'prisma' and configures
+#    an init container to run schema migrations before the app starts.
+#
+# No manual Dockerfile or complex infrastructure config is required.
+
+apiVersion: catalyst.catalyst.dev/v1alpha1
+kind: Project
+metadata:
+  name: nextjs-starter
+  namespace: default
+spec:
+  sources:
+    - name: web
+      repositoryUrl: https://github.com/example/nextjs-starter
+      branch: main
+
+  templates:
+    # Development Template (Preview Environments)
+    development:
+      type: helm
+      path: charts/catalyst-nextjs
+      
+      # Define what needs to be built
+      builds:
+        - name: web
+          sourceRef: web
+          # 'dockerfile' is intentionally OMITTED.
+          # This triggers the Operator's Zero-Config logic to generate it.
+
+---
+apiVersion: catalyst.catalyst.dev/v1alpha1
+kind: Environment
+metadata:
+  name: nextjs-pr-123
+  namespace: default
+spec:
+  projectRef:
+    name: nextjs-starter
+  
+  # Use the 'development' template defined above
+  type: development
+  
+  sources:
+    - name: web
+      branch: feature/new-ui
+      commitSha: "a1b2c3d4e5f6" # Triggers a build for this specific commit
