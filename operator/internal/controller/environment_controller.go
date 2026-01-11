@@ -189,6 +189,16 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
+	// 2b. Manage Registry Credentials
+	if err := r.ensureRegistryCredentials(ctx, project.Namespace, targetNamespace); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("Waiting for resources (Secret/SA) for registry credentials")
+			return ctrl.Result{RequeueAfter: time.Second}, nil
+		}
+		log.Error(err, "Failed to ensure registry credentials")
+		return ctrl.Result{}, err
+	}
+
 	// 3. Ingress Management
 	// Determine if we're in local mode (path-based routing) or production mode (hostname-based routing)
 	isLocal := os.Getenv("LOCAL_PREVIEW_ROUTING") == "true"
