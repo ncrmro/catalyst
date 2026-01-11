@@ -87,6 +87,22 @@ To efficiently handle review feedback on multiple dependent PRs simultaneously w
 
 This ensures you can fix the foundation while keeping the implementation based on the latest foundation code.
 
+### 7. PR Creation Workflow (Functional Requirements)
+
+**FR-PR-001**: PRs MUST be opened in sequential order of dependency.
+**FR-PR-002**: Each PR description MUST link to the "Tracking Issue" (Release Plan).
+**FR-PR-003**: Each PR (except the first) MUST explicitly state its "Base Branch" if it's not `main` (for stacked reviews) or note that it depends on the previous PR.
+**FR-PR-004**: The title format MUST be `feat(scope): title` or `chore(scope): title`.
+
+**Execution Example:**
+```bash
+# PR 1
+gh pr create --base main --head pr/01-foundation --title "feat(foundation): setup" --body "Part 1 of #ISSUE"
+
+# PR 2
+gh pr create --base main --head pr/02-impl --title "feat(impl): logic" --body "Part 2 of #ISSUE. Depends on PR #<PR1>"
+```
+
 ## Example Breakdown
 
 **Source**: `feature/001-environments`
