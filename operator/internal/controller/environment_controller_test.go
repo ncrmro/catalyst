@@ -396,6 +396,20 @@ var _ = Describe("Environment Controller", func() {
 			_ = k8sClient.Delete(ctx, gitSecret)
 			Expect(k8sClient.Create(ctx, gitSecret)).To(Succeed())
 
+			By("Creating the Registry Secret")
+			registrySecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "registry-credentials",
+					Namespace: namespace,
+				},
+				Data: map[string][]byte{
+					".dockerconfigjson": []byte("{}"),
+				},
+				Type: corev1.SecretTypeDockerConfigJson,
+			}
+			_ = k8sClient.Delete(ctx, registrySecret)
+			Expect(k8sClient.Create(ctx, registrySecret)).To(Succeed())
+
 			By("Creating the Project CR with Builds")
 			project := &catalystv1alpha1.Project{
 				ObjectMeta: metav1.ObjectMeta{
@@ -523,6 +537,24 @@ var _ = Describe("Environment Controller", func() {
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
+
+			// 5. Verify Registry Secret copied
+			targetRegSecret := &corev1.Secret{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: "registry-credentials", Namespace: targetNsName}, targetRegSecret)
+			}, time.Second*10, time.Millisecond*250).Should(Succeed())
+
+			// 6. Verify ServiceAccount patched
+			targetSA := &corev1.ServiceAccount{}
+			Eventually(func() bool {
+				k8sClient.Get(ctx, types.NamespacedName{Name: "default", Namespace: targetNsName}, targetSA)
+				for _, s := range targetSA.ImagePullSecrets {
+					if s.Name == "registry-credentials" {
+						return true
+					}
+				}
+				return false
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 		})
 	})
 
