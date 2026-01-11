@@ -404,3 +404,95 @@ export type {
   EnrichedIssue,
   GitHubTokenResult,
 } from "@catalyst/vcs-provider";
+
+// ============================================================================
+// ARCHITECTURE SUMMARY
+// ============================================================================
+/**
+ * VCS PROVIDER ARCHITECTURE
+ * =========================
+ * 
+ * This file serves as a bridge between the web application and the VCS provider
+ * abstraction layer (@catalyst/vcs-provider package). The architecture follows
+ * the principle of separation of concerns:
+ * 
+ * 1. PROVIDER PACKAGE (@catalyst/vcs-provider)
+ *    - Contains provider-specific implementations (GitHub, GitLab, Bitbucket)
+ *    - Handles OAuth flows, API calls, and data normalization
+ *    - Exports VCSProviderSingleton for automatic token management
+ *    - Location: web/packages/@catalyst/vcs-provider/
+ * 
+ * 2. THIS FILE (web/src/lib/vcs-providers.ts)
+ *    - Manages database operations for token storage
+ *    - Handles token encryption/decryption
+ *    - Re-exports provider functionality for backward compatibility
+ *    - Registers token callbacks with the provider singleton
+ * 
+ * 3. VCS SINGLETON (web/src/lib/vcs.ts)
+ *    - Initializes VCSProviderSingleton with token management callbacks
+ *    - Provides scoped instances for easy use in actions/routes
+ *    - Automatically refreshes tokens before expiration
+ * 
+ * USAGE PATTERNS:
+ * ===============
+ * 
+ * Option A: Direct Function Calls (Legacy)
+ * ```typescript
+ * import { exchangeAuthorizationCode, fetchGitHubUser } from '@/lib/vcs-providers';
+ * 
+ * const tokens = await exchangeAuthorizationCode(code);
+ * const user = await fetchGitHubUser(tokens.accessToken);
+ * ```
+ * 
+ * Option B: VCS Singleton (Recommended)
+ * ```typescript
+ * import { vcs } from '@/lib/vcs';
+ * 
+ * // Get scoped instance for a user
+ * const userVcs = vcs.getScoped(userId, 'github');
+ * 
+ * // Automatic token management - no manual refresh needed
+ * const repos = await userVcs.repos.listUserRepositories();
+ * const prs = await userVcs.pullRequests.list(owner, repo);
+ * ```
+ * 
+ * ADDING NEW PROVIDERS:
+ * ====================
+ * 
+ * To add support for GitLab, Bitbucket, or other VCS providers:
+ * 
+ * 1. Create provider implementation:
+ *    - Add to: web/packages/@catalyst/vcs-provider/src/providers/{provider}/
+ *    - Implement: VCSProvider interface from types.ts
+ *    - Add OAuth functions similar to GitHub's auth.ts
+ * 
+ * 2. Update database schema:
+ *    - Option A: Add provider-specific table (e.g., gitlab_user_tokens)
+ *    - Option B: Migrate to generic vcs_user_tokens table with provider_id
+ * 
+ * 3. Add token storage functions:
+ *    - Create storeProviderTokens() and getProviderTokens() in this file
+ *    - Follow the pattern established by storeGitHubTokens()
+ * 
+ * 4. Register with singleton:
+ *    - Import provider class in vcs.ts
+ *    - Add to VCSProviderSingleton.initialize({ providers: [...] })
+ * 
+ * 5. Export functions:
+ *    - Export from provider package index.ts
+ *    - Re-export from this file for backward compatibility
+ * 
+ * MIGRATION NOTES:
+ * ===============
+ * 
+ * This file was refactored to delegate OAuth and API operations to the
+ * @catalyst/vcs-provider package. The refactoring:
+ * - Removed duplicate OAuth implementation code
+ * - Removed hardcoded GitHub API URLs
+ * - Maintained backward compatibility for existing imports
+ * - Added comprehensive documentation for future extensibility
+ * 
+ * Existing code continues to work without changes. New code should prefer
+ * using the VCSProviderSingleton (via vcs.getScoped()) for automatic token
+ * management and provider-agnostic operations.
+ */
