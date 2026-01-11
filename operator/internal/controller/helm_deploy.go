@@ -120,51 +120,10 @@ func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *cata
 		return false, fmt.Errorf("failed to merge helm values: %w", err)
 	}
 
-	// Inject built images
+	// Inject built images into Helm values
+	// This follows the standard Helm convention where images are configured under global.images
 	if len(builtImages) > 0 {
-		global, ok := vals["global"].(map[string]interface{})
-		if !ok {
-			global = map[string]interface{}{}
-		}
-
-		images, ok := global["images"].(map[string]interface{})
-		if !ok {
-			images = map[string]interface{}{}
-		}
-
-		for name, tag := range builtImages {
-			// Tag format: registry/repo:tag
-			// We need to split if the chart expects repository and tag separately
-			// But simple injection: global.images.<name> = fullTag
-			// Or following common patterns:
-			// global.images.<name>.repository
-			// global.images.<name>.tag
-			// For now, let's inject the full reference string, assuming chart can handle it or we use --set-string behavior
-			// Actually, let's assume standard helm pattern: repository and tag
-			// tag is everything after the last colon
-			// repository is everything before
-
-			// Simple split on last colon
-			lastColon := -1
-			for i := len(tag) - 1; i >= 0; i-- {
-				if tag[i] == ':' {
-					lastColon = i
-					break
-				}
-			}
-
-			if lastColon != -1 {
-				repo := tag[:lastColon]
-				imgTag := tag[lastColon+1:]
-
-				images[name] = map[string]interface{}{
-					"repository": repo,
-					"tag":        imgTag,
-				}
-			}
-		}
-		global["images"] = images
-		vals["global"] = global
+		injectBuiltImages(vals, builtImages, log)
 	}
 
 	// Check if release exists
@@ -523,6 +482,117 @@ func (r *EnvironmentReconciler) mergeHelmValues(template *catalystv1alpha1.Envir
 	}
 
 	return vals, nil
+}
+
+// injectBuiltImages injects built container images into Helm values following standard conventions.
+//
+// This function implements the standard Helm pattern for image configuration:
+//   global.images.<component-name>.repository (string)
+//   global.images.<component-name>.tag (string)
+//
+// Input:
+//   vals: The Helm values map to modify
+//   builtImages: Map of component name to full image reference
+//   log: Logger for diagnostic output
+//
+// Example input builtImages:
+//   {
+//     "web": "ghcr.io/ncrmro/catalyst:abc123",
+//     "api": "ghcr.io/ncrmro/catalyst-api:def456"
+//   }
+//
+// Example resulting values structure:
+//   {
+//     "global": {
+//       "images": {
+//         "web": {
+//           "repository": "ghcr.io/ncrmro/catalyst",
+//           "tag": "abc123"
+//         },
+//         "api": {
+//           "repository": "ghcr.io/ncrmro/catalyst-api",
+//           "tag": "def456"
+//         }
+//       }
+//     }
+//   }
+//
+// The function safely handles cases where:
+// - "global" key doesn't exist in vals
+// - "images" key doesn't exist under global
+// - Image reference has no tag (defaults to "latest")
+// - Image reference has multiple colons (e.g., registry with port)
+func injectBuiltImages(vals map[string]interface{}, builtImages map[string]string, log logr.Logger) {
+	// Ensure global.images structure exists
+	global, ok := vals["global"].(map[string]interface{})
+	if !ok {
+		global = map[string]interface{}{}
+	}
+
+	images, ok := global["images"].(map[string]interface{})
+	if !ok {
+		images = map[string]interface{}{}
+	}
+
+	// Process each built image
+	for componentName, imageRef := range builtImages {
+		// Split image reference into repository and tag
+		// Format: registry/repo:tag or registry:port/repo:tag
+		// Strategy: Find the last colon to split repository from tag
+		repository, tag := splitImageRef(imageRef)
+
+		images[componentName] = map[string]interface{}{
+			"repository": repository,
+			"tag":        tag,
+		}
+
+		log.V(1).Info("Injected built image into Helm values",
+			"component", componentName,
+			"repository", repository,
+			"tag", tag,
+		)
+	}
+
+	global["images"] = images
+	vals["global"] = global
+}
+
+// splitImageRef splits a container image reference into repository and tag.
+//
+// Examples:
+//   "nginx:latest" -> ("nginx", "latest")
+//   "ghcr.io/org/image:v1.2.3" -> ("ghcr.io/org/image", "v1.2.3")
+//   "registry.local:5000/app:sha-abc123" -> ("registry.local:5000/app", "sha-abc123")
+//   "myimage" -> ("myimage", "latest")
+//
+// The function finds the last colon in the reference and treats everything
+// after it as the tag. This correctly handles registry addresses with ports.
+func splitImageRef(imageRef string) (repository string, tag string) {
+	// Find the last occurrence of ':'
+	lastColon := strings.LastIndex(imageRef, ":")
+
+	if lastColon == -1 {
+		// No tag specified, use default
+		return imageRef, "latest"
+	}
+
+	// Split at the last colon
+	repository = imageRef[:lastColon]
+	tag = imageRef[lastColon+1:]
+
+	// Handle edge case where the colon is part of the registry (e.g., "registry.local:5000")
+	// If there's no '/' after the colon, it's likely a registry port, not a tag
+	if !strings.Contains(tag, "/") && strings.Contains(repository, "/") {
+		// This is likely a real tag
+		return repository, tag
+	}
+
+	// If tag contains '/', it's probably part of the repository path
+	if strings.Contains(tag, "/") {
+		return imageRef, "latest"
+	}
+
+	return repository, tag
 }
 
 // cleanupStaleTempDirs removes temporary directories older than 24 hours
