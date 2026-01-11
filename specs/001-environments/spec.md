@@ -153,6 +153,7 @@ As a power user, I want to configure deployments using standard tools (Docker Co
 - **FR-ENV-016**: Operator MUST copy project-level registry credentials (secrets) to environment namespaces to enable image pulling.
 - **FR-ENV-017**: Operator MUST patch the default ServiceAccount in environment namespaces with `imagePullSecrets` matching the project registry credentials.
 - **FR-ENV-018**: System MUST support provisioning an internal container registry (cluster-wide or per-project) backed by object storage for zero-config image hosting.
+- **FR-ENV-019**: Operator MUST support a sidecar/init mechanism in "development" mode to clone sources into the development pod and enable bi-directional sync (push back to Git) for interactive development workflows.
 
 ### Key Entities
 
