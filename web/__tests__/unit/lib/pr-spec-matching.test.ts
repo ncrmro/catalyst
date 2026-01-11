@@ -9,23 +9,56 @@ import type { PullRequest } from "@/types/reports";
 
 describe("tokenizeSpecName", () => {
   it("splits spec name on hyphens", () => {
-    expect(tokenizeSpecName("009-projects")).toEqual(["009", "projects"]);
+    const tokens = tokenizeSpecName("009-projects");
+    expect(tokens).toContain("009");
+    expect(tokens).toContain("projects");
   });
 
   it("handles multiple hyphens", () => {
-    expect(tokenizeSpecName("001-auth-system")).toEqual([
-      "001",
-      "auth",
-      "system",
-    ]);
+    const tokens = tokenizeSpecName("001-auth-system");
+    expect(tokens).toContain("001");
+    expect(tokens).toContain("auth");
+    expect(tokens).toContain("system");
   });
 
   it("filters out single character tokens", () => {
-    expect(tokenizeSpecName("001-a-feature")).toEqual(["001", "feature"]);
+    const tokens = tokenizeSpecName("001-a-feature");
+    expect(tokens).toContain("001");
+    expect(tokens).toContain("feature");
+    expect(tokens).not.toContain("a");
   });
 
   it("handles spec names without hyphens", () => {
-    expect(tokenizeSpecName("projects")).toEqual(["projects"]);
+    const tokens = tokenizeSpecName("projects");
+    expect(tokens).toContain("projects");
+  });
+
+  it("generates singular variants by removing trailing 's'", () => {
+    const tokens = tokenizeSpecName("009-projects");
+    expect(tokens).toContain("projects");
+    expect(tokens).toContain("project");
+  });
+
+  it("generates singular variants for multiple tokens", () => {
+    const tokens = tokenizeSpecName("001-environments");
+    expect(tokens).toContain("environments");
+    expect(tokens).toContain("environment");
+  });
+
+  it("does not remove trailing 's' from 2-character tokens", () => {
+    const tokens = tokenizeSpecName("001-as");
+    // "as" should remain as-is, not become "a" (single char)
+    expect(tokens).toContain("001");
+    expect(tokens).toContain("as");
+    expect(tokens).not.toContain("a");
+  });
+
+  it("handles tokens that don't end in 's'", () => {
+    const tokens = tokenizeSpecName("001-auth-system");
+    expect(tokens).toContain("auth");
+    expect(tokens).toContain("system");
+    // These don't have singular variants added
+    expect(tokens.filter((t) => t === "auth")).toHaveLength(1);
   });
 });
 
@@ -78,6 +111,23 @@ describe("matchPRToSpec (FR-022)", () => {
       expect(matchPRToSpec("Add RECIPES page", specIds)).toBe("002-recipes");
       expect(matchPRToSpec("PROJECTS management", specIds)).toBe(
         "009-projects",
+      );
+    });
+
+    it("matches singular form when spec has plural", () => {
+      expect(matchPRToSpec("Add project configuration", specIds)).toBe(
+        "009-projects",
+      );
+      expect(matchPRToSpec("Fix recipe display", specIds)).toBe("002-recipes");
+    });
+
+    it("matches singular form for environments spec", () => {
+      const specsWithEnv = ["001-environments", "002-recipes"];
+      expect(matchPRToSpec("Add environment variable", specsWithEnv)).toBe(
+        "001-environments",
+      );
+      expect(matchPRToSpec("Update environment config", specsWithEnv)).toBe(
+        "001-environments",
       );
     });
   });
