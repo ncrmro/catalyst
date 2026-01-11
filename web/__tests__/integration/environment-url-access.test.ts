@@ -92,13 +92,13 @@ describe("Environment URL Access", () => {
         };
 
         try {
-          await customApi.createNamespacedCustomObject({
-            group: "catalyst.catalyst.dev",
-            version: "v1alpha1",
-            namespace: "default",
-            plural: "environments",
-            body: testEnv,
-          });
+          await (customApi as any).createNamespacedCustomObject(
+            "catalyst.catalyst.dev",
+            "v1alpha1",
+            "default",
+            "environments",
+            testEnv,
+          );
           testEnvCreated = true;
           console.log(`Created test Environment CR: ${TEST_ENV_NAME}`);
         } catch (createError) {
@@ -130,13 +130,13 @@ describe("Environment URL Access", () => {
     // Clean up the test Environment CR
     if (customApi && testEnvCreated) {
       try {
-        await customApi.deleteNamespacedCustomObject({
-          group: "catalyst.catalyst.dev",
-          version: "v1alpha1",
-          namespace: "default",
-          plural: "environments",
-          name: TEST_ENV_NAME,
-        });
+        await (customApi as any).deleteNamespacedCustomObject(
+          "catalyst.catalyst.dev",
+          "v1alpha1",
+          "default",
+          "environments",
+          TEST_ENV_NAME,
+        );
         console.log(`Deleted test Environment CR: ${TEST_ENV_NAME}`);
       } catch (error) {
         // Ignore if already deleted
@@ -158,12 +158,12 @@ describe("Environment URL Access", () => {
     }
 
     // List Environment CRs in default namespace
-    const response = (await customApi.listNamespacedCustomObject({
-      group: "catalyst.catalyst.dev",
-      version: "v1alpha1",
-      namespace: "default",
-      plural: "environments",
-    })) as EnvironmentListResponse;
+    const response = (await (customApi as any).listNamespacedCustomObject(
+      "catalyst.catalyst.dev",
+      "v1alpha1",
+      "default",
+      "environments",
+    )) as EnvironmentListResponse;
     const environments = response.items || [];
 
     // We should have at least our test environment
