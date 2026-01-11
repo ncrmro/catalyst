@@ -53,9 +53,12 @@ var _ = Describe("Environment Controller", func() {
 					Namespace: namespace,
 				},
 				Spec: catalystv1alpha1.ProjectSpec{
-					Source: catalystv1alpha1.SourceConfig{
-						RepositoryURL: "https://github.com/org/repo",
-						Branch:        "main",
+					Sources: []catalystv1alpha1.SourceConfig{
+						{
+							Name:          "main",
+							RepositoryURL: "https://github.com/org/repo",
+							Branch:        "main",
+						},
 					},
 				},
 			}

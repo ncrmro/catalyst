@@ -24,17 +24,22 @@ import (
 // ProjectSpec defines the desired state of Project
 // Spec referenced from operator/spec.md
 type ProjectSpec struct {
-	// Source configuration for the project
-	Source SourceConfig `json:"source"`
+	// Sources configuration for the project (supports multiple repos)
+	Sources []SourceConfig `json:"sources"`
 
-	// Deployment strategy configuration
-	Deployment DeploymentConfig `json:"deployment"`
+	// Templates for different environment types.
+	// Standard keys: "development" (previews) and "deployment" (production/staging).
+	// +optional
+	Templates map[string]EnvironmentTemplate `json:"templates,omitempty"`
 
 	// Resources configuration (quotas, limits)
 	Resources ResourceConfig `json:"resources,omitempty"`
 }
 
 type SourceConfig struct {
+	// Name to identify this source component (e.g. "frontend", "backend")
+	Name string `json:"name"`
+
 	// RepositoryURL is the git repository URL
 	RepositoryURL string `json:"repositoryUrl"`
 
@@ -42,16 +47,50 @@ type SourceConfig struct {
 	Branch string `json:"branch"`
 }
 
-type DeploymentConfig struct {
+type EnvironmentTemplate struct {
+	// SourceRef refers to one of the sources defined in Project.Sources
+	// containing the deployment configuration (e.g. Chart.yaml or k8s manifests).
+	// If empty, assumes the first source or a primary source.
+	// +optional
+	SourceRef string `json:"sourceRef,omitempty"`
+
 	// Type of deployment (helm, manifest, kustomize)
 	Type string `json:"type"`
 
-	// Path to the deployment definition (e.g. chart path)
-	Path string `json:"path"`
+	// Path to the deployment definition (e.g. chart path) relative to SourceRef root.
+	// +optional
+	Path string `json:"path,omitempty"`
+
+	// Builds defines the artifacts (container images) to be built from sources before deployment.
+	// This separates the "deployment logic" (e.g. Helm Chart) from the "application code" (e.g. Dockerfiles).
+	// The operator will build these images and can inject them into the deployment (e.g. via Helm values).
+	// +optional
+	Builds []BuildSpec `json:"builds,omitempty"`
 
 	// Values are the default values to inject
 	// +kubebuilder:pruning:PreserveUnknownFields
+	// +optional
 	Values runtime.RawExtension `json:"values,omitempty"`
+}
+
+type BuildSpec struct {
+	// Name identifies this build artifact (e.g. "frontend", "api").
+	// This name is used to inject the built image into the deployment values.
+	// Example: for name "frontend", values might receive global.images.frontend.repository
+	Name string `json:"name"`
+
+	// SourceRef refers to the Project.Source containing the application code.
+	SourceRef string `json:"sourceRef"`
+
+	// Path is the build context directory relative to the SourceRef root.
+	// Defaults to root if empty.
+	// +optional
+	Path string `json:"path,omitempty"`
+
+	// Dockerfile is the path to the Dockerfile relative to Path.
+	// If empty, auto-detection or default "Dockerfile" is assumed.
+	// +optional
+	Dockerfile string `json:"dockerfile,omitempty"`
 }
 
 type ResourceConfig struct {
