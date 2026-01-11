@@ -382,7 +382,7 @@ func desiredDevelopmentService(namespace string) *corev1.Service {
 
 // ReconcileDevelopmentMode handles the reconciliation for development deployment mode.
 // It creates PVCs, PostgreSQL, and a hot-reload web deployment based on base.json pattern.
-func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, env *catalystv1alpha1.Environment, namespace string) (bool, error) {
+func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, template *catalystv1alpha1.EnvironmentTemplate) (bool, error) {
 	log := logf.FromContext(ctx)
 
 	// 1. Create PVCs (idempotent)
