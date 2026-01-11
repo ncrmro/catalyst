@@ -21,7 +21,7 @@ class ProjectFactory extends Factory<InsertProject> {
 }
 
 export const projectFactory = ProjectFactory.define(() => {
-  const name = faker.company.name();
+  const name = `${faker.company.name()} ${faker.string.alphanumeric(5)}`;
   return {
     name,
     slug: generateSlug(name),
