@@ -37,7 +37,7 @@ const (
 	dockerfileGenImage = "alpine:3.19"
 	kanikoImage        = "gcr.io/kaniko-project/executor:v1.20.0"
 	gitSecretName      = "github-pat-secret"
-	registryInternal   = "registry.cluster.local:5000"
+	registryInternal   = "registry.default.svc.cluster.local:5000"
 )
 
 // reconcileBuilds handles the build process for all defined builds in the template.
