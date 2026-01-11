@@ -169,6 +169,34 @@ export interface Branch {
   sha: string;
 }
 
+// Organization types
+export interface Organization {
+  id: string;
+  login: string;
+  name?: string;
+  description?: string;
+  avatarUrl: string;
+  url: string;
+  type: "Organization";
+  membersCount?: number;
+}
+
+export type OrganizationRole = "owner" | "admin" | "member";
+
+export interface OrganizationMember {
+  id: string;
+  login: string;
+  avatarUrl: string;
+  role: OrganizationRole;
+  state?: "active" | "pending";
+}
+
+export interface MembershipCheck {
+  isMember: boolean;
+  role?: OrganizationRole;
+  state?: "active" | "pending";
+}
+
 // VCS Provider Interface
 export interface VCSProvider {
   // Identity

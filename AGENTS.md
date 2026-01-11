@@ -37,7 +37,7 @@ We use a specification-first approach to define features through user stories an
 
 - **[001-environments](specs/001-environments/)**: Manages deployment (production/staging) and isolated development environments with preview URLs.
 - **[003-vcs-providers](specs/003-vcs-providers/)**: Integrates version control systems (GitHub) for authentication, team sync, and PR orchestration.
-- **[006-cli-codeing-agents-harness](specs/006-cli-codeing-agents-harness/)**: Provides an environment for running and managing CLI-based coding agents.
+- **[006-agent-harness](specs/006-agent-harness/)**: Provides an environment for running and managing CLI-based coding agents.
 - **[007-user-agent-interfaces](specs/007-user-agent-interfaces/)**: Defines the interaction patterns across Web, TUI, MCP, and ChatOps.
 - **[009-projects](specs/009-projects/)**: Groups repositories into projects to enable centralized CI, release management, and spec-driven workflows.
 

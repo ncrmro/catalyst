@@ -2,7 +2,7 @@
 # Helm chart dependencies
 charts/*/charts/
 **/kubeconfig.devbox.yml
-worktree
+worktree/
 
 # K3s VM local development
 web/.kube/

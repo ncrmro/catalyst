@@ -93,29 +93,57 @@ def main():
                     sys.exit(1)
 
             # Check if we are working on a spec
-            spec_instructions = f"Refocus on the spec '{branch_input}' which should now be available inside this worktree. "
-            
-            # Add context files using @ syntax
-            for filename in ["spec.md", "plan.md", "tasks.md"]:
-                file_path = os.path.join(worktree_path, filename)
-                if os.path.exists(file_path):
-                    relative_path = os.path.relpath(file_path, project_root)
-                    spec_instructions += f" @{relative_path}"
+            # Resolve the relative spec directory within the worktree
+            if branch_input.startswith("specs/") or branch_input.startswith("spec/"):
+                if branch_input.startswith("specs/"):
+                    spec_name = branch_input[len("specs/"):]
+                else:
+                    spec_name = branch_input[len("spec/"):]
+                spec_rel_dir = os.path.join("specs", spec_name)
+            else:
+                spec_rel_dir = os.path.join("specs", branch_input)
 
-            # Get spec status
-            spec_status = get_spec_status(branch_input, project_root)
-            if spec_status:
-                spec_instructions += f"\n\nHere is the recent activity/status for this spec:\n\n{spec_status}\n"
+            spec_instructions = ""
+            spec_files_found = []
+            for filename in ["spec.md", "plan.md", "tasks.md"]:
+                file_path = os.path.join(worktree_path, spec_rel_dir, filename)
+                if os.path.exists(file_path):
+                    # We want the path relative to the worktree root for the agent
+                    agent_rel_path = os.path.join(spec_rel_dir, filename)
+                    spec_files_found.append(f" @{agent_rel_path}")
+
+            if spec_files_found:
+                # Use the resolved spec_name for the message if available
+                display_name = branch_input
+                if branch_input.startswith("specs/") or branch_input.startswith("spec/"):
+                    if branch_input.startswith("specs/"):
+                        display_name = branch_input[len("specs/"):]
+                    else:
+                        display_name = branch_input[len("spec/"):]
+                
+                spec_instructions = f"Refocus on the spec '{display_name}' which should now be available inside this worktree. "
+                spec_instructions += "".join(spec_files_found)
+
+                # Get spec status
+                spec_status = get_spec_status(display_name, project_root)
+                if spec_status:
+                    spec_instructions += f"\n\nHere is the recent activity/status for this spec:\n\n{spec_status}\n"
+            else:
+                spec_instructions = ""
 
             # Construct the prompt for the LLM
             initial_prompt = (
                 f"I am working in the worktree located at: {worktree_path}. "
-                f"Please acknowledge this by confirming you will change your working directory to this path "
-                f"and only create, read, update, or delete files within this directory. "
+                f"Your working directory has been set to this path. "
+                f"Please only create, read, update, or delete files within this directory. "
                 f"{spec_instructions}"
                 f"Note: The development server has NOT been started automatically. If you need to run the application, "
-                f"please run 'make up' within the worktree directory."
+                f"please run 'make up' within the worktree directory. "
+                f"Please acknowledge this setup and wait for further instructions."
             )
+
+            # Change to the worktree directory
+            os.chdir(worktree_path)
 
             # Skip the worktree flag and its argument
             i += 2
@@ -133,11 +161,11 @@ def main():
             spec_instructions = f"Refocus on the spec '{spec_name}' which is available in the current directory. "
             
             # Add context files using @ syntax
+            # If we are already inside a spec directory (e.g. specs/007-agents)
+            # then spec.md is just ./spec.md
             for filename in ["spec.md", "plan.md", "tasks.md"]:
-                file_path = os.path.join(cwd, filename)
-                if os.path.exists(file_path):
-                    relative_path = os.path.relpath(file_path, project_root)
-                    spec_instructions += f" @{relative_path}"
+                if os.path.exists(os.path.join(cwd, filename)):
+                    spec_instructions += f" @{filename}"
                 
             # Get spec status
             spec_status = get_spec_status(spec_name, project_root)

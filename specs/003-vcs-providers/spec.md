@@ -4,13 +4,16 @@
 
 Integrating with Version Control System (VCS) providers is essential to create a unified and streamlined development lifecycle. By connecting directly with the platforms where code lives (GitHub, Gitea, GitLab), we reduce context switching, automate administrative overhead (like team management), and unlock advanced capabilities like AI-driven development workflows. This integration allows the platform to serve as a central hub for coding, project management, and automated assistance.
 
-## User Story: Automatic Token Refresh (COMPLETED)
+## User Stories
+
+### US-1: Automatic Token Refresh (COMPLETED, P1)
 
 **As a developer**, I want refresh tokens to automatically be handled without me having to think about it in each action, API route, or service call.
 
 **Why:** Currently, developers must manually check token expiration and refresh tokens before each VCS operation. This leads to duplicated refresh logic, inconsistent error handling, and complexity.
 
 **What:** A singleton **VCSProviderSingleton** facade that:
+
 - Automatically checks token expiration before any VCS operation
 - Refreshes tokens transparently when needed
 - Uses a callback pattern to remain provider-agnostic
@@ -18,12 +21,8 @@ Integrating with Version Control System (VCS) providers is essential to create a
 - Handles concurrency to prevent multiple refresh calls
 - Validates environment variables on startup
 
-**Implementation Details:**
-- **Location:** `@catalyst/vcs-provider` package
-- **Schema:** `@tetrastack/backend` (connection_tokens table)
-- **Security:** `@tetrastack/backend` (AES-256-GCM encryption)
-
 **Completed Acceptance Criteria:**
+
 - [x] `VCSProviderSingleton` facade implemented with automatic token management
 - [x] Scoped instances (`getScoped`) for cleaner API usage
 - [x] `connection_tokens` schema created in `@tetrastack/backend` (Postgres & SQLite)
@@ -32,6 +31,31 @@ Integrating with Version Control System (VCS) providers is essential to create a
 - [x] Comprehensive unit test suite covering refresh, concurrency, and validation
 - [x] Provider-agnostic design supporting GitHub (with extensibility for GitLab/Bitbucket)
 - [x] README.md and AGENTS.md updated with `VCSProviderSingleton` usage examples
+
+### US-2: VCS Organization Team Integration (IN PROGRESS, P1)
+
+**As a platform user**, when I add a private repository from a VCS organization (GitHub Org, GitLab Group, Bitbucket Workspace, etc.), I want teams to be automatically created and synchronized with the VCS provider's organization membership so that I can collaborate with organization members without manual team management.
+
+**Why:** Currently, users must manually create and manage teams in Catalyst. When working with organization repositories across different VCS providers (GitHub Orgs, GitLab Groups, Gitea Orgs, Forgejo Orgs, Bitbucket Workspaces), there's no automatic association between VCS organization members and platform teams. This creates friction, increases administrative overhead, and risks access control inconsistencies.
+
+**What:**
+
+- When connecting an organization repository from any VCS provider, the platform detects org ownership and prompts the user with clear messaging that a team will be created
+- A platform team is automatically created and linked to the VCS organization with provider-specific metadata
+- Team membership is synchronized in real-time via VCS provider webhooks when org members are added/removed
+- Private organization repositories are only accessible to users who are members of the corresponding platform team
+- Organization operations are exposed through the provider-agnostic VCS provider interface
+
+**Acceptance Criteria:**
+
+1. **Given** a user connects a private organization repository (from any VCS provider), **When** no team exists for that organization, **Then** the platform shows a confirmation dialog explaining that a team will be created for the organization
+2. **Given** a user confirms team creation, **When** the repository is connected, **Then** a platform team is created with VCS org metadata (provider ID, org ID, org login, avatar URL)
+3. **Given** a VCS organization webhook event (member added), **When** the webhook is received, **Then** the user is automatically added to the corresponding platform team
+4. **Given** a VCS organization webhook event (member removed), **When** the webhook is received, **Then** the user is automatically removed from the corresponding platform team
+5. **Given** a private organization repository, **When** a user without org membership attempts access, **Then** the platform denies access with a clear error message
+6. **Given** a user signs in, **When** they are a member of VCS organizations, **Then** their org memberships are synced to platform teams (backup sync mechanism)
+7. **Given** an existing team for an organization, **When** another user connects an org repository, **Then** no prompt is shown and the repository is added to the existing team
+8. **Given** multiple VCS providers (GitHub, GitLab, Gitea), **When** organizations exist on different providers, **Then** teams are created with provider-specific identifiers to prevent conflicts
 
 ## What
 
@@ -149,3 +173,168 @@ Handle pull request lifecycle for preview environments and database sync:
 #### FR-WH-006: Unhandled Events
 
 Log unhandled event types for debugging without returning an error. Return success to prevent GitHub from retrying.
+
+#### FR-WH-007: Organization Membership Events (Provider-Specific)
+
+Handle VCS provider organization membership changes for real-time team synchronization. Each provider has different webhook event structures:
+
+**GitHub:**
+| Event | Action | Behavior |
+| -------------- | ---------------- | -------------------------------------------------------------------------------------------------------- |
+| `organization` | `member_added` | Find or create platform team for the org, add user to team membership with appropriate role |
+| `organization` | `member_removed` | Find platform team for the org, remove user from team membership |
+| `organization` | `deleted` | Find platform team for the org, soft delete team (mark as deleted but preserve for audit) |
+
+**GitLab (Future):**
+
+- `member` events on groups (group member added/removed)
+- Group deletion events
+
+**Gitea/Forgejo (Future):**
+
+- Organization member events
+- Organization deletion events
+
+**Common Behavior Across Providers:**
+
+- Match VCS users to platform users via the `accounts` table (provider='github'|'gitlab'|'gitea', providerAccountId=VCS user ID)
+- If user doesn't exist in platform yet, log warning and skip sync (user will be synced on first login)
+- Never promote users to 'owner' role via webhooks (owner is the team creator)
+- Update team's `synced_at` timestamp on each successful sync
+- Only create teams when explicitly triggered by user action (repository connection), not via webhooks
+
+### Functional Requirements: Organization Operations
+
+#### FR-ORG-001: VCS Provider Organization Interface
+
+The VCS provider interface must support organization-level operations in a provider-agnostic manner:
+
+**Required Operations:**
+
+- `getOrganization(client, org: string)`: Retrieve organization details (ID, login, name, avatar URL)
+- `listOrganizationMembers(client, org: string)`: List all members with their roles
+- `getMyOrganizationMembership(client, org: string)`: Check current user's membership status and role
+
+**Provider-Agnostic Design:**
+
+- Organization roles normalized across providers: `owner`, `admin`, `member`
+- Support for both SaaS and self-hosted instances
+- Extensible to GitLab Groups, Bitbucket Workspaces, Gitea/Forgejo Organizations
+
+**Provider Mapping:**
+| Platform | Organization Concept | Owner Equivalent | Admin Equivalent | Member Equivalent |
+| -------------- | -------------------- | ---------------- | ---------------- | ----------------- |
+| GitHub | Organization | owner | admin | member |
+| GitLab | Group | owner | maintainer | developer |
+| Bitbucket | Workspace | admin | admin | member |
+| Gitea/Forgejo | Organization | owner | admin | member |
+
+#### FR-ORG-002: Team-Organization Association
+
+The platform must maintain a provider-agnostic link between teams and VCS organizations:
+
+**Database Requirements:**
+
+- `teams.vcs_provider_id`: Which VCS provider (github, gitlab, gitea, bitbucket)
+- `teams.vcs_org_id`: Unique identifier from the VCS provider
+- `teams.vcs_org_login`: Organization login/name (used for lookups)
+- `teams.vcs_org_avatar_url`: Organization avatar for UI display
+- `teams.is_vcs_org`: Boolean flag to distinguish org teams from personal teams
+- `teams.synced_at`: Timestamp of last successful membership sync
+
+**Constraints:**
+
+- Unique index on `(vcs_provider_id, vcs_org_id)`: One team per VCS organization per provider
+- Unique index on `(vcs_provider_id, vcs_org_login)`: Prevents naming conflicts within provider
+
+**Examples:**
+
+- GitHub org "acme-corp" → `vcs_provider_id='github'`, `vcs_org_id='12345'`, `vcs_org_login='acme-corp'`
+- GitLab group "acme-engineering" → `vcs_provider_id='gitlab'`, `vcs_org_id='67890'`, `vcs_org_login='acme-engineering'`
+- Gitea org "acme-corp" → `vcs_provider_id='gitea'`, `vcs_org_id='111'`, `vcs_org_login='acme-corp'`
+
+This allows the same organization name on different providers without conflict.
+
+#### FR-ORG-003: Repository Connection Flow
+
+When connecting an organization repository from any VCS provider:
+
+**Detection:**
+
+- Check if repository owner type is 'Organization' (or equivalent for the provider)
+- Query for existing platform team with matching `vcs_provider_id` and `vcs_org_login`
+
+**User Confirmation (when team doesn't exist):**
+
+- Show alert/dialog with organization avatar and name
+- Display provider-specific messaging: "A team will be created for this {GitHub Organization | GitLab Group | Bitbucket Workspace}"
+- List what will happen: team creation, repository association, member access
+- Require explicit user confirmation (checkbox + enabled submit button)
+
+**Team Creation:**
+
+- Create team with VCS org metadata including provider ID
+- Set current user as team owner
+- Add creator to team membership table with 'owner' role
+- Associate repository with the new team
+
+**Team Reuse (when team exists):**
+
+- Show informational message about existing team
+- Verify user is a member of the team
+- Associate repository with the existing team
+- No additional confirmation required
+
+#### FR-ORG-004: Access Control Enforcement
+
+The platform must enforce team-based access control for private organization repositories across all VCS providers:
+
+**Access Rules:**
+
+- Public repositories: accessible to all authenticated users (regardless of provider)
+- Private user repositories: accessible to members of the user's personal team
+- Private organization repositories: accessible only to members of the corresponding org team
+
+**Enforcement Points:**
+
+- Server actions (before returning project/repo data)
+- API routes (before processing requests)
+- MCP tools (before executing operations)
+
+**Error Handling:**
+
+- Return clear error messages when access is denied
+- Suggest joining the VCS organization if not a member
+- Provide link to view organization on the VCS provider
+
+#### FR-ORG-005: OAuth Scope Requirements (Provider-Specific)
+
+Each VCS provider requires specific OAuth scopes to access organization data:
+
+**GitHub:**
+
+- `read:user`: User profile information
+- `user:email`: User email address
+- `repo`: Repository access
+- `read:org`: **Required for organizations** - List organization memberships and members
+
+**GitLab:**
+
+- `read_user`: User profile information
+- `read_api`: Read-only API access (includes group membership)
+
+**Gitea/Forgejo:**
+
+- `read:user`: User profile information
+- `read:organization`: Organization membership access
+
+**Bitbucket:**
+
+- `account`: User profile information
+- `workspace`: Workspace membership access
+
+**Implementation:**
+
+- Update provider-specific auth configuration files
+- Document scope requirements in provider README files
+- Handle graceful degradation if scope not granted (show message to user)

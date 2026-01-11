@@ -165,11 +165,9 @@ describe("VCSProviderSingleton", () => {
 
     it("should propagate validation errors from providers", () => {
       const mockProvider = createMockProvider();
-      mockProvider.validateConfig = vi
-        .fn()
-        .mockImplementation(() => {
-          throw new Error("Provider validation failed: missing config");
-        });
+      mockProvider.validateConfig = vi.fn().mockImplementation(() => {
+        throw new Error("Provider validation failed: missing config");
+      });
 
       expect(() =>
         VCSProviderSingleton.initialize({

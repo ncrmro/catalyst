@@ -30,7 +30,7 @@ Enables restricted kube access from within namespaces—developers and agents ca
 
 Integrations with GitHub, GitLab, Gitea, Forgejo, and raw SSH repositories. Enables commenting on PRs with agent run results, posting preview environment URLs, synchronizing team memberships, and providing unified project management across providers.
 
-### [006-cli-coding-agents-harness](./specs/006-cli-codeing-agents-harness/spec.md)
+### [006-agent-harness](./specs/006-agent-harness/spec.md)
 
 Enables running various CLI coding agents (Claude Code, Codex, Aider) in devcontainers or Kubernetes environments using users' own coding subscriptions. Piggybacks on each CLI agent's native capabilities—hooks, subagents, plans—rather than reinventing them, benefiting from ongoing ecosystem improvements.
 

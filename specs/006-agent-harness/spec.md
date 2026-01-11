@@ -1,4 +1,4 @@
-# CLI Coding Agents Harness Specification
+# Agent Harness Specification
 
 ## Why
 
@@ -8,7 +8,7 @@ This approach provides immediate access to cutting-edge agent capabilities witho
 
 ## What
 
-The CLI Coding Agents Harness enables running various coding agents within Catalyst-managed environments:
+The Agent Harness enables running various coding agents within Catalyst-managed environments:
 
 1. **Agent Execution Environment**: Devcontainers or Kubernetes-based environments configured to run CLI coding agents securely
 2. **Subscription Passthrough**: Users authenticate with their own API keys/subscriptions (Anthropic, OpenAI, etc.)
