@@ -38,7 +38,8 @@ type EnvironmentSpec struct {
 	DeploymentMode string `json:"deploymentMode,omitempty"`
 
 	// Sources configuration for this specific environment
-	Sources []EnvironmentSource `json:"sources"`
+	// +optional
+	Sources []EnvironmentSource `json:"sources,omitempty"`
 
 	// Config overrides
 	Config EnvironmentConfig `json:"config,omitempty"`

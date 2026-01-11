@@ -29,8 +29,9 @@ func getImageForDeployment(env *catalystv1alpha1.Environment) string {
 	// Fallback to cluster registry for development/workspace modes
 	projectName := env.Spec.ProjectRef.Name
 	commitSha := "latest"
-	if len(env.Spec.Sources) > 0 {
-		commitSha = env.Spec.Sources[0].CommitSha
+	sources := env.Spec.Sources
+	if len(sources) > 0 {
+		commitSha = sources[0].CommitSha
 	}
 	return fmt.Sprintf("%s/%s:%s", registryHost, projectName, commitSha)
 }
