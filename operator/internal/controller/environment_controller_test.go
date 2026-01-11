@@ -443,7 +443,7 @@ var _ = Describe("Environment Controller", func() {
 				NamespacedName: types.NamespacedName{Name: "invalid-path-env", Namespace: namespace},
 			})
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("chart not found"))
+			Expect(err.Error()).To(ContainSubstring("source not found"))
 
 			// Verify status is Failed
 			env := &catalystv1alpha1.Environment{}
@@ -863,11 +863,11 @@ var _ = Describe("Environment Controller", func() {
 			resource := &catalystv1alpha1.Environment{}
 			if err := k8sClient.Get(ctx, typeNamespacedName, resource); err == nil {
 				controllerutil.RemoveFinalizer(resource, "catalyst.dev/finalizer")
-				k8sClient.Update(ctx, resource)
-				k8sClient.Delete(ctx, resource)
+				_ = k8sClient.Update(ctx, resource)
+				_ = k8sClient.Delete(ctx, resource)
 			}
 			targetNsName := projectName + "-" + resourceName
-			k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
+			_ = k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
 		})
 
 		It("should successfully translate Compose to K8s resources", func() {

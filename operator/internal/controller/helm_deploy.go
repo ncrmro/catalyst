@@ -64,15 +64,6 @@ func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *cata
 		return false, fmt.Errorf("helm template is required")
 	}
 
-<<<<<<< HEAD
-	// Prepare chart source (local path or clone from git)
-	chartPath, cleanup, err := r.prepareChartSource(ctx, env, project, template)
-	if err != nil {
-		log.Error(err, "Failed to prepare chart source")
-		if cleanup != nil {
-			cleanup()
-		}
-=======
 	// Prepare source (local path or clone from git)
 	sourcePath, cleanup, err := r.prepareSource(ctx, env, project, template)
 	if cleanup != nil {
@@ -80,11 +71,7 @@ func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *cata
 	}
 	if err != nil {
 		log.Error(err, "Failed to prepare source")
->>>>>>> 322e909 (feat(operator): implement docker-compose support (T149))
 		return false, err
-	}
-	if cleanup != nil {
-		defer cleanup()
 	}
 
 	// Initialize Helm Action Config
@@ -201,10 +188,6 @@ func (r *EnvironmentReconciler) prepareSource(ctx context.Context, env *catalyst
 		}
 
 		// Check if local path exists
-<<<<<<< HEAD
-		if _, err := os.Stat(chartPath); os.IsNotExist(err) {
-			return "", nil, fmt.Errorf("chart not found at path: %s", chartPath)
-=======
 		if _, err := os.Stat(sourcePath); os.IsNotExist(err) {
 			// Try heuristics for tests
 			if _, err := os.Stat("../../" + sourcePath); err == nil {
@@ -212,7 +195,6 @@ func (r *EnvironmentReconciler) prepareSource(ctx context.Context, env *catalyst
 			} else {
 				return "", nil, fmt.Errorf("source not found at path: %s", sourcePath)
 			}
->>>>>>> 322e909 (feat(operator): implement docker-compose support (T149))
 		}
 		return sourcePath, nil, nil
 	}
@@ -260,7 +242,6 @@ func (r *EnvironmentReconciler) prepareSource(ctx context.Context, env *catalyst
 
 	cloneOptions := &git.CloneOptions{
 		URL: sourceConfig.RepositoryURL,
-<<<<<<< HEAD
 		// TODO: Add authentication support for private repositories.
 		// This will require:
 		// 1. SSH key or personal access token management via Kubernetes Secrets
@@ -285,9 +266,6 @@ func (r *EnvironmentReconciler) prepareSource(ctx context.Context, env *catalyst
 	}
 
 	_, err = git.PlainClone(tempDir, false, cloneOptions)
-=======
-	})
->>>>>>> 322e909 (feat(operator): implement docker-compose support (T149))
 	if err != nil {
 		cleanup()
 		return "", nil, fmt.Errorf("failed to clone repo: %w", err)
@@ -511,35 +489,39 @@ func (r *EnvironmentReconciler) mergeHelmValues(template *catalystv1alpha1.Envir
 // injectBuiltImages injects built container images into Helm values following standard conventions.
 //
 // This function implements the standard Helm pattern for image configuration:
-//   global.images.<component-name>.repository (string)
-//   global.images.<component-name>.tag (string)
+//
+//	global.images.<component-name>.repository (string)
+//	global.images.<component-name>.tag (string)
 //
 // Input:
-//   vals: The Helm values map to modify
-//   builtImages: Map of component name to full image reference
-//   log: Logger for diagnostic output
+//
+//	vals: The Helm values map to modify
+//	builtImages: Map of component name to full image reference
+//	log: Logger for diagnostic output
 //
 // Example input builtImages:
-//   {
-//     "web": "ghcr.io/ncrmro/catalyst:abc123",
-//     "api": "ghcr.io/ncrmro/catalyst-api:def456"
-//   }
+//
+//	{
+//	  "web": "ghcr.io/ncrmro/catalyst:abc123",
+//	  "api": "ghcr.io/ncrmro/catalyst-api:def456"
+//	}
 //
 // Example resulting values structure:
-//   {
-//     "global": {
-//       "images": {
-//         "web": {
-//           "repository": "ghcr.io/ncrmro/catalyst",
-//           "tag": "abc123"
-//         },
-//         "api": {
-//           "repository": "ghcr.io/ncrmro/catalyst-api",
-//           "tag": "def456"
-//         }
-//       }
-//     }
-//   }
+//
+//	{
+//	  "global": {
+//	    "images": {
+//	      "web": {
+//	        "repository": "ghcr.io/ncrmro/catalyst",
+//	        "tag": "abc123"
+//	      },
+//	      "api": {
+//	        "repository": "ghcr.io/ncrmro/catalyst-api",
+//	        "tag": "def456"
+//	      }
+//	    }
+//	  }
+//	}
 //
 // The function safely handles cases where:
 // - "global" key doesn't exist in vals
@@ -584,10 +566,11 @@ func injectBuiltImages(vals map[string]interface{}, builtImages map[string]strin
 // splitImageRef splits a container image reference into repository and tag.
 //
 // Examples:
-//   "nginx:latest" -> ("nginx", "latest")
-//   "ghcr.io/org/image:v1.2.3" -> ("ghcr.io/org/image", "v1.2.3")
-//   "registry.local:5000/app:sha-abc123" -> ("registry.local:5000/app", "sha-abc123")
-//   "myimage" -> ("myimage", "latest")
+//
+//	"nginx:latest" -> ("nginx", "latest")
+//	"ghcr.io/org/image:v1.2.3" -> ("ghcr.io/org/image", "v1.2.3")
+//	"registry.local:5000/app:sha-abc123" -> ("registry.local:5000/app", "sha-abc123")
+//	"myimage" -> ("myimage", "latest")
 //
 // The function finds the last colon in the reference and treats everything
 // after it as the tag. This correctly handles registry addresses with ports.

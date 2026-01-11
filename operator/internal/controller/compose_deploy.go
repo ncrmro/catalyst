@@ -221,9 +221,11 @@ func (r *EnvironmentReconciler) desiredComposeService(namespace, name string, se
 	for _, p := range service.Ports {
 		// Simplified port parsing: "80:80" or "80"
 		var port int
-		fmt.Sscanf(p, "%d:%d", &port, &port) // Naive
-		if port == 0 {
-			fmt.Sscanf(p, "%d", &port)
+		if _, err := fmt.Sscanf(p, "%d:%d", &port, &port); err != nil { // Naive
+			if _, err := fmt.Sscanf(p, "%d", &port); err != nil {
+				// Failed to parse port, skip
+				continue
+			}
 		}
 		if port != 0 {
 			ports = append(ports, corev1.ServicePort{
