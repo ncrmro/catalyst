@@ -53,7 +53,7 @@ var (
 )
 
 // ReconcileHelmMode handles the reconciliation for Helm deployment mode.
-func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, template *catalystv1alpha1.EnvironmentTemplate) (bool, error) {
+func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, template *catalystv1alpha1.EnvironmentTemplate, builtImages map[string]string) (bool, error) {
 	log := logf.FromContext(ctx)
 
 	// Clean up stale temporary directories (older than 24 hours)
@@ -113,6 +113,19 @@ func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *cata
 
 	releaseName := env.Name // Use environment name as release name
 
+	// Values
+	// Merge values from template.Values and env.Spec.Config
+	vals, err := r.mergeHelmValues(template, env)
+	if err != nil {
+		return false, fmt.Errorf("failed to merge helm values: %w", err)
+	}
+
+	// Inject built images into Helm values
+	// This follows the standard Helm convention where images are configured under global.images
+	if len(builtImages) > 0 {
+		injectBuiltImages(vals, builtImages, log)
+	}
+
 	// Check if release exists
 	histClient := action.NewHistory(actionConfig)
 	histClient.Max = 1
@@ -130,12 +143,6 @@ func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *cata
 			return false, err
 		}
 
-		// Values
-		vals, err := r.mergeHelmValues(template, env)
-		if err != nil {
-			return false, fmt.Errorf("failed to merge helm values: %w", err)
-		}
-
 		if _, err := install.Run(chartRequested, vals); err != nil {
 			return false, err
 		}
@@ -151,12 +158,6 @@ func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *cata
 		chartRequested, err := loader.Load(chartPath)
 		if err != nil {
 			return false, err
-		}
-
-		// Values
-		vals, err := r.mergeHelmValues(template, env)
-		if err != nil {
-			return false, fmt.Errorf("failed to merge helm values: %w", err)
 		}
 
 		if _, err := upgrade.Run(releaseName, chartRequested, vals); err != nil {
@@ -232,7 +233,7 @@ func (r *EnvironmentReconciler) prepareChartSource(ctx context.Context, env *cat
 	}
 
 	cleanup := func() {
-		os.RemoveAll(tempDir)
+		_ = os.RemoveAll(tempDir)
 	}
 
 	log.Info("Cloning repository for chart", "url", sourceConfig.RepositoryURL, "commit", commitSha, "tempDir", tempDir)
@@ -367,11 +368,11 @@ func (l *genericConfigLoader) RawConfig() (clientcmdapi.Config, error) {
 	cluster := &clientcmdapi.Cluster{
 		Server: l.cfg.Host,
 	}
-	if l.cfg.TLSClientConfig.Insecure {
+	if l.cfg.Insecure {
 		cluster.InsecureSkipTLSVerify = true
 	}
-	if len(l.cfg.TLSClientConfig.CAData) > 0 {
-		cluster.CertificateAuthorityData = l.cfg.TLSClientConfig.CAData
+	if len(l.cfg.CAData) > 0 {
+		cluster.CertificateAuthorityData = l.cfg.CAData
 	}
 	cfg.Clusters[clusterName] = cluster
 
@@ -380,11 +381,11 @@ func (l *genericConfigLoader) RawConfig() (clientcmdapi.Config, error) {
 	if l.cfg.BearerToken != "" {
 		authInfo.Token = l.cfg.BearerToken
 	}
-	if len(l.cfg.TLSClientConfig.CertData) > 0 {
-		authInfo.ClientCertificateData = l.cfg.TLSClientConfig.CertData
+	if len(l.cfg.CertData) > 0 {
+		authInfo.ClientCertificateData = l.cfg.CertData
 	}
-	if len(l.cfg.TLSClientConfig.KeyData) > 0 {
-		authInfo.ClientKeyData = l.cfg.TLSClientConfig.KeyData
+	if len(l.cfg.KeyData) > 0 {
+		authInfo.ClientKeyData = l.cfg.KeyData
 	}
 	cfg.AuthInfos[authName] = authInfo
 
@@ -414,7 +415,7 @@ func (r *EnvironmentReconciler) mergeHelmValues(template *catalystv1alpha1.Envir
 	vals := make(map[string]interface{})
 
 	// Start with template values
-	if template.Values.Raw != nil && len(template.Values.Raw) > 0 {
+	if len(template.Values.Raw) > 0 {
 		if err := json.Unmarshal(template.Values.Raw, &vals); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal template values: %w", err)
 		}
@@ -481,6 +482,117 @@ func (r *EnvironmentReconciler) mergeHelmValues(template *catalystv1alpha1.Envir
 	}
 
 	return vals, nil
+}
+
+// injectBuiltImages injects built container images into Helm values following standard conventions.
+//
+// This function implements the standard Helm pattern for image configuration:
+//   global.images.<component-name>.repository (string)
+//   global.images.<component-name>.tag (string)
+//
+// Input:
+//   vals: The Helm values map to modify
+//   builtImages: Map of component name to full image reference
+//   log: Logger for diagnostic output
+//
+// Example input builtImages:
+//   {
+//     "web": "ghcr.io/ncrmro/catalyst:abc123",
+//     "api": "ghcr.io/ncrmro/catalyst-api:def456"
+//   }
+//
+// Example resulting values structure:
+//   {
+//     "global": {
+//       "images": {
+//         "web": {
+//           "repository": "ghcr.io/ncrmro/catalyst",
+//           "tag": "abc123"
+//         },
+//         "api": {
+//           "repository": "ghcr.io/ncrmro/catalyst-api",
+//           "tag": "def456"
+//         }
+//       }
+//     }
+//   }
+//
+// The function safely handles cases where:
+// - "global" key doesn't exist in vals
+// - "images" key doesn't exist under global
+// - Image reference has no tag (defaults to "latest")
+// - Image reference has multiple colons (e.g., registry with port)
+func injectBuiltImages(vals map[string]interface{}, builtImages map[string]string, log logr.Logger) {
+	// Ensure global.images structure exists
+	global, ok := vals["global"].(map[string]interface{})
+	if !ok {
+		global = map[string]interface{}{}
+	}
+
+	images, ok := global["images"].(map[string]interface{})
+	if !ok {
+		images = map[string]interface{}{}
+	}
+
+	// Process each built image
+	for componentName, imageRef := range builtImages {
+		// Split image reference into repository and tag
+		// Format: registry/repo:tag or registry:port/repo:tag
+		// Strategy: Find the last colon to split repository from tag
+		repository, tag := splitImageRef(imageRef)
+
+		images[componentName] = map[string]interface{}{
+			"repository": repository,
+			"tag":        tag,
+		}
+
+		log.V(1).Info("Injected built image into Helm values",
+			"component", componentName,
+			"repository", repository,
+			"tag", tag,
+		)
+	}
+
+	global["images"] = images
+	vals["global"] = global
+}
+
+// splitImageRef splits a container image reference into repository and tag.
+//
+// Examples:
+//   "nginx:latest" -> ("nginx", "latest")
+//   "ghcr.io/org/image:v1.2.3" -> ("ghcr.io/org/image", "v1.2.3")
+//   "registry.local:5000/app:sha-abc123" -> ("registry.local:5000/app", "sha-abc123")
+//   "myimage" -> ("myimage", "latest")
+//
+// The function finds the last colon in the reference and treats everything
+// after it as the tag. This correctly handles registry addresses with ports.
+func splitImageRef(imageRef string) (repository string, tag string) {
+	// Find the last occurrence of ':'
+	lastColon := strings.LastIndex(imageRef, ":")
+
+	if lastColon == -1 {
+		// No tag specified, use default
+		return imageRef, "latest"
+	}
+
+	// Split at the last colon
+	repository = imageRef[:lastColon]
+	tag = imageRef[lastColon+1:]
+
+	// Handle edge case where the colon is part of the registry (e.g., "registry.local:5000")
+	// If there's no '/' after the colon, it's likely a registry port, not a tag
+	if !strings.Contains(tag, "/") && strings.Contains(repository, "/") {
+		// This is likely a real tag
+		return repository, tag
+	}
+
+	// If tag contains '/', it's probably part of the repository path
+	if strings.Contains(tag, "/") {
+		return imageRef, "latest"
+	}
+
+	return repository, tag
 }
 
 // cleanupStaleTempDirs removes temporary directories older than 24 hours

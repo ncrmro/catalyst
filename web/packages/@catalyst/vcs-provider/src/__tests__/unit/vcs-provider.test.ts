@@ -13,7 +13,6 @@ import type {
   AuthenticatedClient,
   VCSProvider,
 } from "../../types";
-import { GitHubProvider } from "../../providers/github/provider";
 
 /**
  * Create a mock VCS provider for testing without real environment dependencies

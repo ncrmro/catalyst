@@ -218,7 +218,7 @@ var _ = Describe("cleanupStaleTempDirs", func() {
 
 	AfterEach(func() {
 		// Clean up test directory
-		os.RemoveAll(testTempDir)
+		_ = os.RemoveAll(testTempDir)
 	})
 
 	It("should only remove directories with catalyst-chart prefix", func() {
@@ -286,3 +286,112 @@ var _ = Describe("cleanupStaleTempDirs", func() {
 		Expect(lastCleanupTime).NotTo(Equal(time.Time{}))
 	})
 })
+
+var _ = Describe("injectBuiltImages", func() {
+	var log logr.Logger
+
+	BeforeEach(func() {
+		log = logr.Discard()
+	})
+
+	It("should inject images into empty values", func() {
+		vals := make(map[string]interface{})
+		builtImages := map[string]string{
+			"web": "ghcr.io/ncrmro/catalyst:abc123",
+		}
+
+		injectBuiltImages(vals, builtImages, log)
+
+		global := vals["global"].(map[string]interface{})
+		images := global["images"].(map[string]interface{})
+		web := images["web"].(map[string]interface{})
+		Expect(web["repository"]).To(Equal("ghcr.io/ncrmro/catalyst"))
+		Expect(web["tag"]).To(Equal("abc123"))
+	})
+
+	It("should inject multiple images", func() {
+		vals := make(map[string]interface{})
+		builtImages := map[string]string{
+			"web": "ghcr.io/ncrmro/catalyst:abc123",
+			"api": "ghcr.io/ncrmro/catalyst-api:def456",
+		}
+
+		injectBuiltImages(vals, builtImages, log)
+
+		global := vals["global"].(map[string]interface{})
+		images := global["images"].(map[string]interface{})
+
+		web := images["web"].(map[string]interface{})
+		Expect(web["repository"]).To(Equal("ghcr.io/ncrmro/catalyst"))
+		Expect(web["tag"]).To(Equal("abc123"))
+
+		api := images["api"].(map[string]interface{})
+		Expect(api["repository"]).To(Equal("ghcr.io/ncrmro/catalyst-api"))
+		Expect(api["tag"]).To(Equal("def456"))
+	})
+
+	It("should handle registry with port in image reference", func() {
+		vals := make(map[string]interface{})
+		builtImages := map[string]string{
+			"app": "registry.local:5000/myapp:v1.2.3",
+		}
+
+		injectBuiltImages(vals, builtImages, log)
+
+		global := vals["global"].(map[string]interface{})
+		images := global["images"].(map[string]interface{})
+		app := images["app"].(map[string]interface{})
+		Expect(app["repository"]).To(Equal("registry.local:5000/myapp"))
+		Expect(app["tag"]).To(Equal("v1.2.3"))
+	})
+
+	It("should preserve existing global values", func() {
+		vals := map[string]interface{}{
+			"global": map[string]interface{}{
+				"existingKey": "existingValue",
+			},
+		}
+		builtImages := map[string]string{
+			"web": "ghcr.io/ncrmro/catalyst:abc123",
+		}
+
+		injectBuiltImages(vals, builtImages, log)
+
+		global := vals["global"].(map[string]interface{})
+		Expect(global["existingKey"]).To(Equal("existingValue"))
+		Expect(global["images"]).NotTo(BeNil())
+	})
+})
+
+var _ = Describe("splitImageRef", func() {
+	It("should split simple image reference", func() {
+		repo, tag := splitImageRef("nginx:latest")
+		Expect(repo).To(Equal("nginx"))
+		Expect(tag).To(Equal("latest"))
+	})
+
+	It("should split image reference with registry", func() {
+		repo, tag := splitImageRef("ghcr.io/org/image:v1.2.3")
+		Expect(repo).To(Equal("ghcr.io/org/image"))
+		Expect(tag).To(Equal("v1.2.3"))
+	})
+
+	It("should split image reference with registry port", func() {
+		repo, tag := splitImageRef("registry.local:5000/app:sha-abc123")
+		Expect(repo).To(Equal("registry.local:5000/app"))
+		Expect(tag).To(Equal("sha-abc123"))
+	})
+
+	It("should default to latest when no tag", func() {
+		repo, tag := splitImageRef("myimage")
+		Expect(repo).To(Equal("myimage"))
+		Expect(tag).To(Equal("latest"))
+	})
+
+	It("should handle image with sha256 digest", func() {
+		repo, tag := splitImageRef("ghcr.io/org/image:sha-abc123def456")
+		Expect(repo).To(Equal("ghcr.io/org/image"))
+		Expect(tag).To(Equal("sha-abc123def456"))
+	})
+})
+

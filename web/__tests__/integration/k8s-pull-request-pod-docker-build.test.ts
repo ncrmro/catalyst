@@ -238,7 +238,7 @@ describe("Pull Request Pod Docker Build Integration", () => {
       expect(logs).toContain("=== Test Complete ===");
 
       // Verify job status
-      const status = await getPullRequestPodJobStatus(
+      let status = await getPullRequestPodJobStatus(
         createdJobName,
         testNamespace,
         "PRIMARY",
@@ -248,6 +248,17 @@ describe("Pull Request Pod Docker Build Integration", () => {
 
       // Pod should succeed since we're skipping the build
       if (podStatus === "Succeeded") {
+        // Wait for Job controller to update status
+        let attempts = 0;
+        while ((status.succeeded || 0) === 0 && attempts < 10) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          status = await getPullRequestPodJobStatus(
+            createdJobName,
+            testNamespace,
+            "PRIMARY",
+          );
+          attempts++;
+        }
         expect(status.succeeded).toBeGreaterThan(0);
       }
     }, 180000); // 3 minute timeout

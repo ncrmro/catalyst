@@ -757,11 +757,12 @@ export async function createPreviewDeployment(
   const crResult = await createEnvironmentCR(crNamespace, crName, {
     projectRef: { name: repoName }, // Assuming Project CR named after repo or we need to map it
     type: "development",
-    source: {
+    sources: [{
+      name: "main",
       commitSha,
       branch,
       prNumber,
-    },
+    }],
     config: {
       envVars: [], // Add any default env vars
     },

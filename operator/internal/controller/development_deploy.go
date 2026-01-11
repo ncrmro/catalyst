@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -457,20 +456,4 @@ func (r *EnvironmentReconciler) isDeploymentReady(ctx context.Context, namespace
 // isAlreadyExists returns true if the error is an AlreadyExists error
 func isAlreadyExists(err error) bool {
 	return err != nil && client.IgnoreAlreadyExists(err) == nil
-}
-
-// waitForPostgresWithTimeout waits for PostgreSQL to be ready with a timeout
-func (r *EnvironmentReconciler) waitForPostgresWithTimeout(ctx context.Context, namespace string, timeout time.Duration) (bool, error) {
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		ready, err := r.isDeploymentReady(ctx, namespace, "postgres")
-		if err != nil {
-			return false, err
-		}
-		if ready {
-			return true, nil
-		}
-		time.Sleep(2 * time.Second)
-	}
-	return false, nil
 }

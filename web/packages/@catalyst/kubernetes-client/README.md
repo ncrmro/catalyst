@@ -152,3 +152,9 @@ import type {
   ProjectSpec,
 } from "@catalyst/kubernetes-client";
 ```
+
+## Type Safety Best Practices
+
+For detailed guidance on type-safe CRD operations, runtime validation with Zod, and avoiding common pitfalls with `as any` casts, see [TYPE_SAFETY.md](./TYPE_SAFETY.md).
+
+**Quick tip**: Always use the typed client classes (`createEnvironmentClient()`) instead of raw `CustomObjectsApi` calls for full type safety and IDE support.

@@ -23,11 +23,12 @@ function createMockEnvironment(
     spec: {
       projectRef: { name: "my-project" },
       type: overrides.type ?? "deployment",
-      source: {
+      sources: [{
+        name: "main",
         commitSha: overrides.commitSha ?? "abc123def456",
         branch: overrides.branch ?? "main",
         prNumber: overrides.prNumber,
-      },
+      }],
     },
     status: {
       phase: overrides.phase ?? "Ready",
