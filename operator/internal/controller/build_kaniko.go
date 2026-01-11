@@ -36,6 +36,7 @@ const (
 	dockerfileGenImage = "alpine:3.19"
 	kanikoImage        = "gcr.io/kaniko-project/executor:v1.20.0"
 	gitSecretName      = "github-pat-secret"
+	registrySecretName = "registry-credentials"
 	registryInternal   = "registry.default.svc.cluster.local:5000"
 )
 
@@ -102,6 +103,13 @@ func (r *EnvironmentReconciler) reconcileSingleBuild(ctx context.Context, env *c
 		commitSha = "latest" // Should not happen in real usage
 	}
 
+	// Check if registry secret exists (for pushing)
+	hasRegistrySecret := false
+	secret := &corev1.Secret{}
+	if err := r.Get(ctx, client.ObjectKey{Name: registrySecretName, Namespace: namespace}, secret); err == nil {
+		hasRegistrySecret = true
+	}
+
 	// Image Tag
 	imageName := fmt.Sprintf("%s/%s-%s", project.Name, build.Name, env.Name)
 	imageTag := fmt.Sprintf("%s/%s:%s", registryInternal, imageName, commitSha)
@@ -119,7 +127,7 @@ func (r *EnvironmentReconciler) reconcileSingleBuild(ctx context.Context, env *c
 		if apierrors.IsNotFound(err) {
 			// Create Job
 			log.Info("Creating Build Job", "job", jobName, "image", imageTag)
-			job = desiredBuildJob(jobName, namespace, imageTag, sourceConfig.RepositoryURL, commitSha, branch, build)
+			job = desiredBuildJob(jobName, namespace, imageTag, sourceConfig.RepositoryURL, commitSha, branch, build, hasRegistrySecret)
 			if err := r.Create(ctx, job); err != nil {
 				return "", err
 			}
@@ -172,18 +180,42 @@ func (r *EnvironmentReconciler) ensureGitSecret(ctx context.Context, sourceNs, t
 	return r.Create(ctx, newSecret)
 }
 
-func desiredBuildJob(name, namespace, destination, repoURL, commit, branch string, build catalystv1alpha1.BuildSpec) *batchv1.Job {
+func desiredBuildJob(name, namespace, destination, repoURL, commit, branch string, build catalystv1alpha1.BuildSpec, hasRegistrySecret bool) *batchv1.Job {
 	backoff := int32(0)
 
 	// Volume mounts
 	workspaceVolume := corev1.VolumeMount{Name: "workspace", MountPath: "/workspace"}
 	gitSecretVolume := corev1.VolumeMount{Name: "git-secret", MountPath: "/etc/git-secret", ReadOnly: true}
 
+	volumes := []corev1.Volume{
+		{Name: "workspace", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
+		{Name: "git-secret", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: gitSecretName}}},
+	}
+
+	kanikoVolumeMounts := []corev1.VolumeMount{workspaceVolume}
+
+	if hasRegistrySecret {
+		volumes = append(volumes, corev1.Volume{
+			Name: "registry-creds",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: registrySecretName,
+					Items: []corev1.KeyToPath{
+						{Key: ".dockerconfigjson", Path: "config.json"},
+					},
+				},
+			},
+		})
+		kanikoVolumeMounts = append(kanikoVolumeMounts, corev1.VolumeMount{
+			Name:      "registry-creds",
+			MountPath: "/kaniko/.docker",
+			ReadOnly:  true,
+		})
+	}
+
 	// Git Sync Configuration
-	// Clone to /workspace/source
 	gitSyncRoot := "/workspace"
 	gitSyncDest := "source"
-	// Workdir for subsequent steps is /workspace/source + build.Path
 	workdir := fmt.Sprintf("/workspace/%s%s", gitSyncDest, build.Path)
 
 	return &batchv1.Job{
@@ -200,10 +232,7 @@ func desiredBuildJob(name, namespace, destination, repoURL, commit, branch strin
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					RestartPolicy: corev1.RestartPolicyNever,
-					Volumes: []corev1.Volume{
-						{Name: "workspace", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
-						{Name: "git-secret", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: gitSecretName}}},
-					},
+					Volumes:       volumes,
 					InitContainers: []corev1.Container{
 						// 1. Git Sync (One-Time Clone)
 						{
@@ -211,7 +240,7 @@ func desiredBuildJob(name, namespace, destination, repoURL, commit, branch strin
 							Image: gitSyncImage,
 							Env: []corev1.EnvVar{
 								{Name: "GIT_SYNC_REPO", Value: repoURL},
-								{Name: "GIT_SYNC_REV", Value: commit}, // Use commit hash
+								{Name: "GIT_SYNC_REV", Value: commit},
 								{Name: "GIT_SYNC_ONE_TIME", Value: "true"},
 								{Name: "GIT_SYNC_ROOT", Value: gitSyncRoot},
 								{Name: "GIT_SYNC_DEST", Value: gitSyncDest},
@@ -220,7 +249,7 @@ func desiredBuildJob(name, namespace, destination, repoURL, commit, branch strin
 							},
 							VolumeMounts: []corev1.VolumeMount{workspaceVolume, gitSecretVolume},
 							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: ptr(int64(65533)), // git-sync user
+								RunAsUser: ptr(int64(65533)),
 							},
 						},
 						// 2. Dockerfile Generator (Zero-Config)
@@ -229,7 +258,6 @@ func desiredBuildJob(name, namespace, destination, repoURL, commit, branch strin
 							Image:   dockerfileGenImage,
 							Command: []string{"/bin/sh", "-c"},
 							Args: []string{
-								// Check if Dockerfile exists in the source directory
 								`cd ` + workdir + ` && ` +
 									`if [ ! -f Dockerfile ]; then 
 									echo "No Dockerfile found. Generating default Node.js Dockerfile..."
@@ -256,10 +284,10 @@ EOF
 								"--dockerfile=Dockerfile",
 								"--context=dir://" + workdir,
 								"--destination=" + destination,
-								"--insecure",
+								"--insecure", // Still needed for internal registry if not TLS
 								"--cache=true",
 							},
-							VolumeMounts: []corev1.VolumeMount{workspaceVolume},
+							VolumeMounts: kanikoVolumeMounts,
 						},
 					},
 				},
