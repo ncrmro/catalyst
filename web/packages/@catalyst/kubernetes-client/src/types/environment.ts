@@ -3,8 +3,6 @@
  *
  * API Group: catalyst.catalyst.dev/v1alpha1
  * Based on: operator/api/v1alpha1/environment_types.go
- *
- * KEEP IN SYNC: This file must be updated when the operator API changes.
  */
 
 import type { Condition, ListMeta, ObjectMeta } from "./common";
