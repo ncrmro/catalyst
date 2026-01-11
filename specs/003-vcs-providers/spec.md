@@ -40,11 +40,28 @@ This specification outlines the integration with major VCS providers, specifical
 The core components of this integration include:
 
 1.  **Identity & Access Management (IAM):** Using the VCS provider as an OAuth identity provider (IdP) to authenticate users. Crucially, this includes "Auto Team Joining," where user roles and team memberships in the VCS are automatically mirrored in the platform.
+
 2.  **Project Management Synchronization:** deeply integrating with the provider's native issue tracking, project boards, and milestones.
+
 3.  **Pull Request (PR) / Merge Request (MR) Management:** A unified interface to view, review, and manage code contributions.
-4.  **AI Agent Assignment:** A mechanism to assign tasks (issues or PR reviews) to AI agents. This includes:
-    - **GitHub Copilot:** leveraging external AI coding assistants.
-    - **Custom Agents:** Orchestrating our own specialized agents that run within isolated "Agent Environments" (as defined in Spec 001). These agents can perform complex tasks, run tests, and commit code directly.
+
+4.  **Container Registry Integration:** Providing credentials for container registries to allow the Operator to pull private images and push built images.
+
+        -   **GitHub Container Registry (GHCR):** Using the GitHub App installation token (if permissions allow) or a Personal Access Token (PAT) exposed via a project-level secret.
+
+        -   **Generic Registries:** Supporting other registries (Docker Hub, AWS ECR, GCR) by allowing users to provide credentials (username/password or docker-config) which are stored as Kubernetes Secrets and propagated by the Operator.
+
+        -   **Catalyst-Managed Registry (Future):** Provisioning a lightweight, self-hosted registry (e.g., Docker Distribution backed by S3/MinIO) per project or cluster-wide to provide zero-config image storage without external dependencies.
+
+    5.  **AI Agent Assignment:** A mechanism to assign tasks (issues or PR reviews) to AI agents. This includes:
+
+    
+
+    -   **GitHub Copilot:** leveraging external AI coding assistants.
+
+    -   **Custom Agents:** Orchestrating our own specialized agents that run within isolated "Agent Environments" (as defined in Spec 001). These agents can perform complex tasks, run tests, and commit code directly.
+
+
 
 ## How
 

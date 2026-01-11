@@ -150,6 +150,9 @@ As a power user, I want to configure deployments using standard tools (Docker Co
 - **FR-ENV-013**: System MUST support prebuilt image deployments with tag overrides (for staging/promotion).
 - **FR-ENV-014**: System MUST support custom/external Helm charts for advanced deployment control.
 - **FR-ENV-015**: System MUST support Nix Flakes for reproducible build/dev environments.
+- **FR-ENV-016**: Operator MUST copy project-level registry credentials (secrets) to environment namespaces to enable image pulling.
+- **FR-ENV-017**: Operator MUST patch the default ServiceAccount in environment namespaces with `imagePullSecrets` matching the project registry credentials.
+- **FR-ENV-018**: System MUST support provisioning an internal container registry (cluster-wide or per-project) backed by object storage for zero-config image hosting.
 
 ### Key Entities
 
