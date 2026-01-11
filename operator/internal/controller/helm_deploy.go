@@ -126,7 +126,7 @@ func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *cata
 		if !ok {
 			global = map[string]interface{}{}
 		}
-		
+
 		images, ok := global["images"].(map[string]interface{})
 		if !ok {
 			images = map[string]interface{}{}
@@ -274,7 +274,7 @@ func (r *EnvironmentReconciler) prepareChartSource(ctx context.Context, env *cat
 	}
 
 	cleanup := func() {
-		os.RemoveAll(tempDir)
+		_ = os.RemoveAll(tempDir)
 	}
 
 	log.Info("Cloning repository for chart", "url", sourceConfig.RepositoryURL, "commit", commitSha, "tempDir", tempDir)
@@ -409,11 +409,11 @@ func (l *genericConfigLoader) RawConfig() (clientcmdapi.Config, error) {
 	cluster := &clientcmdapi.Cluster{
 		Server: l.cfg.Host,
 	}
-	if l.cfg.TLSClientConfig.Insecure {
+	if l.cfg.Insecure {
 		cluster.InsecureSkipTLSVerify = true
 	}
-	if len(l.cfg.TLSClientConfig.CAData) > 0 {
-		cluster.CertificateAuthorityData = l.cfg.TLSClientConfig.CAData
+	if len(l.cfg.CAData) > 0 {
+		cluster.CertificateAuthorityData = l.cfg.CAData
 	}
 	cfg.Clusters[clusterName] = cluster
 
@@ -422,11 +422,11 @@ func (l *genericConfigLoader) RawConfig() (clientcmdapi.Config, error) {
 	if l.cfg.BearerToken != "" {
 		authInfo.Token = l.cfg.BearerToken
 	}
-	if len(l.cfg.TLSClientConfig.CertData) > 0 {
-		authInfo.ClientCertificateData = l.cfg.TLSClientConfig.CertData
+	if len(l.cfg.CertData) > 0 {
+		authInfo.ClientCertificateData = l.cfg.CertData
 	}
-	if len(l.cfg.TLSClientConfig.KeyData) > 0 {
-		authInfo.ClientKeyData = l.cfg.TLSClientConfig.KeyData
+	if len(l.cfg.KeyData) > 0 {
+		authInfo.ClientKeyData = l.cfg.KeyData
 	}
 	cfg.AuthInfos[authName] = authInfo
 
@@ -456,7 +456,7 @@ func (r *EnvironmentReconciler) mergeHelmValues(template *catalystv1alpha1.Envir
 	vals := make(map[string]interface{})
 
 	// Start with template values
-	if template.Values.Raw != nil && len(template.Values.Raw) > 0 {
+	if len(template.Values.Raw) > 0 {
 		if err := json.Unmarshal(template.Values.Raw, &vals); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal template values: %w", err)
 		}

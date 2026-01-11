@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+//nolint:goconst
 package controller
 
 import (
@@ -86,17 +87,12 @@ func (r *EnvironmentReconciler) reconcileSingleBuild(ctx context.Context, env *c
 	}
 
 	// Determine Commit/Branch
-	var commitSha, branch string
+	var commitSha string
 	for _, s := range env.Spec.Sources {
 		if s.Name == build.SourceRef {
 			commitSha = s.CommitSha
-			branch = s.Branch
 			break
 		}
-	}
-	// If missing, fallback to project defaults
-	if branch == "" {
-		branch = sourceConfig.Branch
 	}
 	if commitSha == "" {
 		commitSha = "latest" // Should not happen in real usage
@@ -119,7 +115,7 @@ func (r *EnvironmentReconciler) reconcileSingleBuild(ctx context.Context, env *c
 		if apierrors.IsNotFound(err) {
 			// Create Job
 			log.Info("Creating Build Job", "job", jobName, "image", imageTag)
-			job = desiredBuildJob(jobName, namespace, imageTag, sourceConfig.RepositoryURL, commitSha, branch, build)
+			job = desiredBuildJob(jobName, namespace, imageTag, sourceConfig.RepositoryURL, commitSha, build)
 			if err := r.Create(ctx, job); err != nil {
 				return "", err
 			}
@@ -172,7 +168,7 @@ func (r *EnvironmentReconciler) ensureGitSecret(ctx context.Context, sourceNs, t
 	return r.Create(ctx, newSecret)
 }
 
-func desiredBuildJob(name, namespace, destination, repoURL, commit, branch string, build catalystv1alpha1.BuildSpec) *batchv1.Job {
+func desiredBuildJob(name, namespace, destination, repoURL, commit string, build catalystv1alpha1.BuildSpec) *batchv1.Job {
 	backoff := int32(0)
 
 	// Volume mounts

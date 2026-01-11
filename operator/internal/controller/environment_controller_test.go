@@ -113,7 +113,7 @@ var _ = Describe("Environment Controller", func() {
 			if err == nil {
 				// We need to remove the finalizer to allow deletion in test
 				controllerutil.RemoveFinalizer(resource, "catalyst.dev/finalizer")
-				k8sClient.Update(ctx, resource)
+				_ = k8sClient.Update(ctx, resource)
 
 				By("Cleaning up the Environment CR")
 				Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
@@ -122,7 +122,7 @@ var _ = Describe("Environment Controller", func() {
 			// Cleanup Namespace
 			targetNsName := projectName + "-" + resourceName
 			ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}}
-			k8sClient.Delete(ctx, ns)
+			_ = k8sClient.Delete(ctx, ns)
 		})
 
 		It("should successfully create a Namespace, Quotas, Policies and Workspace Pod", func() {
@@ -308,11 +308,11 @@ var _ = Describe("Environment Controller", func() {
 			resource := &catalystv1alpha1.Environment{}
 			if err := k8sClient.Get(ctx, typeNamespacedName, resource); err == nil {
 				controllerutil.RemoveFinalizer(resource, "catalyst.dev/finalizer")
-				k8sClient.Update(ctx, resource)
-				k8sClient.Delete(ctx, resource)
+				_ = k8sClient.Update(ctx, resource)
+				_ = k8sClient.Delete(ctx, resource)
 			}
 			targetNsName := projectName + "-" + resourceName
-			k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
+			_ = k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
 		})
 
 		It("should successfully deploy the Helm chart", func() {
@@ -354,7 +354,7 @@ var _ = Describe("Environment Controller", func() {
 			// We check if a Deployment exists in the target namespace
 			deployList := &appsv1.DeploymentList{}
 			Eventually(func() int {
-				k8sClient.List(ctx, deployList, client.InNamespace(targetNsName))
+				_ = k8sClient.List(ctx, deployList, client.InNamespace(targetNsName))
 				return len(deployList.Items)
 			}, time.Second*20, time.Millisecond*500).Should(BeNumerically(">", 0), "Expected at least one Deployment to be created by Helm")
 
@@ -446,10 +446,10 @@ var _ = Describe("Environment Controller", func() {
 			Expect(env.Status.Phase).To(Equal("Failed"))
 
 			// Cleanup
-			k8sClient.Delete(ctx, sa)
-			k8sClient.Delete(ctx, invalidEnv)
-			k8sClient.Delete(ctx, invalidProject)
-			k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
+			_ = k8sClient.Delete(ctx, sa)
+			_ = k8sClient.Delete(ctx, invalidEnv)
+			_ = k8sClient.Delete(ctx, invalidProject)
+			_ = k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
 		})
 
 		It("should fail when SourceRef is missing", func() {
@@ -535,10 +535,10 @@ var _ = Describe("Environment Controller", func() {
 			Expect(env.Status.Phase).To(Equal("Failed"))
 
 			// Cleanup
-			k8sClient.Delete(ctx, sa)
-			k8sClient.Delete(ctx, missingRefEnv)
-			k8sClient.Delete(ctx, missingRefProject)
-			k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
+			_ = k8sClient.Delete(ctx, sa)
+			_ = k8sClient.Delete(ctx, missingRefEnv)
+			_ = k8sClient.Delete(ctx, missingRefProject)
+			_ = k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
 		})
 
 		It("should fail when helm template is nil", func() {
@@ -618,10 +618,10 @@ var _ = Describe("Environment Controller", func() {
 			Expect(env.Status.Phase).To(Equal("Failed"))
 
 			// Cleanup
-			k8sClient.Delete(ctx, sa)
-			k8sClient.Delete(ctx, noTemplateEnv)
-			k8sClient.Delete(ctx, noTemplateProject)
-			k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
+			_ = k8sClient.Delete(ctx, sa)
+			_ = k8sClient.Delete(ctx, noTemplateEnv)
+			_ = k8sClient.Delete(ctx, noTemplateProject)
+			_ = k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
 		})
 	})
 
@@ -709,11 +709,11 @@ var _ = Describe("Environment Controller", func() {
 			resource := &catalystv1alpha1.Environment{}
 			if err := k8sClient.Get(ctx, typeNamespacedName, resource); err == nil {
 				controllerutil.RemoveFinalizer(resource, "catalyst.dev/finalizer")
-				k8sClient.Update(ctx, resource)
-				k8sClient.Delete(ctx, resource)
+				_ = k8sClient.Update(ctx, resource)
+				_ = k8sClient.Delete(ctx, resource)
 			}
 			targetNsName := projectName + "-" + resourceName
-			k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
+			_ = k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
 		})
 
 		It("should create a Build Job with init containers", func() {
@@ -760,7 +760,7 @@ var _ = Describe("Environment Controller", func() {
 			}, time.Second*10, time.Millisecond*250).Should(Succeed())
 
 			// 2. Verify Init Containers
-			Expect(len(job.Spec.Template.Spec.InitContainers)).To(Equal(2))
+			Expect(job.Spec.Template.Spec.InitContainers).To(HaveLen(2))
 			Expect(job.Spec.Template.Spec.InitContainers[0].Name).To(Equal("git-sync"))
 			Expect(job.Spec.Template.Spec.InitContainers[1].Name).To(Equal("dockerfile-gen"))
 

@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+//nolint:goconst
 package controller
 
 import (
@@ -38,6 +39,7 @@ import (
 	catalystv1alpha1 "github.com/ncrmro/catalyst/operator/api/v1alpha1"
 )
 
+//nolint:goconst
 const environmentFinalizer = "catalyst.dev/finalizer"
 
 // EnvironmentReconciler reconciles a Environment object
@@ -87,6 +89,7 @@ func sanitizeLabelValue(s string) string {
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 
+//nolint:gocyclo
 func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
@@ -113,7 +116,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// Finalizer logic
-	if !env.ObjectMeta.DeletionTimestamp.IsZero() {
+	if !env.DeletionTimestamp.IsZero() {
 		if controllerutil.ContainsFinalizer(env, environmentFinalizer) {
 			// Delete external resources
 			log.Info("Deleting target namespace", "namespace", targetNamespace)
@@ -248,7 +251,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 }
 
 // reconcileHelmModeWithStatus handles helm deployment with status updates
-func (r *EnvironmentReconciler) reconcileHelmModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, isLocal bool, ingressPort string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
+func (r *EnvironmentReconciler) reconcileHelmModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, _ bool, _ string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
 	// Wait for default service account
@@ -263,7 +266,7 @@ func (r *EnvironmentReconciler) reconcileHelmModeWithStatus(ctx context.Context,
 
 	// Reconcile Builds (Zero-Config / Dockerfile Builds)
 	var builtImages map[string]string
-	if len(template.Builds) > 0 {
+	if template != nil && len(template.Builds) > 0 {
 		// Update status to Building if not already (and not failed)
 		if env.Status.Phase != "Building" && env.Status.Phase != "Ready" && env.Status.Phase != "Failed" {
 			env.Status.Phase = "Building"
@@ -318,7 +321,7 @@ func (r *EnvironmentReconciler) reconcileHelmModeWithStatus(ctx context.Context,
 }
 
 // reconcileDevelopmentModeWithStatus handles development mode deployment with status updates
-func (r *EnvironmentReconciler) reconcileDevelopmentModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, ingressPort string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
+func (r *EnvironmentReconciler) reconcileDevelopmentModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, _ bool, _ string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
 	// Wait for default service account
@@ -362,7 +365,7 @@ func (r *EnvironmentReconciler) reconcileDevelopmentModeWithStatus(ctx context.C
 }
 
 // reconcileProductionModeWithStatus handles production mode deployment with status updates
-func (r *EnvironmentReconciler) reconcileProductionModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, ingressPort string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
+func (r *EnvironmentReconciler) reconcileProductionModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, _ string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
 	// Wait for default service account
@@ -445,7 +448,8 @@ func (r *EnvironmentReconciler) reconcileWorkspaceMode(ctx context.Context, env 
 	}
 
 	// Check Pod Status
-	if workspacePod.Status.Phase == corev1.PodRunning {
+	switch workspacePod.Status.Phase {
+	case corev1.PodRunning:
 		// Pod is running and ready for exec
 		// Note: Keep the URL that was set from the Ingress
 		if env.Status.Phase != "Ready" {
@@ -455,13 +459,13 @@ func (r *EnvironmentReconciler) reconcileWorkspaceMode(ctx context.Context, env 
 				return ctrl.Result{}, err
 			}
 		}
-	} else if workspacePod.Status.Phase == corev1.PodFailed {
+	case corev1.PodFailed:
 		env.Status.Phase = "Failed"
 		if err := r.Status().Update(ctx, env); err != nil {
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
-	} else {
+	default:
 		// Still starting up (Pending, etc.)
 		if env.Status.Phase != "Provisioning" {
 			env.Status.Phase = "Provisioning"

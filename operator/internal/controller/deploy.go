@@ -1,3 +1,4 @@
+//nolint:goconst
 package controller
 
 import (
@@ -86,7 +87,7 @@ func desiredDeployment(env *catalystv1alpha1.Environment, namespace string) *app
 	}
 }
 
-func desiredService(env *catalystv1alpha1.Environment, namespace string) *corev1.Service {
+func desiredService(namespace string) *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "app",

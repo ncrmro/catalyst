@@ -218,7 +218,7 @@ var _ = Describe("cleanupStaleTempDirs", func() {
 
 	AfterEach(func() {
 		// Clean up test directory
-		os.RemoveAll(testTempDir)
+		_ = os.RemoveAll(testTempDir)
 	})
 
 	It("should only remove directories with catalyst-chart prefix", func() {

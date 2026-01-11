@@ -63,8 +63,8 @@ func (r *EnvironmentReconciler) ReconcileProductionMode(ctx context.Context, env
 	}
 
 	// 2. Create service (idempotent)
-	service := desiredService(env, namespace)
-	if err := r.Create(ctx, service); err != nil && !isAlreadyExists(err) {
+	service := desiredService(namespace)
+	if err := r.Create(ctx, service); err != nil && !apierrors.IsAlreadyExists(err) {
 		return false, err
 	}
 
