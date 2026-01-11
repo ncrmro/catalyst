@@ -336,5 +336,265 @@ var _ = Describe("Environment Controller", func() {
 			Expect(k8sClient.Get(ctx, typeNamespacedName, env)).To(Succeed())
 			Expect(env.Status.Phase).To(Equal("Ready"))
 		})
+
+		It("should fail when chart path is invalid", func() {
+			// Create a project with an invalid chart path
+			invalidProject := &catalystv1alpha1.Project{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "invalid-path-project",
+					Namespace: namespace,
+				},
+				Spec: catalystv1alpha1.ProjectSpec{
+					Sources: []catalystv1alpha1.SourceConfig{
+						{
+							Name:          "main",
+							RepositoryURL: "https://github.com/org/repo",
+							Branch:        "main",
+						},
+					},
+					Templates: map[string]catalystv1alpha1.EnvironmentTemplate{
+						"helm-env": {
+							Type: "helm",
+							Path: "/nonexistent/path/to/chart",
+						},
+					},
+				},
+			}
+			_ = k8sClient.Delete(ctx, invalidProject)
+			Expect(k8sClient.Create(ctx, invalidProject)).To(Succeed())
+
+			// Create environment
+			invalidEnv := &catalystv1alpha1.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "invalid-path-env",
+					Namespace: namespace,
+				},
+				Spec: catalystv1alpha1.EnvironmentSpec{
+					ProjectRef: catalystv1alpha1.ProjectReference{Name: "invalid-path-project"},
+					Type:       "helm-env",
+					Sources: []catalystv1alpha1.EnvironmentSource{
+						{
+							Name:      "main",
+							CommitSha: "abc1234",
+							Branch:    "main",
+						},
+					},
+				},
+			}
+			_ = k8sClient.Delete(ctx, invalidEnv)
+			Expect(k8sClient.Create(ctx, invalidEnv)).To(Succeed())
+
+			controllerReconciler := &EnvironmentReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+				Config: cfg,
+			}
+
+			// First reconcile creates namespace
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{Name: "invalid-path-env", Namespace: namespace},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			// Create ServiceAccount to proceed past waiting state
+			targetNsName := "invalid-path-project-invalid-path-env"
+			sa := &corev1.ServiceAccount{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "default",
+					Namespace: targetNsName,
+				},
+			}
+			Expect(k8sClient.Create(ctx, sa)).To(Succeed())
+
+			// Second reconcile should fail with chart not found
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{Name: "invalid-path-env", Namespace: namespace},
+			})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("chart not found"))
+
+			// Verify status is Failed
+			env := &catalystv1alpha1.Environment{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "invalid-path-env", Namespace: namespace}, env)).To(Succeed())
+			Expect(env.Status.Phase).To(Equal("Failed"))
+
+			// Cleanup
+			k8sClient.Delete(ctx, sa)
+			k8sClient.Delete(ctx, invalidEnv)
+			k8sClient.Delete(ctx, invalidProject)
+			k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
+		})
+
+		It("should fail when SourceRef is missing", func() {
+			// Create a project with SourceRef but no matching source
+			missingRefProject := &catalystv1alpha1.Project{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "missing-ref-project",
+					Namespace: namespace,
+				},
+				Spec: catalystv1alpha1.ProjectSpec{
+					Sources: []catalystv1alpha1.SourceConfig{
+						{
+							Name:          "main",
+							RepositoryURL: "https://github.com/org/repo",
+							Branch:        "main",
+						},
+					},
+					Templates: map[string]catalystv1alpha1.EnvironmentTemplate{
+						"helm-env": {
+							Type:      "helm",
+							SourceRef: "nonexistent-source",
+							Path:      "charts/app",
+						},
+					},
+				},
+			}
+			_ = k8sClient.Delete(ctx, missingRefProject)
+			Expect(k8sClient.Create(ctx, missingRefProject)).To(Succeed())
+
+			// Create environment
+			missingRefEnv := &catalystv1alpha1.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "missing-ref-env",
+					Namespace: namespace,
+				},
+				Spec: catalystv1alpha1.EnvironmentSpec{
+					ProjectRef: catalystv1alpha1.ProjectReference{Name: "missing-ref-project"},
+					Type:       "helm-env",
+					Sources: []catalystv1alpha1.EnvironmentSource{
+						{
+							Name:      "main",
+							CommitSha: "abc1234",
+							Branch:    "main",
+						},
+					},
+				},
+			}
+			_ = k8sClient.Delete(ctx, missingRefEnv)
+			Expect(k8sClient.Create(ctx, missingRefEnv)).To(Succeed())
+
+			controllerReconciler := &EnvironmentReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+				Config: cfg,
+			}
+
+			// First reconcile creates namespace
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{Name: "missing-ref-env", Namespace: namespace},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			// Create ServiceAccount to proceed past waiting state
+			targetNsName := "missing-ref-project-missing-ref-env"
+			sa := &corev1.ServiceAccount{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "default",
+					Namespace: targetNsName,
+				},
+			}
+			Expect(k8sClient.Create(ctx, sa)).To(Succeed())
+
+			// Second reconcile should fail with source ref not found
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{Name: "missing-ref-env", Namespace: namespace},
+			})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("source ref"))
+
+			// Verify status is Failed
+			env := &catalystv1alpha1.Environment{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "missing-ref-env", Namespace: namespace}, env)).To(Succeed())
+			Expect(env.Status.Phase).To(Equal("Failed"))
+
+			// Cleanup
+			k8sClient.Delete(ctx, sa)
+			k8sClient.Delete(ctx, missingRefEnv)
+			k8sClient.Delete(ctx, missingRefProject)
+			k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
+		})
+
+		It("should fail when helm template is nil", func() {
+			// Create environment without helm template
+			noTemplateProject := &catalystv1alpha1.Project{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "no-template-project",
+					Namespace: namespace,
+				},
+				Spec: catalystv1alpha1.ProjectSpec{
+					Sources: []catalystv1alpha1.SourceConfig{
+						{
+							Name:          "main",
+							RepositoryURL: "https://github.com/org/repo",
+							Branch:        "main",
+						},
+					},
+					Templates: map[string]catalystv1alpha1.EnvironmentTemplate{},
+				},
+			}
+			_ = k8sClient.Delete(ctx, noTemplateProject)
+			Expect(k8sClient.Create(ctx, noTemplateProject)).To(Succeed())
+
+			noTemplateEnv := &catalystv1alpha1.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "no-template-env",
+					Namespace: namespace,
+				},
+				Spec: catalystv1alpha1.EnvironmentSpec{
+					ProjectRef:     catalystv1alpha1.ProjectReference{Name: "no-template-project"},
+					Type:           "helm-env",
+					DeploymentMode: "helm",
+					Sources: []catalystv1alpha1.EnvironmentSource{
+						{
+							Name:      "main",
+							CommitSha: "abc1234",
+							Branch:    "main",
+						},
+					},
+				},
+			}
+			_ = k8sClient.Delete(ctx, noTemplateEnv)
+			Expect(k8sClient.Create(ctx, noTemplateEnv)).To(Succeed())
+
+			controllerReconciler := &EnvironmentReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+				Config: cfg,
+			}
+
+			// First reconcile creates namespace
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{Name: "no-template-env", Namespace: namespace},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			// Create ServiceAccount to proceed past waiting state
+			targetNsName := "no-template-project-no-template-env"
+			sa := &corev1.ServiceAccount{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "default",
+					Namespace: targetNsName,
+				},
+			}
+			Expect(k8sClient.Create(ctx, sa)).To(Succeed())
+
+			// Second reconcile should fail with helm template required
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: types.NamespacedName{Name: "no-template-env", Namespace: namespace},
+			})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("helm template is required"))
+
+			// Verify status is Failed
+			env := &catalystv1alpha1.Environment{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "no-template-env", Namespace: namespace}, env)).To(Succeed())
+			Expect(env.Status.Phase).To(Equal("Failed"))
+
+			// Cleanup
+			k8sClient.Delete(ctx, sa)
+			k8sClient.Delete(ctx, noTemplateEnv)
+			k8sClient.Delete(ctx, noTemplateProject)
+			k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
+		})
 	})
 })
