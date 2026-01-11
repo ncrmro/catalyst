@@ -34,10 +34,14 @@ export function tokenizeSpecName(specName: string): string[] {
   const baseTokens = specName.split("-").filter((token) => token.length >= 2); // Filter single-char tokens to avoid false positives
   
   // Generate singular variants for tokens ending in 's'
+  // Note: This is a simple heuristic that works for common English plurals like
+  // "environments" -> "environment", "projects" -> "project", etc.
+  // It may produce non-standard forms for irregular plurals (e.g., "series" -> "serie"),
+  // but these edge cases are unlikely in spec names.
   const tokens = new Set<string>(baseTokens);
   baseTokens.forEach((token) => {
     if (token.endsWith("s") && token.length > 2) {
-      // Only remove trailing 's' if it leaves at least 2 characters
+      // Only remove trailing 's' if original token has more than 2 characters
       tokens.add(token.slice(0, -1));
     }
   });
