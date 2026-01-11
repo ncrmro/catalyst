@@ -133,22 +133,46 @@ export const authenticatorsRelations = relations(authenticators, ({ one }) => ({
   }),
 }));
 
-export const teams = pgTable("teams", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  name: text("name").notNull(),
-  description: text("description"),
-  ownerId: text("ownerId")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  createdAt: timestamp("createdAt", { mode: "date" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  updatedAt: timestamp("updatedAt", { mode: "date" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-});
+export const teams = pgTable(
+  "teams",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    name: text("name").notNull(),
+    description: text("description"),
+    ownerId: text("ownerId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("createdAt", { mode: "date" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: timestamp("updatedAt", { mode: "date" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    // VCS Organization Integration (provider-agnostic)
+    vcsProviderId: text("vcs_provider_id"), // 'github', 'gitlab', 'gitea', 'forgejo', 'bitbucket'
+    vcsOrgId: text("vcs_org_id"), // Organization ID from VCS provider
+    vcsOrgLogin: text("vcs_org_login"), // Organization login/username
+    vcsOrgAvatarUrl: text("vcs_org_avatar_url"), // Organization avatar URL
+    isVcsOrg: boolean("is_vcs_org").notNull().default(false), // Flag indicating VCS org team
+    syncedAt: timestamp("synced_at", { mode: "date" }), // Last sync timestamp
+  },
+  (table) => {
+    return {
+      // Ensure one team per VCS organization (provider + org ID)
+      uniqueVcsOrg: uniqueIndex("teams_vcs_provider_org_unique").on(
+        table.vcsProviderId,
+        table.vcsOrgId,
+      ),
+      // Efficient lookup by provider and org login
+      vcsOrgLoginIdx: index("teams_vcs_provider_login_idx").on(
+        table.vcsProviderId,
+        table.vcsOrgLogin,
+      ),
+    };
+  },
+);
 
 export const teamsRelations = relations(teams, ({ one, many }) => ({
   owner: one(users, {
