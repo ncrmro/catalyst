@@ -30,11 +30,14 @@ export const successfulDeployment = {
       spec: {
         projectRef: { name: "catalyst-web" },
         type: "development",
-        source: {
-          commitSha: "abc1234567890def",
-          branch: "feat/preview-environments",
-          prNumber: 42,
-        },
+        sources: [
+          {
+            name: "main",
+            commitSha: "abc1234567890def",
+            branch: "feat/preview-environments",
+            prNumber: 42,
+          },
+        ],
         config: {
           envVars: [
             { name: "NODE_ENV", value: "development" },
@@ -101,11 +104,14 @@ export const failedDeployment = {
       spec: {
         projectRef: { name: "catalyst-web" },
         type: "development",
-        source: {
-          commitSha: "bad1234567890bad",
-          branch: "feat/broken-build",
-          prNumber: 43,
-        },
+        sources: [
+          {
+            name: "main",
+            commitSha: "bad1234567890bad",
+            branch: "feat/broken-build",
+            prNumber: 43,
+          },
+        ],
       },
       status: {
         phase: "Failed",
@@ -152,11 +158,14 @@ export const provisioningDeployment = {
       spec: {
         projectRef: { name: "catalyst-web" },
         type: "development",
-        source: {
-          commitSha: "def4567890abcdef",
-          branch: "feat/new-dashboard",
-          prNumber: 44,
-        },
+        sources: [
+          {
+            name: "main",
+            commitSha: "def4567890abcdef",
+            branch: "feat/new-dashboard",
+            prNumber: 44,
+          },
+        ],
       },
       status: {
         phase: "Provisioning",
@@ -198,10 +207,13 @@ export const productionEnvironment = {
       spec: {
         projectRef: { name: "catalyst-web" },
         type: "deployment",
-        source: {
-          commitSha: "main1234567890abc",
-          branch: "main",
-        },
+        sources: [
+          {
+            name: "main",
+            commitSha: "main1234567890abc",
+            branch: "main",
+          },
+        ],
         config: {
           envVars: [
             { name: "NODE_ENV", value: "production" },
@@ -260,11 +272,14 @@ export const multiAgentEnvironment = {
       spec: {
         projectRef: { name: "catalyst-web" },
         type: "development",
-        source: {
-          commitSha: "multi123456789abc",
-          branch: "feat/multi-agent-test",
-          prNumber: 45,
-        },
+        sources: [
+          {
+            name: "main",
+            commitSha: "multi123456789abc",
+            branch: "feat/multi-agent-test",
+            prNumber: 45,
+          },
+        ],
       },
       status: {
         phase: "Deploying",
@@ -320,12 +335,15 @@ export const longBranchNameEnvironment = {
       spec: {
         projectRef: { name: "catalyst-web" },
         type: "development",
-        source: {
-          commitSha: "edge123456789abc",
-          branch:
-            "feat/very-long-branch-name-that-might-cause-display-issues-in-the-ui",
-          prNumber: 99,
-        },
+        sources: [
+          {
+            name: "main",
+            commitSha: "edge123456789abc",
+            branch:
+              "feat/very-long-branch-name-that-might-cause-display-issues-in-the-ui",
+            prNumber: 99,
+          },
+        ],
       },
       status: {
         phase: "Ready",

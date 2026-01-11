@@ -21,6 +21,8 @@ export const PROJECT_API = {
  * Source configuration for the project
  */
 export interface SourceConfig {
+  /** Name to identify this source component */
+  name: string;
   /** Git repository URL */
   repositoryUrl: string;
   /** Default branch to use */
@@ -33,13 +35,15 @@ export interface SourceConfig {
 export type DeploymentType = "helm" | "manifest" | "kustomize";
 
 /**
- * Deployment strategy configuration
+ * Environment Template configuration
  */
-export interface DeploymentConfig {
+export interface EnvironmentTemplate {
+  /** SourceRef refers to one of the sources defined in Project.Sources */
+  sourceRef?: string;
   /** Type of deployment */
   type: DeploymentType;
   /** Path to the deployment definition (e.g., chart path) */
-  path: string;
+  path?: string;
   /** Default values to inject (JSON) */
   values?: Record<string, unknown>;
 }
@@ -66,10 +70,10 @@ export interface ResourceConfig {
  * ProjectSpec defines the desired state of Project
  */
 export interface ProjectSpec {
-  /** Source configuration */
-  source: SourceConfig;
-  /** Deployment strategy */
-  deployment: DeploymentConfig;
+  /** Sources configuration */
+  sources: SourceConfig[];
+  /** Templates for different environment types. Standard keys: "development" and "deployment". */
+  templates?: Record<string, EnvironmentTemplate>;
   /** Resource configuration */
   resources?: ResourceConfig;
 }

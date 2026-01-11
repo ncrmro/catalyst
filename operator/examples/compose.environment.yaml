@@ -1,0 +1,14 @@
+apiVersion: catalyst.catalyst.dev/v1alpha1
+kind: Environment
+metadata:
+  name: compose-dev
+  namespace: catalyst-system
+spec:
+  projectRef:
+    name: compose-project
+  type: development
+  
+  sources:
+    - name: app
+      branch: main
+      commitSha: abc1234

@@ -140,16 +140,19 @@ export const environmentCRFactory = EnvironmentCRFactory.define(
           name: projectName,
         },
         type: envType,
-        source: {
-          commitSha,
-          branch,
-          prNumber:
-            prNumber !== undefined
-              ? prNumber
-              : envType === "development"
-                ? faker.number.int({ min: 1, max: 999 })
-                : undefined,
-        },
+        sources: [
+          {
+            name: "main",
+            commitSha,
+            branch,
+            prNumber:
+              prNumber !== undefined
+                ? prNumber
+                : envType === "development"
+                  ? faker.number.int({ min: 1, max: 999 })
+                  : undefined,
+          },
+        ],
         config: {
           envVars: [
             {

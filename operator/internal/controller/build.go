@@ -16,12 +16,16 @@ import (
 // running commands, and debugging via exec from the UI.
 
 const (
-	registryHost   = "registry.cluster.local:5000"
+	registryHost   = "registry.default.svc.cluster.local:5000"
 	workspaceImage = "alpine:latest"
 )
 
 func workspacePodName(env *catalystv1alpha1.Environment) string {
-	commitPart := env.Spec.Source.CommitSha
+	// Use first source if available, otherwise use a default commit
+	commitPart := "latest"
+	if len(env.Spec.Sources) > 0 {
+		commitPart = env.Spec.Sources[0].CommitSha
+	}
 	if len(commitPart) > 7 {
 		commitPart = commitPart[:7]
 	}
@@ -31,13 +35,19 @@ func workspacePodName(env *catalystv1alpha1.Environment) string {
 func desiredWorkspacePod(env *catalystv1alpha1.Environment, namespace string) *corev1.Pod {
 	podName := workspacePodName(env)
 
+	// Use first source if available
+	commitSha := "latest"
+	if len(env.Spec.Sources) > 0 {
+		commitSha = env.Spec.Sources[0].CommitSha
+	}
+
 	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,
 			Namespace: namespace,
 			Labels: map[string]string{
 				"catalyst.dev/pod-type":    "workspace",
-				"catalyst.dev/commit":      env.Spec.Source.CommitSha,
+				"catalyst.dev/commit":      commitSha,
 				"catalyst.dev/project":     env.Spec.ProjectRef.Name,
 				"catalyst.dev/environment": env.Name,
 			},

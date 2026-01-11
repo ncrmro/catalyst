@@ -134,6 +134,13 @@
       "when": 1767411326316,
       "tag": "0018_classy_joshua_kane",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1767500000000,
+      "tag": "0019_add_project_domain_config",
+      "breakpoints": true
     }
   ]
 }

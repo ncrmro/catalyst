@@ -1,0 +1,14 @@
+apiVersion: catalyst.catalyst.dev/v1alpha1
+kind: Environment
+metadata:
+  name: custom-helm-prod
+  namespace: catalyst-system
+spec:
+  projectRef:
+    name: custom-helm-project
+  type: deployment
+  
+  sources:
+    - name: main-repo
+      branch: main
+      commitSha: release-v1

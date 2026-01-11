@@ -151,6 +151,20 @@ export default async function PlatformPage({ params }: PlatformPageProps) {
             View and manage deployment environments. Select an environment below
             to configure its deployment method and settings.
           </p>
+          <p className="text-xs text-on-surface-variant mt-2 bg-surface-container p-2 rounded">
+            <strong>Configuration Source:</strong> Deployment behaviors are
+            defined by <code>Environment Templates</code> in your Project
+            configuration. See the{" "}
+            <a
+              href="https://github.com/ncrmro/catalyst/tree/main/operator/examples"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              examples directory
+            </a>{" "}
+            for configuration options (Dockerfile, Helm, Managed Services).
+          </p>
         </div>
 
         {/* Quick Stats */}

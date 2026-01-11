@@ -392,6 +392,7 @@ async function handlePullRequestEvent(payload: {
         installationId: installation.id,
         owner: repository.owner.login,
         repoName: repository.name,
+        repoId: repoResult.repo?.id, // Pass repo ID to fetch project config
       }).catch((err) => {
         console.error(
           `Preview deployment failed for PR ${pull_request.number}:`,

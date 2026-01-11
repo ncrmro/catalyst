@@ -1,0 +1,14 @@
+apiVersion: catalyst.catalyst.dev/v1alpha1
+kind: Environment
+metadata:
+  name: catalyst-nix-prod
+  namespace: catalyst-system
+spec:
+  projectRef:
+    name: catalyst-nix
+  type: deployment
+  
+  sources:
+    - name: catalyst
+      branch: main
+      commitSha: latest

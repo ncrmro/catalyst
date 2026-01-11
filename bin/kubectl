@@ -1,11 +1,33 @@
 #!/usr/bin/env bash
 # kubectl wrapper for local K3s cluster
 # Automatically sets KUBECONFIG to local cluster configuration
+# Supports git worktrees by finding the main repo's kubeconfig
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-KUBECONFIG_PATH="$SCRIPT_DIR/../web/.kube/config"
+PROJECT_ROOT="$SCRIPT_DIR/.."
+
+# Find main repo root (handles worktrees)
+get_main_repo_root() {
+    local git_path="$PROJECT_ROOT/.git"
+    if [[ -f "$git_path" ]]; then
+        # This is a worktree - .git is a file containing path to main repo
+        local content
+        content=$(cat "$git_path")
+        if [[ "$content" == gitdir:* ]]; then
+            # Format: "gitdir: /path/to/main/.git/worktrees/name"
+            local worktree_git="${content#gitdir: }"
+            # Navigate up from .git/worktrees/name to main repo
+            echo "$(dirname "$(dirname "$(dirname "$worktree_git")")")"
+            return
+        fi
+    fi
+    echo "$PROJECT_ROOT"
+}
+
+MAIN_REPO_ROOT="$(get_main_repo_root)"
+KUBECONFIG_PATH="$MAIN_REPO_ROOT/web/.kube/config"
 
 # Check if kubeconfig exists
 if [[ ! -f "$KUBECONFIG_PATH" ]]; then

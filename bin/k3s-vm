@@ -18,13 +18,37 @@ from pathlib import Path
 # Configuration
 # ============================================================================
 
+
+def get_main_repo_root():
+    """Find the main git repo root, even from a worktree.
+
+    Git worktrees have a .git file (not directory) containing the path to
+    the main repo's .git/worktrees/<name> directory. This function resolves
+    back to the main repo root so VM state can be shared across worktrees.
+    """
+    script_root = Path(__file__).parent.resolve().parent
+    git_path = script_root / ".git"
+
+    if git_path.is_file():
+        # This is a worktree - .git is a file containing path to main repo
+        content = git_path.read_text().strip()
+        # Format: "gitdir: /path/to/main/.git/worktrees/name"
+        if content.startswith("gitdir:"):
+            worktree_git = Path(content.split(":", 1)[1].strip())
+            # Navigate up from .git/worktrees/name to main repo
+            return worktree_git.parent.parent.parent
+
+    return script_root
+
+
 SCRIPT_DIR = Path(__file__).parent.resolve()
 PROJECT_ROOT = SCRIPT_DIR.parent
+MAIN_REPO_ROOT = get_main_repo_root()  # Always points to main repo, even from worktree
 
-# Paths
-CONFIG_DIR = PROJECT_ROOT / ".k3s-vm"
+# Paths - use MAIN_REPO_ROOT for shared resources (VM state, kubeconfig)
+CONFIG_DIR = MAIN_REPO_ROOT / ".k3s-vm"
 VM_DIR = CONFIG_DIR / "vm"
-KUBECONFIG_DIR = PROJECT_ROOT / "web" / ".kube"
+KUBECONFIG_DIR = MAIN_REPO_ROOT / "web" / ".kube"
 KUBECONFIG_FILE = KUBECONFIG_DIR / "config"
 PID_FILE = CONFIG_DIR / "vm.pid"
 

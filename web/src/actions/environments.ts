@@ -96,10 +96,13 @@ export async function createProjectEnvironment(
     // We do this to ensure the operator knows about the project
     try {
       await createProjectCR("default", sanitizedProjectName, {
-        source: {
-          repositoryUrl: primaryRepo.repo.url,
-          branch: "main",
-        },
+        sources: [
+          {
+            name: "main",
+            repositoryUrl: primaryRepo.repo.url,
+            branch: "main",
+          },
+        ],
         deployment: {
           type: "manifest",
           path: "./",
@@ -128,10 +131,13 @@ export async function createProjectEnvironment(
         name: sanitizedProjectName,
       },
       type: validatedEnvType,
-      source: {
-        commitSha: "HEAD", // TODO: Get actual commit SHA
-        branch: "main", // TODO: Get actual branch
-      },
+      sources: [
+        {
+          name: "main", // Default source name
+          commitSha: "HEAD", // TODO: Get actual commit SHA
+          branch: "main", // TODO: Get actual branch
+        },
+      ],
       config: {
         envVars: [],
       },

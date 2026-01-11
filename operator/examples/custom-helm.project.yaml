@@ -1,0 +1,31 @@
+apiVersion: catalyst.catalyst.dev/v1alpha1
+kind: Project
+metadata:
+  name: custom-helm-project
+  namespace: catalyst-system
+spec:
+  sources:
+    - name: main-repo
+      repositoryUrl: https://github.com/example/main-repo.git
+      branch: main
+
+  templates:
+    deployment:
+      type: helm
+      path: charts/my-complex-app
+      sourceRef: main-repo
+      
+      values:
+        ingress:
+          enabled: true
+          className: nginx
+          hosts:
+            - host: my-app.com
+              paths:
+                - path: /
+                  pathType: ImplementationSpecific
+        
+        postgresql:
+          enabled: true
+          auth:
+            password: "secret-password"

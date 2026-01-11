@@ -248,6 +248,10 @@ export const projects = pgTable(
       .default(0),
     /** Project-level configuration (Zod v4 ProjectConfig) */
     projectConfig: jsonb("project_config").$type<ProjectConfig>(),
+    // Custom domain configuration for preview environments
+    customDomain: text("custom_domain"), // e.g., "previews.myapp.com" - users must CNAME *.customDomain to ingress
+    ingressEnabled: boolean("ingress_enabled").notNull().default(true), // Enable ingress creation for preview environments
+    tlsEnabled: boolean("tls_enabled").notNull().default(false), // Enable TLS/HTTPS for preview environments
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },

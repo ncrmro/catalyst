@@ -1,0 +1,29 @@
+apiVersion: catalyst.catalyst.dev/v1alpha1
+kind: Project
+metadata:
+  name: compose-project
+  namespace: catalyst-system
+spec:
+  sources:
+    - name: app
+      repositoryUrl: https://github.com/example/app.git
+      branch: main
+
+  templates:
+    development:
+      type: docker-compose
+      path: docker-compose.yml
+      sourceRef: app
+      values:
+        services:
+          web:
+            replicas: 1
+            
+    deployment:
+      type: docker-compose
+      path: docker-compose.prod.yml
+      sourceRef: app
+      values:
+        services:
+          web:
+            replicas: 3

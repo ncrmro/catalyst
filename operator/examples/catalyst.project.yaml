@@ -1,0 +1,40 @@
+apiVersion: catalyst.catalyst.dev/v1alpha1
+kind: Project
+metadata:
+  name: catalyst
+  namespace: catalyst-system
+spec:
+  sources:
+    - name: catalyst
+      repositoryUrl: https://github.com/ncrmro/catalyst.git
+      branch: main
+  
+  templates:
+    development:
+      type: helm
+      path: charts/catalyst
+      sourceRef: catalyst
+      values:
+        environment: development
+        replicaCount: 1
+        image:
+          pullPolicy: IfNotPresent
+    
+    deployment:
+      type: helm
+      path: charts/catalyst
+      sourceRef: catalyst
+      values:
+        environment: production
+        replicaCount: 2
+        image:
+          pullPolicy: Always
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+
+  resources:
+    defaultQuota:
+      cpu: "4"
+      memory: "8Gi"

@@ -13,6 +13,8 @@ import {
   teams,
   teamsMemberships,
   githubUserTokens,
+  projects,
+  projectsRepos,
 } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import type {
@@ -88,6 +90,11 @@ export function generateNamespace(repoName: string, prNumber: number): string {
  * @returns Full URL for the preview environment
  */
 export function generatePublicUrl(namespace: string, domain?: string): string {
+  // If explicit domain provided, always use it (production mode)
+  if (domain) {
+    return `https://${namespace}.${domain}`;
+  }
+
   // Local development: hostname-based routing via *.localhost
   // Modern browsers auto-resolve *.localhost to 127.0.0.1
   if (process.env.LOCAL_PREVIEW_ROUTING === "true") {
@@ -96,15 +103,14 @@ export function generatePublicUrl(namespace: string, domain?: string): string {
   }
 
   // Production: hostname-based routing with TLS
-  const baseDomain =
-    domain || process.env.PREVIEW_DOMAIN || "preview.localhost";
+  const baseDomain = process.env.DEFAULT_PREVIEW_DOMAIN || "preview.localhost";
   return `https://${namespace}.${baseDomain}`;
 }
 
 /**
  * Generate image tag for a PR deployment.
  *
- * @param repoName - Repository name
+ * @param repoName - Repository name (e.g., "owner/repo")
  * @param prNumber - Pull request number
  * @param commitSha - Commit SHA (short version used)
  * @returns Image tag string
@@ -115,7 +121,13 @@ export function generateImageTag(
   commitSha: string,
 ): string {
   const shortSha = commitSha.slice(0, 7);
-  return `pr-${prNumber}-${shortSha}`;
+  // Sanitize repo name: lowercase, replace non-alphanumeric with hyphens
+  const sanitizedRepo = repoName
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return `${sanitizedRepo}-pr-${prNumber}-${shortSha}`;
 }
 
 // ============================================================================
@@ -606,6 +618,8 @@ export interface CreatePreviewDeploymentParams {
   buildJobNamespace?: string;
   /** Use Helm chart deployment instead of direct K8s API (default: false) */
   useHelmDeployment?: boolean;
+  /** Optional repo ID to fetch project configuration */
+  repoId?: string;
 }
 
 export interface CreatePreviewDeploymentResult {
@@ -640,7 +654,32 @@ export async function createPreviewDeployment(
     installationId,
     owner,
     repoName,
+    repoId,
   } = params;
+
+  // Fetch project configuration if repoId is provided
+  let customDomain: string | null = null;
+  let ingressEnabled = true;
+  let tlsEnabled = false;
+
+  if (repoId) {
+    const projectConfig = await db
+      .select({
+        customDomain: projects.customDomain,
+        ingressEnabled: projects.ingressEnabled,
+        tlsEnabled: projects.tlsEnabled,
+      })
+      .from(projectsRepos)
+      .innerJoin(projects, eq(projectsRepos.projectId, projects.id))
+      .where(eq(projectsRepos.repoId, repoId))
+      .limit(1);
+
+    if (projectConfig.length > 0) {
+      customDomain = projectConfig[0].customDomain;
+      ingressEnabled = projectConfig[0].ingressEnabled;
+      tlsEnabled = projectConfig[0].tlsEnabled;
+    }
+  }
 
   // Generate identifiers
   // CR Name: preview-<prNumber>
@@ -650,7 +689,11 @@ export async function createPreviewDeployment(
   // CR Namespace: default (control plane)
   const crNamespace = "default";
 
-  const publicUrl = generatePublicUrl(targetNamespace);
+  // Use custom domain if configured, otherwise use default
+  const publicUrl = generatePublicUrl(
+    targetNamespace,
+    customDomain || undefined,
+  );
 
   // Start deployment timer for performance tracking
   void startTimer("preview-deployment-creation");
@@ -757,14 +800,29 @@ export async function createPreviewDeployment(
   const crResult = await createEnvironmentCR(crNamespace, crName, {
     projectRef: { name: repoName }, // Assuming Project CR named after repo or we need to map it
     type: "development",
-    source: {
-      commitSha,
-      branch,
-      prNumber,
-    },
+    sources: [
+      {
+        name: "main", // Default source name for single-repo projects
+        commitSha,
+        branch,
+        prNumber,
+      },
+    ],
     config: {
       envVars: [], // Add any default env vars
     },
+    ingress: ingressEnabled
+      ? {
+          enabled: true,
+          host: new URL(publicUrl).hostname,
+          tls: tlsEnabled
+            ? {
+                enabled: true,
+                issuer: "letsencrypt-prod",
+              }
+            : undefined,
+        }
+      : undefined,
   });
 
   if (!crResult.success) {

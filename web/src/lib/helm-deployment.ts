@@ -18,6 +18,9 @@ export interface HelmDeploymentConfig {
   publicUrl?: string;
   ingressEnabled?: boolean;
   ingressHost?: string;
+  ingressClassName?: string;
+  tlsEnabled?: boolean;
+  tlsIssuer?: string;
   resourceLimits?: {
     cpu: string;
     memory: string;
@@ -58,6 +61,9 @@ export async function deployHelmChart(
     publicUrl,
     ingressEnabled = false,
     ingressHost,
+    ingressClassName = "nginx",
+    tlsEnabled = false,
+    tlsIssuer = "letsencrypt-prod",
     resourceLimits = { cpu: "500m", memory: "512Mi" },
     resourceRequests = { cpu: "100m", memory: "128Mi" },
     postgresqlEnabled = false,
@@ -152,12 +158,26 @@ export async function deployHelmChart(
       "--set",
       "ingress.enabled=true",
       "--set",
+      `ingress.className=${ingressClassName}`,
+      "--set",
       `ingress.hosts[0].host=${ingressHost}`,
       "--set",
       `ingress.hosts[0].paths[0].path=/`,
       "--set",
       `ingress.hosts[0].paths[0].pathType=Prefix`,
     );
+
+    // Add TLS configuration if enabled
+    if (tlsEnabled) {
+      helmArgs.push(
+        "--set",
+        `ingress.tls[0].secretName=${releaseName}-tls`,
+        "--set",
+        `ingress.tls[0].hosts[0]=${ingressHost}`,
+        "--set",
+        `ingress.annotations.cert-manager\\.io/cluster-issuer=${tlsIssuer}`,
+      );
+    }
   }
 
   // Add public URL as environment variable if provided

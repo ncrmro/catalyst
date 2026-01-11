@@ -33,7 +33,9 @@ export default async function EnvironmentPage({
 
   // Helper to generate workspace pod name matching the operator logic
   // operator/internal/controller/build.go: workspacePodName
-  const commitPart = environment.spec.source.commitSha.substring(0, 7);
+  const commitPart = (
+    environment.spec.sources[0]?.commitSha || "latest"
+  ).substring(0, 7);
   const podName = `workspace-${environment.spec.projectRef.name}-${commitPart.toLowerCase()}`;
 
   return (

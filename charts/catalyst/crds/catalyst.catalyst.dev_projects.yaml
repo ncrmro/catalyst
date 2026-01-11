@@ -39,23 +39,6 @@ spec:
           spec:
             description: spec defines the desired state of Project
             properties:
-              deployment:
-                description: Deployment strategy configuration
-                properties:
-                  path:
-                    description: Path to the deployment definition (e.g. chart path)
-                    type: string
-                  type:
-                    description: Type of deployment (helm, manifest, kustomize)
-                    type: string
-                  values:
-                    description: Values are the default values to inject
-                    type: object
-                    x-kubernetes-preserve-unknown-fields: true
-                required:
-                - path
-                - type
-                type: object
               resources:
                 description: Resources configuration (quotas, limits)
                 properties:
@@ -71,22 +54,54 @@ spec:
                         type: string
                     type: object
                 type: object
-              source:
-                description: Source configuration for the project
-                properties:
-                  branch:
-                    description: Branch is the default branch to use
-                    type: string
-                  repositoryUrl:
-                    description: RepositoryURL is the git repository URL
-                    type: string
-                required:
-                - branch
-                - repositoryUrl
+              sources:
+                description: Sources configuration for the project (supports multiple
+                  repos)
+                items:
+                  properties:
+                    branch:
+                      description: Branch is the default branch to use
+                      type: string
+                    name:
+                      description: Name to identify this source component (e.g. "frontend",
+                        "backend")
+                      type: string
+                    repositoryUrl:
+                      description: RepositoryURL is the git repository URL
+                      type: string
+                  required:
+                  - branch
+                  - name
+                  - repositoryUrl
+                  type: object
+                type: array
+              templates:
+                additionalProperties:
+                  properties:
+                    path:
+                      description: Path to the deployment definition (e.g. chart path)
+                      type: string
+                    sourceRef:
+                      description: |-
+                        SourceRef refers to one of the sources defined in Project.Sources
+                        If empty, assumes the first source or a primary source.
+                      type: string
+                    type:
+                      description: Type of deployment (helm, manifest, kustomize)
+                      type: string
+                    values:
+                      description: Values are the default values to inject
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                  required:
+                  - type
+                  type: object
+                description: |-
+                  Templates for different environment types.
+                  Standard keys: "development" (previews) and "deployment" (production/staging).
                 type: object
             required:
-            - deployment
-            - source
+            - sources
             type: object
           status:
             description: status defines the observed state of Project

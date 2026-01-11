@@ -69,6 +69,30 @@ spec:
                   - "development": Hot-reload with volume mounts and init containers
                   - "workspace": Simple workspace pod (default, existing behavior)
                 type: string
+              ingress:
+                description: Ingress configuration for exposing the environment
+                properties:
+                  enabled:
+                    description: Enabled controls whether to create an Ingress resource
+                    type: boolean
+                  host:
+                    description: Host is the hostname for the ingress (e.g., env-preview-123.preview.example.com)
+                    type: string
+                  tls:
+                    description: TLS configuration for HTTPS
+                    properties:
+                      enabled:
+                        description: Enabled controls whether to enable TLS
+                        type: boolean
+                      issuer:
+                        description: Issuer is the cert-manager ClusterIssuer name
+                        type: string
+                    required:
+                    - enabled
+                    type: object
+                required:
+                - enabled
+                type: object
               projectRef:
                 description: ProjectRef references the parent Project
                 properties:
@@ -78,28 +102,34 @@ spec:
                 required:
                 - name
                 type: object
-              source:
-                description: Source configuration for this specific environment
-                properties:
-                  branch:
-                    description: Branch name
-                    type: string
-                  commitSha:
-                    description: CommitSha is the git commit to deploy
-                    type: string
-                  prNumber:
-                    description: PrNumber (optional) for pull requests
-                    type: integer
-                required:
-                - branch
-                - commitSha
-                type: object
+              sources:
+                description: Sources configuration for this specific environment
+                items:
+                  properties:
+                    branch:
+                      description: Branch name
+                      type: string
+                    commitSha:
+                      description: CommitSha is the git commit to deploy
+                      type: string
+                    name:
+                      description: Name identifies the component (matches Project.Sources[].Name)
+                      type: string
+                    prNumber:
+                      description: PrNumber (optional) for pull requests
+                      type: integer
+                  required:
+                  - branch
+                  - commitSha
+                  - name
+                  type: object
+                type: array
               type:
                 description: Type of environment (development, deployment)
                 type: string
             required:
             - projectRef
-            - source
+            - sources
             - type
             type: object
           status:

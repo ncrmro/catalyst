@@ -95,6 +95,14 @@ jobs:
 
       - run: npm run db:migrate
 
+      - name: Install CRDs
+        run: |
+          kubectl apply -f ../operator/config/crd/bases/catalyst.catalyst.dev_environments.yaml
+          kubectl apply -f ../operator/config/crd/bases/catalyst.catalyst.dev_projects.yaml
+          kubectl wait --for=condition=established crd/environments.catalyst.catalyst.dev
+          kubectl wait --for=condition=established crd/projects.catalyst.catalyst.dev
+          echo "CRDs installed"
+
       - name: Run integration tests
         run: npm run test:integration
         env:
@@ -176,6 +184,9 @@ jobs:
       - name: Install Environment CRD
         run: |
           kubectl apply -f ../operator/config/crd/bases/catalyst.catalyst.dev_environments.yaml
+          kubectl apply -f ../operator/config/crd/bases/catalyst.catalyst.dev_projects.yaml
+          kubectl wait --for=condition=established crd/environments.catalyst.catalyst.dev
+          kubectl wait --for=condition=established crd/projects.catalyst.catalyst.dev
           echo "Environment CRD installed"
 
       - name: Deploy test application
@@ -227,9 +238,10 @@ jobs:
               name: test-project
             type: development
             deploymentMode: development
-            source:
-              commitSha: abc123
-              branch: main
+            sources:
+              - name: main
+                commitSha: abc123
+                branch: main
           EOF
           echo "Test Environment CR created"
 
