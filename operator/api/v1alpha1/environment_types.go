@@ -37,8 +37,9 @@ type EnvironmentSpec struct {
 	// +optional
 	DeploymentMode string `json:"deploymentMode,omitempty"`
 
-	// Source configuration for this specific environment
-	Source EnvironmentSource `json:"source"`
+	// Sources configuration for this specific environment
+	// +optional
+	Sources []EnvironmentSource `json:"sources,omitempty"`
 
 	// Config overrides
 	Config EnvironmentConfig `json:"config,omitempty"`
@@ -50,6 +51,9 @@ type ProjectReference struct {
 }
 
 type EnvironmentSource struct {
+	// Name identifies the component (matches Project.Sources[].Name)
+	Name string `json:"name"`
+
 	// CommitSha is the git commit to deploy
 	CommitSha string `json:"commitSha"`
 
