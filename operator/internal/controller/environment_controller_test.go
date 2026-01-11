@@ -76,6 +76,11 @@ var _ = Describe("Environment Controller", func() {
 							Branch:        "main",
 						},
 					},
+					Templates: map[string]catalystv1alpha1.EnvironmentTemplate{
+						"development": {
+							Type: "development",
+						},
+					},
 				},
 			}
 			// Ignore if exists or delete/recreate
