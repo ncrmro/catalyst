@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-git/go-git/v5"
@@ -42,6 +43,13 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	catalystv1alpha1 "github.com/ncrmro/catalyst/operator/api/v1alpha1"
+)
+
+var (
+	// lastCleanupTime tracks when cleanupStaleTempDirs was last run to avoid excessive I/O
+	lastCleanupTime time.Time
+	// cleanupMutex protects lastCleanupTime and prevents concurrent cleanup runs
+	cleanupMutex sync.Mutex
 )
 
 // ReconcileHelmMode handles the reconciliation for Helm deployment mode.
@@ -84,6 +92,11 @@ func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *cata
 	default:
 		log.Info("Invalid HELM_DRIVER value detected, defaulting to 'secret'", "value", helmDriver)
 		helmDriver = "secret"
+	}
+	// Ensure the process environment reflects the validated/sanitized value
+	// for consistency across subsequent Helm operations in this process.
+	if err := os.Setenv("HELM_DRIVER", helmDriver); err != nil {
+		log.Error(err, "Failed to set HELM_DRIVER environment variable")
 	}
 
 	actionConfig := new(action.Configuration)
@@ -233,13 +246,20 @@ func (r *EnvironmentReconciler) prepareChartSource(ctx context.Context, env *cat
 		// 3. Support for both HTTPS (token-based) and SSH authentication
 		// Example: Auth: &githttp.BasicAuth{Username: "...", Password: token}
 	}
+
+	// Constrain the clone to a single branch when one is specified, to avoid cloning all branches.
+	// This optimization reduces bandwidth and storage even for full-depth clones.
+	if sourceConfig.Branch != "" {
+		cloneOptions.SingleBranch = true
+		cloneOptions.ReferenceName = plumbing.NewBranchReferenceName(sourceConfig.Branch)
+	}
+
 	// Use a shallow clone when no specific commit is requested to reduce time and disk usage.
-	// When a specific commit SHA is provided, we perform a full clone to ensure the commit is
-	// available locally, as not all servers reliably support fetching arbitrary commits with
-	// shallow history.
+	// When a specific commit SHA is provided, we perform a full clone of the selected branch's
+	// history to ensure the commit is available locally, as not all servers reliably support
+	// fetching arbitrary commits with shallow history.
 	if commitSha == "" {
 		cloneOptions.Depth = 1
-		cloneOptions.SingleBranch = true
 	}
 
 	_, err = git.PlainClone(tempDir, false, cloneOptions)
@@ -342,18 +362,31 @@ func (l *genericConfigLoader) RawConfig() (clientcmdapi.Config, error) {
 	const authName = "default"
 
 	// Initialize cluster information from the REST config.
-	cfg.Clusters[clusterName] = &clientcmdapi.Cluster{
-		Server:                   l.cfg.Host,
-		InsecureSkipTLSVerify:    l.cfg.TLSClientConfig.Insecure,
-		CertificateAuthorityData: l.cfg.TLSClientConfig.CAData,
+	// Note: TLSClientConfig is expected to be non-nil when initialized by controller-runtime,
+	// but we add defensive checks for robustness.
+	cluster := &clientcmdapi.Cluster{
+		Server: l.cfg.Host,
 	}
+	if l.cfg.TLSClientConfig.Insecure {
+		cluster.InsecureSkipTLSVerify = true
+	}
+	if len(l.cfg.TLSClientConfig.CAData) > 0 {
+		cluster.CertificateAuthorityData = l.cfg.TLSClientConfig.CAData
+	}
+	cfg.Clusters[clusterName] = cluster
 
 	// Initialize auth information from the REST config.
-	cfg.AuthInfos[authName] = &clientcmdapi.AuthInfo{
-		Token:                 l.cfg.BearerToken,
-		ClientCertificateData: l.cfg.TLSClientConfig.CertData,
-		ClientKeyData:         l.cfg.TLSClientConfig.KeyData,
+	authInfo := &clientcmdapi.AuthInfo{}
+	if l.cfg.BearerToken != "" {
+		authInfo.Token = l.cfg.BearerToken
 	}
+	if len(l.cfg.TLSClientConfig.CertData) > 0 {
+		authInfo.ClientCertificateData = l.cfg.TLSClientConfig.CertData
+	}
+	if len(l.cfg.TLSClientConfig.KeyData) > 0 {
+		authInfo.ClientKeyData = l.cfg.TLSClientConfig.KeyData
+	}
+	cfg.AuthInfos[authName] = authInfo
 
 	// Bind cluster and auth info together in a context and set the namespace.
 	cfg.Contexts[contextName] = &clientcmdapi.Context{
@@ -375,7 +408,8 @@ func (l *genericConfigLoader) Namespace() (string, bool, error) {
 	return l.namespace, true, nil
 }
 
-// mergeHelmValues merges values from template defaults and environment-specific config
+// mergeHelmValues merges values from template defaults and environment-specific config.
+// Uses deep merge strategy to preserve template defaults while allowing environment overrides.
 func (r *EnvironmentReconciler) mergeHelmValues(template *catalystv1alpha1.EnvironmentTemplate, env *catalystv1alpha1.Environment) (map[string]interface{}, error) {
 	vals := make(map[string]interface{})
 
@@ -386,19 +420,63 @@ func (r *EnvironmentReconciler) mergeHelmValues(template *catalystv1alpha1.Envir
 		}
 	}
 
-	// Merge environment config (envVars, image, etc.)
-	// Create a config section in values if there are any environment-specific configs
+	// Environment variables: deep merge into any existing "env" map from the template,
+	// with environment-specific values overriding template defaults for the same keys.
 	if len(env.Spec.Config.EnvVars) > 0 {
-		envVarsMap := make(map[string]string)
-		for _, envVar := range env.Spec.Config.EnvVars {
-			envVarsMap[envVar.Name] = envVar.Value
+		mergedEnv := make(map[string]interface{})
+
+		// Preserve existing template-provided env values, if any.
+		if existingEnv, ok := vals["env"]; ok && existingEnv != nil {
+			switch m := existingEnv.(type) {
+			case map[string]interface{}:
+				for k, v := range m {
+					mergedEnv[k] = v
+				}
+			case map[string]string:
+				for k, v := range m {
+					mergedEnv[k] = v
+				}
+			}
 		}
-		vals["env"] = envVarsMap
+
+		// Overlay environment-specific variables (these win on key conflicts).
+		for _, envVar := range env.Spec.Config.EnvVars {
+			mergedEnv[envVar.Name] = envVar.Value
+		}
+
+		vals["env"] = mergedEnv
 	}
 
+	// Image: flexibly handle different Helm chart conventions for image configuration.
+	// Attempts to preserve template structure while overriding the appropriate field.
 	if env.Spec.Config.Image != "" {
-		vals["image"] = map[string]interface{}{
-			"repository": env.Spec.Config.Image,
+		if existing, ok := vals["image"]; ok {
+			switch v := existing.(type) {
+			case string:
+				// Template expects .Values.image as a simple string
+				vals["image"] = env.Spec.Config.Image
+			case map[string]interface{}:
+				// Template uses a structured image config; update a known key if present
+				if _, hasRepo := v["repository"]; hasRepo {
+					v["repository"] = env.Spec.Config.Image
+				} else if _, hasName := v["name"]; hasName {
+					v["name"] = env.Spec.Config.Image
+				} else if _, hasImageRepo := v["imageRepository"]; hasImageRepo {
+					v["imageRepository"] = env.Spec.Config.Image
+				} else {
+					// Fall back to repository key if no known keys exist
+					v["repository"] = env.Spec.Config.Image
+				}
+				vals["image"] = v
+			default:
+				// Unknown type; treat as a simple override
+				vals["image"] = env.Spec.Config.Image
+			}
+		} else {
+			// Default behavior: charts are expected to use .Values.image.repository
+			vals["image"] = map[string]interface{}{
+				"repository": env.Spec.Config.Image,
+			}
 		}
 	}
 
@@ -407,8 +485,19 @@ func (r *EnvironmentReconciler) mergeHelmValues(template *catalystv1alpha1.Envir
 
 // cleanupStaleTempDirs removes temporary directories older than 24 hours
 // to prevent disk space accumulation from failed deployments or crashes.
-// This function is called at the beginning of each Helm reconciliation.
+// Rate-limited to run at most once every 5 minutes to avoid excessive I/O overhead.
+// Note: Concurrent cleanup attempts are serialized via mutex to prevent race conditions,
+// though individual file removal errors are logged and ignored gracefully.
 func cleanupStaleTempDirs(log logr.Logger) {
+	cleanupMutex.Lock()
+	defer cleanupMutex.Unlock()
+
+	// Rate limit: only run cleanup once every 5 minutes
+	if time.Since(lastCleanupTime) < 5*time.Minute {
+		return
+	}
+	lastCleanupTime = time.Now()
+
 	tmpDir := os.TempDir()
 	entries, err := os.ReadDir(tmpDir)
 	if err != nil {
@@ -424,14 +513,23 @@ func cleanupStaleTempDirs(log logr.Logger) {
 		}
 
 		fullPath := filepath.Join(tmpDir, entry.Name())
+
+		// Check if directory still exists (another process may have cleaned it)
 		info, err := os.Stat(fullPath)
 		if err != nil {
+			if os.IsNotExist(err) {
+				// Already removed by another process, which is fine
+				continue
+			}
+			// Other stat errors, log and skip
+			log.V(1).Info("Failed to stat temp directory", "path", fullPath, "error", err)
 			continue
 		}
 
 		// Remove if older than cutoff
 		if info.ModTime().Before(cutoff) {
 			if err := os.RemoveAll(fullPath); err != nil {
+				// Log error but continue - this could be a race with another process
 				log.Error(err, "Failed to remove stale temp directory", "path", fullPath)
 			} else {
 				log.V(1).Info("Cleaned up stale temp directory", "path", fullPath, "age", time.Since(info.ModTime()))

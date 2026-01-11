@@ -78,34 +78,8 @@ spec:
                 required:
                 - name
                 type: object
-              source:
-                description: |-
-                  Source is a legacy single-source configuration retained for backward compatibility.
-                  Deprecated: Use Sources instead. This field allows older Environment resources
-                  that used "source" (singular) to continue to be deserialized and handled by the operator.
-                  The controller will automatically migrate this to Sources during reconciliation.
-                properties:
-                  branch:
-                    description: Branch name
-                    type: string
-                  commitSha:
-                    description: CommitSha is the git commit to deploy
-                    type: string
-                  name:
-                    description: Name identifies the component (matches Project.Sources[].Name)
-                    type: string
-                  prNumber:
-                    description: PrNumber (optional) for pull requests
-                    type: integer
-                required:
-                - branch
-                - commitSha
-                - name
-                type: object
               sources:
-                description: |-
-                  Sources configuration for this specific environment.
-                  This is the preferred field and supersedes the legacy single Source field.
+                description: Sources configuration for this specific environment
                 items:
                   properties:
                     branch:
