@@ -29,6 +29,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -43,6 +44,7 @@ const environmentFinalizer = "catalyst.dev/finalizer"
 type EnvironmentReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	Config *rest.Config
 }
 
 // sanitizeLabelValue sanitizes a string for use as a Kubernetes label value.
@@ -95,6 +97,21 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	targetNamespace := fmt.Sprintf("%s-%s", env.Spec.ProjectRef.Name, env.Name)
 
+	// Fetch Project to access Templates
+	project := &catalystv1alpha1.Project{}
+	if err := r.Get(ctx, client.ObjectKey{Name: env.Spec.ProjectRef.Name, Namespace: env.Namespace}, project); err != nil {
+		log.Error(err, "Failed to fetch Project", "projectName", env.Spec.ProjectRef.Name)
+		return ctrl.Result{}, err
+	}
+
+	// Resolve Template
+	var envTemplate *catalystv1alpha1.EnvironmentTemplate
+	if t, ok := project.Spec.Templates[env.Spec.Type]; ok {
+		envTemplate = &t
+	} else {
+		log.Info("No template found for environment type, using defaults", "type", env.Spec.Type)
+	}
+
 	// Finalizer logic
 	if !env.ObjectMeta.DeletionTimestamp.IsZero() {
 		if controllerutil.ContainsFinalizer(env, environmentFinalizer) {
@@ -131,6 +148,13 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	err := r.Get(ctx, client.ObjectKey{Name: targetNamespace}, ns)
 	if err != nil && apierrors.IsNotFound(err) {
 		log.Info("Creating Namespace", "namespace", targetNamespace)
+
+		// Use first source branch if available
+		branch := "main"
+		if len(env.Spec.Sources) > 0 {
+			branch = env.Spec.Sources[0].Branch
+		}
+
 		ns = &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: targetNamespace,
@@ -138,7 +162,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 					"catalyst.dev/team":        "catalyst", // TODO: Get from Project or Env
 					"catalyst.dev/project":     sanitizeLabelValue(env.Spec.ProjectRef.Name),
 					"catalyst.dev/environment": sanitizeLabelValue(env.Name),
-					"catalyst.dev/branch":      sanitizeLabelValue(env.Spec.Source.Branch),
+					"catalyst.dev/branch":      sanitizeLabelValue(branch),
 				},
 			},
 		}
@@ -159,6 +183,16 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	policy := desiredNetworkPolicy(targetNamespace)
 	if err := r.Create(ctx, policy); err != nil && !apierrors.IsAlreadyExists(err) {
+		return ctrl.Result{}, err
+	}
+
+	// 2b. Manage Registry Credentials
+	if err := r.ensureRegistryCredentials(ctx, project.Namespace, targetNamespace); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("Waiting for resources (Secret/SA) for registry credentials")
+			return ctrl.Result{RequeueAfter: time.Second}, nil
+		}
+		log.Error(err, "Failed to ensure registry credentials")
 		return ctrl.Result{}, err
 	}
 
@@ -192,28 +226,158 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// 4. Deployment Mode Branching
-	// Determine deployment mode: "development", "production", or "workspace" (default)
+	// Infer mode from env.Spec.Type if DeploymentMode is not explicitly set
 	deploymentMode := env.Spec.DeploymentMode
 	if deploymentMode == "" {
-		deploymentMode = "workspace" // Default to workspace mode
+		if envTemplate != nil && envTemplate.Type == "helm" {
+			deploymentMode = "helm"
+		} else if envTemplate != nil && envTemplate.Type == "docker-compose" {
+			deploymentMode = "docker-compose"
+		} else if env.Spec.Type == "development" {
+			deploymentMode = "development"
+		} else if env.Spec.Type == "deployment" || env.Spec.Type == "staging" || env.Spec.Type == "production" {
+			deploymentMode = "production"
+		} else {
+			deploymentMode = "workspace" // Default fallback
+		}
 	}
 
-	log.Info("Reconciling deployment mode", "mode", deploymentMode, "namespace", targetNamespace)
+	log.Info("Reconciling deployment mode", "mode", deploymentMode, "namespace", targetNamespace, "templateFound", envTemplate != nil)
 
 	switch deploymentMode {
 	case "development":
-		return r.reconcileDevelopmentModeWithStatus(ctx, env, targetNamespace, isLocal, ingressPort)
+		return r.reconcileDevelopmentModeWithStatus(ctx, env, targetNamespace, isLocal, ingressPort, envTemplate)
 
 	case "production":
-		return r.reconcileProductionModeWithStatus(ctx, env, targetNamespace, isLocal, ingressPort)
+		return r.reconcileProductionModeWithStatus(ctx, env, targetNamespace, isLocal, ingressPort, envTemplate)
+
+	case "helm":
+		return r.reconcileHelmModeWithStatus(ctx, env, project, targetNamespace, isLocal, ingressPort, envTemplate)
+
+	case "docker-compose":
+		return r.reconcileComposeModeWithStatus(ctx, env, project, targetNamespace, isLocal, ingressPort, envTemplate)
 
 	default: // "workspace" or any unrecognized value defaults to workspace
 		return r.reconcileWorkspaceMode(ctx, env, targetNamespace)
 	}
 }
 
+// reconcileComposeModeWithStatus handles docker-compose deployment with status updates
+func (r *EnvironmentReconciler) reconcileComposeModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, isLocal bool, ingressPort string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
+	log := logf.FromContext(ctx)
+
+	// Wait for default service account
+	sa := &corev1.ServiceAccount{}
+	if err := r.Get(ctx, client.ObjectKey{Name: "default", Namespace: namespace}, sa); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("Waiting for default ServiceAccount", "namespace", namespace)
+			return ctrl.Result{RequeueAfter: time.Second}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	// Set provisioning status
+	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" && env.Status.Phase != "Building" {
+		env.Status.Phase = "Provisioning"
+		if err := r.Status().Update(ctx, env); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	// Run compose reconciliation
+	ready, err := r.ReconcileComposeMode(ctx, env, project, namespace, template)
+	if err != nil {
+		env.Status.Phase = "Failed"
+		_ = r.Status().Update(ctx, env)
+		return ctrl.Result{}, err
+	}
+
+	if ready {
+		if env.Status.Phase != "Ready" {
+			env.Status.Phase = "Ready"
+			if err := r.Status().Update(ctx, env); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
+	}
+
+	// Not ready yet (re-reconcile for builds or resources)
+	return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+}
+
+// reconcileHelmModeWithStatus handles helm deployment with status updates
+func (r *EnvironmentReconciler) reconcileHelmModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, isLocal bool, ingressPort string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
+	log := logf.FromContext(ctx)
+
+	// Wait for default service account
+	sa := &corev1.ServiceAccount{}
+	if err := r.Get(ctx, client.ObjectKey{Name: "default", Namespace: namespace}, sa); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("Waiting for default ServiceAccount", "namespace", namespace)
+			return ctrl.Result{RequeueAfter: time.Second}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	// Reconcile Builds (Zero-Config / Dockerfile Builds)
+	var builtImages map[string]string
+	if len(template.Builds) > 0 {
+		// Update status to Building if not already (and not failed)
+		if env.Status.Phase != "Building" && env.Status.Phase != "Ready" && env.Status.Phase != "Failed" {
+			env.Status.Phase = "Building"
+			if err := r.Status().Update(ctx, env); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+
+		var err error
+		builtImages, err = r.reconcileBuilds(ctx, env, project, namespace, template)
+		if err != nil {
+			log.Error(err, "Build failed")
+			env.Status.Phase = "Failed"
+			_ = r.Status().Update(ctx, env)
+			return ctrl.Result{}, err
+		}
+
+		if builtImages == nil {
+			log.Info("Builds in progress...")
+			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+		}
+	}
+
+	// Set provisioning status (if not building)
+	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" && env.Status.Phase != "Building" {
+		env.Status.Phase = "Provisioning"
+		if err := r.Status().Update(ctx, env); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	// Run helm reconciliation
+	ready, err := r.ReconcileHelmMode(ctx, env, project, namespace, template, builtImages)
+	if err != nil {
+		env.Status.Phase = "Failed"
+		_ = r.Status().Update(ctx, env)
+		return ctrl.Result{}, err
+	}
+
+	if ready {
+		if env.Status.Phase != "Ready" {
+			env.Status.Phase = "Ready"
+			if err := r.Status().Update(ctx, env); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
+	}
+
+	// Not ready yet, requeue
+	return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+}
+
 // reconcileDevelopmentModeWithStatus handles development mode deployment with status updates
-func (r *EnvironmentReconciler) reconcileDevelopmentModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, ingressPort string) (ctrl.Result, error) {
+func (r *EnvironmentReconciler) reconcileDevelopmentModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, ingressPort string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
 	// Wait for default service account
@@ -235,7 +399,7 @@ func (r *EnvironmentReconciler) reconcileDevelopmentModeWithStatus(ctx context.C
 	}
 
 	// Run development mode reconciliation
-	ready, err := r.ReconcileDevelopmentMode(ctx, env, namespace)
+	ready, err := r.ReconcileDevelopmentMode(ctx, env, namespace, template)
 	if err != nil {
 		env.Status.Phase = "Failed"
 		_ = r.Status().Update(ctx, env)
@@ -257,7 +421,7 @@ func (r *EnvironmentReconciler) reconcileDevelopmentModeWithStatus(ctx context.C
 }
 
 // reconcileProductionModeWithStatus handles production mode deployment with status updates
-func (r *EnvironmentReconciler) reconcileProductionModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, ingressPort string) (ctrl.Result, error) {
+func (r *EnvironmentReconciler) reconcileProductionModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, ingressPort string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
 	// Wait for default service account
@@ -279,7 +443,7 @@ func (r *EnvironmentReconciler) reconcileProductionModeWithStatus(ctx context.Co
 	}
 
 	// Run production mode reconciliation
-	ready, err := r.ReconcileProductionMode(ctx, env, namespace, isLocal)
+	ready, err := r.ReconcileProductionMode(ctx, env, namespace, isLocal, template)
 	if err != nil {
 		env.Status.Phase = "Failed"
 		_ = r.Status().Update(ctx, env)
@@ -373,6 +537,7 @@ func (r *EnvironmentReconciler) reconcileWorkspaceMode(ctx context.Context, env 
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *EnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Config = mgr.GetConfig()
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&catalystv1alpha1.Environment{}).
 		// Note: Resources in target namespace are not owned via OwnerRef due to cross-namespace restrictions.
