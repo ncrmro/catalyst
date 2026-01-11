@@ -197,12 +197,19 @@ func (r *EnvironmentReconciler) prepareChartSource(ctx context.Context, env *cat
 
 	// Determine Commit/Branch
 	var commitSha string
+	var sourceFound bool
 	// Find the source in Environment spec to get specific commit
 	for _, s := range env.Spec.Sources {
 		if s.Name == template.SourceRef {
 			commitSha = s.CommitSha
+			sourceFound = true
 			break
 		}
+	}
+	// Warn if source not found in environment but continue with default branch
+	// This allows flexibility for repos that don't require specific commits
+	if !sourceFound && len(env.Spec.Sources) > 0 {
+		log.V(1).Info("Source not found in environment, will clone default branch", "sourceRef", template.SourceRef)
 	}
 
 	// Clone Repository
