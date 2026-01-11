@@ -227,9 +227,10 @@ jobs:
               name: test-project
             type: development
             deploymentMode: development
-            source:
-              commitSha: abc123
-              branch: main
+            sources:
+              - name: main
+                commitSha: abc123
+                branch: main
           EOF
           echo "Test Environment CR created"
 
