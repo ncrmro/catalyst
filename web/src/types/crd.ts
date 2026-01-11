@@ -1,7 +1,17 @@
+// KEEP IN SYNC: This definition must match the CRD in operator/api/v1alpha1/environment_types.go
+// If the CRD changes, update this file.
+
 export type EnvironmentType = "deployment" | "development";
 
 // DeploymentMode specifies how the operator deploys the environment
 export type DeploymentMode = "production" | "development" | "workspace";
+
+export interface EnvironmentSource {
+  name: string;
+  commitSha: string;
+  branch: string;
+  prNumber?: number;
+}
 
 export interface EnvironmentCRSpec {
   projectRef: {
@@ -10,11 +20,7 @@ export interface EnvironmentCRSpec {
   type: EnvironmentType;
   // DeploymentMode: "production" | "development" | "workspace" (default)
   deploymentMode?: DeploymentMode;
-  source: {
-    commitSha: string;
-    branch: string;
-    prNumber?: number;
-  };
+  sources?: EnvironmentSource[];
   config?: {
     envVars?: Array<{ name: string; value: string }>;
   };

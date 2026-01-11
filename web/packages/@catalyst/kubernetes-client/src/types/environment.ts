@@ -3,6 +3,8 @@
  *
  * API Group: catalyst.catalyst.dev/v1alpha1
  * Based on: operator/api/v1alpha1/environment_types.go
+ *
+ * KEEP IN SYNC: This file must be updated when the operator API changes.
  */
 
 import type { Condition, ListMeta, ObjectMeta } from "./common";
@@ -28,6 +30,8 @@ export interface ProjectReference {
  * Source configuration for the environment
  */
 export interface EnvironmentSource {
+  /** Name identifies the component */
+  name: string;
   /** Git commit SHA to deploy */
   commitSha: string;
   /** Branch name */
@@ -85,7 +89,7 @@ export interface EnvironmentSpec {
   /** Deployment mode: "production", "development", or "workspace" (default) */
   deploymentMode?: DeploymentMode;
   /** Source configuration */
-  source: EnvironmentSource;
+  sources?: EnvironmentSource[];
   /** Configuration overrides */
   config?: EnvironmentConfig;
 }
