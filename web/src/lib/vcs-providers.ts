@@ -1,13 +1,18 @@
 /**
  * VCS Providers - Centralized Version Control System Integration
  *
- * This file is the single source of truth for all VCS-related functionality
- * in the web application. It consolidates:
- * - Environment configuration (GITHUB_CONFIG)
- * - Token storage and retrieval with encryption
- * - OAuth authentication helpers
- * - Token refresh logic
+ * This file provides VCS integration for the web application with:
+ * - Token storage and retrieval with encryption (provider-agnostic)
+ * - Provider-specific convenience exports (GitHub)
  * - Re-exports from @catalyst/vcs-provider package
+ *
+ * ARCHITECTURE NOTES:
+ * - Provider-specific configuration (OAuth endpoints, API URLs) is managed in
+ *   the @catalyst/vcs-provider package for better separation of concerns
+ * - This file focuses on web-app-specific concerns: database operations,
+ *   token encryption, and integration with the authentication system
+ * - New providers (GitLab, Bitbucket) should be added to the provider package
+ *   and configured similarly to GitHub
  */
 
 import { db } from "@/db";
@@ -16,80 +21,39 @@ import { eq } from "drizzle-orm";
 import { encrypt, decrypt } from "@tetrastack/backend/utils";
 
 // ============================================================================
-// GITHUB CONFIGURATION
+// PROVIDER CONFIGURATION RE-EXPORTS
 // ============================================================================
+// Configuration is managed in the provider package to keep provider-specific
+// logic centralized. Import from there for direct access to config values.
 
-// Check if we're in NextJS build phase - don't validate env vars during build
-const isNextJsBuild =
-  process.env.NEXT_PHASE === "phase-production-build" ||
-  process.env.npm_lifecycle_event === "build";
+import { GITHUB_CONFIG } from "@catalyst/vcs-provider";
+export { GITHUB_CONFIG };
 
+// ============================================================================
+// TOKEN STORAGE & RETRIEVAL (PROVIDER-AGNOSTIC DESIGN)
+// ============================================================================
 /**
- * Centralized GitHub environment variables configuration
- * All GitHub-related environment variables should be accessed through this object
+ * Token storage is currently GitHub-specific due to the database schema,
+ * but designed to be extensible for future providers.
+ * 
+ * FUTURE EXTENSIBILITY:
+ * To add support for additional providers (GitLab, Bitbucket, etc.):
+ * 
+ * 1. Database Schema:
+ *    - Option A: Create provider-specific tables (e.g., gitlab_user_tokens)
+ *    - Option B: Create a generic vcs_user_tokens table with a provider_id column
+ * 
+ * 2. Token Storage Functions:
+ *    - Create provider-specific storage functions (e.g., storeGitLabTokens)
+ *    - OR create generic storeVCSTokens(providerId, userId, tokens)
+ * 
+ * 3. VCS Provider Package:
+ *    - Add provider implementation in @catalyst/vcs-provider/src/providers/
+ *    - Implement OAuth functions (exchangeRefreshToken, etc.)
+ *    - Register provider with VCSProviderSingleton
+ * 
+ * The current GitHub-specific implementation serves as a reference pattern.
  */
-const buildGitHubConfig = () => {
-  const config = {
-    // GitHub App credentials for app-level authentication
-    APP_ID: process.env.GITHUB_APP_ID || (isNextJsBuild ? "" : undefined)!,
-    APP_PRIVATE_KEY:
-      process.env.GITHUB_APP_PRIVATE_KEY || (isNextJsBuild ? "" : undefined)!,
-
-    // GitHub App OAuth credentials for user authentication flow
-    APP_CLIENT_ID:
-      process.env.GITHUB_APP_CLIENT_ID || (isNextJsBuild ? "" : undefined)!,
-    APP_CLIENT_SECRET:
-      process.env.GITHUB_APP_CLIENT_SECRET || (isNextJsBuild ? "" : undefined)!,
-
-    // Webhook secret for validating GitHub webhook payloads
-    WEBHOOK_SECRET:
-      process.env.GITHUB_WEBHOOK_SECRET || (isNextJsBuild ? "" : undefined)!,
-
-    // Personal Access Token for fallback authentication (optional)
-    PAT: process.env.GITHUB_PAT || process.env.GITHUB_TOKEN,
-
-    // GitHub Container Registry PAT for Docker operations (optional)
-    GHCR_PAT: process.env.GITHUB_GHCR_PAT,
-
-    // MCP API key for GitHub MCP integration (optional)
-    MCP_API_KEY: process.env.GITHUB_MCP_API_KEY,
-
-    // Repository mode configuration (optional)
-    REPOS_MODE: process.env.GITHUB_REPOS_MODE,
-
-    // Allow PAT fallback in production (optional)
-    ALLOW_PAT_FALLBACK: process.env.GITHUB_ALLOW_PAT_FALLBACK === "true",
-
-    // Disable GitHub App startup checks (optional)
-    DISABLE_APP_CHECKS: process.env.GITHUB_DISABLE_APP_CHECKS === "true",
-  } as const;
-
-  // Validate required fields only at runtime, not during build
-  if (!isNextJsBuild && !config.DISABLE_APP_CHECKS) {
-    const missingVars: string[] = [];
-
-    if (!config.APP_ID) missingVars.push("GITHUB_APP_ID");
-    if (!config.APP_PRIVATE_KEY) missingVars.push("GITHUB_APP_PRIVATE_KEY");
-    if (!config.APP_CLIENT_ID) missingVars.push("GITHUB_APP_CLIENT_ID");
-    if (!config.APP_CLIENT_SECRET) missingVars.push("GITHUB_APP_CLIENT_SECRET");
-    if (!config.WEBHOOK_SECRET) missingVars.push("GITHUB_WEBHOOK_SECRET");
-
-    if (missingVars.length > 0) {
-      throw new Error(
-        `Missing required GitHub environment variables: ${missingVars.join(", ")}. ` +
-          "Please check your .env file or environment configuration.",
-      );
-    }
-  }
-
-  return config;
-};
-
-export const GITHUB_CONFIG = buildGitHubConfig();
-
-// ============================================================================
-// TOKEN STORAGE & RETRIEVAL
-// ============================================================================
 
 export interface GitHubTokens {
   accessToken: string;
@@ -218,209 +182,56 @@ export async function deleteGitHubTokens(userId: string): Promise<void> {
 }
 
 // ============================================================================
-// OAUTH AUTHENTICATION
+// OAUTH AUTHENTICATION - GITHUB
 // ============================================================================
+// OAuth functions are delegated to the provider package for better separation.
+// These exports provide backward compatibility for existing code.
+
+import {
+  exchangeRefreshToken as _exchangeRefreshToken,
+  exchangeAuthorizationCode as _exchangeAuthorizationCode,
+  fetchGitHubUser as _fetchGitHubUser,
+  generateAuthorizationUrl as _generateAuthorizationUrl,
+  type GitHubUserProfile,
+} from "@catalyst/vcs-provider";
+
+// Re-export GitHub OAuth functions for backward compatibility
+// These delegate to the provider package which contains the actual implementation
+export { GitHubUserProfile };
 
 /**
  * Exchange a refresh token for a new access token
+ * 
+ * @deprecated Consider using the VCSProviderSingleton for automatic token management
  * @param refreshToken The refresh token to exchange
  * @returns New tokens with updated expiration
  */
-export async function exchangeRefreshToken(refreshToken: string): Promise<{
-  accessToken: string;
-  refreshToken: string;
-  expiresAt: Date;
-  scope: string;
-}> {
-  if (!GITHUB_CONFIG.APP_CLIENT_ID || !GITHUB_CONFIG.APP_CLIENT_SECRET) {
-    throw new Error("Missing GitHub App credentials");
-  }
-
-  // GitHub API endpoint for refreshing tokens
-  const response = await fetch("https://github.com/login/oauth/access_token", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "User-Agent": "Catalyst-App",
-    },
-    body: JSON.stringify({
-      client_id: GITHUB_CONFIG.APP_CLIENT_ID,
-      client_secret: GITHUB_CONFIG.APP_CLIENT_SECRET,
-      grant_type: "refresh_token",
-      refresh_token: refreshToken,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to refresh token: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-
-  if (data.error) {
-    throw new Error(
-      `GitHub refresh error: ${data.error_description || data.error}`,
-    );
-  }
-
-  // Calculate expiration (GitHub App user tokens expire in 8 hours)
-  const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + 8);
-
-  return {
-    accessToken: data.access_token,
-    refreshToken: data.refresh_token || refreshToken, // Use new refresh token if provided
-    expiresAt,
-    scope: data.scope,
-  };
-}
+export const exchangeRefreshToken = _exchangeRefreshToken;
 
 /**
  * Exchange an authorization code for access and refresh tokens
+ * 
  * @param code The authorization code from GitHub
  * @param state The state parameter for CSRF protection
  * @returns Tokens and installation information
  */
-export async function exchangeAuthorizationCode(
-  code: string,
-  state?: string,
-): Promise<{
-  accessToken: string;
-  refreshToken: string;
-  expiresAt: Date;
-  scope: string;
-  installationId?: string;
-}> {
-  if (!GITHUB_CONFIG.APP_CLIENT_ID || !GITHUB_CONFIG.APP_CLIENT_SECRET) {
-    throw new Error("Missing GitHub App credentials");
-  }
-
-  // Exchange code for access token
-  const response = await fetch("https://github.com/login/oauth/access_token", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "User-Agent": "Catalyst-App",
-    },
-    body: JSON.stringify({
-      client_id: GITHUB_CONFIG.APP_CLIENT_ID,
-      client_secret: GITHUB_CONFIG.APP_CLIENT_SECRET,
-      code: code,
-      state: state,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to exchange authorization code: ${response.statusText}`,
-    );
-  }
-
-  const data = await response.json();
-
-  if (data.error) {
-    throw new Error(
-      `GitHub auth error: ${data.error_description || data.error}`,
-    );
-  }
-
-  // Calculate expiration (GitHub App user tokens expire in 8 hours)
-  const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + 8);
-
-  return {
-    accessToken: data.access_token,
-    refreshToken: data.refresh_token,
-    expiresAt,
-    scope: data.scope,
-    // Installation ID might be available in some contexts
-    installationId: undefined,
-  };
-}
-
-export interface GitHubUserProfile {
-  id: number;
-  login: string;
-  email: string | null;
-  name: string | null;
-  avatar_url: string;
-}
+export const exchangeAuthorizationCode = _exchangeAuthorizationCode;
 
 /**
  * Fetch the authenticated user's GitHub profile
+ * 
  * @param accessToken The OAuth access token
  * @returns User profile information
  */
-export async function fetchGitHubUser(
-  accessToken: string,
-): Promise<GitHubUserProfile> {
-  const response = await fetch("https://api.github.com/user", {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: "application/vnd.github+json",
-      "User-Agent": "Catalyst-App",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch GitHub user: ${response.statusText}`);
-  }
-
-  const user = await response.json();
-
-  // If email is null, fetch from emails endpoint (private emails)
-  if (!user.email) {
-    const emailsResponse = await fetch("https://api.github.com/user/emails", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/vnd.github+json",
-        "User-Agent": "Catalyst-App",
-      },
-    });
-
-    if (emailsResponse.ok) {
-      const emails = await emailsResponse.json();
-      // Find primary email or first verified email
-      const primaryEmail = emails.find(
-        (e: { primary: boolean; verified: boolean }) => e.primary && e.verified,
-      );
-      const verifiedEmail = emails.find(
-        (e: { verified: boolean }) => e.verified,
-      );
-      user.email = primaryEmail?.email || verifiedEmail?.email || null;
-    }
-  }
-
-  return {
-    id: user.id,
-    login: user.login,
-    email: user.email,
-    name: user.name,
-    avatar_url: user.avatar_url,
-  };
-}
+export const fetchGitHubUser = _fetchGitHubUser;
 
 /**
  * Generate GitHub App authorization URL for user authentication
+ * 
  * @param state Optional state parameter for CSRF protection
  * @returns Authorization URL
  */
-export function generateAuthorizationUrl(state?: string): string {
-  const params = new URLSearchParams({
-    client_id: GITHUB_CONFIG.APP_CLIENT_ID || "",
-    redirect_uri: `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/api/auth/callback/github`,
-    scope: "read:user user:email read:org repo",
-    response_type: "code",
-  });
-
-  if (state) {
-    params.append("state", state);
-  }
-
-  return `https://github.com/login/oauth/authorize?${params.toString()}`;
-}
+export const generateAuthorizationUrl = _generateAuthorizationUrl;
 
 // ============================================================================
 // TOKEN REFRESH LOGIC
