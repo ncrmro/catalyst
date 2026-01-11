@@ -51,7 +51,15 @@ var _ = Describe("Project Controller", func() {
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					// TODO(user): Specify other spec details if needed.
+					Spec: catalystv1alpha1.ProjectSpec{
+						Sources: []catalystv1alpha1.SourceConfig{
+							{
+								Name:          "main",
+								RepositoryURL: "https://github.com/org/repo",
+								Branch:        "main",
+							},
+						},
+					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
