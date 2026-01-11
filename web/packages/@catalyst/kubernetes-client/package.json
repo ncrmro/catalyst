@@ -9,7 +9,8 @@
     "./environments": "./src/environments/index.ts",
     "./pods": "./src/pods/index.ts",
     "./exec": "./src/exec/index.ts",
-    "./namespaces": "./src/namespaces/index.ts"
+    "./namespaces": "./src/namespaces/index.ts",
+    "./zod": "./src/types/zod.ts"
   },
   "scripts": {
     "test": "vitest",
@@ -20,7 +21,8 @@
     "@kubernetes/client-node": "^1.3.0"
   },
   "dependencies": {
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -153,6 +153,47 @@ import type {
 } from "@catalyst/kubernetes-client";
 ```
 
+## Runtime Validation with Zod
+
+For runtime validation of API responses, configuration files, or untrusted data, use the provided Zod schemas:
+
+```typescript
+import {
+  EnvironmentSchema,
+  validateEnvironment,
+  safeValidateEnvironment,
+} from "@catalyst/kubernetes-client/zod";
+import { createEnvironmentClient } from "@catalyst/kubernetes-client";
+
+// Get an environment
+const client = await createEnvironmentClient();
+const env = await client.get("my-env", "default");
+
+// Validate at runtime
+try {
+  const validatedEnv = validateEnvironment(env);
+  console.log("Valid environment:", validatedEnv);
+} catch (error) {
+  console.error("Validation failed:", error);
+}
+
+// Safe validation (returns result object)
+const result = safeValidateEnvironment(env);
+if (result.success) {
+  console.log("Valid environment:", result.data);
+} else {
+  console.error("Validation errors:", result.error);
+}
+```
+
+### Available Zod Schemas
+
+- **Common**: `ObjectMetaSchema`, `ConditionSchema`, `ListMetaSchema`, `OwnerReferenceSchema`
+- **Environment**: `EnvironmentSchema`, `EnvironmentListSchema`, `EnvironmentSpecSchema`, `EnvironmentStatusSchema`
+- **Helper Functions**: `validateEnvironment()`, `safeValidateEnvironment()`, `validateEnvironmentList()`, `safeValidateEnvironmentList()`
+
+For more examples and detailed guidance, see [TYPE_SAFETY.md](./TYPE_SAFETY.md).
+
 ## Type Safety Best Practices
 
 For detailed guidance on type-safe CRD operations, runtime validation with Zod, and avoiding common pitfalls with `as any` casts, see [TYPE_SAFETY.md](./TYPE_SAFETY.md).
