@@ -22,9 +22,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-logr/logr"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/release"
@@ -44,6 +47,10 @@ import (
 // ReconcileHelmMode handles the reconciliation for Helm deployment mode.
 func (r *EnvironmentReconciler) ReconcileHelmMode(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, template *catalystv1alpha1.EnvironmentTemplate) (bool, error) {
 	log := logf.FromContext(ctx)
+
+	// Clean up stale temporary directories (older than 24 hours)
+	// This helps prevent disk space accumulation from failed deployments
+	cleanupStaleTempDirs(log)
 
 	if template == nil {
 		return false, fmt.Errorf("helm template is required")
@@ -212,6 +219,12 @@ func (r *EnvironmentReconciler) prepareChartSource(ctx context.Context, env *cat
 
 	cloneOptions := &git.CloneOptions{
 		URL: sourceConfig.RepositoryURL,
+		// TODO: Add authentication support for private repositories.
+		// This will require:
+		// 1. SSH key or personal access token management via Kubernetes Secrets
+		// 2. Auth injection mechanism (e.g., via SourceConfig or Environment spec)
+		// 3. Support for both HTTPS (token-based) and SSH authentication
+		// Example: Auth: &githttp.BasicAuth{Username: "...", Password: token}
 	}
 	// Use a shallow clone when no specific commit is requested to reduce time and disk usage.
 	// When a specific commit SHA is provided, we perform a full clone to ensure the commit is
@@ -383,4 +396,39 @@ func (r *EnvironmentReconciler) mergeHelmValues(template *catalystv1alpha1.Envir
 	}
 
 	return vals, nil
+}
+
+// cleanupStaleTempDirs removes temporary directories older than 24 hours
+// to prevent disk space accumulation from failed deployments or crashes.
+// This function is called at the beginning of each Helm reconciliation.
+func cleanupStaleTempDirs(log logr.Logger) {
+	tmpDir := os.TempDir()
+	entries, err := os.ReadDir(tmpDir)
+	if err != nil {
+		log.Error(err, "Failed to read temp directory for cleanup")
+		return
+	}
+
+	cutoff := time.Now().Add(-24 * time.Hour)
+	for _, entry := range entries {
+		// Only clean up directories that match our prefix
+		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), "catalyst-chart-") {
+			continue
+		}
+
+		fullPath := filepath.Join(tmpDir, entry.Name())
+		info, err := os.Stat(fullPath)
+		if err != nil {
+			continue
+		}
+
+		// Remove if older than cutoff
+		if info.ModTime().Before(cutoff) {
+			if err := os.RemoveAll(fullPath); err != nil {
+				log.Error(err, "Failed to remove stale temp directory", "path", fullPath)
+			} else {
+				log.V(1).Info("Cleaned up stale temp directory", "path", fullPath, "age", time.Since(info.ModTime()))
+			}
+		}
+	}
 }
