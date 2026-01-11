@@ -153,7 +153,11 @@ func (in *EnvironmentSource) DeepCopy() *EnvironmentSource {
 func (in *EnvironmentSpec) DeepCopyInto(out *EnvironmentSpec) {
 	*out = *in
 	out.ProjectRef = in.ProjectRef
-	out.Source = in.Source
+	if in.Sources != nil {
+		in, out := &in.Sources, &out.Sources
+		*out = make([]EnvironmentSource, len(*in))
+		copy(*out, *in)
+	}
 	in.Config.DeepCopyInto(&out.Config)
 }
 

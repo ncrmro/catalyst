@@ -78,28 +78,33 @@ spec:
                 required:
                 - name
                 type: object
-              source:
-                description: Source configuration for this specific environment
-                properties:
-                  branch:
-                    description: Branch name
-                    type: string
-                  commitSha:
-                    description: CommitSha is the git commit to deploy
-                    type: string
-                  prNumber:
-                    description: PrNumber (optional) for pull requests
-                    type: integer
-                required:
-                - branch
-                - commitSha
-                type: object
+              sources:
+                description: Sources configuration for this specific environment
+                items:
+                  properties:
+                    branch:
+                      description: Branch name
+                      type: string
+                    commitSha:
+                      description: CommitSha is the git commit to deploy
+                      type: string
+                    name:
+                      description: Name identifies the component (matches Project.Sources[].Name)
+                      type: string
+                    prNumber:
+                      description: PrNumber (optional) for pull requests
+                      type: integer
+                  required:
+                  - branch
+                  - commitSha
+                  - name
+                  type: object
+                type: array
               type:
                 description: Type of environment (development, deployment)
                 type: string
             required:
             - projectRef
-            - source
             - type
             type: object
           status:
