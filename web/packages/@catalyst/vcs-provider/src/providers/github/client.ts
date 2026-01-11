@@ -629,7 +629,8 @@ export async function fetchPullRequests(
           continue;
         }
 
-        const { data: prs } = await octokit.rest.pulls.list({
+        // Use bulk pagination to get all PRs across all pages
+        const prs = await octokit.paginate(octokit.rest.pulls.list, {
           owner,
           repo: repoName,
           state: "open",
@@ -638,6 +639,11 @@ export async function fetchPullRequests(
           direction: "desc",
         });
 
+        // TODO: This creates an N+1 query pattern by fetching reviews for each PR
+        // individually. Consider optimizing by either:
+        // 1. Removing review status check if not critical for this view
+        // 2. Implementing a batch processing approach with rate limit handling
+        // 3. Caching review states if this is called frequently
         for (const pr of prs) {
           // Skip if we already added this PR
           if (addedPrIds.has(pr.id)) {
@@ -1067,7 +1073,8 @@ export async function fetchIssues(
           continue;
         }
 
-        const { data: issues } = await octokit.rest.issues.listForRepo({
+        // Use bulk pagination to get all issues across all pages
+        const issues = await octokit.paginate(octokit.rest.issues.listForRepo, {
           owner,
           repo: repoName,
           state: "open",
@@ -1326,11 +1333,15 @@ export async function fetchUserRepositoryPullRequests(
 
   try {
     // Get user's repositories (both owned and collaborator repos)
-    const { data: repos } = await octokit.rest.repos.listForAuthenticatedUser({
-      per_page: 100,
-      sort: "updated",
-      affiliation: "owner,collaborator",
-    });
+    // Use bulk pagination to get all repos across all pages
+    const repos = await octokit.paginate(
+      octokit.rest.repos.listForAuthenticatedUser,
+      {
+        per_page: 100,
+        sort: "updated",
+        affiliation: "owner,collaborator",
+      },
+    );
 
     const allPullRequests: EnrichedPullRequest[] = [];
 
@@ -1344,7 +1355,8 @@ export async function fetchUserRepositoryPullRequests(
           continue;
         }
 
-        const { data: prs } = await octokit.rest.pulls.list({
+        // Use bulk pagination to get all PRs across all pages
+        const prs = await octokit.paginate(octokit.rest.pulls.list, {
           owner,
           repo: repoName,
           state: "open",
