@@ -270,6 +270,53 @@ export class GitHubProvider implements VCSProvider {
   }
 
   /**
+   * List branches for a repository
+   */
+  async listBranches(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+  ): Promise<Branch[]> {
+    const octokit = client.raw as Octokit;
+    const { data: branches } = await octokit.rest.repos.listBranches({
+      owner,
+      repo,
+      per_page: 100,
+    });
+
+    // To get detailed branch info (last commit), we might need extra calls
+    // For MVP, let's start with basic list and potentially enrich later if needed
+    // or if we want to support the 7-day active branch rule (FR-010)
+    
+    return Promise.all(branches.map(async (branch) => {
+      // Fetch detailed commit info for each branch to support FR-010
+      try {
+        const { data: commit } = await octokit.rest.repos.getCommit({
+          owner,
+          repo,
+          ref: branch.commit.sha,
+        });
+
+        return {
+          name: branch.name,
+          sha: branch.commit.sha,
+          protected: branch.protected,
+          lastCommitDate: commit.commit.author?.date ? new Date(commit.commit.author.date) : undefined,
+          lastCommitMessage: commit.commit.message,
+          lastCommitAuthor: commit.commit.author?.name || undefined,
+        };
+      } catch (error) {
+        console.error(`Error fetching detailed info for branch ${branch.name}:`, error);
+        return {
+          name: branch.name,
+          sha: branch.commit.sha,
+          protected: branch.protected,
+        };
+      }
+    }));
+  }
+
+  /**
    * Create a new branch
    */
   async createBranch(

@@ -167,6 +167,10 @@ export interface CIStatusSummary {
 export interface Branch {
   name: string;
   sha: string;
+  protected?: boolean;
+  lastCommitDate?: Date;
+  lastCommitMessage?: string;
+  lastCommitAuthor?: string;
 }
 
 // Organization types
@@ -244,6 +248,12 @@ export interface VCSProvider {
   ): Promise<DirectoryEntry[]>;
 
   // Git Operations
+  listBranches(
+    client: AuthenticatedClient,
+    owner: string,
+    repo: string,
+  ): Promise<Branch[]>;
+
   createBranch(
     client: AuthenticatedClient,
     owner: string,

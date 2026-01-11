@@ -40,6 +40,15 @@ export interface EnrichedIssue {
   state: "open" | "closed";
 }
 
+export interface EnrichedBranch {
+  name: string;
+  sha: string;
+  protected: boolean;
+  lastCommitDate?: string;
+  lastCommitMessage?: string;
+  lastCommitAuthor?: string;
+}
+
 // Check if we're in NextJS build phase - don't validate env vars during build
 const isNextJsBuild =
   process.env.NEXT_PHASE === "phase-production-build" ||
@@ -1399,6 +1408,71 @@ export async function fetchUserRepositoryPullRequests(
     );
   } catch (error) {
     console.error("Error fetching user repositories or pull requests:", error);
+    return [];
+  }
+}
+
+/**
+ * Fetch recent branches from a repository
+ * @param userId User ID for authentication
+ * @param owner Repository owner
+ * @param repo Repository name
+ * @param sinceDays Only include branches with commits since this many days ago
+ * @returns Array of enriched branches
+ */
+export async function fetchRecentBranches(
+  userId: string,
+  owner: string,
+  repo: string,
+  sinceDays: number = 7,
+): Promise<EnrichedBranch[]> {
+  try {
+    const octokit = await getUserOctokit(userId);
+
+    const { data: branches } = await octokit.rest.repos.listBranches({
+      owner,
+      repo,
+      per_page: 100,
+    });
+
+    const thresholdDate = new Date();
+    thresholdDate.setDate(thresholdDate.getDate() - sinceDays);
+
+    const enrichedBranches: EnrichedBranch[] = [];
+
+    for (const branch of branches) {
+      try {
+        const { data: commit } = await octokit.rest.repos.getCommit({
+          owner,
+          repo,
+          ref: branch.commit.sha,
+        });
+
+        const commitDate = commit.commit.author?.date
+          ? new Date(commit.commit.author.date)
+          : null;
+
+        if (commitDate && commitDate >= thresholdDate) {
+          enrichedBranches.push({
+            name: branch.name,
+            sha: branch.commit.sha,
+            protected: branch.protected,
+            lastCommitDate: commit.commit.author?.date,
+            lastCommitMessage: commit.commit.message,
+            lastCommitAuthor: commit.commit.author?.name || undefined,
+          });
+        }
+      } catch (error) {
+        console.warn(
+          `Could not fetch commit info for branch ${branch.name}:`,
+          error,
+        );
+      }
+    }
+
+    return enrichedBranches;
+  } catch (error) {
+    console.error(`Error fetching branches for ${owner}/${repo}:`, error);
     return [];
   }
 }

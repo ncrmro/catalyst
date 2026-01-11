@@ -21,6 +21,8 @@ const eslintConfig = [
       "coverage/**",
       ".kube/**",
       "spikes/**",
+      "packages/**",
+      "drizzle/**",
       // CommonJS config files
       "*.cjs",
       "jest.config.js",

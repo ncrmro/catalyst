@@ -17,7 +17,7 @@ import { eq, and } from "drizzle-orm";
 import { fetchProjectSpecs } from "@/actions/specs";
 
 /**
- * Fetch all dashboard data (specs, PRs, issues) in parallel
+ * Fetch all dashboard data (specs, PRs, issues, branches) in parallel
  * This allows for a single cached resource hook on the client
  */
 export async function fetchProjectDashboardData(
@@ -25,7 +25,7 @@ export async function fetchProjectDashboardData(
   slug: string,
 ) {
   try {
-    const [specsResult, pullRequests, issues] = await Promise.all([
+    const [specsResult, pullRequests, issues, branches] = await Promise.all([
       fetchProjectSpecs(projectId, slug).catch((e) => {
         console.error("Failed to fetch specs:", e);
         return {
@@ -41,12 +41,17 @@ export async function fetchProjectDashboardData(
         console.error("Failed to fetch issues:", e);
         return [];
       }),
+      fetchProjectBranches(projectId).catch((e) => {
+        console.error("Failed to fetch branches:", e);
+        return [];
+      }),
     ]);
 
     return {
       specsResult,
       pullRequests,
       issues,
+      branches,
     };
   } catch (error) {
     console.error("Error fetching project dashboard data:", error);
@@ -57,6 +62,7 @@ export async function fetchProjectDashboardData(
       },
       pullRequests: [],
       issues: [],
+      branches: [],
     };
   }
 }

@@ -17,7 +17,14 @@ import type { EnvironmentConfig } from "@/types/environment-config";
 import type { ProjectConfig } from "@/types/project-config";
 
 // Re-export threads schema from @tetrastack/threads for Drizzle migrations
-import { postgres as threadsDb } from "@tetrastack/threads/database";
+import * as threadsDatabase from "@tetrastack/threads/database";
+// Import type explicitly to restore type inference lost by 'any' casting below
+import type { postgres as PostgresThreadsSchema } from "@tetrastack/threads/database";
+
+// Handle ESM/CJS interop where exports might be on .default (tsx behavior)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const threadsPkg = (threadsDatabase as any).default || threadsDatabase;
+const threadsDb = threadsPkg.postgres as typeof PostgresThreadsSchema;
 
 export const threads = threadsDb.threads;
 export const threadItems = threadsDb.items;

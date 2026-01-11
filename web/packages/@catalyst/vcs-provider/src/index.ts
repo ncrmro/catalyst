@@ -43,6 +43,7 @@ export {
   fetchPullRequestById,
   fetchCIStatus,
   fetchUserRepositoryPullRequests,
+  fetchRecentBranches,
   isGitHubTokenError,
   determinePRPriority,
   determinePRStatus,
@@ -52,16 +53,22 @@ export {
   // GitHub App management
   getAllInstallations,
 } from "./providers/github/client";
-
-export type {
-  EnrichedPullRequest,
-  EnrichedIssue,
-  GitHubTokenResult,
-  TokenGetter,
-  TokenStatusChecker,
-} from "./providers/github/client";
-
-// Comment management
+export type { EnrichedPullRequest, EnrichedIssue, EnrichedBranch } from "./providers/github/client";
+export {
+  refreshTokenIfNeeded,
+  invalidateTokens,
+  areTokensValid,
+} from "./providers/github/token-refresh";
+export {
+  storeGitHubTokens,
+  getGitHubTokens,
+  deleteGitHubTokens,
+} from "./providers/github/token-service";
+export {
+  exchangeRefreshToken,
+  exchangeAuthorizationCode,
+  generateAuthorizationUrl,
+} from "./providers/github/auth";
 export {
   formatDeploymentComment,
   upsertDeploymentComment,

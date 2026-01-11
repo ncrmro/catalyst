@@ -171,31 +171,29 @@
 
 ### VCS Adapter - Branch Listing
 
-- [ ] T046 [US7] Add Branch types to VCS provider (packages/@catalyst/vcs-provider/src/types.ts)
-- [ ] T047 [US7] Implement `fetchRecentBranches(octokit, owner, repo, sinceDays)` in GitHub client
-- [ ] T048 [US7] Export branch functions from VCS provider index
+- [x] T046 [US7] Add Branch types to VCS provider (packages/@catalyst/vcs-provider/src/types.ts)
+- [x] T047 [US7] Implement `fetchRecentBranches(octokit, owner, repo, sinceDays)` in GitHub client
+- [x] T048 [US7] Export branch functions from VCS provider index
 
 ### Work Item Types
 
-- [ ] T049 [P] [US7] Create WorkItem types in web/src/components/tasks/types.ts
+- [x] T049 [P] [US7] Create WorkItem types in web/src/components/tasks/types.ts
+  - Implemented in web/src/lib/work-categorization.ts
 
 ### Server Action
 
-- [ ] T050 [US7] Create `fetchProjectWorkItems(projectSlug)` action in web/src/actions/work-items.ts
+- [x] T050 [US7] Create `fetchProjectWorkItems(projectSlug)` action in web/src/actions/work-items.ts
 
 ### UI Components
 
 - [x] T051 [P] [US7] Create PRItemRow component in web/src/components/tasks/PRItemRow.tsx
-- [ ] T052 [P] [US7] Create BranchItemRow component in web/src/components/tasks/BranchItemRow.tsx
+- [x] T052 [P] [US7] Create BranchItemRow component in web/src/components/tasks/BranchItemRow.tsx
 - [x] T053 [US7] Create WorkItemsSection component in web/src/components/tasks/WorkItemsSection.tsx
-  - Implemented as TasksSectionCard.tsx
 
 ### Page Integration
 
 - [x] T054 [US7] Update project page.tsx to call fetchProjectWorkItems(slug)
-  - Uses fetchProjectPullRequests and fetchProjectIssues
 - [x] T055 [US7] Update project-page-content.tsx to use WorkItemsSection instead of TasksSection
-  - Uses TasksSectionCard.tsx
 
 ### Mock Data
 

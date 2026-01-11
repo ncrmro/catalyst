@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { ProjectPageContent } from "./project-page-content";
-import type { Spec, PRsBySpec } from "@/lib/pr-spec-matching";
+import type { Spec } from "@/actions/specs";
 import type { PullRequest, Issue } from "@/types/reports";
+import type { Branch } from "@/lib/vcs-providers";
 
 // Mock data for stories
 const mockSpecs: Spec[] = [
@@ -30,20 +31,25 @@ const mockPR: PullRequest = {
   comments_count: 5,
   priority: "high",
   status: "ready",
+  headBranch: "feat/wizard",
+  headSha: "abc1234",
 };
 
-const mockPlatformPRs: PRsBySpec = {
-  bySpec: {},
-  noSpec: [
-    {
-      ...mockPR,
-      id: 2,
-      number: 43,
-      title: "chore: Update dependencies",
-      priority: "low",
-      status: "draft",
-    },
-  ],
+const mockPlatformPR: PullRequest = {
+  id: 2,
+  title: "chore: Update dependencies",
+  number: 43,
+  author: "ncrmro",
+  author_avatar: "https://github.com/ncrmro.png",
+  repository: "ncrmro/catalyst",
+  url: "https://github.com/ncrmro/catalyst/pull/43",
+  created_at: "2024-01-11T00:00:00Z",
+  updated_at: "2024-01-16T00:00:00Z",
+  comments_count: 1,
+  priority: "low",
+  status: "draft",
+  headBranch: "chore/update-deps",
+  headSha: "def5678",
 };
 
 const mockIssue: Issue = {
@@ -61,33 +67,28 @@ const mockIssue: Issue = {
   state: "open",
 };
 
-const mockIssues: Issue[] = [
-  mockIssue,
-  {
-    ...mockIssue,
-    id: 2,
-    number: 101,
-    title: "feat(009-projects): Add project templates",
-    type: "feature",
-    labels: ["enhancement"],
-    priority: "medium",
-  },
-];
+const mockBranch: Branch = {
+  name: "feat/templates",
+  sha: "ghi9012",
+  protected: false,
+  lastCommitMessage: "feat(009-projects): Add project templates",
+  lastCommitAuthor: "ncrmro",
+  lastCommitDate: new Date("2024-01-14T00:00:00Z"),
+};
 
 // Helper to create dashboard promise
 const createDashboardPromise = (
   specs: Spec[],
   pullRequests: PullRequest[],
   issues: Issue[],
+  branches: Branch[] = [],
 ) =>
   Promise.resolve({
     specsResult: { specs },
     pullRequests,
     issues,
+    branches,
   });
-
-// All mock PRs flat list for dashboardPromise
-const allMockPRs = [mockPR, ...mockPlatformPRs.noSpec];
 
 const meta = {
   title: "Pages/Projects/ProjectPage",
@@ -112,7 +113,12 @@ export const Default: Story = {
       name: "Catalyst",
       fullName: "ncrmro/catalyst",
     },
-    dashboardPromise: createDashboardPromise(mockSpecs, allMockPRs, mockIssues),
+    dashboardPromise: createDashboardPromise(
+      mockSpecs, 
+      [mockPR, mockPlatformPR], 
+      [mockIssue],
+      [mockBranch]
+    ),
   },
 };
 
@@ -142,8 +148,10 @@ export const MezeProject: Story = {
           number: 15,
           title: "feat(002-recipe-import): Add recipe parser",
           repository: "ncrmro/meze",
+          headBranch: "feat/parser",
         },
       ],
+      [],
       [],
     ),
   },
@@ -160,6 +168,6 @@ export const NewProject: Story = {
       name: "New Project",
       fullName: "org/new-project",
     },
-    dashboardPromise: createDashboardPromise([], [], []),
+    dashboardPromise: createDashboardPromise([], [], [], []),
   },
 };

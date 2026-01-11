@@ -22,6 +22,7 @@ export {
   fetchPullRequestById,
   fetchCIStatus,
   fetchUserRepositoryPullRequests,
+  fetchRecentBranches,
   isGitHubTokenError,
   determinePRPriority,
   determinePRStatus,
@@ -36,6 +37,32 @@ export type {
   TokenGetter,
   TokenStatusChecker,
 } from "./client";
+export type {
+  EnrichedPullRequest,
+  EnrichedIssue,
+  EnrichedBranch,
+} from "./client";
+
+// Export auth utilities
+export {
+  exchangeRefreshToken,
+  exchangeAuthorizationCode,
+  generateAuthorizationUrl,
+} from "./auth";
+
+// Export token management
+export {
+  storeGitHubTokens,
+  getGitHubTokens,
+  deleteGitHubTokens,
+} from "./token-service";
+export type { GitHubTokens } from "./token-service";
+
+export {
+  refreshTokenIfNeeded,
+  invalidateTokens,
+  areTokensValid,
+} from "./token-refresh";
 
 // Export PR comment utilities
 export {
