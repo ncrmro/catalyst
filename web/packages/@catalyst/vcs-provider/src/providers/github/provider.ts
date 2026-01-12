@@ -91,6 +91,11 @@ export class GitHubProvider implements VCSProvider {
    */
   async checkConnection(client: AuthenticatedClient): Promise<ConnectionStatus> {
     try {
+      // Validate that client.raw is an Octokit instance for GitHub provider
+      if (!client.raw || typeof client.raw.rest !== 'object') {
+        throw new Error('Invalid authenticated client: expected Octokit instance');
+      }
+      
       // Use the authenticated client that was already created with refreshed tokens
       const octokit = client.raw as Octokit;
       const { data: user } = await octokit.rest.users.getAuthenticated();
