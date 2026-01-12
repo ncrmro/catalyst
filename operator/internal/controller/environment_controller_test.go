@@ -807,7 +807,9 @@ var _ = Describe("Environment Controller", func() {
 			// 6. Verify ServiceAccount patched
 			targetSA := &corev1.ServiceAccount{}
 			Eventually(func() bool {
-				k8sClient.Get(ctx, types.NamespacedName{Name: "default", Namespace: targetNsName}, targetSA)
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: "default", Namespace: targetNsName}, targetSA); err != nil {
+					return false
+				}
 				for _, s := range targetSA.ImagePullSecrets {
 					if s.Name == "registry-credentials" {
 						return true

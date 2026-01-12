@@ -123,7 +123,7 @@ func (r *EnvironmentReconciler) reconcileSingleBuild(ctx context.Context, env *c
 		if apierrors.IsNotFound(err) {
 			// Create Job
 			log.Info("Creating Build Job", "job", jobName, "image", imageTag)
-			job = desiredBuildJob(jobName, namespace, imageTag, sourceConfig.RepositoryURL, commitSha, branch, build, hasRegistrySecret)
+			job = desiredBuildJob(jobName, namespace, imageTag, sourceConfig.RepositoryURL, commitSha, build, hasRegistrySecret)
 			if err := r.Create(ctx, job); err != nil {
 				return "", err
 			}
@@ -176,7 +176,7 @@ func (r *EnvironmentReconciler) ensureGitSecret(ctx context.Context, sourceNs, t
 	return r.Create(ctx, newSecret)
 }
 
-func desiredBuildJob(name, namespace, destination, repoURL, commit, branch string, build catalystv1alpha1.BuildSpec, hasRegistrySecret bool) *batchv1.Job {
+func desiredBuildJob(name, namespace, destination, repoURL, commit string, build catalystv1alpha1.BuildSpec, hasRegistrySecret bool) *batchv1.Job {
 	backoff := int32(0)
 
 	// Volume mounts
