@@ -67,6 +67,10 @@ jobs:
             --from-literal=token=dummy-token \
             --namespace=default
 
+          # Get a valid SHA from main for testing
+          git fetch origin main
+          SHA=$(git rev-parse origin/main)
+
           # Create Valid CI Test Manifest
           # Uses the repo itself to deploy 'charts/example'
           cat <<EOF > operator/examples/ci-valid.yaml
@@ -100,7 +104,7 @@ jobs:
             sources:
               - name: catalyst
                 branch: main
-                commitSha: "latest"
+                commitSha: "$SHA"
           EOF
 
       - name: Run Validation
