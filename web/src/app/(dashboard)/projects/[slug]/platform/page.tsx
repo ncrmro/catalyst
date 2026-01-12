@@ -11,6 +11,8 @@ import {
 import { DetectionWrapper } from "./_components/detection-wrapper";
 import { DetectionLoading } from "./_components/detection-loading";
 import { RepositoriesCard, type Repo } from "./_components/repository-card";
+import { getProjectZeroConfigStatus } from "@/actions/zero-config-status";
+import { ZeroConfigBadge } from "@/components/projects/zero-config-badge";
 
 interface PlatformPageProps {
   params: Promise<{
@@ -104,6 +106,11 @@ export default async function PlatformPage({ params }: PlatformPageProps) {
   const domainLabel = isLocalDev ? "Local Path" : "Domain";
   const domainStatus = isLocalDev ? "Path-based" : "Auto-assigned";
 
+  // Get zero-config detection status
+  const zeroConfigStatus = primaryRepo
+    ? await getProjectZeroConfigStatus(project.id, primaryRepo.id)
+    : null;
+
   // Build config content for cards with Suspense boundaries
   const deploymentConfigContent = primaryRepo ? (
     <Suspense fallback={<DetectionLoading />}>
@@ -144,13 +151,29 @@ export default async function PlatformPage({ params }: PlatformPageProps) {
       {/* Platform Overview */}
       <GlassCard>
         <div className="mb-4">
-          <h2 className="text-lg font-semibold text-on-surface">
-            Platform Configuration
-          </h2>
-          <p className="text-sm text-on-surface-variant mt-1">
-            View and manage deployment environments. Select an environment below
-            to configure its deployment method and settings.
-          </p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-on-surface">
+                Platform Configuration
+              </h2>
+              <p className="text-sm text-on-surface-variant mt-1">
+                View and manage deployment environments. Select an environment
+                below to configure its deployment method and settings.
+              </p>
+            </div>
+            {/* Zero-Config Status Badge */}
+            {zeroConfigStatus && (
+              <div className="flex-shrink-0">
+                <ZeroConfigBadge
+                  config={
+                    zeroConfigStatus.deployment.config ||
+                    zeroConfigStatus.development.config
+                  }
+                  variant="inline"
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Quick Stats */}
