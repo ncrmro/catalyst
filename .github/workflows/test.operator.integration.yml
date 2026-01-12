@@ -1,3 +1,14 @@
+# To run these tests locally, execute:
+# ./bin/test-northstar-local
+#
+# This script replicates the steps performed in this workflow using `bin/k3s-vm` (QEMU/NixOS)
+# instead of Kind, to avoid issues with rootless Docker environments.
+# It handles:
+# - Resetting and starting the K3s VM
+# - Installing prerequisites (Registry, Cert Manager)
+# - Building and importing the Operator image
+# - Deploying the Operator and running validation
+
 name: Operator Integration Tests (North Star)
 
 on:

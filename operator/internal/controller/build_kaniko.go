@@ -25,6 +25,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -214,6 +215,22 @@ func desiredBuildJob(name, namespace, destination, repoURL, commit string, build
 	gitSyncDest := "source"
 	workdir := fmt.Sprintf("/workspace/%s%s", gitSyncDest, build.Path)
 
+	// Default Resources
+	resources := corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("100m"),
+			corev1.ResourceMemory: resource.MustParse("1Gi"),
+		},
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("1"),
+			corev1.ResourceMemory: resource.MustParse("4Gi"),
+		},
+	}
+
+	if build.Resources != nil {
+		resources = *build.Resources
+	}
+
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -244,32 +261,37 @@ func desiredBuildJob(name, namespace, destination, repoURL, commit string, build
 								{Name: "GIT_SYNC_PASSWORD_FILE", Value: "/etc/git-secret/token"},
 							},
 							VolumeMounts: []corev1.VolumeMount{workspaceVolume, gitSecretVolume},
+							Resources:    resources,
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser: ptr(int64(65533)),
 							},
 						},
-						// 2. Dockerfile Generator (Zero-Config)
-						{
-							Name:    "dockerfile-gen",
-							Image:   dockerfileGenImage,
-							Command: []string{"/bin/sh", "-c"},
-							Args: []string{
-								`cd ` + workdir + ` && ` +
-									`if [ ! -f Dockerfile ]; then 
-									echo "No Dockerfile found. Generating default Node.js Dockerfile..."
-									cat <<EOF > Dockerfile
-FROM node:18-alpine AS base
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
-CMD ["npm", "start"]
-EOF
-								fi`,
+						/*
+							// TODO: Revisit Zero-Config Dockerfile generation
+							// 2. Dockerfile Generator (Zero-Config)
+							{
+								Name:    "dockerfile-gen",
+								Image:   dockerfileGenImage,
+								Command: []string{"/bin/sh", "-c"},
+								Args: []string{
+									`cd ` + workdir + ` && ` +
+										`if [ ! -f Dockerfile ]; then
+										echo "No Dockerfile found. Generating default Node.js Dockerfile..."
+										cat <<EOF > Dockerfile
+							FROM node:18-alpine AS base
+							WORKDIR /app
+							COPY package*.json ./
+							RUN npm ci
+							COPY . .
+							RUN npm run build
+							CMD ["npm", "start"]
+							EOF
+									fi`,
+								},
+								Resources:    resources,
+								VolumeMounts: []corev1.VolumeMount{workspaceVolume},
 							},
-							VolumeMounts: []corev1.VolumeMount{workspaceVolume},
-						},
+						*/
 					},
 					Containers: []corev1.Container{
 						// 3. Kaniko Build
@@ -283,6 +305,7 @@ EOF
 								"--insecure", // Still needed for internal registry if not TLS
 								"--cache=true",
 							},
+							Resources:    resources,
 							VolumeMounts: kanikoVolumeMounts,
 						},
 					},

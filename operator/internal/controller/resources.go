@@ -21,10 +21,10 @@ func desiredResourceQuota(namespace string) *corev1.ResourceQuota {
 		},
 		Spec: corev1.ResourceQuotaSpec{
 			Hard: corev1.ResourceList{
-				corev1.ResourceRequestsCPU:    resource.MustParse("1"),
-				corev1.ResourceLimitsCPU:      resource.MustParse("2"),
-				corev1.ResourceRequestsMemory: resource.MustParse("1Gi"),
-				corev1.ResourceLimitsMemory:   resource.MustParse("2Gi"),
+				corev1.ResourceRequestsCPU:    resource.MustParse("2"),
+				corev1.ResourceLimitsCPU:      resource.MustParse("4"),
+				corev1.ResourceRequestsMemory: resource.MustParse("4Gi"),
+				corev1.ResourceLimitsMemory:   resource.MustParse("8Gi"),
 				corev1.ResourcePods:           resource.MustParse("20"),
 			},
 		},
