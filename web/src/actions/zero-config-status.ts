@@ -1,7 +1,7 @@
 "use server";
 
 import { db, projectEnvironments } from "@/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import type { EnvironmentConfig } from "@/types/environment-config";
 import { auth } from "@/auth";
 import { isZeroConfigProject } from "@/lib/zero-config";
@@ -35,27 +35,31 @@ export async function getProjectZeroConfigStatus(
     throw new Error("Unauthorized");
   }
 
+  // Build where conditions
+  const conditions = [eq(projectEnvironments.projectId, projectId)];
+  if (repoId) {
+    conditions.push(eq(projectEnvironments.repoId, repoId));
+  }
+
   // Query for both deployment and development environment configs
-  const query = db
+  const results = await db
     .select({
       environment: projectEnvironments.environment,
       config: projectEnvironments.config,
     })
     .from(projectEnvironments)
-    .where(eq(projectEnvironments.projectId, projectId));
-
-  // Add repo filter if provided
-  const results = repoId
-    ? await query.where(eq(projectEnvironments.repoId, repoId))
-    : await query;
+    .where(and(...conditions));
 
   // Find production/deployment config (check for "production" or "staging")
   const deploymentConfig = results.find(
-    (r) => r.environment === "production" || r.environment === "staging",
+    (r: { environment: string }) =>
+      r.environment === "production" || r.environment === "staging",
   );
 
   // Find development config
-  const developmentConfig = results.find((r) => r.environment === "development");
+  const developmentConfig = results.find(
+    (r: { environment: string }) => r.environment === "development",
+  );
 
   const deploymentZeroConfig = isZeroConfigProject(deploymentConfig?.config);
   const developmentZeroConfig = isZeroConfigProject(developmentConfig?.config);
