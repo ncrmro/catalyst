@@ -312,6 +312,55 @@ describe("VCSProviderSingleton", () => {
 
       expect(onAuthError).toHaveBeenCalledWith("user-refresh-fail", "github");
     });
+
+    it("should refresh tokens when checkConnection is called with expired token", async () => {
+      const expiredTokens: TokenData = {
+        accessToken: "expired_token",
+        refreshToken: "refresh_token",
+        expiresAt: new Date(Date.now() - 1000),
+        scope: "repo",
+      };
+
+      const newTokens: TokenData = {
+        accessToken: "new_token",
+        refreshToken: "new_refresh_token",
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        scope: "repo",
+      };
+
+      const getTokenData = vi.fn().mockResolvedValue(expiredTokens);
+      const refreshToken = vi.fn().mockResolvedValue(newTokens);
+      const storeTokenData = vi.fn();
+
+      const mockProvider = createMockProvider();
+      mockProvider.checkConnection = vi.fn().mockResolvedValue({
+        connected: true,
+        username: "testuser",
+      });
+
+      initializeSingleton({
+        providers: [mockProvider],
+        getTokenData,
+        refreshToken,
+        storeTokenData,
+      });
+
+      const vcs = VCSProviderSingleton.getInstance();
+      const scopedVcs = vcs.getScoped("user-123", "github");
+
+      const result = await scopedVcs.checkConnection();
+
+      // Verify token was refreshed
+      expect(refreshToken).toHaveBeenCalledWith("refresh_token", "github");
+      expect(storeTokenData).toHaveBeenCalledWith("user-123", newTokens, "github");
+      
+      // Verify checkConnection was called with the authenticated client
+      expect(mockProvider.checkConnection).toHaveBeenCalled();
+      
+      // Verify connection result
+      expect(result.connected).toBe(true);
+      expect(result.username).toBe("testuser");
+    });
   });
 
   describe("Namespaced Operations", () => {
