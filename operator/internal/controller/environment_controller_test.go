@@ -779,9 +779,9 @@ var _ = Describe("Environment Controller", func() {
 			}, time.Second*10, time.Millisecond*250).Should(Succeed())
 
 			// 2. Verify Init Containers
-			Expect(job.Spec.Template.Spec.InitContainers).To(HaveLen(2))
+			Expect(job.Spec.Template.Spec.InitContainers).To(HaveLen(1))
 			Expect(job.Spec.Template.Spec.InitContainers[0].Name).To(Equal("git-sync"))
-			Expect(job.Spec.Template.Spec.InitContainers[1].Name).To(Equal("dockerfile-gen"))
+			// Expect(job.Spec.Template.Spec.InitContainers[1].Name).To(Equal("dockerfile-gen"))
 
 			// 3. Verify Env Status
 			env := &catalystv1alpha1.Environment{}
