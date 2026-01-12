@@ -107,3 +107,22 @@ jobs:
         run: |
           kubectl apply -f operator/examples/ci-valid.yaml
           ./bin/validate-envs ci-env
+
+      - name: Debug on Failure
+        if: failure()
+        run: |
+          echo "=== All Resources ==="
+          kubectl get all -A
+          
+          echo "=== Events ==="
+          kubectl get events -A --sort-by=.metadata.creationTimestamp
+          
+          echo "=== Operator Logs ==="
+          kubectl logs -n catalyst-system -l control-plane=controller-manager --tail=-1
+          
+          echo "=== Environment Logs ==="
+          # Dump logs from any pod in the default namespace (where envs are created)
+          kubectl logs -n default --all-containers=true --tail=-1 --prefix=true || true
+          
+          echo "=== Describe Pods ==="
+          kubectl describe pods -A
