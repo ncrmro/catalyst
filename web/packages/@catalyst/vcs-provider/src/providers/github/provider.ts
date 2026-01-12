@@ -86,14 +86,13 @@ export class GitHubProvider implements VCSProvider {
    * Check the connection status for a user
    *
    * NOTE: Token refresh is handled by VCSProviderSingleton.getValidToken()
-   * which is called by getUserOctokit(). This method simply tries to
-   * authenticate and returns the connection status.
+   * which is called before this method. This method uses the authenticated
+   * client that was created with refreshed tokens.
    */
-  async checkConnection(userId: string): Promise<ConnectionStatus> {
+  async checkConnection(client: AuthenticatedClient): Promise<ConnectionStatus> {
     try {
-      // Try to get an authenticated client
-      // getUserOctokit will use the singleton's token management if available
-      const octokit = await getUserOctokit(userId);
+      // Use the authenticated client that was already created with refreshed tokens
+      const octokit = client.raw as Octokit;
       const { data: user } = await octokit.rest.users.getAuthenticated();
 
       return {
@@ -103,27 +102,6 @@ export class GitHubProvider implements VCSProvider {
         authMethod: "oauth", // Default to oauth, could be enhanced to detect app vs oauth
       };
     } catch (error) {
-      // Check for PAT fallback if user token fails
-      const isPATAllowed =
-        process.env.NODE_ENV !== "production" ||
-        GITHUB_CONFIG.ALLOW_PAT_FALLBACK;
-
-      if (isPATAllowed && GITHUB_CONFIG.PAT) {
-        try {
-          const patOctokit = new Octokit({ auth: GITHUB_CONFIG.PAT });
-          const { data: user } = await patOctokit.rest.users.getAuthenticated();
-
-          return {
-            connected: true,
-            username: user.login,
-            avatarUrl: user.avatar_url,
-            authMethod: "pat",
-          };
-        } catch {
-          // PAT also failed, return original error
-        }
-      }
-
       return {
         connected: false,
         error: error instanceof Error ? error.message : "Unknown error",

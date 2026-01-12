@@ -206,7 +206,7 @@ export interface VCSProvider {
 
   // Authentication
   authenticate(userId: string): Promise<AuthenticatedClient>;
-  checkConnection(userId: string): Promise<ConnectionStatus>;
+  checkConnection(client: AuthenticatedClient): Promise<ConnectionStatus>;
   listUserOrganizations(
     client: AuthenticatedClient,
   ): Promise<Array<{ login: string; id: string; avatarUrl: string }>>;
