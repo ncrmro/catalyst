@@ -33,9 +33,7 @@ jobs:
           kubectl wait --for=condition=ready pod/registry --timeout=120s
           
           # Verify connectivity using internal DNS
-          kubectl run curl --image=curlimages/curl --restart=Never -- curl -v http://registry.default.svc.cluster.local:5000/v2/
-          kubectl wait --for=condition=ready pod/curl --timeout=60s
-          kubectl logs curl
+          kubectl run curl --rm -i --image=curlimages/curl --restart=Never -- curl -v http://registry.default.svc.cluster.local:5000/v2/
 
       - name: Install Cert Manager
         run: |
