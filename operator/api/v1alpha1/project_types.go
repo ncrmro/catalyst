@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -91,6 +92,10 @@ type BuildSpec struct {
 	// If empty, auto-detection or default "Dockerfile" is assumed.
 	// +optional
 	Dockerfile string `json:"dockerfile,omitempty"`
+
+	// Resources allows customizing the build job resources (requests/limits)
+	// +optional
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 type ResourceConfig struct {

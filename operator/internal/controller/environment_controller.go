@@ -88,6 +88,9 @@ func sanitizeLabelValue(s string) string {
 // +kubebuilder:rbac:groups="",resources=resourcequotas,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 
 //nolint:gocyclo
 func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -186,6 +189,16 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	policy := desiredNetworkPolicy(targetNamespace)
 	if err := r.Create(ctx, policy); err != nil && !apierrors.IsAlreadyExists(err) {
+		return ctrl.Result{}, err
+	}
+
+	// 2b. Manage Registry Credentials
+	if err := r.ensureRegistryCredentials(ctx, project.Namespace, targetNamespace); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("Waiting for resources (Secret/SA) for registry credentials")
+			return ctrl.Result{RequeueAfter: time.Second}, nil
+		}
+		log.Error(err, "Failed to ensure registry credentials")
 		return ctrl.Result{}, err
 	}
 

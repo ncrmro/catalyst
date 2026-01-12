@@ -211,7 +211,7 @@ func TestGetImageForDeployment_FallbackToClusterRegistry(t *testing.T) {
 
 	image := getImageForDeployment(env)
 	// Should use cluster registry with commit SHA
-	assert.Equal(t, "registry.cluster.local:5000/catalyst:abc1234", image)
+	assert.Equal(t, "registry.default.svc.cluster.local:5000/catalyst:abc1234", image)
 }
 
 func TestGetImageForDeployment_CustomImage(t *testing.T) {

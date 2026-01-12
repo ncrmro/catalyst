@@ -656,6 +656,20 @@ var _ = Describe("Environment Controller", func() {
 			_ = k8sClient.Delete(ctx, gitSecret)
 			Expect(k8sClient.Create(ctx, gitSecret)).To(Succeed())
 
+			By("Creating the Registry Secret")
+			registrySecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "registry-credentials",
+					Namespace: namespace,
+				},
+				Data: map[string][]byte{
+					".dockerconfigjson": []byte("{}"),
+				},
+				Type: corev1.SecretTypeDockerConfigJson,
+			}
+			_ = k8sClient.Delete(ctx, registrySecret)
+			Expect(k8sClient.Create(ctx, registrySecret)).To(Succeed())
+
 			By("Creating the Project CR with Builds")
 			project := &catalystv1alpha1.Project{
 				ObjectMeta: metav1.ObjectMeta{
@@ -765,9 +779,9 @@ var _ = Describe("Environment Controller", func() {
 			}, time.Second*10, time.Millisecond*250).Should(Succeed())
 
 			// 2. Verify Init Containers
-			Expect(job.Spec.Template.Spec.InitContainers).To(HaveLen(2))
+			Expect(job.Spec.Template.Spec.InitContainers).To(HaveLen(1))
 			Expect(job.Spec.Template.Spec.InitContainers[0].Name).To(Equal("git-sync"))
-			Expect(job.Spec.Template.Spec.InitContainers[1].Name).To(Equal("dockerfile-gen"))
+			// Expect(job.Spec.Template.Spec.InitContainers[1].Name).To(Equal("dockerfile-gen"))
 
 			// 3. Verify Env Status
 			env := &catalystv1alpha1.Environment{}
@@ -783,6 +797,26 @@ var _ = Describe("Environment Controller", func() {
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
+
+			// 5. Verify Registry Secret copied
+			targetRegSecret := &corev1.Secret{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: "registry-credentials", Namespace: targetNsName}, targetRegSecret)
+			}, time.Second*10, time.Millisecond*250).Should(Succeed())
+
+			// 6. Verify ServiceAccount patched
+			targetSA := &corev1.ServiceAccount{}
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: "default", Namespace: targetNsName}, targetSA); err != nil {
+					return false
+				}
+				for _, s := range targetSA.ImagePullSecrets {
+					if s.Name == "registry-credentials" {
+						return true
+					}
+				}
+				return false
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 		})
 	})
 
