@@ -52,13 +52,12 @@ export async function getProjectZeroConfigStatus(
 
   // Find production/deployment config (check for "production" or "staging")
   const deploymentConfig = results.find(
-    (r: { environment: string }) =>
-      r.environment === "production" || r.environment === "staging",
+    (r) => r.environment === "production" || r.environment === "staging",
   );
 
   // Find development config
   const developmentConfig = results.find(
-    (r: { environment: string }) => r.environment === "development",
+    (r) => r.environment === "development",
   );
 
   const deploymentZeroConfig = isZeroConfigProject(deploymentConfig?.config);

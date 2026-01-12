@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { ZeroConfigBadge } from "./zero-config-badge";
 import type { EnvironmentConfig } from "@/types/environment-config";
 

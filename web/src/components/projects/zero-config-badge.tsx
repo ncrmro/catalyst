@@ -86,10 +86,7 @@ export function ZeroConfigBadge({
         >
           {status.isZeroConfig ? (
             <svg
-              className={cn(
-                "w-4 h-4",
-                status.isZeroConfig ? "text-success" : "text-warning",
-              )}
+              className="w-4 h-4 text-success"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
