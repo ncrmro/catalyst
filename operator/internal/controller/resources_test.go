@@ -14,10 +14,10 @@ func TestDesiredResourceQuota(t *testing.T) {
 	assert.Equal(t, "test-ns", quota.Namespace)
 
 	cpu := quota.Spec.Hard[corev1.ResourceLimitsCPU]
-	assert.Equal(t, "2", cpu.String())
+	assert.Equal(t, "4", cpu.String())
 
 	mem := quota.Spec.Hard[corev1.ResourceLimitsMemory]
-	assert.Equal(t, "2Gi", mem.String())
+	assert.Equal(t, "8Gi", mem.String())
 }
 
 func TestDesiredNetworkPolicy(t *testing.T) {
