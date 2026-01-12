@@ -170,14 +170,15 @@ func (r *EnvironmentReconciler) desiredComposeDeployment(namespace, name, image 
 
 	// Convert environment yaml.Node to K8s EnvVars
 	envVars := []corev1.EnvVar{}
-	if service.Environment.Kind == yaml.MappingNode {
+	switch service.Environment.Kind {
+	case yaml.MappingNode:
 		// Map format: key: value
 		for i := 0; i < len(service.Environment.Content); i += 2 {
 			k := service.Environment.Content[i].Value
 			v := service.Environment.Content[i+1].Value
 			envVars = append(envVars, corev1.EnvVar{Name: k, Value: v})
 		}
-	} else if service.Environment.Kind == yaml.SequenceNode {
+	case yaml.SequenceNode:
 		// List format: - KEY=value
 		log := logf.Log.WithName("compose-deploy")
 		for _, item := range service.Environment.Content {
