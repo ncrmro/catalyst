@@ -15,26 +15,32 @@ command -v kubectl >/dev/null 2>&1 || { echo >&2 "kubectl is required but not in
 
 CURRENT_CONTEXT=$(kubectl config current-context)
 echo "Current Kubernetes Context: $CURRENT_CONTEXT"
-read -p "Are you sure you want to run validation against this cluster? (y/n) " -n 1 -r
-echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]
-then
-    echo "Aborting."
-    exit 1
+
+# Skip confirmation in CI
+if [ "$CI" != "true" ]; then
+    read -p "Are you sure you want to run validation against this cluster? (y/n) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]
+    then
+        echo "Aborting."
+        exit 1
+    fi
 fi
 
-# 2. Deploy Operator
-echo -e "${GREEN}--> Deploying Operator...${NC}"
-cd operator
-# Ensure we are building the latest image if needed, or just applying manifests
-# Assuming make deploy works (requires controller-gen, kustomize)
-make deploy
-cd ..
+# 2. Deploy Operator (Skip if environments are specified, assuming pre-deployed)
+ENV_NAMES=("$@")
+if [ ${#ENV_NAMES[@]} -eq 0 ]; then
+    echo -e "${GREEN}--> Deploying Operator...${NC}"
+    cd operator
+    make deploy
+    cd ..
 
-# 3. Apply Examples
-echo -e "${GREEN}--> Applying Zero-Config Examples...${NC}"
-kubectl apply -f operator/examples/zero-config.nextjs-libsql.yaml
-kubectl apply -f operator/examples/zero-config.rails-postgres.yaml
+    echo -e "${GREEN}--> Applying Zero-Config Examples...${NC}"
+    kubectl apply -f operator/examples/zero-config.nextjs-libsql.yaml
+    kubectl apply -f operator/examples/zero-config.rails-postgres.yaml
+    
+    ENV_NAMES=("nextjs-pr-123" "rails-pr-456")
+fi
 
 # 4. Wait for Readiness
 echo -e "${GREEN}--> Waiting for Environments to become Ready...${NC}"
@@ -71,12 +77,6 @@ wait_for_env() {
 }
 
 # Wait for environments
-ENV_NAMES=("$@")
-if [ ${#ENV_NAMES[@]} -eq 0 ]; then
-    echo "No environments specified, validating default examples..."
-    ENV_NAMES=("nextjs-pr-123" "rails-pr-456")
-fi
-
 for env in "${ENV_NAMES[@]}"; do
     wait_for_env "$env" || exit 1
 done
