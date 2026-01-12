@@ -7,6 +7,12 @@ import { auth } from "@/auth";
 import { isZeroConfigProject } from "@/lib/zero-config";
 
 /**
+ * Environment names for deployment environments
+ */
+const DEPLOYMENT_ENVIRONMENTS = ["production", "staging"] as const;
+const DEVELOPMENT_ENVIRONMENT = "development" as const;
+
+/**
  * Get the zero-config status for a project.
  *
  * Checks both deployment and development environment configurations
@@ -51,13 +57,15 @@ export async function getProjectZeroConfigStatus(
     .where(and(...conditions));
 
   // Find production/deployment config (check for "production" or "staging")
-  const deploymentConfig = results.find(
-    (r) => r.environment === "production" || r.environment === "staging",
+  const deploymentConfig = results.find((r) =>
+    DEPLOYMENT_ENVIRONMENTS.includes(
+      r.environment as (typeof DEPLOYMENT_ENVIRONMENTS)[number],
+    ),
   );
 
   // Find development config
   const developmentConfig = results.find(
-    (r) => r.environment === "development",
+    (r) => r.environment === DEVELOPMENT_ENVIRONMENT,
   );
 
   const deploymentZeroConfig = isZeroConfigProject(deploymentConfig?.config);

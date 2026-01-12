@@ -166,6 +166,8 @@ export default async function PlatformPage({ params }: PlatformPageProps) {
               <div className="flex-shrink-0">
                 <ZeroConfigBadge
                   config={
+                    // Prefer deployment config (production/staging) for display,
+                    // fall back to development config if deployment not available
                     zeroConfigStatus.deployment.config ||
                     zeroConfigStatus.development.config
                   }
