@@ -78,10 +78,7 @@ func (r *EnvironmentReconciler) ensureRegistryCredentials(ctx context.Context, s
 	// 2. Patch ServiceAccount
 	sa := &corev1.ServiceAccount{}
 	if err := r.Get(ctx, client.ObjectKey{Name: "default", Namespace: targetNs}, sa); err != nil {
-		if apierrors.IsNotFound(err) {
-			// SA might not exist yet if Namespace was just created
-			return err
-		}
+		// SA might not exist yet if Namespace was just created
 		return err
 	}
 
