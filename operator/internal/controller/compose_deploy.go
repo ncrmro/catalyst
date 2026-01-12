@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
@@ -41,17 +42,15 @@ type DockerCompose struct {
 }
 
 type ComposeService struct {
-	Image       string      `yaml:"image"`
-	Build       yaml.Node   `yaml:"build"` // Using yaml.Node to handle string or struct
-	Ports       []string    `yaml:"ports"`
-	Environment yaml.Node   `yaml:"environment"` // Using yaml.Node to handle list or map
-	Command     interface{} `yaml:"command"`     // Using interface to handle string or list
+	Image       string    `yaml:"image"`
+	Build       yaml.Node `yaml:"build"` // Using yaml.Node to handle string or struct
+	Ports       []string  `yaml:"ports"`
+	Environment yaml.Node `yaml:"environment"` // Using yaml.Node to handle list or map
+	Command     yaml.Node `yaml:"command"`     // Using yaml.Node to handle string or list safely
 }
 
 // ReconcileComposeMode handles the reconciliation for Docker Compose deployment mode.
 func (r *EnvironmentReconciler) ReconcileComposeMode(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, template *catalystv1alpha1.EnvironmentTemplate) (bool, error) {
-	log := logf.FromContext(ctx)
-
 	// 1. Prepare Source
 	sourcePath, cleanup, err := r.prepareSource(ctx, env, project, template)
 	if cleanup != nil {
@@ -136,8 +135,7 @@ func (r *EnvironmentReconciler) ReconcileComposeMode(ctx context.Context, env *c
 		}
 
 		if image == "" && service.Build.IsZero() {
-			log.Error(nil, "Service has no image or build directive", "service", name)
-			continue
+			return false, fmt.Errorf("service %s has no image or build directive", name)
 		}
 
 		// Create Deployment
@@ -172,12 +170,25 @@ func (r *EnvironmentReconciler) desiredComposeDeployment(namespace, name, image 
 
 	// Convert environment yaml.Node to K8s EnvVars
 	envVars := []corev1.EnvVar{}
-	// Simplified: only supporting mapping for now
 	if service.Environment.Kind == yaml.MappingNode {
+		// Map format: key: value
 		for i := 0; i < len(service.Environment.Content); i += 2 {
 			k := service.Environment.Content[i].Value
 			v := service.Environment.Content[i+1].Value
 			envVars = append(envVars, corev1.EnvVar{Name: k, Value: v})
+		}
+	} else if service.Environment.Kind == yaml.SequenceNode {
+		// List format: - KEY=value
+		log := logf.Log.WithName("compose-deploy")
+		for _, item := range service.Environment.Content {
+			if item.Kind == yaml.ScalarNode && item.Value != "" {
+				parts := splitEnvVar(item.Value)
+				if len(parts) == 2 {
+					envVars = append(envVars, corev1.EnvVar{Name: parts[0], Value: parts[1]})
+				} else {
+					log.Info("Skipping malformed environment variable", "service", name, "value", item.Value)
+				}
+			}
 		}
 	}
 
@@ -219,21 +230,26 @@ func (r *EnvironmentReconciler) desiredComposeDeployment(namespace, name, image 
 func (r *EnvironmentReconciler) desiredComposeService(namespace, name string, service ComposeService) *corev1.Service {
 	ports := []corev1.ServicePort{}
 	for _, p := range service.Ports {
-		// Simplified port parsing: "80:80" or "80"
-		var port int
-		if _, err := fmt.Sscanf(p, "%d:%d", &port, &port); err != nil { // Naive
-			if _, err := fmt.Sscanf(p, "%d", &port); err != nil {
-				// Failed to parse port, skip
-				continue
-			}
-		}
-		if port != 0 {
+		// Parse port: "80", "8080:80", or "127.0.0.1:8080:80"
+		var hostPort, containerPort int
+
+		// Try to parse "hostPort:containerPort" format (error ignored as we check count)
+		if n, _ := fmt.Sscanf(p, "%d:%d", &hostPort, &containerPort); n == 2 {
+			// Use the container port when both host and container ports are specified
 			ports = append(ports, corev1.ServicePort{
-				Name:       fmt.Sprintf("port-%d", port),
-				Port:       int32(port),
-				TargetPort: intstr.FromInt(port),
+				Name:       fmt.Sprintf("port-%d", containerPort),
+				Port:       int32(containerPort),
+				TargetPort: intstr.FromInt(containerPort),
+			})
+		} else if _, err := fmt.Sscanf(p, "%d", &containerPort); err == nil {
+			// Single port specification like "80"
+			ports = append(ports, corev1.ServicePort{
+				Name:       fmt.Sprintf("port-%d", containerPort),
+				Port:       int32(containerPort),
+				TargetPort: intstr.FromInt(containerPort),
 			})
 		}
+		// Skip if port cannot be parsed
 	}
 
 	return &corev1.Service{
@@ -251,6 +267,7 @@ func (r *EnvironmentReconciler) desiredComposeService(namespace, name string, se
 func (r *EnvironmentReconciler) patchOrUpdate(ctx context.Context, obj client.Object) error {
 	// Simple create or update logic
 	existing := obj.DeepCopyObject().(client.Object)
+
 	err := r.Get(ctx, client.ObjectKey{Name: obj.GetName(), Namespace: obj.GetNamespace()}, existing)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -259,7 +276,26 @@ func (r *EnvironmentReconciler) patchOrUpdate(ctx context.Context, obj client.Ob
 		return err
 	}
 
-	// Update (ignoring resource version for now, naive)
+	// Update: preserve important metadata from the existing object
 	obj.SetResourceVersion(existing.GetResourceVersion())
+	obj.SetUID(existing.GetUID())
+	obj.SetGeneration(existing.GetGeneration())
+	obj.SetManagedFields(existing.GetManagedFields())
 	return r.Update(ctx, obj)
+}
+
+// splitEnvVar parses an environment variable string in docker-compose list format.
+// It expects the format "KEY=value" and returns a slice containing [KEY, value].
+// If the input does not contain an '=' separator, it returns nil.
+// This is used to parse docker-compose environment variables specified as a list:
+//
+//	environment:
+//	  - NODE_ENV=production
+//	  - PORT=3000
+func splitEnvVar(s string) []string {
+	parts := strings.SplitN(s, "=", 2)
+	if len(parts) == 2 {
+		return parts
+	}
+	return nil
 }
