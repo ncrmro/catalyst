@@ -167,7 +167,6 @@ func (r *EnvironmentReconciler) ReconcileComposeMode(ctx context.Context, env *c
 
 func (r *EnvironmentReconciler) desiredComposeDeployment(namespace, name, image string, service ComposeService, env *catalystv1alpha1.Environment) *appsv1.Deployment {
 	replicas := int32(1)
-	log := logf.Log.WithName("compose-deploy")
 
 	// Convert environment yaml.Node to K8s EnvVars
 	envVars := []corev1.EnvVar{}
@@ -180,6 +179,7 @@ func (r *EnvironmentReconciler) desiredComposeDeployment(namespace, name, image 
 		}
 	} else if service.Environment.Kind == yaml.SequenceNode {
 		// List format: - KEY=value
+		log := logf.Log.WithName("compose-deploy")
 		for _, item := range service.Environment.Content {
 			if item.Kind == yaml.ScalarNode && item.Value != "" {
 				parts := splitEnvVar(item.Value)
@@ -233,7 +233,7 @@ func (r *EnvironmentReconciler) desiredComposeService(namespace, name string, se
 		// Parse port: "80", "8080:80", or "127.0.0.1:8080:80"
 		var hostPort, containerPort int
 
-		// Try to parse "hostPort:containerPort" format
+		// Try to parse "hostPort:containerPort" format (error ignored as we check count)
 		if n, _ := fmt.Sscanf(p, "%d:%d", &hostPort, &containerPort); n == 2 {
 			// Use the container port when both host and container ports are specified
 			ports = append(ports, corev1.ServicePort{
@@ -266,11 +266,7 @@ func (r *EnvironmentReconciler) desiredComposeService(namespace, name string, se
 
 func (r *EnvironmentReconciler) patchOrUpdate(ctx context.Context, obj client.Object) error {
 	// Simple create or update logic
-	existingRuntimeObj := obj.DeepCopyObject()
-	existing, ok := existingRuntimeObj.(client.Object)
-	if !ok {
-		return fmt.Errorf("DeepCopyObject returned type %T, which does not implement client.Object", existingRuntimeObj)
-	}
+	existing := obj.DeepCopyObject().(client.Object)
 
 	err := r.Get(ctx, client.ObjectKey{Name: obj.GetName(), Namespace: obj.GetNamespace()}, existing)
 	if err != nil {
