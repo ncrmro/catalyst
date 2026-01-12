@@ -30,6 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	catalystv1alpha1 "github.com/ncrmro/catalyst/operator/api/v1alpha1"
 )
@@ -166,6 +167,7 @@ func (r *EnvironmentReconciler) ReconcileComposeMode(ctx context.Context, env *c
 
 func (r *EnvironmentReconciler) desiredComposeDeployment(namespace, name, image string, service ComposeService, env *catalystv1alpha1.Environment) *appsv1.Deployment {
 	replicas := int32(1)
+	log := logf.Log.WithName("compose-deploy")
 
 	// Convert environment yaml.Node to K8s EnvVars
 	envVars := []corev1.EnvVar{}
@@ -183,6 +185,8 @@ func (r *EnvironmentReconciler) desiredComposeDeployment(namespace, name, image 
 				parts := splitEnvVar(item.Value)
 				if len(parts) == 2 {
 					envVars = append(envVars, corev1.EnvVar{Name: parts[0], Value: parts[1]})
+				} else {
+					log.Info("Skipping malformed environment variable", "service", name, "value", item.Value)
 				}
 			}
 		}
@@ -284,8 +288,14 @@ func (r *EnvironmentReconciler) patchOrUpdate(ctx context.Context, obj client.Ob
 	return r.Update(ctx, obj)
 }
 
-// splitEnvVar splits an environment variable string in the format "KEY=value" into [KEY, value].
-// Returns a slice with 2 elements if successful, or nil/shorter slice if the format is invalid.
+// splitEnvVar parses an environment variable string in docker-compose list format.
+// It expects the format "KEY=value" and returns a slice containing [KEY, value].
+// If the input does not contain an '=' separator, it returns nil.
+// This is used to parse docker-compose environment variables specified as a list:
+//
+//	environment:
+//	  - NODE_ENV=production
+//	  - PORT=3000
 func splitEnvVar(s string) []string {
 	parts := strings.SplitN(s, "=", 2)
 	if len(parts) == 2 {
