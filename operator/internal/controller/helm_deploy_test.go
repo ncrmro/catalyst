@@ -394,4 +394,3 @@ var _ = Describe("splitImageRef", func() {
 		Expect(tag).To(Equal("sha-abc123def456"))
 	})
 })
-

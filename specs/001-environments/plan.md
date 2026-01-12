@@ -435,12 +435,11 @@ The web application uses a declarative operator-based workflow:
 - Cleanup on CR deletion (finalizer pattern)
 
 See [Operator Specification](../../operator/spec.md) for implementation details.
-=======
+
 1. **Docker Compose Support (FR-ENV-012)**: Allow `type: docker-compose` in templates.
 2. **Prebuilt Image Overrides (FR-ENV-013)**: Allow templates to define a base image with tag/SHA provided by the Environment CR.
 3. **User-Managed Helm (FR-ENV-014)**: Support "passthrough" mode for custom Helm charts.
 4. **Nix Flake Support (FR-ENV-015)**: Support Nix devShells and builds.
->>>>>>> 370aa82 (docs: add container registry integration specs (GHCR + Self-Hosted))
 
 ---
 
