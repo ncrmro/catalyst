@@ -28,7 +28,6 @@ processes:
     command: |
       until [ -f kubeconfig.yaml ]; do sleep 1; done
       export KUBECONFIG=$(pwd)/kubeconfig.yaml
-      export SEED_SELF_DEPLOY=true
       nix develop .. --command make -C ../operator run
     depends_on:
       infra:
