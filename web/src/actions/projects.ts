@@ -149,7 +149,17 @@ export async function fetchProjectPullRequests(
     }
 
     const scopedVcs = vcs.getScoped(userId);
-    const prPromises = project.repositories.map(async (relation) => {
+
+    // Deduplicate repositories to avoid duplicate API calls
+    const uniqueRepos = new Set<string>();
+    const uniqueRepositories = project.repositories.filter((relation) => {
+      const fullName = relation.repo.fullName;
+      if (uniqueRepos.has(fullName)) return false;
+      uniqueRepos.add(fullName);
+      return true;
+    });
+
+    const prPromises = uniqueRepositories.map(async (relation) => {
       try {
         const [owner, repoName] = relation.repo.fullName.split("/");
         if (!owner || !repoName) return [];
@@ -185,7 +195,15 @@ export async function fetchProjectPullRequests(
     });
 
     const prResults = await Promise.all(prPromises);
-    const prs = prResults.flat();
+    const allPrs = prResults.flat();
+
+    // Deduplicate by ID
+    const uniquePrIds = new Set<number>();
+    const prs = allPrs.filter((pr) => {
+      if (uniquePrIds.has(pr.id)) return false;
+      uniquePrIds.add(pr.id);
+      return true;
+    });
 
     // Enrich PRs with preview environment data
     return enrichPullRequestsWithPreviewEnvs(prs);
@@ -270,7 +288,17 @@ export async function fetchProjectIssues(projectId: string): Promise<Issue[]> {
     }
 
     const scopedVcs = vcs.getScoped(userId);
-    const issuePromises = project.repositories.map(async (relation) => {
+
+    // Deduplicate repositories to avoid duplicate API calls
+    const uniqueRepos = new Set<string>();
+    const uniqueRepositories = project.repositories.filter((relation) => {
+      const fullName = relation.repo.fullName;
+      if (uniqueRepos.has(fullName)) return false;
+      uniqueRepos.add(fullName);
+      return true;
+    });
+
+    const issuePromises = uniqueRepositories.map(async (relation) => {
       try {
         const [owner, repoName] = relation.repo.fullName.split("/");
         if (!owner || !repoName) return [];
@@ -303,7 +331,15 @@ export async function fetchProjectIssues(projectId: string): Promise<Issue[]> {
     });
 
     const results = await Promise.all(issuePromises);
-    return results.flat();
+    const allIssues = results.flat();
+
+    // Deduplicate by ID
+    const uniqueIssueIds = new Set<number>();
+    return allIssues.filter((issue) => {
+      if (uniqueIssueIds.has(issue.id)) return false;
+      uniqueIssueIds.add(issue.id);
+      return true;
+    });
   } catch (error) {
     console.error("Error fetching project issues:", error);
     return [];
@@ -331,7 +367,16 @@ export async function fetchProjectBranches(
     const scopedVcs = vcs.getScoped(userId);
     const allBranches: Branch[] = [];
 
-    for (const relation of project.repositories) {
+    // Deduplicate repositories to avoid duplicate API calls
+    const uniqueRepos = new Set<string>();
+    const uniqueRepositories = project.repositories.filter((relation) => {
+      const fullName = relation.repo.fullName;
+      if (uniqueRepos.has(fullName)) return false;
+      uniqueRepos.add(fullName);
+      return true;
+    });
+
+    for (const relation of uniqueRepositories) {
       const [owner, repoName] = relation.repo.fullName.split("/");
       if (!owner || !repoName) continue;
 

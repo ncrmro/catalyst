@@ -27,18 +27,6 @@ export const users = pgTable("user", {
   admin: boolean("admin").notNull().default(false),
 });
 
-export const usersRelations = relations(users, ({ one, many }) => ({
-  accounts: many(accounts),
-  sessions: many(sessions),
-  authenticators: many(authenticators),
-  ownedTeams: many(teams, { relationName: "teamOwner" }),
-  teamMemberships: many(teamsMemberships),
-  githubToken: one(githubUserTokens, {
-    fields: [users.id],
-    references: [githubUserTokens.userId],
-  }),
-}));
-
 export const accounts = pgTable(
   "account",
   {
@@ -441,6 +429,18 @@ export const githubUserTokensRelations = relations(
     }),
   }),
 );
+
+export const usersRelations = relations(users, ({ one, many }) => ({
+  accounts: many(accounts),
+  sessions: many(sessions),
+  authenticators: many(authenticators),
+  ownedTeams: many(teams, { relationName: "teamOwner" }),
+  teamMemberships: many(teamsMemberships),
+  githubToken: one(githubUserTokens, {
+    fields: [users.id],
+    references: [githubUserTokens.userId],
+  }),
+}));
 
 /**
  * Pull Requests Table
