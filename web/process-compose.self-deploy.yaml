@@ -1,0 +1,38 @@
+version: "0.5"
+
+log_location: ./logs/process-compose.log
+log_level: info
+
+environment:
+  - "SEED_SELF_DEPLOY=true"
+
+processes:
+  infra:
+    command: "rm -f kubeconfig.yaml && ../bin/k3s-vm"
+    availability:
+      restart: "on_failure"
+      max_restarts: 3
+    log_location: ./logs/infra.log
+
+  web:
+    command: "PORT=${WEB_PORT:-3000} npm run dev"
+    depends_on:
+      infra:
+        condition: process_started
+    availability:
+      restart: "on_failure"
+      max_restarts: 3
+    log_location: ./logs/web.log
+
+  operator:
+    command: |
+      until [ -f kubeconfig.yaml ]; do sleep 1; done
+      export KUBECONFIG=$(pwd)/kubeconfig.yaml
+      SEED_SELF_DEPLOY=true nix develop .. --command make -C ../operator run
+    depends_on:
+      infra:
+        condition: process_started
+    availability:
+      restart: "on_failure"
+      max_restarts: 3
+    log_location: ./logs/operator.log

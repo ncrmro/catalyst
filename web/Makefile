@@ -73,14 +73,8 @@ up: postgres ## Start local dev environment (K3s VM, Next.js, Operator) with log
 	@npm run seed
 	@echo "Starting local development environment..."
 	@mkdir -p ./logs
-	@rm -f ./logs/infra.log ./logs/web.log ./logs/operator.log
-	npx concurrently \
-		--names "INFRA,WEB,OPERATOR" \
-		--prefix-colors "blue,magenta,cyan" \
-		--kill-others-on-fail \
-		"rm -f kubeconfig.yaml && ../bin/k3s-vm 2>&1 | tee ./logs/infra.log" \
-		"PORT=$${WEB_PORT:-3000} npm run dev 2>&1 | tee ./logs/web.log" \
-		"until [ -f kubeconfig.yaml ]; do sleep 1; done; export KUBECONFIG=$$(pwd)/kubeconfig.yaml; nix develop .. --command make -C ../operator run 2>&1 | tee ./logs/operator.log"
+	@rm -f ./logs/infra.log ./logs/web.log ./logs/operator.log ./logs/process-compose.log
+	process-compose -f process-compose.yaml
 
 up-self-deploy: postgres ## Start K3s VM with self-deployment mode (creates Environment CRs) with logs in ./logs
 	@echo "Installing Node.js dependencies..."
@@ -91,14 +85,8 @@ up-self-deploy: postgres ## Start K3s VM with self-deployment mode (creates Envi
 	@SEED_SELF_DEPLOY=true npm run seed
 	@echo "Starting local development environment..."
 	@mkdir -p ./logs
-	@rm -f ./logs/infra.log ./logs/web.log ./logs/operator.log
-	npx concurrently \
-		--names "INFRA,WEB,OPERATOR" \
-		--prefix-colors "blue,magenta,cyan" \
-		--kill-others-on-fail \
-		"rm -f kubeconfig.yaml && ../bin/k3s-vm 2>&1 | tee ./logs/infra.log" \
-		"PORT=$${WEB_PORT:-3000} npm run dev 2>&1 | tee ./logs/web.log" \
-		"until [ -f kubeconfig.yaml ]; do sleep 1; done; export KUBECONFIG=$$(pwd)/kubeconfig.yaml; SEED_SELF_DEPLOY=true nix develop .. --command make -C ../operator run 2>&1 | tee ./logs/operator.log"
+	@rm -f ./logs/infra.log ./logs/web.log ./logs/operator.log ./logs/process-compose.log
+	process-compose -f process-compose.self-deploy.yaml
 
 up-real: postgres ## Start the K3s VM (hybrid mode) and run local Next.js dev server with real GitHub integration
 	@echo "Starting K3s VM in Hybrid Mode..."

@@ -58,6 +58,9 @@
               # CLI Agents
               claude-code
               gemini-cli
+
+              # Process Orchestration
+              process-compose
             ];
 
             shellHook = ''
