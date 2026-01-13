@@ -112,11 +112,16 @@ async function ensureCatalystProject(teamId: string) {
     })
     .onConflictDoNothing();
 
-  // Get the repo
+  // Get the repo for this team
   const [catalystRepo] = await db
     .select()
     .from(repos)
-    .where(eq(repos.fullName, "ncrmro/catalyst"))
+    .where(
+      and(
+        eq(repos.fullName, "ncrmro/catalyst"),
+        eq(repos.teamId, teamId),
+      ),
+    )
     .limit(1);
 
   // Create project
@@ -142,6 +147,7 @@ async function ensureCatalystProject(teamId: string) {
       .values({
         projectId: project.id,
         repoId: catalystRepo.id,
+        repoFullName: catalystRepo.fullName,
         isPrimary: true,
       })
       .onConflictDoNothing();

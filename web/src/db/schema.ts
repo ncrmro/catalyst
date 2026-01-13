@@ -179,30 +179,36 @@ export const teamsMembershipsRelations = relations(
   }),
 );
 
-export const repos = pgTable("repo", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  githubId: integer("github_id").notNull().unique(),
-  name: text("name").notNull(),
-  fullName: text("full_name").notNull(),
-  description: text("description"),
-  url: text("url").notNull(),
-  isPrivate: boolean("is_private").notNull().default(false),
-  language: text("language"),
-  stargazersCount: integer("stargazers_count").notNull().default(0),
-  forksCount: integer("forks_count").notNull().default(0),
-  openIssuesCount: integer("open_issues_count").notNull().default(0),
-  ownerLogin: text("owner_login").notNull(),
-  ownerType: text("owner_type").notNull(), // 'User' | 'Organization'
-  ownerAvatarUrl: text("owner_avatar_url"),
-  teamId: text("team_id")
-    .notNull()
-    .references(() => teams.id, { onDelete: "cascade" }),
-  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
-  pushedAt: timestamp("pushed_at", { mode: "date" }),
-});
+export const repos = pgTable(
+  "repo",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    githubId: integer("github_id").notNull().unique(),
+    name: text("name").notNull(),
+    fullName: text("full_name").notNull(),
+    description: text("description"),
+    url: text("url").notNull(),
+    isPrivate: boolean("is_private").notNull().default(false),
+    language: text("language"),
+    stargazersCount: integer("stargazers_count").notNull().default(0),
+    forksCount: integer("forks_count").notNull().default(0),
+    openIssuesCount: integer("open_issues_count").notNull().default(0),
+    ownerLogin: text("owner_login").notNull(),
+    ownerType: text("owner_type").notNull(), // 'User' | 'Organization'
+    ownerAvatarUrl: text("owner_avatar_url"),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+    pushedAt: timestamp("pushed_at", { mode: "date" }),
+  },
+  (table) => [
+    uniqueIndex("repo_full_name_team_id_unique").on(table.fullName, table.teamId),
+  ],
+);
 
 export const reposRelations = relations(repos, ({ one, many }) => ({
   team: one(teams, {
@@ -274,14 +280,19 @@ export const projectsRepos = pgTable(
     repoId: text("repo_id")
       .notNull()
       .references(() => repos.id, { onDelete: "cascade" }),
+    repoFullName: text("repo_full_name").notNull(),
     isPrimary: boolean("is_primary").notNull().default(false),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   },
-  (projectsRepos) => [
+  (table) => [
     {
       pk: primaryKey({
-        columns: [projectsRepos.projectId, projectsRepos.repoId],
+        columns: [table.projectId, table.repoId],
       }),
+      uniqueRepoPerProject: unique("project_repo_name_unique").on(
+        table.projectId,
+        table.repoFullName,
+      ),
     },
   ],
 );

@@ -33,5 +33,6 @@ export const projectRepoFactory = ProjectRepoFactory.define(() => ({
   // projectId and repoId will need to be provided when building
   projectId: "",
   repoId: "",
+  repoFullName: "",
   isPrimary: false,
 }));

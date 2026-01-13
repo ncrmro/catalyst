@@ -163,6 +163,7 @@ async function createFirstProject(
     await db.insert(projectsRepos).values({
       projectId: project.id,
       repoId: repo.id,
+      repoFullName: repo.fullName,
       isPrimary: true,
     });
 
