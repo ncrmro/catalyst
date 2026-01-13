@@ -27,6 +27,18 @@ export const users = pgTable("user", {
   admin: boolean("admin").notNull().default(false),
 });
 
+export const usersRelations = relations(users, ({ one, many }) => ({
+  accounts: many(accounts),
+  sessions: many(sessions),
+  authenticators: many(authenticators),
+  ownedTeams: many(teams, { relationName: "teamOwner" }),
+  teamMemberships: many(teamsMemberships),
+  githubToken: one(githubUserTokens, {
+    fields: [users.id],
+    references: [githubUserTokens.userId],
+  }),
+}));
+
 export const accounts = pgTable(
   "account",
   {
@@ -185,7 +197,7 @@ export const repos = pgTable(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    githubId: integer("github_id").notNull().unique(),
+    githubId: integer("github_id").notNull(),
     name: text("name").notNull(),
     fullName: text("full_name").notNull(),
     description: text("description"),
@@ -206,6 +218,7 @@ export const repos = pgTable(
     pushedAt: timestamp("pushed_at", { mode: "date" }),
   },
   (table) => [
+    uniqueIndex("repo_github_id_team_id_unique").on(table.githubId, table.teamId),
     uniqueIndex("repo_full_name_team_id_unique").on(
       table.fullName,
       table.teamId,
@@ -441,18 +454,6 @@ export const githubUserTokensRelations = relations(
     }),
   }),
 );
-
-export const usersRelations = relations(users, ({ one, many }) => ({
-  accounts: many(accounts),
-  sessions: many(sessions),
-  authenticators: many(authenticators),
-  ownedTeams: many(teams, { relationName: "teamOwner" }),
-  teamMemberships: many(teamsMemberships),
-  githubToken: one(githubUserTokens, {
-    fields: [users.id],
-    references: [githubUserTokens.userId],
-  }),
-}));
 
 /**
  * Pull Requests Table

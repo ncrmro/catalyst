@@ -148,6 +148,13 @@
       "when": 1768330111522,
       "tag": "0020_cuddly_korath",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1768331300416,
+      "tag": "0021_last_boomerang",
+      "breakpoints": true
     }
   ]
 }
