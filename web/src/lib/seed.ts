@@ -146,9 +146,7 @@ export async function createCatalystAndMezeProjects(teamId: string) {
   const [catalystRepo] = await db
     .select()
     .from(repos)
-    .where(
-      and(eq(repos.fullName, "ncrmro/catalyst"), eq(repos.teamId, teamId)),
-    )
+    .where(and(eq(repos.fullName, "ncrmro/catalyst"), eq(repos.teamId, teamId)))
     .limit(1);
 
   const [mezeRepo] = await db
@@ -339,37 +337,37 @@ export async function createTeamProjects(
     .values(projectData)
     .returning();
 
-        // Create project-repo relationships
-    const projectRepoData = [
-      // foo project repos
-      {
-        projectId: insertedProjects[0].id,
-        repoId: insertedRepos[0].id, // foo-frontend
-        repoFullName: insertedRepos[0].fullName,
-        isPrimary: true,
-      },
-      {
-        projectId: insertedProjects[0].id,
-        repoId: insertedRepos[1].id, // foo-backend
-        repoFullName: insertedRepos[1].fullName,
-        isPrimary: false,
-      },
-      // bar project repos
-      {
-        projectId: insertedProjects[1].id,
-        repoId: insertedRepos[2].id, // bar-api
-        repoFullName: insertedRepos[2].fullName,
-        isPrimary: true,
-      },
-    ];
-  
-    await db.insert(projectsRepos).values(projectRepoData);
-  
-    return {
-      projects: insertedProjects,
-      relationships: projectRepoData,
-    };
-  }
+  // Create project-repo relationships
+  const projectRepoData = [
+    // foo project repos
+    {
+      projectId: insertedProjects[0].id,
+      repoId: insertedRepos[0].id, // foo-frontend
+      repoFullName: insertedRepos[0].fullName,
+      isPrimary: true,
+    },
+    {
+      projectId: insertedProjects[0].id,
+      repoId: insertedRepos[1].id, // foo-backend
+      repoFullName: insertedRepos[1].fullName,
+      isPrimary: false,
+    },
+    // bar project repos
+    {
+      projectId: insertedProjects[1].id,
+      repoId: insertedRepos[2].id, // bar-api
+      repoFullName: insertedRepos[2].fullName,
+      isPrimary: true,
+    },
+  ];
+
+  await db.insert(projectsRepos).values(projectRepoData);
+
+  return {
+    projects: insertedProjects,
+    relationships: projectRepoData,
+  };
+}
 /**
  * Multipurpose seeding function that can:
  * 1. Create a user if it doesn't exist (with default admin or regular user settings)

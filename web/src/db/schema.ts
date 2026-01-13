@@ -206,7 +206,10 @@ export const repos = pgTable(
     pushedAt: timestamp("pushed_at", { mode: "date" }),
   },
   (table) => [
-    uniqueIndex("repo_full_name_team_id_unique").on(table.fullName, table.teamId),
+    uniqueIndex("repo_full_name_team_id_unique").on(
+      table.fullName,
+      table.teamId,
+    ),
   ],
 );
 
@@ -284,17 +287,15 @@ export const projectsRepos = pgTable(
     isPrimary: boolean("is_primary").notNull().default(false),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   },
-  (table) => [
-    {
-      pk: primaryKey({
-        columns: [table.projectId, table.repoId],
-      }),
-      uniqueRepoPerProject: unique("project_repo_name_unique").on(
-        table.projectId,
-        table.repoFullName,
-      ),
-    },
-  ],
+  (table) => ({
+    pk: primaryKey({
+      columns: [table.projectId, table.repoId],
+    }),
+    uniqueRepoPerProject: unique("project_repo_name_unique").on(
+      table.projectId,
+      table.repoFullName,
+    ),
+  }),
 );
 
 export const projectsReposRelations = relations(projectsRepos, ({ one }) => ({

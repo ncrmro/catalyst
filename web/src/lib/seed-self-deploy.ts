@@ -116,12 +116,7 @@ async function ensureCatalystProject(teamId: string) {
   const [catalystRepo] = await db
     .select()
     .from(repos)
-    .where(
-      and(
-        eq(repos.fullName, "ncrmro/catalyst"),
-        eq(repos.teamId, teamId),
-      ),
-    )
+    .where(and(eq(repos.fullName, "ncrmro/catalyst"), eq(repos.teamId, teamId)))
     .limit(1);
 
   // Create project
