@@ -283,6 +283,8 @@ func (r *EnvironmentReconciler) reconcileComposeModeWithStatus(ctx context.Conte
 	}
 
 	// Set provisioning status
+	// Note: We check != "Failed" to prevent an infinite loop where the controller flip-flops
+	// between "Failed" (due to error) and "Provisioning" (here), triggering constant updates.
 	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" && env.Status.Phase != "Building" && env.Status.Phase != "Failed" {
 		env.Status.Phase = "Provisioning"
 		if err := r.Status().Update(ctx, env); err != nil {
@@ -362,6 +364,8 @@ func (r *EnvironmentReconciler) reconcileHelmModeWithStatus(ctx context.Context,
 	}
 
 	// Set provisioning status (if not building)
+	// Note: We check != "Failed" to prevent an infinite loop where the controller flip-flops
+	// between "Failed" (due to error) and "Provisioning" (here), triggering constant updates.
 	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" && env.Status.Phase != "Building" && env.Status.Phase != "Failed" {
 		env.Status.Phase = "Provisioning"
 		if err := r.Status().Update(ctx, env); err != nil {
@@ -415,6 +419,8 @@ func (r *EnvironmentReconciler) reconcileDevelopmentModeWithStatus(ctx context.C
 	}
 
 	// Set provisioning status
+	// Note: We check != "Failed" to prevent an infinite loop where the controller flip-flops
+	// between "Failed" (due to error) and "Provisioning" (here), triggering constant updates.
 	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" && env.Status.Phase != "Failed" {
 		env.Status.Phase = "Provisioning"
 		if err := r.Status().Update(ctx, env); err != nil {
@@ -459,6 +465,8 @@ func (r *EnvironmentReconciler) reconcileProductionModeWithStatus(ctx context.Co
 	}
 
 	// Set provisioning status
+	// Note: We check != "Failed" to prevent an infinite loop where the controller flip-flops
+	// between "Failed" (due to error) and "Provisioning" (here), triggering constant updates.
 	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" && env.Status.Phase != "Failed" {
 		env.Status.Phase = "Provisioning"
 		if err := r.Status().Update(ctx, env); err != nil {
