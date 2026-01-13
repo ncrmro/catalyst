@@ -47,6 +47,9 @@ function createMockProvider(id: ProviderId = "github"): VCSProvider {
     getCIStatus: vi.fn(),
     listIssues: vi.fn(),
     listBranches: vi.fn(),
+    getOrganization: vi.fn(),
+    listOrganizationMembers: vi.fn(),
+    getMyOrganizationMembership: vi.fn(),
     verifyWebhookSignature: vi.fn(),
     parseWebhookEvent: vi.fn(),
   };
@@ -415,6 +418,9 @@ describe("VCSProviderSingleton", () => {
         validateConfig: vi.fn(),
         listIssues: mockListIssues,
         listBranches: vi.fn(),
+        getOrganization: vi.fn(),
+        listOrganizationMembers: vi.fn(),
+        getMyOrganizationMembership: vi.fn(),
         verifyWebhookSignature: vi.fn(),
         parseWebhookEvent: vi.fn(),
       };
