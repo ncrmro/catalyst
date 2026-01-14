@@ -6,6 +6,7 @@ import { TerminalModal } from "@/components/terminal";
 import { execCommand } from "@/actions/pod-exec";
 import { EnvironmentCR } from "@/types/crd";
 import type { EnvironmentConfig } from "@/types/environment-config";
+import type { PodInfo } from "@/lib/k8s-pods";
 
 interface EnvironmentDetailProps {
   environment: EnvironmentCR;
@@ -13,6 +14,7 @@ interface EnvironmentDetailProps {
   podName: string;
   environmentId?: string;
   environmentConfig?: EnvironmentConfig | null;
+  pods: PodInfo[];
 }
 
 // Mock data for agents and logs as they are not yet in the CR
@@ -46,18 +48,14 @@ const mockAgentRuns = [
   },
 ];
 
-const mockContainers = [
-  { name: "workspace", status: "running" as const, restarts: 0 },
-];
-
 function getStatusColor(
   status: "running" | "pending" | "failed" | "completed",
 ) {
   switch (status) {
     case "running":
-      return "bg-yellow-500";
-    case "completed":
       return "bg-green-500";
+    case "completed":
+      return "bg-gray-500";
     case "pending":
       return "bg-gray-500";
     case "failed":
@@ -90,6 +88,7 @@ export default function EnvironmentDetailView({
   podName,
   environmentId: _environmentId,
   environmentConfig: _environmentConfig,
+  pods,
 }: EnvironmentDetailProps) {
   const [selectedContainer, setSelectedContainer] = useState<string | null>(
     "workspace",
@@ -101,6 +100,52 @@ export default function EnvironmentDetailView({
   const [terminalContainer, setTerminalContainer] = useState<
     string | undefined
   >(undefined);
+
+  // Group containers by pod for hierarchical display
+  const podContainers = pods.map((pod) => ({
+    podName: pod.name,
+    podStatus: pod.status,
+    initContainers: pod.initContainers.map((container) => {
+      // Determine init container status and display
+      let displayStatus: "completed" | "failed" | "running" | "pending" =
+        "pending";
+
+      if (container.state === "Terminated") {
+        // Check exit code: 0 = success, non-zero = failure
+        if (container.exitCode === 0) {
+          displayStatus = "completed";
+        } else {
+          displayStatus = "failed";
+        }
+      } else if (container.state === "Running") {
+        displayStatus = "running";
+      } else if (container.state === "Waiting") {
+        displayStatus = "pending";
+      }
+
+      return {
+        name: container.name,
+        status: displayStatus,
+        restarts: container.restartCount,
+        image: container.image,
+      };
+    }),
+    containers: pod.containers.map((container) => ({
+      name: container.name,
+      status: container.ready ? ("running" as const) : ("pending" as const),
+      restarts: container.restartCount,
+      image: container.image,
+    })),
+  }));
+
+  // Set initial selected container if not already set and pods exist
+  if (
+    podContainers.length > 0 &&
+    podContainers[0]?.containers.length > 0 &&
+    !selectedContainer
+  ) {
+    setSelectedContainer(podContainers[0].containers[0]?.name || null);
+  }
 
   // Handler for executing commands in the terminal
   const handleExec = useCallback(
@@ -246,65 +291,159 @@ export default function EnvironmentDetailView({
         </div>
       </GlassCard>
 
-      {/* Containers */}
+      {/* Pods & Containers */}
       <GlassCard>
         <h2 className="text-lg font-semibold text-on-surface mb-4">
-          Containers
+          Pods & Containers
         </h2>
-        <div className="divide-y divide-outline/50 -mx-6">
-          {mockContainers.map((container) => (
-            <div
-              key={container.name}
-              className={`flex items-center gap-4 px-6 py-3 cursor-pointer transition-colors ${
-                selectedContainer === container.name
-                  ? "bg-primary/10"
-                  : "hover:bg-surface/50"
-              }`}
-              onClick={() => setSelectedContainer(container.name)}
-            >
-              <span
-                className={`w-2 h-2 rounded-full ${getStatusColor(container.status)}`}
-              ></span>
-              <span className="font-medium text-on-surface flex-1">
-                {container.name}
-              </span>
-              <span className="text-sm text-on-surface-variant">
-                {container.status}
-              </span>
-              <span className="text-sm text-on-surface-variant">
-                {container.restarts}{" "}
-                {container.restarts === 1 ? "restart" : "restarts"}
-              </span>
-              <button
-                className="px-3 py-1 text-xs font-medium text-on-primary bg-primary hover:opacity-90 rounded-lg transition-opacity flex items-center gap-1"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openTerminal(container.name);
-                }}
-                disabled={container.status !== "running"}
-                title={
-                  container.status !== "running"
-                    ? "Container must be running to open shell"
-                    : "Open shell"
-                }
+        <div className="space-y-4">
+          {podContainers.length > 0 ? (
+            podContainers.map((pod) => (
+              <div
+                key={pod.podName}
+                className="border border-outline/50 rounded-lg overflow-hidden"
               >
-                <svg
-                  className="w-3 h-3"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
-                Shell
-              </button>
+                {/* Pod Header */}
+                <div className="bg-surface-container px-4 py-2 border-b border-outline/50">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        pod.podStatus === "Running"
+                          ? "bg-green-500"
+                          : "bg-gray-500"
+                      }`}
+                    ></span>
+                    <span className="font-medium text-on-surface font-mono text-sm">
+                      {pod.podName}
+                    </span>
+                    <span className="text-xs text-on-surface-variant">
+                      {pod.podStatus}
+                    </span>
+                    <span className="text-xs text-on-surface-variant ml-auto">
+                      {pod.initContainers.length > 0 && (
+                        <span className="mr-3">
+                          {pod.initContainers.length} init
+                        </span>
+                      )}
+                      {pod.containers.length}{" "}
+                      {pod.containers.length === 1 ? "container" : "containers"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Init Containers */}
+                {pod.initContainers.length > 0 && (
+                  <>
+                    <div className="bg-surface/30 px-4 py-2 border-b border-outline/30">
+                      <span className="text-xs font-medium text-on-surface-variant uppercase tracking-wide">
+                        Init Containers
+                      </span>
+                    </div>
+                    <div className="divide-y divide-outline/30">
+                      {pod.initContainers.map((container) => (
+                        <div
+                          key={`${pod.podName}-init-${container.name}`}
+                          className="flex items-center gap-4 px-6 py-3 bg-surface/20"
+                        >
+                          <span
+                            className={`w-2 h-2 rounded-full ${getStatusColor(container.status)}`}
+                          ></span>
+                          <div className="flex-1">
+                            <span className="font-medium text-on-surface block">
+                              {container.name}
+                            </span>
+                            <span className="text-xs text-on-surface-variant font-mono">
+                              {container.image}
+                            </span>
+                          </div>
+                          <span className="text-sm text-on-surface-variant">
+                            {container.status}
+                          </span>
+                          <span className="text-sm text-on-surface-variant">
+                            {container.restarts}{" "}
+                            {container.restarts === 1 ? "restart" : "restarts"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {/* Regular Containers */}
+                {pod.containers.length > 0 && pod.initContainers.length > 0 && (
+                  <div className="bg-surface/30 px-4 py-2 border-b border-outline/30">
+                    <span className="text-xs font-medium text-on-surface-variant uppercase tracking-wide">
+                      Containers
+                    </span>
+                  </div>
+                )}
+                <div className="divide-y divide-outline/30">
+                  {pod.containers.map((container) => (
+                    <div
+                      key={`${pod.podName}-${container.name}`}
+                      className={`flex items-center gap-4 px-6 py-3 cursor-pointer transition-colors ${
+                        selectedContainer === container.name
+                          ? "bg-primary/10"
+                          : "hover:bg-surface/50"
+                      }`}
+                      onClick={() => setSelectedContainer(container.name)}
+                    >
+                      <span
+                        className={`w-2 h-2 rounded-full ${getStatusColor(container.status)}`}
+                      ></span>
+                      <div className="flex-1">
+                        <span className="font-medium text-on-surface block">
+                          {container.name}
+                        </span>
+                        <span className="text-xs text-on-surface-variant font-mono">
+                          {container.image}
+                        </span>
+                      </div>
+                      <span className="text-sm text-on-surface-variant">
+                        {container.status}
+                      </span>
+                      <span className="text-sm text-on-surface-variant">
+                        {container.restarts}{" "}
+                        {container.restarts === 1 ? "restart" : "restarts"}
+                      </span>
+                      <button
+                        className="px-3 py-1 text-xs font-medium text-on-primary bg-primary hover:opacity-90 rounded-lg transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openTerminal(container.name);
+                        }}
+                        disabled={container.status !== "running"}
+                        title={
+                          container.status !== "running"
+                            ? "Container must be running to open shell"
+                            : "Open shell"
+                        }
+                      >
+                        <svg
+                          className="w-3 h-3"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          />
+                        </svg>
+                        Shell
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="px-6 py-8 text-center text-on-surface-variant">
+              No pods found in namespace {targetNamespace}
             </div>
-          ))}
+          )}
         </div>
       </GlassCard>
 
