@@ -50,6 +50,63 @@ export async function listDirectory(
   // Handle Mocked Mode
   if (GITHUB_CONFIG.REPOS_MODE === "mocked") {
     console.log("[VCS] listDirectory: Returning mocked data");
+    
+    // Mock directory listings for specs
+    if (path === "specs") {
+      return {
+        success: true,
+        entries: [
+          { name: "001-environments", path: "specs/001-environments", type: "dir" },
+          { name: "003-vcs-providers", path: "specs/003-vcs-providers", type: "dir" },
+          { name: "006-agent-harness", path: "specs/006-agent-harness", type: "dir" },
+          { name: "007-agents", path: "specs/007-agents", type: "dir" },
+          { name: "009-projects", path: "specs/009-projects", type: "dir" },
+          { name: "010-platform", path: "specs/010-platform", type: "dir" },
+        ],
+      };
+    }
+    
+    // Mock spec directory contents
+    if (path.startsWith("specs/")) {
+      const specName = path.replace("specs/", "");
+      
+      // Return different files based on which spec directory
+      const mockFiles: Record<string, VCSEntry[]> = {
+        "001-environments": [
+          { name: "spec.md", path: "specs/001-environments/spec.md", type: "file" },
+          { name: "tasks.md", path: "specs/001-environments/tasks.md", type: "file" },
+          { name: "plan.md", path: "specs/001-environments/plan.md", type: "file" },
+          { name: "research.md", path: "specs/001-environments/research.md", type: "file" },
+        ],
+        "003-vcs-providers": [
+          { name: "spec.md", path: "specs/003-vcs-providers/spec.md", type: "file" },
+          { name: "tasks.md", path: "specs/003-vcs-providers/tasks.md", type: "file" },
+        ],
+        "006-agent-harness": [
+          { name: "spec.md", path: "specs/006-agent-harness/spec.md", type: "file" },
+          { name: "plan.md", path: "specs/006-agent-harness/plan.md", type: "file" },
+        ],
+        "007-agents": [
+          { name: "spec.md", path: "specs/007-agents/spec.md", type: "file" },
+          { name: "tasks.md", path: "specs/007-agents/tasks.md", type: "file" },
+        ],
+        "009-projects": [
+          { name: "spec.md", path: "specs/009-projects/spec.md", type: "file" },
+          { name: "tasks.md", path: "specs/009-projects/tasks.md", type: "file" },
+          { name: "plan.md", path: "specs/009-projects/plan.md", type: "file" },
+        ],
+        "010-platform": [
+          { name: "spec.md", path: "specs/010-platform/spec.md", type: "file" },
+          { name: "README.md", path: "specs/010-platform/README.md", type: "file" },
+        ],
+      };
+      
+      return {
+        success: true,
+        entries: mockFiles[specName] || [],
+      };
+    }
+    
     return { success: true, entries: [] };
   }
 
@@ -103,6 +160,74 @@ export async function readFile(
   // Handle Mocked Mode
   if (GITHUB_CONFIG.REPOS_MODE === "mocked") {
     console.log("[VCS] readFile: Returning mocked data");
+    
+    // Mock spec file content
+    if (path.includes("spec.md")) {
+      const specName = path.split("/")[1]; // Extract spec name from path like "specs/001-environments/spec.md"
+      
+      const mockContent = `# ${specName}
+
+## Overview
+
+This is a mock specification document for ${specName}.
+
+## User Stories
+
+- As a developer, I want to use this feature
+- As a user, I want to benefit from this feature
+
+## Technical Details
+
+Mock technical details for development and testing.
+
+## Implementation Plan
+
+1. Planning phase
+2. Development phase
+3. Testing phase
+4. Deployment phase
+`;
+      
+      return {
+        success: true,
+        file: {
+          name: "spec.md",
+          path,
+          content: mockContent,
+          sha: "mock-sha-" + Date.now(),
+          htmlUrl: `https://github.com/${repoFullName}/blob/main/${path}`,
+        },
+      };
+    }
+    
+    // Mock other markdown files
+    if (path.endsWith(".md")) {
+      const fileName = path.split("/").pop() || "file.md";
+      const mockContent = `# ${fileName.replace(".md", "")}
+
+This is mock content for ${fileName}.
+
+## Section 1
+
+Mock content section.
+
+## Section 2
+
+More mock content.
+`;
+      
+      return {
+        success: true,
+        file: {
+          name: fileName,
+          path,
+          content: mockContent,
+          sha: "mock-sha-" + Date.now(),
+          htmlUrl: `https://github.com/${repoFullName}/blob/main/${path}`,
+        },
+      };
+    }
+    
     return { success: true, file: null };
   }
 
