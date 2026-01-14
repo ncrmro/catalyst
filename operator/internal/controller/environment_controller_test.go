@@ -438,17 +438,17 @@ var _ = Describe("Environment Controller", func() {
 			}
 			Expect(k8sClient.Create(ctx, sa)).To(Succeed())
 
-			// Second reconcile should fail with chart not found
+			// Second reconcile should NOT return error (to prevent requeue)
+			// but should mark the environment as Failed
 			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
 				NamespacedName: types.NamespacedName{Name: "invalid-path-env", Namespace: namespace},
 			})
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("source not found"))
+			Expect(err).NotTo(HaveOccurred(), "Controller should not return error for missing source to avoid continuous reconciliation")
 
 			// Verify status is Failed
 			env := &catalystv1alpha1.Environment{}
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "invalid-path-env", Namespace: namespace}, env)).To(Succeed())
-			Expect(env.Status.Phase).To(Equal("Failed"))
+			Expect(env.Status.Phase).To(Equal("Failed"), "Environment should be marked as Failed when source is not found")
 
 			// Cleanup
 			_ = k8sClient.Delete(ctx, sa)
