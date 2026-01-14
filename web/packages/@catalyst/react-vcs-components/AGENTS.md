@@ -2,24 +2,26 @@
 
 ## Overview
 
-This package contains reusable React components for VCS (Version Control System) integration, specifically for GitHub repositories and specification document viewing.
+This package contains reusable React components for VCS (Version Control System) integration. **All components use VCS-agnostic types from `@catalyst/vcs-provider`** to support multiple providers (GitHub, GitLab, Bitbucket, etc.) without coupling to any specific implementation.
 
 ## Components
 
 ### RepoSearch
 
-A data-driven repository picker component. The component accepts repository data as props rather than fetching it internally, making it more flexible and testable.
+A data-driven repository picker component that works with any VCS provider.
 
 **Key Design Decisions:**
+- **VCS-Agnostic**: Uses `Repository` type from `@catalyst/vcs-provider` instead of GitHub-specific types
 - **Data-driven**: Takes `repos` data as a prop instead of fetching internally
-- **Backward Compatible**: The wrapper in `web/src/components/repos/repo-search.tsx` maintains the existing API for current consumers
+- **Backward Compatible**: The wrapper in `web/src/components/repos/repo-search.tsx` adapts GitHub data to VCS format
 - **Self-contained**: All UI logic is contained within the component
-- **Type-safe**: Uses TypeScript interfaces that match the GitHub API schema
+- **Type-safe**: Uses TypeScript interfaces that work with any VCS provider
 
 **When Modifying:**
 - Keep the component pure - it should only display data passed to it
 - Don't add data fetching logic to the base component
-- Maintain TypeScript type compatibility with existing GitHubRepo schema
+- Use VCS-agnostic types from `@catalyst/vcs-provider` - never add provider-specific types
+- The wrapper component handles conversion from provider-specific to VCS-agnostic format
 - Update tests if changing behavior
 
 ### SpecViewer
@@ -114,7 +116,25 @@ The package is consumed by:
 
 - **React**: Peer dependency (>=19)
 - **Next.js**: Peer dependency (>=15) - for Link component in SpecFilesSidebar
-- **Zod**: For type validation (used in RepoSearch types)
+- **@catalyst/vcs-provider**: Core VCS abstraction layer providing provider-agnostic types
+- **Zod**: For type validation (used in wrapper components)
+
+## VCS-Agnostic Architecture
+
+The package follows these principles to remain provider-agnostic:
+
+1. **Use Standard Types**: Import types from `@catalyst/vcs-provider` (e.g., `Repository`, not GitHub-specific types)
+2. **Adapter Pattern**: Wrapper components (like `web/src/components/repos/repo-search.tsx`) convert provider-specific data to VCS-agnostic format
+3. **Generic Terminology**: Use "repository" not "GitHub repo", "organization" not "GitHub org"
+4. **Property Names**: Use camelCase VCS standard names (e.g., `fullName`, `htmlUrl`) not provider-specific snake_case
+
+### Example Type Mapping
+
+GitHub-specific → VCS-agnostic:
+- `full_name` → `fullName`
+- `html_url` → `htmlUrl`
+- `updated_at` → `updatedAt` (Date object)
+- `github_integration_enabled` → `vcs_integration_enabled`
 
 ## Best Practices
 

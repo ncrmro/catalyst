@@ -2,30 +2,36 @@
 
 React components for Version Control System (VCS) integration in Catalyst.
 
+**VCS-Agnostic Design**: These components use standardized types from `@catalyst/vcs-provider` to support multiple VCS providers (GitHub, GitLab, Bitbucket, etc.) without coupling to any specific implementation.
+
 ## Components
 
 ### RepoSearch
 
-A searchable repository picker component that integrates with GitHub to display and select repositories.
+A searchable repository picker component that integrates with any VCS provider to display and select repositories.
 
 **Features:**
 - Search and filter repositories by name and description
 - Shows user and organization repositories
 - Displays repository metadata (private/public, connections)
 - Handles various VCS connection states (loading, connected, not connected, not configured)
+- **Provider-agnostic**: Works with GitHub, GitLab, and other VCS providers
 
 **Usage:**
 ```tsx
 import { RepoSearch } from '@catalyst/react-vcs-components';
+import type { RepositoryWithConnections } from '@catalyst/react-vcs-components';
 
 function MyComponent() {
-  const handleSelect = (repo) => {
-    console.log('Selected repo:', repo);
+  const handleSelect = (repo: RepositoryWithConnections) => {
+    console.log('Selected repo:', repo.fullName);
   };
 
   return (
     <RepoSearch
       onSelect={handleSelect}
+      repos={reposData}  // VCS-agnostic ReposData format
+      isLoading={false}
       excludeUrls={['https://github.com/org/already-connected']}
       placeholder="Search repositories..."
     />

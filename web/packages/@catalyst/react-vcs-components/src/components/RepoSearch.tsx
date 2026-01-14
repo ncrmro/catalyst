@@ -1,50 +1,52 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import type { Repository } from "@catalyst/vcs-provider";
 
 /**
  * Types for the RepoSearch component
- * These match the GitHub API and internal database schema
+ * Uses VCS-agnostic types to support multiple providers (GitHub, GitLab, etc.)
  */
 
-export interface GitHubOwner {
+/**
+ * VCS Organization/Group representation
+ */
+export interface VCSOrganization {
+  id: string;
   login: string;
-  type: "User" | "Organization";
-  avatar_url: string;
+  name?: string;
+  description?: string;
+  avatarUrl: string;
+  url: string;
+  type: "Organization";
 }
 
-export interface GitHubRepoConnection {
+/**
+ * Repository connection metadata
+ * Links a repository to a project in the platform
+ */
+export interface RepositoryConnection {
   projectId: string;
   projectName?: string;
   isPrimary: boolean;
 }
 
-export interface GitHubRepo {
-  id: number;
-  name: string;
-  full_name: string;
-  description: string | null;
-  private: boolean;
-  owner: GitHubOwner;
-  html_url: string;
-  language: string | null;
-  stargazers_count: number;
-  forks_count: number;
-  open_issues_count: number;
-  updated_at: string;
-  connections?: GitHubRepoConnection[];
+/**
+ * Extended repository type with connection metadata
+ */
+export interface RepositoryWithConnections extends Repository {
+  connections?: RepositoryConnection[];
 }
 
+/**
+ * Repository data structure for the picker
+ * Organizes repositories by user and organization
+ */
 export interface ReposData {
-  user_repos: GitHubRepo[];
-  organizations: Array<{
-    login: string;
-    id: number;
-    avatar_url: string;
-    description: string | null;
-  }>;
-  org_repos: Record<string, GitHubRepo[]>;
-  github_integration_enabled: boolean;
+  user_repos: RepositoryWithConnections[];
+  organizations: VCSOrganization[];
+  org_repos: Record<string, RepositoryWithConnections[]>;
+  vcs_integration_enabled: boolean;
   reason?: "no_access_token" | "token_expired" | "permission_denied" | "error";
 }
 
@@ -52,7 +54,7 @@ export interface RepoSearchProps {
   /**
    * Callback function called when a repository is selected
    */
-  onSelect: (repo: GitHubRepo) => void;
+  onSelect: (repo: RepositoryWithConnections) => void;
   
   /**
    * Repository data to display
@@ -76,7 +78,7 @@ export interface RepoSearchProps {
   placeholder?: string;
   
   /**
-   * Link to account settings page for connecting GitHub
+   * Link to account settings page for connecting VCS provider
    */
   accountSettingsUrl?: string;
 }
@@ -91,6 +93,7 @@ type VCSStatus = "loading" | "connected" | "not_connected" | "not_configured";
  * - Shows user and organization repositories
  * - Displays repository metadata (private/public, connections)
  * - Handles various VCS connection states
+ * - VCS-agnostic: works with GitHub, GitLab, and other providers
  */
 export function RepoSearch({
   onSelect,
@@ -109,7 +112,7 @@ export function RepoSearch({
       return isLoading ? "loading" : "not_configured";
     }
 
-    if (repos.github_integration_enabled) {
+    if (repos.vcs_integration_enabled) {
       return "connected";
     }
 
@@ -133,11 +136,11 @@ export function RepoSearch({
     const searchLower = search.toLowerCase();
 
     // Helper to filter list
-    const filterList = (list: GitHubRepo[]) =>
+    const filterList = (list: RepositoryWithConnections[]) =>
       list.filter(
         (repo) =>
-          !excludeUrls.includes(repo.html_url) &&
-          (repo.full_name.toLowerCase().includes(searchLower) ||
+          !excludeUrls.includes(repo.htmlUrl) &&
+          (repo.fullName.toLowerCase().includes(searchLower) ||
             repo.description?.toLowerCase().includes(searchLower)),
       );
 
@@ -228,7 +231,7 @@ export function RepoSearch({
             <div className="min-w-0 flex-1 mr-4">
               <div className="flex items-center gap-2">
                 <span className="font-medium text-sm text-on-surface truncate">
-                  {repo.full_name}
+                  {repo.fullName}
                 </span>
                 {repo.private && (
                   <span className="text-[10px] text-on-surface-variant bg-surface-variant px-1.5 py-0.5 rounded border border-outline/20">
