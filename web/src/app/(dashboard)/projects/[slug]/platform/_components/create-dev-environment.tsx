@@ -12,9 +12,7 @@ interface CreateDevEnvironmentProps {
  * Component for creating new development environments
  * Shows a simple form with optional name and branch inputs
  */
-export function CreateDevEnvironment({
-  projectId,
-}: CreateDevEnvironmentProps) {
+export function CreateDevEnvironment({ projectId }: CreateDevEnvironmentProps) {
   const router = useRouter();
   const [environmentName, setEnvironmentName] = useState("");
   const [branch, setBranch] = useState("main");
