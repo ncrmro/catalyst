@@ -6,9 +6,6 @@ import { createProjectEnvironment } from "@/actions/environments";
 
 interface CreateDevEnvironmentProps {
   projectId: string;
-  projectSlug: string;
-  repoId?: string;
-  repoFullName?: string;
 }
 
 /**
@@ -17,9 +14,6 @@ interface CreateDevEnvironmentProps {
  */
 export function CreateDevEnvironment({
   projectId,
-  projectSlug: _projectSlug,
-  repoId: _repoId,
-  repoFullName: _repoFullName,
 }: CreateDevEnvironmentProps) {
   const router = useRouter();
   const [environmentName, setEnvironmentName] = useState("");

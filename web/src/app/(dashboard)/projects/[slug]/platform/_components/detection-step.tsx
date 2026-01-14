@@ -136,9 +136,10 @@ export function DetectionStep({
           🔍 Project Detection
         </h4>
         <p className="text-sm text-on-surface-variant">
-          Specify the directory to search for project configuration files. Use
-          &quot;/&quot; for the repository root, or a subdirectory for monorepos
-          (e.g., &quot;/web&quot;, &quot;/apps/frontend&quot;).
+          Specify the directory to search for project configuration files.
+          Leave empty or use &quot;/&quot; for the repository root. For
+          monorepos, specify a subdirectory path without leading slashes (e.g.,
+          &quot;web&quot;, &quot;apps/frontend&quot;).
         </p>
 
         <div className="flex gap-2">

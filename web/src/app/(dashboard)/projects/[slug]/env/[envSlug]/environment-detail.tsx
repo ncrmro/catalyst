@@ -57,7 +57,7 @@ function getStatusColor(
     case "completed":
       return "bg-gray-500";
     case "pending":
-      return "bg-gray-500";
+      return "bg-yellow-500";
     case "failed":
       return "bg-red-500";
   }

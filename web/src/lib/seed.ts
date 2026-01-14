@@ -581,7 +581,7 @@ export async function seedMockDataFromYaml() {
           const [repo] = await db
             .insert(repos)
             .values({
-              githubId: mockRepo.id,
+              githubId: mockRepo.id + allTeams.indexOf(team) * 1000000, // Make unique per team
               name: mockRepo.name,
               fullName: mockRepo.full_name,
               description: mockRepo.description,
