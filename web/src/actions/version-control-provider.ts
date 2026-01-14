@@ -161,6 +161,17 @@ export async function readFile(
   if (GITHUB_CONFIG.REPOS_MODE === "mocked") {
     console.log("[VCS] readFile: Returning mocked data");
     
+    // Simple hash function for consistent mock SHAs
+    const mockSha = (input: string) => {
+      let hash = 0;
+      for (let i = 0; i < input.length; i++) {
+        const char = input.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+      }
+      return `mock-sha-${Math.abs(hash).toString(16)}`;
+    };
+    
     // Mock spec file content
     if (path.includes("spec.md")) {
       const pathParts = path.split("/");
@@ -195,7 +206,7 @@ Mock technical details for development and testing.
           name: "spec.md",
           path,
           content: mockContent,
-          sha: `mock-sha-${path.replace(/\//g, "-")}-${Date.now()}`,
+          sha: mockSha(path),
           htmlUrl: `https://github.com/${repoFullName}/blob/main/${path}`,
         },
       };
@@ -223,7 +234,7 @@ More mock content.
           name: fileName,
           path,
           content: mockContent,
-          sha: `mock-sha-${path.replace(/\//g, "-")}-${Date.now()}`,
+          sha: mockSha(path),
           htmlUrl: `https://github.com/${repoFullName}/blob/main/${path}`,
         },
       };
