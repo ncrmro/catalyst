@@ -163,7 +163,8 @@ export async function readFile(
     
     // Mock spec file content
     if (path.includes("spec.md")) {
-      const specName = path.split("/")[1]; // Extract spec name from path like "specs/001-environments/spec.md"
+      const pathParts = path.split("/");
+      const specName = pathParts.length > 1 ? pathParts[1] : "unknown"; // Extract spec name from path like "specs/001-environments/spec.md"
       
       const mockContent = `# ${specName}
 
@@ -194,7 +195,7 @@ Mock technical details for development and testing.
           name: "spec.md",
           path,
           content: mockContent,
-          sha: "mock-sha-" + Date.now(),
+          sha: `mock-sha-${path.replace(/\//g, "-")}-${Date.now()}`,
           htmlUrl: `https://github.com/${repoFullName}/blob/main/${path}`,
         },
       };
@@ -222,7 +223,7 @@ More mock content.
           name: fileName,
           path,
           content: mockContent,
-          sha: "mock-sha-" + Date.now(),
+          sha: `mock-sha-${path.replace(/\//g, "-")}-${Date.now()}`,
           htmlUrl: `https://github.com/${repoFullName}/blob/main/${path}`,
         },
       };
