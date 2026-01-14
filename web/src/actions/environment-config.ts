@@ -55,6 +55,16 @@ export async function updateEnvironmentConfig(
         ),
       );
 
+    // Sync project configuration to K8s after database save
+    const { syncProjectToK8s } = await import("@/lib/sync-project-cr");
+    const syncResult = await syncProjectToK8s(projectId);
+
+    if (!syncResult.success) {
+      console.error("Failed to sync Project CR:", syncResult.error);
+      // Don't fail the request - database is source of truth
+      // K8s sync failure shouldn't block the user from saving config
+    }
+
     return { success: true };
   } catch (error) {
     if (error instanceof z.ZodError) {

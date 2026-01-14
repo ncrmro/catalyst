@@ -262,19 +262,20 @@ describe("VCSProviderSingleton", () => {
       );
     });
 
-    it("should throw error when tokens are not available", async () => {
+    it("should delegate to provider when managed tokens are not available", async () => {
       const getTokenData = vi.fn().mockResolvedValue(null);
 
       initializeSingleton({ getTokenData });
 
       const vcs = VCSProviderSingleton.getInstance();
 
+      // Should now succeed because it delegates to provider
       await expect(
         vcs.getAuthenticatedClient("user-missing", "github"),
-      ).rejects.toThrow(/No valid tokens available/);
+      ).resolves.toBeDefined();
     });
 
-    it("should trigger onAuthError when tokens are missing", async () => {
+    it("should not trigger onAuthError when tokens are simply missing", async () => {
       const onAuthError = vi.fn();
       initializeSingleton({
         getTokenData: vi.fn().mockResolvedValue(null),
@@ -283,14 +284,13 @@ describe("VCSProviderSingleton", () => {
 
       const vcs = VCSProviderSingleton.getInstance();
 
-      await expect(
-        vcs.getAuthenticatedClient("user-missing", "github"),
-      ).rejects.toThrow(/No valid tokens available/);
+      await vcs.getAuthenticatedClient("user-missing", "github");
 
-      expect(onAuthError).toHaveBeenCalledWith("user-missing", "github");
+      // We only warn, not error, as we are delegating
+      expect(onAuthError).not.toHaveBeenCalled();
     });
 
-    it("should trigger onAuthError when refresh fails", async () => {
+    it("should trigger onAuthError when refresh fails, but still delegate", async () => {
       const expiredToken: TokenData = {
         accessToken: "expired",
         refreshToken: "refresh",
@@ -306,10 +306,12 @@ describe("VCSProviderSingleton", () => {
 
       const vcs = VCSProviderSingleton.getInstance();
 
+      // Should still resolve (delegate) despite refresh failure
       await expect(
         vcs.getAuthenticatedClient("user-refresh-fail", "github"),
-      ).rejects.toThrow(/No valid tokens available/);
+      ).resolves.toBeDefined();
 
+      // But onAuthError should have been called during the failed refresh attempt
       expect(onAuthError).toHaveBeenCalledWith("user-refresh-fail", "github");
     });
   });

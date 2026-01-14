@@ -212,6 +212,7 @@ async function connectRepoToProjectReal(
       {
         projectId: finalProjectId,
         repoId: repoRecord.id,
+        repoFullName: repoRecord.fullName,
         isPrimary: false, // Always create as non-primary first
       },
     ]);

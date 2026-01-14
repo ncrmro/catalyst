@@ -8,6 +8,7 @@ export interface PodInfo {
   labels?: { [key: string]: string };
   creationTimestamp?: string;
   containers: ContainerInfo[];
+  initContainers: ContainerInfo[];
   nodeName?: string;
   restartCount: number;
 }
@@ -17,6 +18,8 @@ export interface ContainerInfo {
   image: string;
   ready: boolean;
   restartCount: number;
+  state?: string; // Running, Terminated, Waiting
+  exitCode?: number; // Exit code for terminated containers
 }
 
 /**
@@ -43,6 +46,7 @@ export async function listPodsInNamespace(
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return response.items.map((pod: any) => {
+      // Regular containers
       const containers: ContainerInfo[] =
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         pod.spec?.containers?.map((container: any) => {
@@ -50,11 +54,55 @@ export async function listPodsInNamespace(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (status: any) => status.name === container.name,
           );
+
+          // Determine state from container status
+          let state = "Unknown";
+          if (containerStatus?.state) {
+            if (containerStatus.state.running) state = "Running";
+            else if (containerStatus.state.terminated) state = "Terminated";
+            else if (containerStatus.state.waiting) state = "Waiting";
+          }
+
           return {
             name: container.name,
             image: container.image,
             ready: containerStatus?.ready ?? false,
             restartCount: containerStatus?.restartCount ?? 0,
+            state,
+          };
+        }) || [];
+
+      // Init containers
+      const initContainers: ContainerInfo[] =
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        pod.spec?.initContainers?.map((container: any) => {
+          const containerStatus = pod.status?.initContainerStatuses?.find(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (status: any) => status.name === container.name,
+          );
+
+          // Determine state from container status
+          let state = "Unknown";
+          let exitCode: number | undefined;
+
+          if (containerStatus?.state) {
+            if (containerStatus.state.running) {
+              state = "Running";
+            } else if (containerStatus.state.terminated) {
+              state = "Terminated";
+              exitCode = containerStatus.state.terminated.exitCode;
+            } else if (containerStatus.state.waiting) {
+              state = "Waiting";
+            }
+          }
+
+          return {
+            name: container.name,
+            image: container.image,
+            ready: containerStatus?.ready ?? false,
+            restartCount: containerStatus?.restartCount ?? 0,
+            state,
+            exitCode,
           };
         }) || [];
 
@@ -70,6 +118,7 @@ export async function listPodsInNamespace(
         labels: pod.metadata?.labels || {},
         creationTimestamp: pod.metadata?.creationTimestamp,
         containers,
+        initContainers,
         nodeName: pod.spec?.nodeName,
         restartCount: totalRestartCount,
       };

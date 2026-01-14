@@ -16,8 +16,14 @@
 #    - Helm Source Resolution (Standard CI variant)
 #    - Zero-Config Next.js (Auto-Dockerfile, LibSQL)
 #    - Zero-Config Rails (Auto-Dockerfile, PostgreSQL)
-# 8. Git Cleanup: Restores the local git state (kustomization.yaml) and removes temporary 
+# 8. Graceful Failure Verification: Implicitly verifies that the Operator handles configuration errors 
+#    (e.g., missing sources) by transitioning to a "Failed" state without entering an infinite 
+#    reconciliation loop or spewing logs.
+# 9. Git Cleanup: Restores the local git state (kustomization.yaml) and removes temporary 
 #    manifests on exit. The K3s VM is left running for inspection.
+#
+# Resolved Issues Verified:
+# - Fixes infinite reconciliation loop when Helm source is missing (prevents "Provisioning" <-> "Failed" flip-flop).
 
 set -e
 

@@ -10,6 +10,14 @@ import { eq, and } from "drizzle-orm";
 import type { EnvironmentConfig } from "@/types/environment-config";
 
 /**
+ * Detection result with file list for UI display.
+ */
+export interface DetectionResult {
+  config: EnvironmentConfig;
+  detectedFiles: string[];
+}
+
+/**
  * Run project auto-detection and save results to database.
  *
  * Checks if detection data already exists; if so, returns the cached config.
@@ -106,4 +114,107 @@ export async function runProjectDetection(
     });
 
   return config;
+}
+
+/**
+ * Re-run project detection with optional directory change.
+ *
+ * Forces fresh detection even if cached data exists. Useful for:
+ * - Changing search directory in monorepos
+ * - Re-detecting after repository structure changes
+ * - Manual refresh by user
+ *
+ * @param projectId - Project ID in database
+ * @param repoId - Repository ID in database
+ * @param repoFullName - Full repo name (e.g., "ncrmro/catalyst")
+ * @param environmentName - Environment name ("production", "staging", "development")
+ * @param workdir - Working directory to search (e.g., "/web", "/apps/frontend")
+ * @returns Detection result with config and list of detected files
+ */
+export async function reDetectProject(
+  projectId: string,
+  repoId: string,
+  repoFullName: string,
+  environmentName: string,
+  workdir: string,
+): Promise<{
+  success: boolean;
+  config?: EnvironmentConfig;
+  detectedFiles?: string[];
+  error?: string;
+}> {
+  try {
+    // Normalize workdir (remove leading/trailing slashes)
+    const normalizedWorkdir = workdir.replace(/^\/+|\/+$/g, "") || "";
+
+    // Fetch directory listing from VCS
+    const dirResult = await listDirectory(
+      repoFullName,
+      normalizedWorkdir,
+      "main",
+    );
+    if (!dirResult.success) {
+      return {
+        success: false,
+        error: dirResult.error || "Failed to list directory",
+      };
+    }
+
+    const fileNames = dirResult.entries.map((e) => e.name);
+
+    // Fetch package.json if exists
+    let packageJsonContent: string | undefined;
+    if (fileNames.includes("package.json")) {
+      const filePath = normalizedWorkdir
+        ? `${normalizedWorkdir}/package.json`
+        : "package.json";
+      const result = await readFile(repoFullName, filePath, "main");
+      packageJsonContent = result.file?.content;
+    }
+
+    // Fetch Makefile if exists
+    let makefileContent: string | undefined;
+    if (fileNames.includes("Makefile")) {
+      const filePath = normalizedWorkdir
+        ? `${normalizedWorkdir}/Makefile`
+        : "Makefile";
+      const result = await readFile(repoFullName, filePath, "main");
+      makefileContent = result.file?.content;
+    }
+
+    // Run detection logic
+    const input = buildDetectionInput(fileNames, {
+      packageJsonContent,
+      makefileContent,
+    });
+    const detectionResult = detectProjectType(
+      input,
+      normalizedWorkdir || undefined,
+    );
+
+    // Build config with detection results
+    const config: EnvironmentConfig = {
+      method: "docker",
+      dockerfilePath: "Dockerfile",
+      ...detectionResult,
+    };
+
+    // NOTE: We do NOT save to database here - detection just returns results
+    // The user must click "Continue" and then save from the config form
+    // This triggers updateEnvironmentConfig which saves to DB and syncs to K8s
+
+    return {
+      success: true,
+      config,
+      detectedFiles: fileNames,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unknown error during detection",
+    };
+  }
 }

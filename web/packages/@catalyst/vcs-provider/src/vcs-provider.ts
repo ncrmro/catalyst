@@ -319,12 +319,12 @@ export class VCSProviderSingleton {
     // Get valid token (with automatic refresh)
     const tokens = await this.getValidToken(tokenSourceId, actualProviderId);
 
+    // Note: We don't throw immediately if tokens are missing because the provider
+    // implementation might have its own fallback (e.g., GitHub PAT).
+    // We let provider.authenticate() decide if it can proceed.
     if (!tokens) {
-      if (this.config?.onAuthError) {
-        this.config.onAuthError(tokenSourceId, actualProviderId);
-      }
-      throw new Error(
-        `No valid tokens available for source ${tokenSourceId} and provider ${actualProviderId}. Re-authentication required.`,
+      console.warn(
+        `No managed tokens found for source ${tokenSourceId} provider ${actualProviderId}. Delegating to provider fallback.`,
       );
     }
 

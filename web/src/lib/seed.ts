@@ -142,17 +142,17 @@ export async function createCatalystAndMezeProjects(teamId: string) {
     })
     .onConflictDoNothing();
 
-  // Query to get the actual repos (repos are shared across teams due to unique github_id constraint)
+  // Query to get the actual repos for this team
   const [catalystRepo] = await db
     .select()
     .from(repos)
-    .where(eq(repos.fullName, "ncrmro/catalyst"))
+    .where(and(eq(repos.fullName, "ncrmro/catalyst"), eq(repos.teamId, teamId)))
     .limit(1);
 
   const [mezeRepo] = await db
     .select()
     .from(repos)
-    .where(eq(repos.fullName, "ncrmro/meze"))
+    .where(and(eq(repos.fullName, "ncrmro/meze"), eq(repos.teamId, teamId)))
     .limit(1);
 
   // Insert projects (skip if already exists)
@@ -211,6 +211,7 @@ export async function createCatalystAndMezeProjects(teamId: string) {
       .values({
         projectId: catalystProject.id,
         repoId: catalystRepo.id,
+        repoFullName: catalystRepo.fullName,
         isPrimary: true,
       })
       .onConflictDoNothing();
@@ -223,6 +224,7 @@ export async function createCatalystAndMezeProjects(teamId: string) {
       .values({
         projectId: mezeProject.id,
         repoId: mezeRepo.id,
+        repoFullName: mezeRepo.fullName,
         isPrimary: true,
       })
       .onConflictDoNothing();
@@ -341,17 +343,20 @@ export async function createTeamProjects(
     {
       projectId: insertedProjects[0].id,
       repoId: insertedRepos[0].id, // foo-frontend
+      repoFullName: insertedRepos[0].fullName,
       isPrimary: true,
     },
     {
       projectId: insertedProjects[0].id,
       repoId: insertedRepos[1].id, // foo-backend
+      repoFullName: insertedRepos[1].fullName,
       isPrimary: false,
     },
     // bar project repos
     {
       projectId: insertedProjects[1].id,
       repoId: insertedRepos[2].id, // bar-api
+      repoFullName: insertedRepos[2].fullName,
       isPrimary: true,
     },
   ];
@@ -363,7 +368,6 @@ export async function createTeamProjects(
     relationships: projectRepoData,
   };
 }
-
 /**
  * Multipurpose seeding function that can:
  * 1. Create a user if it doesn't exist (with default admin or regular user settings)
@@ -659,9 +663,9 @@ export async function seedMockDataFromYaml() {
                   .select()
                   .from(repos)
                   .where(
-                    eq(
-                      repos.githubId,
-                      primaryRepo.id + allTeams.indexOf(team) * 1000000,
+                    and(
+                      eq(repos.fullName, primaryRepo.full_name),
+                      eq(repos.teamId, team.id),
                     ),
                   )
                   .limit(1);
@@ -672,6 +676,7 @@ export async function seedMockDataFromYaml() {
                     .values({
                       projectId: project.id,
                       repoId: repoRecord.id,
+                      repoFullName: repoRecord.fullName,
                       isPrimary: true,
                     })
                     .onConflictDoNothing();

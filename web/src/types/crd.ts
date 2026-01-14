@@ -40,16 +40,35 @@ export interface EnvironmentCR {
   };
 }
 
+// KEEP IN SYNC: This definition must match operator/api/v1alpha1/project_types.go
+export interface SourceConfig {
+  name: string;
+  repositoryUrl: string;
+  branch: string;
+}
+
+export interface BuildSpec {
+  name: string;
+  sourceRef: string;
+  path?: string;
+  dockerfile?: string;
+  resources?: {
+    limits?: { cpu?: string; memory?: string };
+    requests?: { cpu?: string; memory?: string };
+  };
+}
+
+export interface EnvironmentTemplate {
+  sourceRef: string;
+  type: "helm" | "manifest" | "kustomize" | "docker-compose";
+  path: string;
+  builds?: BuildSpec[];
+  values?: Record<string, unknown>;
+}
+
 export interface ProjectCRSpec {
-  source: {
-    repositoryUrl: string;
-    branch: string;
-  };
-  deployment: {
-    type: string;
-    path: string;
-    values?: Record<string, unknown>;
-  };
+  sources: SourceConfig[];
+  templates?: Record<string, EnvironmentTemplate>;
   resources?: {
     defaultQuota?: {
       cpu?: string;

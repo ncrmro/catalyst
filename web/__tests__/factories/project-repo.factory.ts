@@ -1,4 +1,4 @@
-import { Factory } from "@/lib/factories";
+import { Factory, faker } from "@/lib/factories";
 import {
   createProjectRepoLinks,
   type InsertProjectRepo,
@@ -33,5 +33,6 @@ export const projectRepoFactory = ProjectRepoFactory.define(() => ({
   // projectId and repoId will need to be provided when building
   projectId: "",
   repoId: "",
+  repoFullName: `${faker.internet.username()}/${faker.lorem.slug()}`,
   isPrimary: false,
 }));
