@@ -1,15 +1,26 @@
 "use server";
 
+import { z } from "zod";
 import { getProjects } from "@/models/projects";
 import { revalidatePath } from "next/cache";
 import { getUserTeamIds } from "@/lib/team-auth";
-import { createProjectCR, createEnvironmentCR } from "@/lib/k8s-operator";
+import { createEnvironmentCR } from "@/lib/k8s-operator";
 import { generateNameUnchecked } from "@/lib/name-generator";
 import type { EnvironmentType } from "@/types/crd";
 
 /**
  * Server actions for creating and managing project environments
  */
+
+const CreateEnvironmentSchema = z.object({
+  projectId: z.string().min(1, "Project ID is required"),
+  environmentType: z.enum(["deployment", "development"]),
+  deploymentSubType: z.string().nullable().optional(),
+  branch: z
+    .string()
+    .nullable()
+    .transform((val) => val ?? "main"),
+});
 
 export interface EnvironmentResult {
   success: boolean;
@@ -29,31 +40,23 @@ export async function createProjectEnvironment(
   formData: FormData,
 ): Promise<EnvironmentResult> {
   try {
-    const projectId = formData.get("projectId") as string;
-    const environmentType = formData.get("environmentType") as string;
-    const deploymentSubType = formData.get("deploymentSubType") as
-      | string
-      | null;
+    // Validate and parse form data
+    const parseResult = CreateEnvironmentSchema.safeParse({
+      projectId: formData.get("projectId"),
+      environmentType: formData.get("environmentType"),
+      deploymentSubType: formData.get("deploymentSubType"),
+      branch: formData.get("branch"),
+    });
 
-    if (!projectId || !environmentType) {
+    if (!parseResult.success) {
       return {
         success: false,
-        message:
-          "Missing required fields: projectId and environmentType are required",
+        message: parseResult.error.issues[0]?.message || "Invalid form data",
       };
     }
 
-    // Validate that the environment type is one of the allowed values
-    const validEnvironmentTypes: EnvironmentType[] = [
-      "deployment",
-      "development",
-    ];
-    if (!validEnvironmentTypes.includes(environmentType as EnvironmentType)) {
-      return {
-        success: false,
-        message: `Invalid environment type: ${environmentType}. Must be one of: ${validEnvironmentTypes.join(", ")}`,
-      };
-    }
+    const { projectId, environmentType, deploymentSubType, branch } =
+      parseResult.data;
     const validatedEnvType = environmentType as EnvironmentType;
 
     // Check if the user has access to this project
@@ -92,22 +95,16 @@ export async function createProjectEnvironment(
       .toLowerCase()
       .replace(/[^a-z0-9-]/g, "-");
 
-    // Ensure the Project CR exists (idempotent)
-    // We do this to ensure the operator knows about the project
-    try {
-      await createProjectCR("default", sanitizedProjectName, {
-        source: {
-          repositoryUrl: primaryRepo.repo.url,
-          branch: "main",
-        },
-        deployment: {
-          type: "manifest",
-          path: "./",
-        },
-      });
-    } catch (e) {
-      console.error("Failed to ensure K8s Project CR:", e);
-      // Continue, as it might already exist or be managed elsewhere
+    // Sync project configuration to K8s Project CR
+    // This ensures the operator has the correct configuration from the database
+    const { syncProjectToK8s } = await import("@/lib/sync-project-cr");
+    const syncResult = await syncProjectToK8s(projectId);
+
+    if (!syncResult.success) {
+      return {
+        success: false,
+        message: `Failed to sync Project to K8s: ${syncResult.error || "Unknown error"}`,
+      };
     }
 
     // Generate environment name based on type
@@ -123,22 +120,30 @@ export async function createProjectEnvironment(
 
     // Create the Environment CR directly
     // We bypass the database check and creation as requested
-    await createEnvironmentCR("default", environmentName, {
+    const envResult = await createEnvironmentCR("default", environmentName, {
       projectRef: {
         name: sanitizedProjectName,
       },
       type: validatedEnvType,
       sources: [
         {
-          name: "main",
+          name: branch,
           commitSha: "HEAD", // TODO: Get actual commit SHA
-          branch: "main", // TODO: Get actual branch
+          branch: branch,
         },
       ],
       config: {
         envVars: [],
       },
     });
+
+    // Check if Environment creation failed
+    if (!envResult.success) {
+      return {
+        success: false,
+        message: `Failed to create Environment CR: ${envResult.error || "Unknown error"}`,
+      };
+    }
 
     // Revalidate the projects and environments pages (routes use slugs, not IDs)
     revalidatePath(`/projects/${project.slug}`);

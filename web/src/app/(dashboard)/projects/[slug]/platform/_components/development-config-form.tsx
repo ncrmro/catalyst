@@ -3,6 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateEnvironmentConfig } from "@/actions/environment-config";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import type {
   EnvironmentConfig,
   ProjectType,
@@ -489,106 +494,137 @@ export function DevelopmentConfigForm({
         </div>
       )}
 
-      {/* Managed Services */}
-      <div className="space-y-3">
+      {/* Advanced Options - Managed Services */}
+      <div className="space-y-4">
         <h4 className="text-sm font-medium text-on-surface">
-          Managed Services
+          Advanced Options
         </h4>
-        <div className="space-y-3">
-          {/* PostgreSQL */}
-          <div
-            className={cn(
-              "rounded-lg border p-4",
-              localConfig.managedServices?.postgres?.enabled
-                ? "border-primary/50 bg-primary/5"
-                : "border-input",
-            )}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-on-surface">PostgreSQL</span>
-                <span className="text-xs bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded">
-                  Database
-                </span>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="sr-only peer"
-                  checked={
-                    localConfig.managedServices?.postgres?.enabled || false
-                  }
-                  onChange={(e) =>
-                    handleManagedServiceToggle("postgres", e.target.checked)
-                  }
-                />
-                <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-              </label>
-            </div>
-          </div>
 
-          {/* Redis */}
-          <div
-            className={cn(
-              "rounded-lg border p-4",
-              localConfig.managedServices?.redis?.enabled
-                ? "border-primary/50 bg-primary/5"
-                : "border-input",
-            )}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-on-surface">Redis</span>
-                <span className="text-xs bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded">
-                  Cache
-                </span>
+        <Collapsible defaultOpen={false}>
+          <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 text-left text-sm font-medium bg-surface-container rounded-md hover:bg-surface-container-highest transition-colors">
+            <svg
+              className="w-4 h-4 transition-transform [&[data-state=open]]:rotate-90"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+            <span>Managed Services</span>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-3">
+            <div className="space-y-3">
+              {/* PostgreSQL */}
+              <div
+                className={cn(
+                  "rounded-lg border p-4",
+                  localConfig.managedServices?.postgres?.enabled
+                    ? "border-primary/50 bg-primary/5"
+                    : "border-input",
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-on-surface">
+                      PostgreSQL
+                    </span>
+                    <span className="text-xs bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded">
+                      Database
+                    </span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={
+                        localConfig.managedServices?.postgres?.enabled || false
+                      }
+                      onChange={(e) =>
+                        handleManagedServiceToggle("postgres", e.target.checked)
+                      }
+                    />
+                    <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="sr-only peer"
-                  checked={localConfig.managedServices?.redis?.enabled || false}
-                  onChange={(e) =>
-                    handleManagedServiceToggle("redis", e.target.checked)
-                  }
-                />
-                <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-              </label>
-            </div>
-          </div>
 
-          {/* OpenSearch */}
-          <div
-            className={cn(
-              "rounded-lg border p-4",
-              localConfig.managedServices?.opensearch?.enabled
-                ? "border-primary/50 bg-primary/5"
-                : "border-input",
-            )}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-on-surface">OpenSearch</span>
-                <span className="text-xs bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded">
-                  Search
-                </span>
+              {/* Redis */}
+              <div
+                className={cn(
+                  "rounded-lg border p-4",
+                  localConfig.managedServices?.redis?.enabled
+                    ? "border-primary/50 bg-primary/5"
+                    : "border-input",
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-on-surface">Redis</span>
+                    <span className="text-xs bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded">
+                      Cache
+                    </span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={
+                        localConfig.managedServices?.redis?.enabled || false
+                      }
+                      onChange={(e) =>
+                        handleManagedServiceToggle("redis", e.target.checked)
+                      }
+                    />
+                    <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="sr-only peer"
-                  checked={
-                    localConfig.managedServices?.opensearch?.enabled || false
-                  }
-                  onChange={(e) =>
-                    handleManagedServiceToggle("opensearch", e.target.checked)
-                  }
-                />
-                <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-              </label>
+
+              {/* OpenSearch */}
+              <div
+                className={cn(
+                  "rounded-lg border p-4",
+                  localConfig.managedServices?.opensearch?.enabled
+                    ? "border-primary/50 bg-primary/5"
+                    : "border-input",
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-on-surface">
+                      OpenSearch
+                    </span>
+                    <span className="text-xs bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded">
+                      Search
+                    </span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={
+                        localConfig.managedServices?.opensearch?.enabled ||
+                        false
+                      }
+                      onChange={(e) =>
+                        handleManagedServiceToggle(
+                          "opensearch",
+                          e.target.checked,
+                        )
+                      }
+                    />
+                    <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
 
       {/* Save Button */}

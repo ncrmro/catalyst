@@ -218,7 +218,10 @@ export const repos = pgTable(
     pushedAt: timestamp("pushed_at", { mode: "date" }),
   },
   (table) => [
-    uniqueIndex("repo_github_id_team_id_unique").on(table.githubId, table.teamId),
+    uniqueIndex("repo_github_id_team_id_unique").on(
+      table.githubId,
+      table.teamId,
+    ),
     uniqueIndex("repo_full_name_team_id_unique").on(
       table.fullName,
       table.teamId,

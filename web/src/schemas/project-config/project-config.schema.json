@@ -11,6 +11,106 @@
       "const": "v1",
       "description": "Schema version for migrations"
     },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "repositoryUrl", "branch"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Identifier for this source (e.g., 'frontend', 'backend', 'primary')"
+          },
+          "repositoryUrl": {
+            "type": "string",
+            "description": "Git repository URL"
+          },
+          "branch": {
+            "type": "string",
+            "description": "Default branch to use"
+          },
+          "isPrimary": {
+            "type": "boolean",
+            "description": "Whether this is the primary repository"
+          }
+        }
+      },
+      "description": "Source repository configurations (supports multiple repos)"
+    },
+    "templates": {
+      "type": "object",
+      "patternProperties": {
+        "^(development|deployment)$": {
+          "type": "object",
+          "required": ["sourceRef", "type", "path"],
+          "properties": {
+            "sourceRef": {
+              "type": "string",
+              "description": "Reference to source by name"
+            },
+            "type": {
+              "type": "string",
+              "enum": ["helm", "manifest", "kustomize", "docker-compose"],
+              "description": "Deployment type"
+            },
+            "path": {
+              "type": "string",
+              "description": "Path to deployment definition (relative to repo root)"
+            },
+            "builds": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["name", "sourceRef"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Build artifact name"
+                  },
+                  "sourceRef": {
+                    "type": "string",
+                    "description": "Reference to source by name"
+                  },
+                  "path": {
+                    "type": "string",
+                    "description": "Build context directory"
+                  },
+                  "dockerfile": {
+                    "type": "string",
+                    "description": "Path to Dockerfile"
+                  },
+                  "resources": {
+                    "type": "object",
+                    "properties": {
+                      "limits": {
+                        "type": "object",
+                        "properties": {
+                          "cpu": { "type": "string" },
+                          "memory": { "type": "string" }
+                        }
+                      },
+                      "requests": {
+                        "type": "object",
+                        "properties": {
+                          "cpu": { "type": "string" },
+                          "memory": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "description": "Build specifications for this template"
+            },
+            "values": {
+              "type": "object",
+              "description": "Default values to inject"
+            }
+          }
+        }
+      },
+      "description": "Environment templates keyed by type (development, deployment)"
+    },
     "defaultImage": {
       "type": "object",
       "required": ["registry", "tag"],

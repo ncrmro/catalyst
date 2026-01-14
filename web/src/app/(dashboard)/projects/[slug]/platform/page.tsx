@@ -11,6 +11,8 @@ import {
 import { DetectionWrapper } from "./_components/detection-wrapper";
 import { DetectionLoading } from "./_components/detection-loading";
 import { RepositoriesCard, type Repo } from "./_components/repository-card";
+import { SourceManagerWrapper } from "./_components/source-manager-wrapper";
+import type { SourceConfig } from "@/types/crd";
 
 interface PlatformPageProps {
   params: Promise<{
@@ -191,6 +193,9 @@ export default async function PlatformPage({ params }: PlatformPageProps) {
       <DevelopmentEnvironmentsCard
         environments={developmentEnvironments}
         projectSlug={slug}
+        projectId={project.id}
+        primaryRepoId={primaryRepo?.id}
+        primaryRepoFullName={primaryRepo?.fullName}
         configContent={developmentConfigContent}
       />
 
@@ -248,6 +253,16 @@ export default async function PlatformPage({ params }: PlatformPageProps) {
             </span>
           </div>
         </div>
+      </GlassCard>
+
+      {/* Source Repositories Management */}
+      <GlassCard>
+        <SourceManagerWrapper
+          projectId={project.id}
+          initialSources={
+            (project.projectConfig?.sources as SourceConfig[] | undefined) || []
+          }
+        />
       </GlassCard>
     </>
   );

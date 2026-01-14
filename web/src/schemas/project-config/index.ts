@@ -139,9 +139,20 @@ export const EnvironmentTypeConfigSchema = z.object({
     .describe("Command to start the application (e.g., 'npm run dev')"),
 });
 
+/** Source repository configuration */
+export const SourceConfigSchema = z.object({
+  name: z.string(),
+  repositoryUrl: z.string(),
+  branch: z.string(),
+});
+
 /** Main project configuration */
 export const ProjectConfigSchema = z.object({
   version: z.literal("v1").describe("Schema version for migrations"),
+  sources: z
+    .array(SourceConfigSchema)
+    .optional()
+    .describe("Source repositories"),
   defaultImage: ImageConfigSchema,
   defaultResources: ResourceConfigSchema.optional(),
   defaultManagedServices: ManagedServicesConfigSchema.optional(),
@@ -177,6 +188,7 @@ export type EnvVarSourceType = z.infer<typeof EnvVarSourceTypeSchema>;
 export type EnvVarSource = z.infer<typeof EnvVarSourceSchema>;
 export type EnvVar = z.infer<typeof EnvVarSchema>;
 export type EnvironmentTypeConfig = z.infer<typeof EnvironmentTypeConfigSchema>;
+export type SourceConfig = z.infer<typeof SourceConfigSchema>;
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
 
 // Re-export the JSON Schema for documentation/OpenAPI use (kept for reference)
