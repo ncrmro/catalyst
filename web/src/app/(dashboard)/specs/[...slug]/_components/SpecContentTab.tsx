@@ -5,17 +5,12 @@ import {
   type VCSEntry,
 } from "@/actions/version-control-provider";
 import { MarkdownRenderer } from "@tetrastack/react-markdown";
+import { SpecViewer, type SpecFile } from "@catalyst/react-vcs-components/SpecViewer";
 
 interface SpecContentTabProps {
   projectId: string;
   projectSlug: string;
   specSlug: string;
-}
-
-interface SpecFile {
-  name: string;
-  path: string;
-  content: string;
 }
 
 // Standard spec-kit files in priority order
@@ -75,35 +70,12 @@ export async function SpecContentTab({
   }));
 
   return (
-    <div className="flex h-full">
-      {/* File Sidebar */}
-      <aside className="w-48 border-r border-outline/30 p-3 flex-shrink-0">
-        <h3 className="text-xs font-medium text-on-surface-variant uppercase tracking-wider mb-3">
-          Files
-        </h3>
-        <nav className="space-y-1">
-          {specFiles.map((file, index) => (
-            <button
-              key={file.name}
-              className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${
-                index === 0
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50"
-              }`}
-            >
-              {file.name}
-            </button>
-          ))}
-        </nav>
-      </aside>
-
-      {/* Content Area */}
-      <main className="flex-1 overflow-auto p-6">
-        <div className="max-w-3xl mx-auto">
-          <MarkdownRenderer content={specFiles[0]?.content || ""} />
-        </div>
-      </main>
-    </div>
+    <SpecViewer
+      specFiles={specFiles}
+      activeFile={specFiles[0]?.name}
+      MarkdownRenderer={MarkdownRenderer}
+      emptyMessage="No spec files found"
+    />
   );
 }
 
