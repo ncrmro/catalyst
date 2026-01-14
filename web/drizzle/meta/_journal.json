@@ -141,6 +141,13 @@
       "when": 1768431007022,
       "tag": "0019_zippy_slayback",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1768434602841,
+      "tag": "0020_regular_meteorite",
+      "breakpoints": true
     }
   ]
 }

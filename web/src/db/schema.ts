@@ -299,7 +299,6 @@ export const projectsRepos = pgTable(
     repoId: text("repo_id")
       .notNull()
       .references(() => repos.id, { onDelete: "cascade" }),
-    repoFullName: text("repo_full_name").notNull(),
     isPrimary: boolean("is_primary").notNull().default(false),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   },
@@ -307,10 +306,6 @@ export const projectsRepos = pgTable(
     pk: primaryKey({
       columns: [table.projectId, table.repoId],
     }),
-    uniqueRepoPerProject: unique("project_repo_name_unique").on(
-      table.projectId,
-      table.repoFullName,
-    ),
   }),
 );
 

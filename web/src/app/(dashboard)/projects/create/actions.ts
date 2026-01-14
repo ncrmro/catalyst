@@ -127,7 +127,6 @@ export async function createProject(
               savedRepos.map((repo) => ({
                 projectId: project.id,
                 repoId: repo.id,
-                repoFullName: repo.fullName,
                 isPrimary: false, // Will set primary separately
               })),
             );

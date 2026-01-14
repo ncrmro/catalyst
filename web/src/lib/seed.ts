@@ -211,7 +211,6 @@ export async function createCatalystAndMezeProjects(teamId: string) {
       .values({
         projectId: catalystProject.id,
         repoId: catalystRepo.id,
-        repoFullName: catalystRepo.fullName,
         isPrimary: true,
       })
       .onConflictDoNothing();
@@ -224,7 +223,6 @@ export async function createCatalystAndMezeProjects(teamId: string) {
       .values({
         projectId: mezeProject.id,
         repoId: mezeRepo.id,
-        repoFullName: mezeRepo.fullName,
         isPrimary: true,
       })
       .onConflictDoNothing();
@@ -343,20 +341,17 @@ export async function createTeamProjects(
     {
       projectId: insertedProjects[0].id,
       repoId: insertedRepos[0].id, // foo-frontend
-      repoFullName: insertedRepos[0].fullName,
       isPrimary: true,
     },
     {
       projectId: insertedProjects[0].id,
       repoId: insertedRepos[1].id, // foo-backend
-      repoFullName: insertedRepos[1].fullName,
       isPrimary: false,
     },
     // bar project repos
     {
       projectId: insertedProjects[1].id,
       repoId: insertedRepos[2].id, // bar-api
-      repoFullName: insertedRepos[2].fullName,
       isPrimary: true,
     },
   ];
@@ -676,7 +671,6 @@ export async function seedMockDataFromYaml() {
                     .values({
                       projectId: project.id,
                       repoId: repoRecord.id,
-                      repoFullName: repoRecord.fullName,
                       isPrimary: true,
                     })
                     .onConflictDoNothing();

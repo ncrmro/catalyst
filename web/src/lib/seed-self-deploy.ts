@@ -142,7 +142,6 @@ async function ensureCatalystProject(teamId: string) {
       .values({
         projectId: project.id,
         repoId: catalystRepo.id,
-        repoFullName: catalystRepo.fullName,
         isPrimary: true,
       })
       .onConflictDoNothing();
