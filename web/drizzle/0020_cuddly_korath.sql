@@ -1,2 +1,0 @@
-ALTER TABLE "projects_repos" ADD CONSTRAINT "projects_repos_project_id_repo_id_pk" PRIMARY KEY("project_id","repo_id");--> statement-breakpoint
-ALTER TABLE "projects_repos" ADD CONSTRAINT "project_repo_name_unique" UNIQUE("project_id","repo_full_name");

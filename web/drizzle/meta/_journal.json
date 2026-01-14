@@ -138,22 +138,8 @@
     {
       "idx": 19,
       "version": "7",
-      "when": 1768330059565,
-      "tag": "0019_orange_galactus",
-      "breakpoints": true
-    },
-    {
-      "idx": 20,
-      "version": "7",
-      "when": 1768330111522,
-      "tag": "0020_cuddly_korath",
-      "breakpoints": true
-    },
-    {
-      "idx": 21,
-      "version": "7",
-      "when": 1768331300416,
-      "tag": "0021_last_boomerang",
+      "when": 1768431007022,
+      "tag": "0019_zippy_slayback",
       "breakpoints": true
     }
   ]
