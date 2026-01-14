@@ -127,7 +127,7 @@ export async function createProjectEnvironment(
       type: validatedEnvType,
       sources: [
         {
-          name: branch,
+          name: "primary",
           commitSha: "HEAD", // TODO: Get actual commit SHA
           branch: branch,
         },

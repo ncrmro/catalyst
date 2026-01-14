@@ -212,12 +212,7 @@ export function DevelopmentEnvironmentsCard({
     config: configContent,
     new:
       primaryRepoId && primaryRepoFullName ? (
-        <CreateDevEnvironment
-          projectId={projectId}
-          projectSlug={projectSlug}
-          repoId={primaryRepoId}
-          repoFullName={primaryRepoFullName}
-        />
+        <CreateDevEnvironment projectId={projectId} />
       ) : (
         <div className="text-sm text-on-surface-variant">
           No repository connected. Connect a repository to create development
