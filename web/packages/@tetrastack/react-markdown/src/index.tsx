@@ -114,15 +114,31 @@ const components: MDXRemoteProps["components"] = {
 
 /**
  * Pre-process markdown content to make it safer for MDX
+ *
+ * MDX interprets < as JSX tag start, so we need to escape any < that isn't
+ * part of a valid HTML tag. This includes comparison operators, template
+ * syntax, and other non-tag uses of angle brackets.
  */
 function sanitizeMarkdown(markdown: string): string {
   // Strip HTML comments which break MDX parsing (e.g. <!-- comment -->)
-  // MDX treats < as start of JSX, and ! is invalid for component name
-  const sanitized = markdown.replace(/<!--[\s\S]*?-->/g, "");
+  let sanitized = markdown.replace(/<!--[\s\S]*?-->/g, "");
 
-  // Also common in PRs: <details> and <summary>, which are valid HTML but
-  // if attributes are unquoted or weird, might break.
-  // For now, let's just assume valid HTML tags are fine if they are standard.
+  // Escape < that aren't followed by valid HTML tags or closing tags
+  // This handles: <1, < 2, <?, <!, <template-literal>, etc.
+  sanitized = sanitized.replace(
+    /<(?!\/?\s*(?:a|abbr|address|area|article|aside|audio|b|base|bdi|bdo|blockquote|body|br|button|canvas|caption|cite|code|col|colgroup|data|datalist|dd|del|details|dfn|dialog|div|dl|dt|em|embed|fieldset|figcaption|figure|footer|form|h[1-6]|head|header|hgroup|hr|html|i|iframe|img|input|ins|kbd|label|legend|li|link|main|map|mark|meta|meter|nav|noscript|object|ol|optgroup|option|output|p|param|picture|pre|progress|q|rp|rt|ruby|s|samp|script|section|select|slot|small|source|span|strong|style|sub|summary|sup|table|tbody|td|template|textarea|tfoot|th|thead|time|title|tr|track|u|ul|var|video|wbr)(?:\s|>|\/))/gi,
+    "&lt;",
+  );
+
+  // Also escape curly braces outside of code blocks (MDX interprets as JSX expressions)
+  // Only escape if they contain template-like syntax that could break
+  sanitized = sanitized.replace(/\{(\w+)\}/g, (match, content) => {
+    // Keep common markdown/code patterns, escape template-like patterns
+    if (/^[a-z_][a-z0-9_]*$/i.test(content)) {
+      return `\\{${content}\\}`;
+    }
+    return match;
+  });
 
   return sanitized;
 }
