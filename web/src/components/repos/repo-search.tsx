@@ -11,6 +11,7 @@ import { z } from "zod";
 import {
   RepoSearch as RepoSearchComponent,
   type ReposData,
+  type GitHubRepo as PackageGitHubRepo,
 } from "@catalyst/react-vcs-components/RepoSearch";
 
 export interface RepoSearchProps {
@@ -18,6 +19,9 @@ export interface RepoSearchProps {
   excludeUrls?: string[];
   placeholder?: string;
 }
+
+// Re-export the GitHubRepo type for backward compatibility
+export type { GitHubRepo };
 
 const reposSchema = z.union([reposDataSchema, reposDataWithReasonSchema]);
 
@@ -38,7 +42,7 @@ export function RepoSearch({
 
   return (
     <RepoSearchComponent
-      onSelect={onSelect}
+      onSelect={onSelect as (repo: PackageGitHubRepo) => void}
       repos={repos as ReposData | null}
       isLoading={isLoading}
       excludeUrls={excludeUrls}
