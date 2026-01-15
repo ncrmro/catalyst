@@ -1,5 +1,5 @@
 {
-  "id": "f0735d63-db04-41f6-96d1-8a33fb8b911d",
+  "id": "69433e10-f2e2-4184-8a2a-6c6f95500fd6",
   "prevId": "fe4e7171-0444-4d97-8eff-5204330d0269",
   "version": "7",
   "dialect": "postgresql",
@@ -587,12 +587,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "repo_full_name": {
-          "name": "repo_full_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
         "is_primary": {
           "name": "is_primary",
           "type": "boolean",
@@ -635,13 +629,7 @@
           "columns": ["project_id", "repo_id"]
         }
       },
-      "uniqueConstraints": {
-        "project_repo_name_unique": {
-          "name": "project_repo_name_unique",
-          "nullsNotDistinct": false,
-          "columns": ["project_id", "repo_full_name"]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
