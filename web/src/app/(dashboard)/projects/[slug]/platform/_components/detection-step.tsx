@@ -98,6 +98,10 @@ export function DetectionStep({
   const detectedFiles = detectionState.files;
 
   // Sync with initialConfig when it changes
+  // Note: We intentionally exclude detectionState.config from dependencies to prevent
+  // infinite loops. The comparison initialConfig !== detectionState.config is sufficient
+  // to prevent unnecessary updates. Including detectionState.config would cause the
+  // effect to trigger after we update the state, creating an infinite loop.
   useEffect(() => {
     if (initialConfig && initialConfig !== detectionState.config) {
       setDetectionState((prev) => ({
