@@ -99,14 +99,14 @@ export function DetectionStep({
 
   // Sync with initialConfig when it changes
   useEffect(() => {
-    if (initialConfig) {
+    if (initialConfig && initialConfig !== detectionState.config) {
       setDetectionState((prev) => ({
         config: initialConfig,
         files: prev.files,
         version: prev.version + 1,
       }));
     }
-  }, [initialConfig]);
+  }, [initialConfig, detectionState.config]);
 
   const handleReDetect = async () => {
     setIsDetecting(true);
@@ -121,7 +121,9 @@ export function DetectionStep({
         workdir,
       );
 
-      console.log("Detection result:", result);
+      if (process.env.NODE_ENV === "development") {
+        console.log("Detection result:", result);
+      }
 
       if (!result.success) {
         setError(result.error || "Detection failed");
@@ -130,15 +132,21 @@ export function DetectionStep({
       }
 
       // Update detection state as a single atomic update
-      setDetectionState((prev) => ({
-        config: result.config || null,
-        files: result.detectedFiles || [],
-        version: prev.version + 1,
-      }));
-      
-      console.log("State updated successfully, version:", detectionState.version + 1);
+      setDetectionState((prev) => {
+        const newVersion = prev.version + 1;
+        if (process.env.NODE_ENV === "development") {
+          console.log("State updated successfully, version:", newVersion);
+        }
+        return {
+          config: result.config || null,
+          files: result.detectedFiles || [],
+          version: newVersion,
+        };
+      });
     } catch (err) {
-      console.error("Detection error:", err);
+      if (process.env.NODE_ENV === "development") {
+        console.error("Detection error:", err);
+      }
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setIsDetecting(false);
