@@ -494,8 +494,8 @@ export class ScopedVCSProvider {
     return this.provider.execute(
       this.tokenSourceId,
       this.providerId,
-      async (vcsProvider) => {
-        return vcsProvider.checkConnection(this.tokenSourceId);
+      async (vcsProvider, client) => {
+        return vcsProvider.checkConnection(client);
       },
     );
   }
