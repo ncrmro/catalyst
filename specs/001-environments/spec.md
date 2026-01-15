@@ -154,6 +154,13 @@ As a power user, I want to configure deployments using standard tools (Docker Co
 - **FR-ENV-017**: Operator MUST patch the default ServiceAccount in environment namespaces with `imagePullSecrets` matching the project registry credentials.
 - **FR-ENV-018**: System MUST support provisioning an internal container registry (cluster-wide or per-project) backed by object storage for zero-config image hosting.
 - **FR-ENV-019**: Operator MUST support a sidecar/init mechanism in "development" mode to clone sources into the development pod and enable bi-directional sync (push back to Git) for interactive development workflows.
+- **FR-ENV-020**: Custom Resources (CRs) MUST follow a strict namespace hierarchy to ensure permission isolation and resource tracking:
+    - **Project CRs** MUST be created in the Team Namespace (`<team-name>`).
+    - **Environment CRs** MUST be created in the Project Namespace (`<team-name>-<project-name>`).
+    - The Operator MUST generate the final Environment Namespace (workload target) as `<team-name>-<project-name>-<environment-name>`.
+- **FR-ENV-021**: The System MUST validate and enforce the Kubernetes 63-character limit for namespace names:
+    - If the generated namespace name (`<team>-<project>-<env>`) exceeds 63 characters, the System MUST truncate the components and append a hash to ensure uniqueness and validity.
+    - See [Namespace Generation Procedure](#namespace-generation-procedure) for the specific algorithm.
 
 ### Key Entities
 
@@ -254,9 +261,27 @@ All environments operate within dedicated Kubernetes namespaces, structured hier
 
 **Namespace Hierarchy:**
 
-1.  **Team Namespace** (`<team-name>`): Contains shared infrastructure (monitoring, logging).
-2.  **Project Namespace** (`<team-name>-<project-name>`): Logical grouping for project resources.
-3.  **Environment Namespace** (`<team-name>-<project-name>-<environment-name>`): The actual target for workload deployments.
+1.  **Team Namespace** (`<team-name>`): Contains shared infrastructure (monitoring, logging) and **Project CRs**.
+2.  **Project Namespace** (`<team-name>-<project-name>`): Contains **Environment CRs** and provides a boundary for project-level permissions.
+3.  **Environment Namespace** (`<team-name>-<project-name>-<environment-name>`): The actual target for workload deployments (Pods, Services, etc.).
+
+**Namespace Generation Procedure:**
+
+Kubernetes namespaces are limited to 63 characters. When generating the namespace name `<team>-<project>-<env>`, if the total length exceeds 63 characters, the following procedure MUST be used:
+
+1.  **Calculate Hash**: Compute a SHA-256 hash of the full string `<team>-<project>-<env>`.
+2.  **Truncate Components**: Truncate the full string to 57 characters.
+3.  **Append Hash**: Append a hyphen and the first 5 characters of the hash to the truncated string.
+    - Format: `<truncated-string>-<hash>`
+    - Total length: 57 + 1 + 5 = 63 characters.
+4.  **Sanitization**: Ensure the final string complies with DNS-1123 (lowercase alphanumeric and hyphens only).
+
+*Example:*
+- Team: `my-super-long-team-name` (23)
+- Project: `my-super-long-project-name` (26)
+- Env: `feature-very-long-branch-name` (29)
+- Total: 80 chars (exceeds 63)
+- Result: `my-super-long-team-name-my-super-long-project-name-fe-a1b2c` (63 chars)
 
 **Labels:**
 
