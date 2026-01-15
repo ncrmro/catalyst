@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { reDetectProject } from "@/actions/project-detection";
 import type {
   EnvironmentConfig,
@@ -81,11 +81,32 @@ export function DetectionStep({
 }: DetectionStepProps) {
   const [workdir, setWorkdir] = useState(initialWorkdir || "/");
   const [isDetecting, setIsDetecting] = useState(false);
-  const [detectedConfig, setDetectedConfig] =
-    useState<EnvironmentConfig | null>(initialConfig || null);
-  const [detectedFiles, setDetectedFiles] = useState<string[]>([]);
+  const [detectionState, setDetectionState] = useState<{
+    config: EnvironmentConfig | null;
+    files: string[];
+    version: number;
+  }>({
+    config: initialConfig || null,
+    files: [],
+    version: 0,
+  });
   const [error, setError] = useState<string | null>(null);
   const [filesExpanded, setFilesExpanded] = useState(false);
+
+  // Extract values for easier access
+  const detectedConfig = detectionState.config;
+  const detectedFiles = detectionState.files;
+
+  // Sync with initialConfig when it changes
+  useEffect(() => {
+    if (initialConfig) {
+      setDetectionState((prev) => ({
+        config: initialConfig,
+        files: prev.files,
+        version: prev.version + 1,
+      }));
+    }
+  }, [initialConfig]);
 
   const handleReDetect = async () => {
     setIsDetecting(true);
@@ -100,14 +121,24 @@ export function DetectionStep({
         workdir,
       );
 
+      console.log("Detection result:", result);
+
       if (!result.success) {
         setError(result.error || "Detection failed");
+        setIsDetecting(false);
         return;
       }
 
-      setDetectedConfig(result.config || null);
-      setDetectedFiles(result.detectedFiles || []);
+      // Update detection state as a single atomic update
+      setDetectionState((prev) => ({
+        config: result.config || null,
+        files: result.detectedFiles || [],
+        version: prev.version + 1,
+      }));
+      
+      console.log("State updated successfully, version:", detectionState.version + 1);
     } catch (err) {
+      console.error("Detection error:", err);
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setIsDetecting(false);
