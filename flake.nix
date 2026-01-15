@@ -84,10 +84,11 @@
               echo "🚀 Catalyst Development Shell Loaded"
               echo "----------------------------------------"
               echo "  Web Port:     $WEB_PORT"
-              echo "  DB Port:      $DB_PORT (K3s VM)"
+              echo "  DB Port:      $DB_PORT (Local Postgres)"
               echo "  Database URL: $DATABASE_URL"
+              echo "  K3s Postgres: 5432 (NodePort 30432, if K3s running)"
               echo "----------------------------------------"
-              echo "Run 'make up' in web/ to start services."
+              echo "Run 'make up-local' for local dev or 'make up' for full K3s."
             '';
           };
         });

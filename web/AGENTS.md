@@ -256,6 +256,72 @@ This runs three concurrent processes:
 
 **IMPORTANT**: Never run `npm run build` during development - it breaks the Next.js dev server hot reload.
 
+## Multiple Worktrees
+
+The project supports running multiple git worktrees simultaneously with isolated databases for parallel feature development.
+
+### Setup
+
+To run multiple worktrees with isolated databases:
+
+1. **Create worktree** (from main repo):
+
+   ```bash
+   git worktree add ../worktree/feature-name origin/feature-name
+   cd ../worktree/feature-name
+   ```
+
+2. **Set unique ports** in `web/.env`:
+
+   ```bash
+   # Worktree 1: Use defaults (5432, 3000)
+   DB_PORT=5432
+   WEB_PORT=3000
+
+   # Worktree 2: Increment both
+   DB_PORT=5433
+   WEB_PORT=3001
+
+   # Worktree 3: Increment both
+   DB_PORT=5434
+   WEB_PORT=3002
+   ```
+
+3. **Start local-only mode**:
+
+   ```bash
+   cd web
+   make up-local  # Fast: DB + Next.js only, NO K3s/Operator
+   ```
+
+4. **Access your app** at http://localhost:3001 (or your WEB_PORT)
+
+### What You Get
+
+Each worktree has:
+
+- **Isolated postgres** in `.direnv/postgres` (data not shared between worktrees)
+- **Independent migrations** and seed data
+- **Separate Next.js dev server** on unique port
+
+### Development Modes
+
+**Local-only mode** (fast, no K3s overhead):
+
+```bash
+make up-local  # PostgreSQL + Next.js only
+```
+
+**Full stack mode** (with K3s for testing operator/preview environments):
+
+```bash
+make up  # PostgreSQL + K3s VM + Operator + Next.js
+```
+
+**Note**: Both modes use `DB_PORT` from your `.env`, so multiple worktrees can run either mode simultaneously without conflicts. However, K3s VM uses fixed ports (6443, 2666), so only one worktree should run `make up` at a time.
+
+**Architecture**: The local postgres (on `DB_PORT`) is used by the web app. K3s has its own postgres (on NodePort 30432, forwarded to localhost:5432 if available) used by preview environments deployed in the cluster. These are separate instances.
+
 ### NPM Scripts
 
 The commands below are for granular control during active feature development.

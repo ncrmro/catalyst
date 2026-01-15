@@ -6,6 +6,11 @@ import { updateProjectConfig } from "@/actions/project-config";
 import { ImageConfigForm } from "./forms/image-config-form";
 import { ResourcesConfigForm } from "./forms/resources-config-form";
 import { ManagedServicesForm } from "./forms/managed-services-form";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import type {
   ProjectConfig,
   ResourceConfig,
@@ -293,44 +298,100 @@ export function DeploymentConfigForm({
         </div>
       )}
 
-      {/* Image Configuration */}
-      <div className="space-y-3">
+      {/* Advanced Options - Collapsed by Default */}
+      <div className="space-y-4">
         <h4 className="text-sm font-medium text-on-surface">
-          Image Configuration
+          Advanced Options
         </h4>
-        <ImageConfigForm
-          config={state.defaultImage}
-          onChange={(updates) =>
-            dispatch({ type: "UPDATE_IMAGE", payload: updates })
-          }
-        />
-      </div>
 
-      {/* Resource Limits */}
-      <div className="space-y-3">
-        <h4 className="text-sm font-medium text-on-surface">Resource Limits</h4>
-        <ResourcesConfigForm
-          config={state.defaultResources || DEFAULT_CONFIG.defaultResources!}
-          onChange={(updates) =>
-            dispatch({ type: "UPDATE_RESOURCES", payload: updates })
-          }
-        />
-      </div>
+        {/* Image Configuration */}
+        <Collapsible defaultOpen={false}>
+          <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 text-left text-sm font-medium bg-surface-container rounded-md hover:bg-surface-container-highest transition-colors">
+            <svg
+              className="w-4 h-4 transition-transform [&[data-state=open]]:rotate-90"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+            <span>Image Configuration</span>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-3">
+            <ImageConfigForm
+              config={state.defaultImage}
+              onChange={(updates) =>
+                dispatch({ type: "UPDATE_IMAGE", payload: updates })
+              }
+            />
+          </CollapsibleContent>
+        </Collapsible>
 
-      {/* Managed Services */}
-      <div className="space-y-3">
-        <h4 className="text-sm font-medium text-on-surface">
-          Managed Services
-        </h4>
-        <ManagedServicesForm
-          config={
-            state.defaultManagedServices ||
-            DEFAULT_CONFIG.defaultManagedServices!
-          }
-          onChange={(updates) =>
-            dispatch({ type: "UPDATE_MANAGED_SERVICES", payload: updates })
-          }
-        />
+        {/* Resource Limits */}
+        <Collapsible defaultOpen={false}>
+          <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 text-left text-sm font-medium bg-surface-container rounded-md hover:bg-surface-container-highest transition-colors">
+            <svg
+              className="w-4 h-4 transition-transform [&[data-state=open]]:rotate-90"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+            <span>Resource Limits</span>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-3">
+            <ResourcesConfigForm
+              config={
+                state.defaultResources || DEFAULT_CONFIG.defaultResources!
+              }
+              onChange={(updates) =>
+                dispatch({ type: "UPDATE_RESOURCES", payload: updates })
+              }
+            />
+          </CollapsibleContent>
+        </Collapsible>
+
+        {/* Managed Services */}
+        <Collapsible defaultOpen={false}>
+          <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 text-left text-sm font-medium bg-surface-container rounded-md hover:bg-surface-container-highest transition-colors">
+            <svg
+              className="w-4 h-4 transition-transform [&[data-state=open]]:rotate-90"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+            <span>Managed Services</span>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-3">
+            <ManagedServicesForm
+              config={
+                state.defaultManagedServices ||
+                DEFAULT_CONFIG.defaultManagedServices!
+              }
+              onChange={(updates) =>
+                dispatch({ type: "UPDATE_MANAGED_SERVICES", payload: updates })
+              }
+            />
+          </CollapsibleContent>
+        </Collapsible>
       </div>
 
       {/* Save Button */}

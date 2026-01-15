@@ -283,7 +283,9 @@ func (r *EnvironmentReconciler) reconcileComposeModeWithStatus(ctx context.Conte
 	}
 
 	// Set provisioning status
-	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" && env.Status.Phase != "Building" {
+	// Note: We check != "Failed" to prevent an infinite loop where the controller flip-flops
+	// between "Failed" (due to error) and "Provisioning" (here), triggering constant updates.
+	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" && env.Status.Phase != "Building" && env.Status.Phase != "Failed" {
 		env.Status.Phase = "Provisioning"
 		if err := r.Status().Update(ctx, env); err != nil {
 			return ctrl.Result{}, err
@@ -293,8 +295,17 @@ func (r *EnvironmentReconciler) reconcileComposeModeWithStatus(ctx context.Conte
 	// Run compose reconciliation
 	ready, err := r.ReconcileComposeMode(ctx, env, project, namespace, template)
 	if err != nil {
-		env.Status.Phase = "Failed"
-		_ = r.Status().Update(ctx, env)
+		if env.Status.Phase != "Failed" {
+			env.Status.Phase = "Failed"
+			if updateErr := r.Status().Update(ctx, env); updateErr != nil {
+				return ctrl.Result{}, updateErr
+			}
+		}
+
+		if strings.Contains(err.Error(), "source not found") {
+			log.Error(err, "Compose reconciliation failed due to missing source; pausing until fixed")
+			return ctrl.Result{}, nil
+		}
 		return ctrl.Result{}, err
 	}
 
@@ -353,7 +364,9 @@ func (r *EnvironmentReconciler) reconcileHelmModeWithStatus(ctx context.Context,
 	}
 
 	// Set provisioning status (if not building)
-	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" && env.Status.Phase != "Building" {
+	// Note: We check != "Failed" to prevent an infinite loop where the controller flip-flops
+	// between "Failed" (due to error) and "Provisioning" (here), triggering constant updates.
+	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" && env.Status.Phase != "Building" && env.Status.Phase != "Failed" {
 		env.Status.Phase = "Provisioning"
 		if err := r.Status().Update(ctx, env); err != nil {
 			return ctrl.Result{}, err
@@ -363,8 +376,17 @@ func (r *EnvironmentReconciler) reconcileHelmModeWithStatus(ctx context.Context,
 	// Run helm reconciliation
 	ready, err := r.ReconcileHelmMode(ctx, env, project, namespace, template, builtImages)
 	if err != nil {
-		env.Status.Phase = "Failed"
-		_ = r.Status().Update(ctx, env)
+		if env.Status.Phase != "Failed" {
+			env.Status.Phase = "Failed"
+			if updateErr := r.Status().Update(ctx, env); updateErr != nil {
+				return ctrl.Result{}, updateErr
+			}
+		}
+
+		if strings.Contains(err.Error(), "source not found") {
+			log.Error(err, "Helm reconciliation failed due to missing source; pausing until fixed")
+			return ctrl.Result{}, nil
+		}
 		return ctrl.Result{}, err
 	}
 
@@ -397,7 +419,9 @@ func (r *EnvironmentReconciler) reconcileDevelopmentModeWithStatus(ctx context.C
 	}
 
 	// Set provisioning status
-	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" {
+	// Note: We check != "Failed" to prevent an infinite loop where the controller flip-flops
+	// between "Failed" (due to error) and "Provisioning" (here), triggering constant updates.
+	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" && env.Status.Phase != "Failed" {
 		env.Status.Phase = "Provisioning"
 		if err := r.Status().Update(ctx, env); err != nil {
 			return ctrl.Result{}, err
@@ -441,7 +465,9 @@ func (r *EnvironmentReconciler) reconcileProductionModeWithStatus(ctx context.Co
 	}
 
 	// Set provisioning status
-	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" {
+	// Note: We check != "Failed" to prevent an infinite loop where the controller flip-flops
+	// between "Failed" (due to error) and "Provisioning" (here), triggering constant updates.
+	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" && env.Status.Phase != "Failed" {
 		env.Status.Phase = "Provisioning"
 		if err := r.Status().Update(ctx, env); err != nil {
 			return ctrl.Result{}, err
