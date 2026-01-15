@@ -2,6 +2,8 @@
 
 This document provides comprehensive guidance on how Auth.js (NextAuth.js v5), Drizzle ORM, Playwright automated login, and Google OAuth work together in this project.
 
+> **📘 GitHub Integration**: For GitHub App authentication with automatic token refresh, see the **[@catalyst/vcs-provider SETUP guide](../packages/@catalyst/vcs-provider/SETUP.md)**. It includes complete setup instructions for GitHub OAuth, webhook handlers, and token management.
+
 ## Package Versions
 
 ```json
