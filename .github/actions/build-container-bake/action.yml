@@ -110,8 +110,8 @@ outputs:
     description: 'PR development cache image name with tag'
     value: ${{ steps.set-outputs.outputs.pr-dev-cache-image }}
   digest:
-    description: 'Image digest'
-    value: ${{ steps.bake.outputs.digest }}
+    description: 'Production image digest (for immutable deployments)'
+    value: ${{ steps.bake.outputs.digest-production }}
 
 runs:
   using: 'composite'
