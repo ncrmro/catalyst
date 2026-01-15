@@ -8,6 +8,7 @@ import { fetchProjectById } from "@/actions/projects";
 import { listDirectory } from "@/actions/version-control-provider";
 import { updateFile } from "@/actions/vcs";
 import type { Spec } from "@/lib/pr-spec-matching";
+import { buildSpecUrl } from "@/lib/spec-url";
 
 /**
  * Error information returned when specs cannot be fetched
@@ -70,7 +71,7 @@ export async function fetchProjectSpecs(
     specs: specDirs.map((dir) => ({
       id: dir.name,
       name: dir.name,
-      href: `/projects/${projectSlug}/spec/${dir.name}`,
+      href: buildSpecUrl(projectSlug, repo.name, dir.name),
     })),
   };
 }

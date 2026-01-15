@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { buildSpecUrl } from "@/lib/spec-url";
 
 interface SpecTabNavProps {
@@ -10,25 +10,29 @@ interface SpecTabNavProps {
   specSlug: string;
 }
 
-type TabValue = "tasks" | "spec";
-
 export function SpecTabNav({
   projectSlug,
   repoSlug,
   specSlug,
 }: SpecTabNavProps) {
-  const searchParams = useSearchParams();
-  const currentTab = (searchParams.get("tab") as TabValue) || "tasks";
+  const pathname = usePathname();
+  const baseSpecUrl = buildSpecUrl(projectSlug, repoSlug, specSlug);
 
-  const createTabHref = (tab: TabValue) =>
-    buildSpecUrl(projectSlug, repoSlug, specSlug, { tab });
+  // Exact match for tasks (index)
+  const isTasks = pathname === baseSpecUrl;
+  
+  // Prefix match for spec files (any file under the spec path)
+  const isSpec = pathname.startsWith(`${baseSpecUrl}/`);
 
   return (
     <div className="flex items-center gap-1 bg-surface-variant/50 rounded-lg p-1">
-      <TabButton href={createTabHref("tasks")} active={currentTab === "tasks"}>
+      <TabButton href={baseSpecUrl} active={isTasks}>
         Tasks
       </TabButton>
-      <TabButton href={createTabHref("spec")} active={currentTab === "spec"}>
+      <TabButton
+        href={buildSpecUrl(projectSlug, repoSlug, specSlug, { file: "spec.md" })}
+        active={isSpec}
+      >
         Spec
       </TabButton>
     </div>

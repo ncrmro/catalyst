@@ -6,11 +6,14 @@ import {
 } from "@/actions/version-control-provider";
 import { MarkdownRenderer } from "@tetrastack/react-markdown";
 import { SpecViewer, type SpecFile } from "@catalyst/react-vcs-components/SpecViewer";
+import { buildSpecUrl } from "@/lib/spec-url";
 
 interface SpecContentTabProps {
   projectId: string;
   projectSlug: string;
+  repoSlug?: string;
   specSlug: string;
+  fileName?: string;
 }
 
 // Standard spec-kit files in priority order
@@ -18,7 +21,10 @@ const SPEC_FILES = ["spec.md", "plan.md", "tasks.md", "quickstart.md"];
 
 export async function SpecContentTab({
   projectId,
+  projectSlug,
+  repoSlug,
   specSlug,
+  fileName,
 }: SpecContentTabProps) {
   const project = await fetchProjectById(projectId);
   if (!project) {
@@ -58,23 +64,38 @@ export async function SpecContentTab({
     return a.name.localeCompare(b.name);
   });
 
-  // Read the first file (spec.md if present)
-  const primaryFile = sortedFiles[0];
-  const fileResult = await readFile(repo.fullName, primaryFile.path);
+  // Determine active file (use requested fileName or default to first file)
+  const activeFileName = fileName || sortedFiles[0]?.name;
+  
+  // Read content only for the active file
+  const activeFileEntry = sortedFiles.find((f) => f.name === activeFileName);
+  let activeContent = "";
+  let renderedContent: React.ReactNode = null;
+
+  if (activeFileEntry) {
+    const fileResult = await readFile(repo.fullName, activeFileEntry.path);
+    activeContent = fileResult.file?.content ?? "";
+    renderedContent = <MarkdownRenderer content={activeContent} />;
+  }
 
   const specFiles: SpecFile[] = sortedFiles.map((f) => ({
     name: f.name,
     path: f.path,
-    content:
-      f.path === primaryFile.path ? (fileResult.file?.content ?? "") : "",
+    content: f.name === activeFileName ? activeContent : "",
+    rendered: f.name === activeFileName ? renderedContent : undefined,
   }));
+
+  // Construct base URL for navigation
+  // Default repoSlug to projectSlug if not provided
+  const effectiveRepoSlug = repoSlug || projectSlug;
+  const baseHref = buildSpecUrl(projectSlug, effectiveRepoSlug, specSlug);
 
   return (
     <SpecViewer
       specFiles={specFiles}
-      activeFile={specFiles[0]?.name}
-      MarkdownRenderer={MarkdownRenderer}
+      activeFile={activeFileName}
       emptyMessage="No spec files found"
+      baseHref={baseHref}
     />
   );
 }

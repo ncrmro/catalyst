@@ -47,6 +47,7 @@ A component for viewing specification documents from a VCS repository.
 - Displays markdown content with syntax highlighting
 - File navigation sidebar
 - Supports multiple spec files (spec.md, plan.md, tasks.md, etc.)
+- Supports client-side navigation via `Link` or state-based switching
 
 **Usage:**
 ```tsx
@@ -83,6 +84,155 @@ function MyLayout() {
       basePath="/projects/my-project/spec/001"
     />
   );
+}
+```
+
+## Next.js App Router Integration
+
+To implement a full-featured spec viewer in Next.js App Router that handles dynamic routing, optional file path navigation, and server-side rendering of Markdown content, follow this pattern:
+
+### 1. Route Definition
+
+Create a catch-all route `app/specs/[...slug]/page.tsx` to handle flexible URL segments:
+- `/specs/[project]/[spec]` (Index/Tasks view)
+- `/specs/[project]/[repo]/[spec]` (When project != repo)
+- `/specs/[project]/[spec]/[file.md]` (File view)
+
+### 2. Parsing Logic (Server Action / Utility)
+
+Use a helper to parse the slug and detect if a specific file is requested.
+
+```typescript
+// lib/spec-url.ts
+export function parseSpecSlug(slug: string[]) {
+  const parts = [...slug];
+  let fileName: string | undefined;
+
+  // Heuristic: Check if last segment is a markdown file
+  if (parts.length > 0 && parts[parts.length - 1].toLowerCase().endsWith(".md")) {
+    fileName = parts.pop();
+  }
+
+  // Handle remaining parts (project, repo, spec) logic...
+  return { projectSlug: parts[0], specSlug: parts[1], fileName };
+}
+```
+
+### 3. Page Implementation
+
+In `page.tsx`, route based on the presence of `fileName`.
+
+```tsx
+// app/specs/[...slug]/page.tsx
+export default async function SpecPage({ params }: Props) {
+  const { slug } = await params;
+  const { projectSlug, specSlug, fileName } = parseSpecSlug(slug);
+
+  if (fileName) {
+    // User requested a specific file -> Render Spec Content
+    return (
+      <SpecContentTab
+        projectSlug={projectSlug}
+        specSlug={specSlug}
+        fileName={fileName}
+      />
+    );
+  }
+
+  // No file requested -> Render Dashboard/Tasks Index
+  return <SpecTasksTab ... />;
+}
+```
+
+### 4. Spec Viewer & Server Rendering
+
+Implement the content tab to fetch data and pre-render Markdown on the server. Passing the pre-rendered `ReactNode` to `SpecViewer` avoids passing functions to Client Components.
+
+```tsx
+// components/SpecContentTab.tsx (Server Component)
+import { SpecViewer } from "@catalyst/react-vcs-components/SpecViewer";
+import { MarkdownRenderer } from "@/components/MarkdownRenderer"; // Your server-side renderer
+
+export async function SpecContentTab({ fileName, ...props }) {
+  // 1. List all files in spec directory (to populate sidebar)
+  const files = await listDirectory(repo, `specs/${specSlug}`);
+  
+  // 2. Read content ONLY for the active file
+  const activeContent = await readFile(repo, `specs/${specSlug}/${fileName}`);
+
+  // 3. Pre-render Markdown on Server
+  const renderedContent = <MarkdownRenderer content={activeContent} />;
+
+  // 4. Construct SpecFile objects
+  // Note: 'content' string is fallback; 'rendered' ReactNode is primary
+  const specFiles = files.map(f => ({
+    name: f.name,
+    path: f.path,
+    content: f.name === fileName ? activeContent : "", 
+    rendered: f.name === fileName ? renderedContent : undefined
+  }));
+
+  // 5. Provide baseHref to enable Link-based navigation in SpecViewer
+  return (
+    <SpecViewer
+      specFiles={specFiles}
+      activeFile={fileName}
+      baseHref={`/specs/${projectSlug}/${specSlug}`}
+    />
+  );
+}
+```
+
+### 5. Required Server Actions
+
+To power these components, your application must implement server actions for data fetching. The components are agnostic to *how* you fetch data (GitLab, GitHub, Bitbucket, filesystem, etc.), but the examples above assume the following interfaces:
+
+```typescript
+// actions/version-control-provider.ts
+"use server";
+
+export interface VCSEntry {
+  name: string;
+  path: string;
+  type: "file" | "dir";
+}
+
+export interface VCSDirectoryResult {
+  success: boolean;
+  entries: VCSEntry[];
+  error?: string;
+}
+
+export interface VCSFileResult {
+  success: boolean;
+  file: {
+    name: string;
+    path: string;
+    content: string;
+  } | null;
+  error?: string;
+}
+
+/**
+ * List files in a directory
+ */
+export async function listDirectory(
+  repoFullName: string, 
+  path: string, 
+  ref?: string
+): Promise<VCSDirectoryResult> {
+  // Implementation (e.g. using @catalyst/vcs-provider or Octokit)
+}
+
+/**
+ * Read content of a specific file
+ */
+export async function readFile(
+  repoFullName: string, 
+  path: string, 
+  ref?: string
+): Promise<VCSFileResult> {
+  // Implementation
 }
 ```
 

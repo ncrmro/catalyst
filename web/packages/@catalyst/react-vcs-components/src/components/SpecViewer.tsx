@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import Link from "next/link";
 
 /**
  * Types for the SpecViewer component
@@ -10,6 +11,7 @@ export interface SpecFile {
   name: string;
   path: string;
   content: string;
+  rendered?: ReactNode;
 }
 
 export interface SpecViewerProps {
@@ -38,6 +40,12 @@ export interface SpecViewerProps {
    * Optional empty state message
    */
   emptyMessage?: string;
+
+  /**
+   * Base URL for file navigation
+   * If provided, sidebar items will be links instead of buttons
+   */
+  baseHref?: string;
 }
 
 /**
@@ -54,10 +62,16 @@ export function SpecViewer({
   onFileSelect,
   MarkdownRenderer,
   emptyMessage = "No content available",
+  baseHref,
 }: SpecViewerProps) {
   const [selectedFileName, setSelectedFileName] = useState(
     activeFile || specFiles[0]?.name
   );
+
+  // Sync selectedFileName with activeFile prop if it changes
+  if (activeFile && activeFile !== selectedFileName) {
+    setSelectedFileName(activeFile);
+  }
 
   const handleFileSelect = (fileName: string) => {
     setSelectedFileName(fileName);
@@ -84,15 +98,29 @@ export function SpecViewer({
         <nav className="space-y-1">
           {specFiles.map((file) => {
             const isActive = file.name === selectedFileName;
+            const className = `w-full text-left px-2 py-1.5 rounded text-sm transition-colors block ${
+              isActive
+                ? "bg-primary/10 text-primary font-medium"
+                : "text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50"
+            }`;
+
+            if (baseHref) {
+              return (
+                <Link
+                  key={file.name}
+                  href={`${baseHref}/${file.name}`}
+                  className={className}
+                >
+                  {file.name}
+                </Link>
+              );
+            }
+
             return (
               <button
                 key={file.name}
                 onClick={() => handleFileSelect(file.name)}
-                className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${
-                  isActive
-                    ? "bg-primary/10 text-primary font-medium"
-                    : "text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50"
-                }`}
+                className={className}
               >
                 {file.name}
               </button>
@@ -104,7 +132,9 @@ export function SpecViewer({
       {/* Content Area */}
       <main className="flex-1 overflow-auto p-6">
         <div className="max-w-3xl mx-auto">
-          {MarkdownRenderer ? (
+          {activeSpec.rendered ? (
+            activeSpec.rendered
+          ) : MarkdownRenderer ? (
             <MarkdownRenderer content={activeSpec.content} />
           ) : (
             <pre className="whitespace-pre-wrap text-sm text-on-surface">
