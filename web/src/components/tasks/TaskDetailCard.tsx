@@ -3,6 +3,7 @@ import { GlassCard } from "@tetrastack/react-glass-components";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PriorityBadge } from "@/components/ui/priority-badge";
 import { Task } from "./types";
+import { formatSpecName } from "@/lib/spec-formatting";
 
 export interface TaskDetailCardProps {
   task: Task;
@@ -56,7 +57,7 @@ export function TaskDetailCard({
               href={task.spec.href}
               className="text-primary hover:underline"
             >
-              {task.spec.href.split("/").pop()}
+              {formatSpecName(task.spec.name)}
             </Link>
           )}
           {task.spec && ": "}
