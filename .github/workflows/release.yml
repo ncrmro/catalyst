@@ -186,6 +186,9 @@ jobs:
       - name: Update Helm dependencies
         run: helm dependency update ./charts/catalyst
 
+      - name: Upgrade CRDs
+        run: kubectl apply -f ./charts/catalyst/crds/
+
       - name: Deploy Catalyst chart
         run: |
           helm upgrade --install catalyst ./charts/catalyst \
