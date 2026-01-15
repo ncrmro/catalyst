@@ -106,7 +106,8 @@ export function DetectionStep({
         version: prev.version + 1,
       }));
     }
-  }, [initialConfig, detectionState.config]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialConfig]);
 
   const handleReDetect = async () => {
     setIsDetecting(true);
@@ -127,7 +128,6 @@ export function DetectionStep({
 
       if (!result.success) {
         setError(result.error || "Detection failed");
-        setIsDetecting(false);
         return;
       }
 
