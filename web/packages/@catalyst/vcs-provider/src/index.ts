@@ -61,6 +61,15 @@ export type {
   TokenStatusChecker,
 } from "./providers/github/client";
 
+// GitHub OAuth functions
+export {
+  exchangeRefreshToken,
+  exchangeAuthorizationCode,
+  fetchGitHubUser,
+  generateAuthorizationUrl,
+  type GitHubUserProfile,
+} from "./providers/github/auth";
+
 // Comment management
 export {
   formatDeploymentComment,
