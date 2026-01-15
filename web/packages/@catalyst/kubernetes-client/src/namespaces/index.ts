@@ -174,12 +174,64 @@ export async function ensureNamespace(
 }
 
 /**
+ * Ensure a team namespace exists (create if not)
+ *
+ * Team namespace contains Project CRs and shared team infrastructure.
+ */
+export async function ensureTeamNamespace(
+  kubeConfig: KubeConfig,
+  teamName: string,
+  additionalLabels?: Record<string, string>,
+): Promise<NamespaceInfo> {
+  const name = sanitizeNamespaceName(teamName);
+
+  const labels = {
+    "catalyst.dev/team": teamName,
+    "catalyst.dev/namespace-type": "team",
+    ...additionalLabels,
+  };
+
+  return ensureNamespace(kubeConfig, name, { labels });
+}
+
+/**
+ * Ensure a project namespace exists (create if not)
+ *
+ * Project namespace contains Environment CRs and provides project-level isolation.
+ */
+export async function ensureProjectNamespace(
+  kubeConfig: KubeConfig,
+  teamName: string,
+  projectName: string,
+  additionalLabels?: Record<string, string>,
+): Promise<NamespaceInfo> {
+  // Import the namespace generation utility
+  // Note: In production, this should be imported from a shared lib
+  const name = `${sanitizeNamespaceName(teamName)}-${sanitizeNamespaceName(projectName)}`;
+  const finalName = name.length > 63 ? name.slice(0, 63) : name;
+
+  const labels = {
+    "catalyst.dev/team": teamName,
+    "catalyst.dev/project": projectName,
+    "catalyst.dev/namespace-type": "project",
+    ...additionalLabels,
+  };
+
+  // Ensure team namespace exists first
+  await ensureTeamNamespace(kubeConfig, teamName);
+
+  return ensureNamespace(kubeConfig, finalName, { labels });
+}
+
+/**
  * Generate a DNS-safe namespace name
  *
  * Kubernetes namespace names must:
  * - Be at most 63 characters
  * - Contain only lowercase letters, numbers, and hyphens
  * - Start and end with alphanumeric characters
+ *
+ * @deprecated Use generateNamespaceWithHash from @/lib/namespace-utils for proper hash-based truncation
  */
 export function sanitizeNamespaceName(name: string): string {
   return name

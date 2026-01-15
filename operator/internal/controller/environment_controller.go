@@ -101,7 +101,25 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	targetNamespace := fmt.Sprintf("%s-%s", env.Spec.ProjectRef.Name, env.Name)
+	// Extract namespace hierarchy from Environment CR labels (FR-ENV-020)
+	// Generate target namespace for workload deployment (FR-ENV-021)
+	var targetNamespace string
+	hierarchy := ExtractNamespaceHierarchy(env.Labels)
+	if hierarchy == nil {
+		// Fallback to legacy behavior for backward compatibility
+		targetNamespace = fmt.Sprintf("%s-%s", env.Spec.ProjectRef.Name, env.Name)
+		log.Info("Using legacy namespace generation (missing hierarchy labels)", "namespace", targetNamespace)
+	} else {
+		// Generate environment namespace using hierarchy with hash-based truncation
+		targetNamespace = GenerateEnvironmentNamespace(hierarchy.Team, hierarchy.Project, hierarchy.Environment)
+		log.Info("Generated environment namespace from hierarchy", "namespace", targetNamespace, "team", hierarchy.Team, "project", hierarchy.Project, "environment", hierarchy.Environment)
+
+		// Validate namespace name
+		if !IsValidNamespaceName(targetNamespace) {
+			log.Error(fmt.Errorf("invalid namespace name"), "Generated namespace name is not DNS-1123 compliant", "namespace", targetNamespace)
+			return ctrl.Result{}, fmt.Errorf("invalid namespace name: %s", targetNamespace)
+		}
+	}
 
 	// Fetch Project to access Templates
 	project := &catalystv1alpha1.Project{}
@@ -161,15 +179,27 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			branch = env.Spec.Sources[0].Branch
 		}
 
+		// Build labels with hierarchy information (FR-ENV-020)
+		labels := map[string]string{
+			"catalyst.dev/environment":   sanitizeLabelValue(env.Name),
+			"catalyst.dev/branch":        sanitizeLabelValue(branch),
+			"catalyst.dev/namespace-type": "environment", // Mark as environment namespace
+		}
+
+		// Add team and project labels from hierarchy or fallback
+		if hierarchy != nil {
+			labels["catalyst.dev/team"] = sanitizeLabelValue(hierarchy.Team)
+			labels["catalyst.dev/project"] = sanitizeLabelValue(hierarchy.Project)
+		} else {
+			// Fallback for legacy environments without hierarchy labels
+			labels["catalyst.dev/team"] = "catalyst" // TODO: Get from Project metadata
+			labels["catalyst.dev/project"] = sanitizeLabelValue(env.Spec.ProjectRef.Name)
+		}
+
 		ns = &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: targetNamespace,
-				Labels: map[string]string{
-					"catalyst.dev/team":        "catalyst", // TODO: Get from Project or Env
-					"catalyst.dev/project":     sanitizeLabelValue(env.Spec.ProjectRef.Name),
-					"catalyst.dev/environment": sanitizeLabelValue(env.Name),
-					"catalyst.dev/branch":      sanitizeLabelValue(branch),
-				},
+				Name:   targetNamespace,
+				Labels: labels,
 			},
 		}
 		// Note: We cannot set OwnerReference for cluster-scoped resources like Namespace
