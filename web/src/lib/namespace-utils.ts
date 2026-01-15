@@ -69,8 +69,8 @@ export function generateNamespaceWithHash(components: string[]): string {
   // Truncate to 57 characters (63 - 1 hyphen - 5 hash chars)
   const truncated = fullName.slice(0, 57);
 
-  // Remove trailing hyphen if present after truncation
-  const cleanTruncated = truncated.replace(/-+$/, "");
+  // Remove trailing hyphen if present after truncation (only one expected)
+  const cleanTruncated = truncated.replace(/-$/, "");
 
   // Combine truncated name with hash
   return `${cleanTruncated}-${hashSuffix}`;

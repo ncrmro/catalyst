@@ -192,7 +192,18 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			labels["catalyst.dev/project"] = sanitizeLabelValue(hierarchy.Project)
 		} else {
 			// Fallback for legacy environments without hierarchy labels
-			labels["catalyst.dev/team"] = "catalyst" // TODO: Get from Project metadata
+			// Try to extract team from Project's namespace or labels
+			teamLabel := project.Labels["catalyst.dev/team"]
+			if teamLabel == "" {
+				// If Project is in team namespace, use that as team name
+				teamLabel = project.Namespace
+			}
+			if teamLabel == "" {
+				// Last resort fallback
+				teamLabel = "default-team"
+				log.Info("Warning: Could not determine team name, using fallback", "team", teamLabel)
+			}
+			labels["catalyst.dev/team"] = sanitizeLabelValue(teamLabel)
 			labels["catalyst.dev/project"] = sanitizeLabelValue(env.Spec.ProjectRef.Name)
 		}
 

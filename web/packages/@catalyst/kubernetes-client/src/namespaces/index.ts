@@ -198,6 +198,12 @@ export async function ensureTeamNamespace(
  * Ensure a project namespace exists (create if not)
  *
  * Project namespace contains Environment CRs and provides project-level isolation.
+ *
+ * NOTE: This function uses simple concatenation with truncation instead of the
+ * hash-based approach from @/lib/namespace-utils because this package can't
+ * depend on the web app's lib directory. For consistency with the operator's
+ * GenerateProjectNamespace function, consider moving namespace-utils to a
+ * shared package or duplicating the logic here.
  */
 export async function ensureProjectNamespace(
   kubeConfig: KubeConfig,
@@ -205,8 +211,8 @@ export async function ensureProjectNamespace(
   projectName: string,
   additionalLabels?: Record<string, string>,
 ): Promise<NamespaceInfo> {
-  // Import the namespace generation utility
-  // Note: In production, this should be imported from a shared lib
+  // Simple concatenation with sanitization (not hash-based)
+  // This may not match operator's GenerateProjectNamespace for long names
   const name = `${sanitizeNamespaceName(teamName)}-${sanitizeNamespaceName(projectName)}`;
   const finalName = name.length > 63 ? name.slice(0, 63) : name;
 
