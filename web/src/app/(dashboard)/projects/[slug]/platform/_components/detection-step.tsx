@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { reDetectProject } from "@/actions/project-detection";
 import type {
   EnvironmentConfig,
@@ -81,11 +81,37 @@ export function DetectionStep({
 }: DetectionStepProps) {
   const [workdir, setWorkdir] = useState(initialWorkdir || "/");
   const [isDetecting, setIsDetecting] = useState(false);
-  const [detectedConfig, setDetectedConfig] =
-    useState<EnvironmentConfig | null>(initialConfig || null);
-  const [detectedFiles, setDetectedFiles] = useState<string[]>([]);
+  const [detectionState, setDetectionState] = useState<{
+    config: EnvironmentConfig | null;
+    files: string[];
+    version: number;
+  }>({
+    config: initialConfig || null,
+    files: [],
+    version: 0,
+  });
   const [error, setError] = useState<string | null>(null);
   const [filesExpanded, setFilesExpanded] = useState(false);
+
+  // Extract values for easier access
+  const detectedConfig = detectionState.config;
+  const detectedFiles = detectionState.files;
+
+  // Sync with initialConfig when it changes
+  // Note: We intentionally exclude detectionState.config from dependencies to prevent
+  // infinite loops. The comparison initialConfig !== detectionState.config is sufficient
+  // to prevent unnecessary updates. Including detectionState.config would cause the
+  // effect to trigger after we update the state, creating an infinite loop.
+  useEffect(() => {
+    if (initialConfig && initialConfig !== detectionState.config) {
+      setDetectionState((prev) => ({
+        config: initialConfig,
+        files: prev.files,
+        version: prev.version + 1,
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialConfig]);
 
   const handleReDetect = async () => {
     setIsDetecting(true);
@@ -100,14 +126,31 @@ export function DetectionStep({
         workdir,
       );
 
+      if (process.env.NODE_ENV === "development") {
+        console.log("Detection result:", result);
+      }
+
       if (!result.success) {
         setError(result.error || "Detection failed");
         return;
       }
 
-      setDetectedConfig(result.config || null);
-      setDetectedFiles(result.detectedFiles || []);
+      // Update detection state as a single atomic update
+      setDetectionState((prev) => {
+        const newVersion = prev.version + 1;
+        if (process.env.NODE_ENV === "development") {
+          console.log("State updated successfully, version:", newVersion);
+        }
+        return {
+          config: result.config || null,
+          files: result.detectedFiles || [],
+          version: newVersion,
+        };
+      });
     } catch (err) {
+      if (process.env.NODE_ENV === "development") {
+        console.error("Detection error:", err);
+      }
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setIsDetecting(false);
