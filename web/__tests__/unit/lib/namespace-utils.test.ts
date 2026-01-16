@@ -45,7 +45,11 @@ describe("namespace-utils", () => {
 
   describe("generateNamespaceWithHash", () => {
     it("should return original name if under 63 characters", () => {
-      const result = generateNamespaceWithHash(["my-team", "my-project", "dev"]);
+      const result = generateNamespaceWithHash([
+        "my-team",
+        "my-project",
+        "dev",
+      ]);
       expect(result).toBe("my-team-my-project-dev");
       expect(result.length).toBeLessThanOrEqual(63);
     });
@@ -109,7 +113,10 @@ describe("namespace-utils", () => {
 
     it("should handle edge case: exactly 63 characters", () => {
       // Create components that sum to exactly 63 chars
-      const result = generateNamespaceWithHash(["a".repeat(30), "b".repeat(31)]);
+      const result = generateNamespaceWithHash([
+        "a".repeat(30),
+        "b".repeat(31),
+      ]);
       expect(result.length).toBeLessThanOrEqual(63);
     });
 
@@ -204,9 +211,11 @@ describe("namespace-utils", () => {
       );
 
       expect(result.length).toBe(63);
-      expect(result.startsWith("my-super-long-team-name-my-super-long-project-name-")).toBe(
-        true,
-      );
+      expect(
+        result.startsWith(
+          "my-super-long-team-name-my-super-long-project-name-",
+        ),
+      ).toBe(true);
       // Should end with hash
       expect(result).toMatch(/-[a-f0-9]{5}$/);
     });
