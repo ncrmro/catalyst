@@ -34,6 +34,9 @@ export type SelectRepo = InferSelectModel<typeof repos>;
 /**
  * Generate a DNS-safe Kubernetes namespace name from repo name and PR number.
  *
+ * NOTE: This function is DEPRECATED for new code. Use generateEnvironmentNamespace
+ * from @/lib/namespace-utils for proper namespace hierarchy and hash-based truncation.
+ *
  * Namespace naming rules (DNS-1123):
  * - Must be at most 63 characters
  * - Must start with a lowercase letter
@@ -43,6 +46,7 @@ export type SelectRepo = InferSelectModel<typeof repos>;
  * @param repoName - Repository name (can include owner, e.g., "owner/my-app")
  * @param prNumber - Pull request number
  * @returns DNS-safe namespace name (e.g., "pr-my-app-42")
+ * @deprecated Use generateEnvironmentNamespace from @/lib/namespace-utils
  */
 export function generateNamespace(repoName: string, prNumber: number): string {
   // Extract just the repo name if full name (owner/repo) is provided
