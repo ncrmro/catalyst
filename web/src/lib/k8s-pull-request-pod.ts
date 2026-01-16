@@ -479,18 +479,25 @@ export async function createPullRequestPodJob(
                   echo "✓ All tools verified"
                   echo ""
 
-                  echo "=== Setting up buildx kubernetes builder ==="
-                  # Check if builder already exists
-                  if docker buildx inspect k8s-builder >/dev/null 2>&1; then
-                    echo "Found existing k8s-builder, using it..."
-                    docker buildx use k8s-builder
+                  # Only setup buildx if we need to build
+                  if [ "\$NEEDS_BUILD" = "true" ]; then
+                    echo "=== Setting up buildx kubernetes builder ==="
+                    # Check if builder already exists
+                    if docker buildx inspect k8s-builder >/dev/null 2>&1; then
+                      echo "Found existing k8s-builder, using it..."
+                      docker buildx use k8s-builder
+                    else
+                      echo "Creating new k8s-builder..."
+                      docker buildx create --driver kubernetes --name k8s-builder --bootstrap
+                      docker buildx use k8s-builder
+                    fi
+                    echo "✓ Buildx kubernetes driver ready"
+                    echo ""
                   else
-                    echo "Creating new k8s-builder..."
-                    docker buildx create --driver kubernetes --name k8s-builder --bootstrap
-                    docker buildx use k8s-builder
+                    echo "=== Skipping buildx setup (NEEDS_BUILD=false) ==="
+                    echo "⏭ Buildx not needed for this run"
+                    echo ""
                   fi
-                  echo "✓ Buildx kubernetes driver ready"
-                  echo ""
 
                   echo "=== Setting up Git Configuration ==="
                   echo "Setting up git configuration..."

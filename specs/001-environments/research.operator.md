@@ -27,6 +27,11 @@ kind: Environment
 metadata:
   name: staging
   namespace: catalyst-system
+  # Required hierarchy labels (FR-ENV-020)
+  labels:
+    catalyst.dev/team: "my-team"
+    catalyst.dev/project: "my-project"
+    catalyst.dev/environment: "staging"
 spec:
   # Reference to parent project
   projectRef:

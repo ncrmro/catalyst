@@ -372,6 +372,70 @@ npm run seed:projects # Seed specific projects (catalyst/meze)
 
 See `README.md` in each directory for specific patterns.
 
+## Test-Driven Development (TDD) - REQUIRED
+
+**CRITICAL: All code changes MUST follow TDD and pass CI before pushing.**
+
+### Mandatory Workflow
+
+1. **Write failing test FIRST** (Red)
+   - Before writing any implementation, create a test that captures the expected behavior
+   - Run `npm run test:unit` - test should FAIL
+
+2. **Implement minimum code** (Green)
+   - Write just enough code to make the test pass
+   - No extra features, no premature abstractions
+
+3. **Refactor** (if needed)
+   - Clean up while keeping tests green
+
+4. **Run full CI locally BEFORE pushing**
+
+   ```bash
+   make ci   # Runs lint, typecheck, and all tests
+   ```
+
+   **NEVER push code without `make ci` passing locally.**
+
+### Test Hierarchy (Prefer in Order)
+
+1. **Unit tests** (PREFERRED) - Fast, isolated, test single functions/modules
+2. **Integration tests** - Only when testing database operations or cross-module interactions
+3. **E2E tests** - Reserved for **happy path workflows only** unless explicitly requested
+
+### What to Test
+
+- **DO test**: Core business logic, data transformations, validation rules
+- **DO test**: The primary success path (happy path)
+- **DON'T test**: Edge cases, error handling, or defensive code unless explicitly requested
+- **DON'T test**: Generated code, library behavior, or trivial getters/setters
+
+### Documenting Potential Tests
+
+Instead of writing exhaustive edge case tests, document them as code comments:
+
+```typescript
+// Potential additional tests:
+// - [ ] Handle null input gracefully
+// - [ ] Validate maximum string length
+// - [ ] Test concurrent access scenarios
+```
+
+### Before Creating a PR
+
+- [ ] All new business logic has unit tests
+- [ ] `make ci` passes completely
+- [ ] No `.skip` or `.only` left in test files
+
+### Anti-Patterns (NEVER DO)
+
+- ❌ Writing implementation without tests first
+- ❌ Pushing code without running `make ci`
+- ❌ Writing edge case tests without explicit request
+- ❌ Using integration tests when unit tests suffice
+- ❌ Writing E2E tests for error scenarios (happy path only)
+- ❌ Marking tests as `.skip` to get CI to pass
+
 ## Commit Guidelines
 
 Always use semantic commits. If available, include the spec, issue, or pull request number as part of the commit subject and pull request description.

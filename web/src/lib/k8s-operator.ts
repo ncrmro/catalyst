@@ -11,6 +11,7 @@ export async function createProjectCR(
   namespace: string,
   name: string,
   spec: ProjectCRSpec,
+  labels?: Record<string, string>,
 ) {
   const CustomObjectsApi = await getCustomObjectsApi();
   const config = await getClusterConfig();
@@ -24,6 +25,7 @@ export async function createProjectCR(
     metadata: {
       name,
       namespace,
+      labels,
     },
     spec,
   };
@@ -100,6 +102,7 @@ export async function createEnvironmentCR(
   namespace: string,
   name: string,
   spec: EnvironmentCRSpec,
+  labels?: Record<string, string>,
 ) {
   const CustomObjectsApi = await getCustomObjectsApi();
   const config = await getClusterConfig();
@@ -113,6 +116,7 @@ export async function createEnvironmentCR(
     metadata: {
       name,
       namespace,
+      labels,
     },
     spec,
   };

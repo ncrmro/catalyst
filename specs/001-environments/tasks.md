@@ -603,6 +603,32 @@ This delivers the core value proposition: automatic preview deployments with pub
 
 ---
 
+## Phase 16: Namespace Validation & Limits (Priority: P1)
+
+**Purpose**: Enforce Kubernetes 63-character limit on namespace names to prevent deployment failures.
+
+- [ ] T160 [FR-ENV-021] Implement namespace truncation and hashing logic in `web/src/models/preview-environments.ts` (helper function) ensuring < 63 chars.
+- [ ] T161 [FR-ENV-021] Create unit tests for `web` namespace generation verifying truncation and hashing.
+- [ ] T162 [FR-ENV-021] Implement namespace truncation and hashing logic in `operator/internal/controller/environment_controller.go` (or util).
+- [ ] T163 [FR-ENV-021] Create unit tests for `operator` namespace generation verifying truncation and hashing.
+
+---
+
+## Phase 17: Namespace Hierarchy Implementation (Priority: P1)
+
+**Purpose**: Implement FR-ENV-020 namespace hierarchy to isolate Project and Environment CRs.
+
+- [ ] T170 [Web] Implement `ensureTeamNamespace` logic in `web/src/models/preview-environments.ts` (or shared util) to lazily create the Team Namespace (`<team>`) if it doesn't exist.
+- [ ] T171 [Web] Implement `ensureProjectNamespace` logic in `web/src/models/preview-environments.ts` (or shared util) to lazily create the Project Namespace (`<team>-<project>`) if it doesn't exist.
+- [ ] T164 [Web] Update `createPreviewDeployment` in `web/src/models/preview-environments.ts` to fetch Team/Project info and construct hierarchy names (`teamNamespace`, `projectNamespace`).
+- [ ] T167 [Web] Update `createPreviewDeployment` to call `ensureTeamNamespace` and `ensureProjectNamespace` before creating resources.
+- [ ] T165 [Web] Update `createPreviewDeployment` to inject `catalyst.dev/team` and `catalyst.dev/project` labels into the Environment CR.
+- [ ] T166 [Web] Update `createPreviewDeployment` to create the Environment CR in the `projectNamespace` (e.g., `<team>-<project>`) instead of `default`.
+- [ ] T168 [Operator] Update `EnvironmentController` in `operator/internal/controller/environment_controller.go` to construct target workload namespace using labels (`catalyst.dev/team`, `catalyst.dev/project`) + CR name.
+- [ ] T169 [Operator] Validate that the resulting workload namespace name complies with the 63-char limit (using logic from Phase 16).
+
+---
+
 ## Child Spec Reference
 
 Operator implementation tasks are tracked separately:
