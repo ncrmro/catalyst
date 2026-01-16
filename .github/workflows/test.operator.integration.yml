@@ -108,6 +108,11 @@ jobs:
           metadata:
             name: ci-env
             namespace: default
+            # Required hierarchy labels (FR-ENV-020)
+            labels:
+              catalyst.dev/team: "ci-team"
+              catalyst.dev/project: "ci-project"
+              catalyst.dev/environment: "ci-env"
           spec:
             projectRef:
               name: ci-project

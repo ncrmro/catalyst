@@ -42,6 +42,11 @@ kind: Environment
 metadata:
   name: nextjs-pr-123
   namespace: default
+  # Required hierarchy labels (FR-ENV-020)
+  labels:
+    catalyst.dev/team: "example-team"
+    catalyst.dev/project: "nextjs-starter"
+    catalyst.dev/environment: "nextjs-pr-123"
 spec:
   projectRef:
     name: nextjs-starter
