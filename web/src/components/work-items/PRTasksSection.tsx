@@ -75,7 +75,7 @@ export function PRTasksSection({
               <div key={specId}>
                 {/* Spec Header */}
                 <Link
-                  href={spec?.href || `/projects/${projectSlug}/spec/${specId}`}
+                  href={spec?.href || `/specs/${projectSlug}/${specId}`}
                   className="flex items-center gap-2 px-6 py-2 bg-surface-container/50 hover:bg-surface-container transition-colors"
                 >
                   <span className="text-sm font-medium text-primary">

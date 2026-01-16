@@ -60,6 +60,11 @@ export default async function SpecPage({
   const specContent = fileResult.success ? fileResult.file : null;
   const specFiles = specDirResult.success ? specDirResult.entries : [];
 
+  // Convert to SpecFile format for the sidebar
+  const mdFiles = specFiles
+    .filter((file) => file.name.endsWith(".md"))
+    .map((file) => file.name);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
       {/* Sidebar with spec files */}
@@ -68,26 +73,24 @@ export default async function SpecPage({
           <h3 className="text-sm font-semibold text-on-surface-variant uppercase tracking-wide mb-4">
             Spec Files
           </h3>
-          {specFiles.length > 0 ? (
+          {mdFiles.length > 0 ? (
             <nav className="space-y-1">
-              {specFiles
-                .filter((file) => file.name.endsWith(".md"))
-                .map((file) => {
-                  const isActive = file.name === fileName;
-                  return (
-                    <Link
-                      key={file.path}
-                      href={`/projects/${slug}/spec/${specId}?file=${file.name}`}
-                      className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
-                        isActive
-                          ? "bg-primary/10 text-primary font-medium"
-                          : "text-on-surface-variant hover:bg-surface-variant hover:text-on-surface"
-                      }`}
-                    >
-                      {file.name}
-                    </Link>
-                  );
-                })}
+              {mdFiles.map((file) => {
+                const isActive = file === fileName;
+                return (
+                  <Link
+                    key={file}
+                    href={`/projects/${slug}/spec/${specId}?file=${file}`}
+                    className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
+                      isActive
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "text-on-surface-variant hover:bg-surface-variant hover:text-on-surface"
+                    }`}
+                  >
+                    {file}
+                  </Link>
+                );
+              })}
             </nav>
           ) : (
             <p className="text-sm text-on-surface-variant">No files found</p>
