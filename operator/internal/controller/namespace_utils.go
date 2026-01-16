@@ -58,11 +58,12 @@ func sanitizeNamespaceComponent(name string) string {
 // 4. Total length: 57 + 1 + 5 = 63 characters
 //
 // Example:
-//   GenerateNamespaceWithHash([]string{"my-team", "my-project", "feature"})
-//   // => "my-team-my-project-feature" (29 chars, under limit)
 //
-//   GenerateNamespaceWithHash([]string{"my-super-long-team", "my-super-long-project", "feature-branch"})
-//   // => "my-super-long-team-my-super-long-project-feature-bra-a1b2c" (63 chars)
+//	GenerateNamespaceWithHash([]string{"my-team", "my-project", "feature"})
+//	// => "my-team-my-project-feature" (29 chars, under limit)
+//
+//	GenerateNamespaceWithHash([]string{"my-super-long-team", "my-super-long-project", "feature-branch"})
+//	// => "my-super-long-team-my-super-long-project-feature-bra-a1b2c" (63 chars)
 func GenerateNamespaceWithHash(components []string) string {
 	// Sanitize and filter empty components
 	sanitized := make([]string, 0, len(components))

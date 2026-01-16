@@ -92,6 +92,12 @@ var _ = Describe("Environment Controller", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      resourceName,
 					Namespace: namespace,
+					// Add required hierarchy labels (FR-ENV-020)
+					Labels: map[string]string{
+						"catalyst.dev/team":        "test-team",
+						"catalyst.dev/project":     projectName,
+						"catalyst.dev/environment": resourceName,
+					},
 				},
 				Spec: catalystv1alpha1.EnvironmentSpec{
 					ProjectRef:     catalystv1alpha1.ProjectReference{Name: projectName},
@@ -124,8 +130,8 @@ var _ = Describe("Environment Controller", func() {
 				Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 			}
 
-			// Cleanup Namespace
-			targetNsName := projectName + "-" + resourceName
+			// Cleanup Namespace using proper hierarchy-based name generation
+			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
 			ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}}
 			_ = k8sClient.Delete(ctx, ns)
 		})
@@ -143,8 +149,8 @@ var _ = Describe("Environment Controller", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			// 1. Verify Namespace Created
-			targetNsName := projectName + "-" + resourceName
+			// 1. Verify Namespace Created using proper hierarchy-based name
+			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
 			ns := &corev1.Namespace{}
 			Eventually(func() error {
 				return k8sClient.Get(ctx, types.NamespacedName{Name: targetNsName}, ns)
@@ -292,6 +298,11 @@ var _ = Describe("Environment Controller", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      resourceName,
 					Namespace: namespace,
+					Labels: map[string]string{
+						"catalyst.dev/team":        "test-team",
+						"catalyst.dev/project":     projectName,
+						"catalyst.dev/environment": resourceName,
+					},
 				},
 				Spec: catalystv1alpha1.EnvironmentSpec{
 					ProjectRef: catalystv1alpha1.ProjectReference{Name: projectName},
@@ -316,7 +327,7 @@ var _ = Describe("Environment Controller", func() {
 				_ = k8sClient.Update(ctx, resource)
 				_ = k8sClient.Delete(ctx, resource)
 			}
-			targetNsName := projectName + "-" + resourceName
+			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
 			_ = k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
 		})
 
@@ -334,7 +345,7 @@ var _ = Describe("Environment Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// 1. Verify Namespace Created
-			targetNsName := projectName + "-" + resourceName
+			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
 			ns := &corev1.Namespace{}
 			Eventually(func() error {
 				return k8sClient.Get(ctx, types.NamespacedName{Name: targetNsName}, ns)
@@ -400,6 +411,11 @@ var _ = Describe("Environment Controller", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "invalid-path-env",
 					Namespace: namespace,
+					Labels: map[string]string{
+						"catalyst.dev/team":        "test-team",
+						"catalyst.dev/project":     "invalid-path-project",
+						"catalyst.dev/environment": "invalid-path-env",
+					},
 				},
 				Spec: catalystv1alpha1.EnvironmentSpec{
 					ProjectRef: catalystv1alpha1.ProjectReference{Name: "invalid-path-project"},
@@ -429,7 +445,7 @@ var _ = Describe("Environment Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// Create ServiceAccount to proceed past waiting state
-			targetNsName := "invalid-path-project-invalid-path-env"
+			targetNsName := GenerateEnvironmentNamespace("test-team", "invalid-path-project", "invalid-path-env")
 			sa := &corev1.ServiceAccount{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "default",
@@ -489,6 +505,11 @@ var _ = Describe("Environment Controller", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "missing-ref-env",
 					Namespace: namespace,
+					Labels: map[string]string{
+						"catalyst.dev/team":        "test-team",
+						"catalyst.dev/project":     "missing-ref-project",
+						"catalyst.dev/environment": "missing-ref-env",
+					},
 				},
 				Spec: catalystv1alpha1.EnvironmentSpec{
 					ProjectRef: catalystv1alpha1.ProjectReference{Name: "missing-ref-project"},
@@ -518,7 +539,7 @@ var _ = Describe("Environment Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// Create ServiceAccount to proceed past waiting state
-			targetNsName := "missing-ref-project-missing-ref-env"
+			targetNsName := GenerateEnvironmentNamespace("test-team", "missing-ref-project", "missing-ref-env")
 			sa := &corev1.ServiceAccount{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "default",
@@ -571,6 +592,11 @@ var _ = Describe("Environment Controller", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "no-template-env",
 					Namespace: namespace,
+					Labels: map[string]string{
+						"catalyst.dev/team":        "test-team",
+						"catalyst.dev/project":     "no-template-project",
+						"catalyst.dev/environment": "no-template-env",
+					},
 				},
 				Spec: catalystv1alpha1.EnvironmentSpec{
 					ProjectRef:     catalystv1alpha1.ProjectReference{Name: "no-template-project"},
@@ -601,7 +627,7 @@ var _ = Describe("Environment Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// Create ServiceAccount to proceed past waiting state
-			targetNsName := "no-template-project-no-template-env"
+			targetNsName := GenerateEnvironmentNamespace("test-team", "no-template-project", "no-template-env")
 			sa := &corev1.ServiceAccount{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "default",
@@ -707,6 +733,11 @@ var _ = Describe("Environment Controller", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      resourceName,
 					Namespace: namespace,
+					Labels: map[string]string{
+						"catalyst.dev/team":        "test-team",
+						"catalyst.dev/project":     projectName,
+						"catalyst.dev/environment": resourceName,
+					},
 				},
 				Spec: catalystv1alpha1.EnvironmentSpec{
 					ProjectRef: catalystv1alpha1.ProjectReference{Name: projectName},
@@ -731,7 +762,7 @@ var _ = Describe("Environment Controller", func() {
 				_ = k8sClient.Update(ctx, resource)
 				_ = k8sClient.Delete(ctx, resource)
 			}
-			targetNsName := projectName + "-" + resourceName
+			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
 			_ = k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
 		})
 
@@ -748,7 +779,7 @@ var _ = Describe("Environment Controller", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			targetNsName := projectName + "-" + resourceName
+			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
 
 			// Simulate Controller Manager: Create default ServiceAccount
 			sa := &corev1.ServiceAccount{
@@ -876,6 +907,11 @@ var _ = Describe("Environment Controller", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      resourceName,
 					Namespace: namespace,
+					Labels: map[string]string{
+						"catalyst.dev/team":        "test-team",
+						"catalyst.dev/project":     projectName,
+						"catalyst.dev/environment": resourceName,
+					},
 				},
 				Spec: catalystv1alpha1.EnvironmentSpec{
 					ProjectRef: catalystv1alpha1.ProjectReference{Name: projectName},
@@ -900,7 +936,7 @@ var _ = Describe("Environment Controller", func() {
 				_ = k8sClient.Update(ctx, resource)
 				_ = k8sClient.Delete(ctx, resource)
 			}
-			targetNsName := projectName + "-" + resourceName
+			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
 			_ = k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
 		})
 
@@ -917,7 +953,7 @@ var _ = Describe("Environment Controller", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			targetNsName := projectName + "-" + resourceName
+			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
 
 			// Simulate Controller Manager: Create default ServiceAccount
 			sa := &corev1.ServiceAccount{
