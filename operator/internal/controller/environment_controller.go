@@ -112,7 +112,11 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	} else {
 		// Generate environment namespace using hierarchy with hash-based truncation
 		targetNamespace = GenerateEnvironmentNamespace(hierarchy.Team, hierarchy.Project, hierarchy.Environment)
-		log.Info("Generated environment namespace from hierarchy", "namespace", targetNamespace, "team", hierarchy.Team, "project", hierarchy.Project, "environment", hierarchy.Environment)
+		log.Info(
+			"Generated environment namespace from hierarchy",
+			"namespace", targetNamespace,
+			"hierarchy", fmt.Sprintf("team=%s,project=%s,environment=%s", hierarchy.Team, hierarchy.Project, hierarchy.Environment),
+		)
 
 		// Validate namespace name
 		if !IsValidNamespaceName(targetNamespace) {
@@ -181,9 +185,9 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 		// Build labels with hierarchy information (FR-ENV-020)
 		labels := map[string]string{
-			"catalyst.dev/environment":   sanitizeLabelValue(env.Name),
-			"catalyst.dev/branch":        sanitizeLabelValue(branch),
-			"catalyst.dev/namespace-type": "environment", // Mark as environment namespace
+			"catalyst.dev/environment":    sanitizeLabelValue(env.Name),
+			"catalyst.dev/branch":         sanitizeLabelValue(branch),
+			"catalyst.dev/namespace-type": sanitizeLabelValue("environment"), // Mark as environment namespace
 		}
 
 		// Add team and project labels from hierarchy or fallback

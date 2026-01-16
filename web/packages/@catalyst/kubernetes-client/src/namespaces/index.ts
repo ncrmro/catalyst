@@ -183,7 +183,18 @@ export async function ensureTeamNamespace(
   teamName: string,
   additionalLabels?: Record<string, string>,
 ): Promise<NamespaceInfo> {
-  const name = sanitizeNamespaceName(teamName);
+  // Sanitize and enforce 63-character limit with hash-based truncation for very long team names
+  let name = sanitizeNamespaceName(teamName);
+  
+  // If team name itself exceeds 63 characters after sanitization, apply hash-based truncation
+  if (name.length > 63) {
+    // Use simple hash approach for single component (similar to generateNamespaceWithHash)
+    const crypto = require("crypto");
+    const hash = crypto.createHash("sha256").update(name).digest("hex");
+    const hashSuffix = hash.slice(0, 5);
+    const truncated = name.slice(0, 57).replace(/-$/, "");
+    name = `${truncated}-${hashSuffix}`;
+  }
 
   const labels = {
     "catalyst.dev/team": teamName,
@@ -214,7 +225,10 @@ export async function ensureProjectNamespace(
   // Simple concatenation with sanitization (not hash-based)
   // This may not match operator's GenerateProjectNamespace for long names
   const name = `${sanitizeNamespaceName(teamName)}-${sanitizeNamespaceName(projectName)}`;
-  const finalName = name.length > 63 ? name.slice(0, 63) : name;
+  
+  // Truncate if needed and remove trailing hyphens to comply with DNS-1123
+  const truncatedName = name.length > 63 ? name.slice(0, 63) : name;
+  const finalName = truncatedName.replace(/-+$/g, "");
 
   const labels = {
     "catalyst.dev/team": teamName,
