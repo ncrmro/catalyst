@@ -29,13 +29,18 @@ const reposSchema = z.union([reposDataSchema, reposDataWithReasonSchema]);
  * Convert GitHub-specific repo data to VCS-agnostic format
  */
 function convertGitHubRepoToRepository(repo: GitHubRepo): RepositoryWithConnections {
+  // Try to extract default branch from the GitHub API data if available
+  // The GitHub API returns default_branch but it's not in our current schema
+  const defaultBranch =
+    (repo as unknown as { default_branch?: string }).default_branch ?? "main";
+
   return {
     id: repo.id.toString(),
     name: repo.name,
     fullName: repo.full_name,
     owner: repo.owner.login,
     private: repo.private,
-    defaultBranch: "main", // Not available in current schema
+    defaultBranch, // TODO: Add default_branch to githubRepoSchema to avoid this workaround
     htmlUrl: repo.html_url,
     description: repo.description ?? undefined,
     language: repo.language ?? undefined,

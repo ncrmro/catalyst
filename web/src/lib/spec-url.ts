@@ -8,6 +8,16 @@
  */
 
 /**
+ * Validates that a file name is safe (no path traversal, only alphanumeric, dash, underscore, dot)
+ */
+function isValidFileName(fileName: string): boolean {
+  // Only allow safe characters: alphanumeric, dash, underscore, dot
+  // No path separators (/, \) or parent directory references (..)
+  const safeFileNamePattern = /^[a-zA-Z0-9_\-\.]+$/;
+  return safeFileNamePattern.test(fileName) && !fileName.includes("..");
+}
+
+/**
  * Parses catch-all slug array into spec route params.
  * - 2 segments: project and repo have same name (repo omitted from URL)
  * - 3 segments: project and repo differ
@@ -24,12 +34,16 @@ export function parseSpecSlug(slug: string[]): {
   const parts = [...slug];
   let fileName: string | undefined;
 
-  // Check if last part is a file (ends with .md)
+  // Check if last part is a file (ends with .md) and validate it
   if (
     parts.length > 0 &&
     parts[parts.length - 1].toLowerCase().endsWith(".md")
   ) {
-    fileName = parts.pop();
+    const potentialFileName = parts[parts.length - 1];
+    if (isValidFileName(potentialFileName)) {
+      fileName = parts.pop();
+    }
+    // If invalid, we leave it in parts and it will be treated as part of the spec path
   }
 
   if (parts.length === 2) {
@@ -74,6 +88,13 @@ export function buildSpecUrl(
     file?: string;
   },
 ): string {
+  // Validate file parameter if provided
+  if (options?.file && !isValidFileName(options.file)) {
+    throw new Error(
+      `Invalid file name: "${options.file}". File names must only contain alphanumeric characters, dashes, underscores, and dots, with no path separators.`,
+    );
+  }
+
   // Omit repoSlug from URL when it matches projectSlug (cleaner URLs)
   let basePath =
     projectSlug === repoSlug

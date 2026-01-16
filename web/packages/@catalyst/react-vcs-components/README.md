@@ -113,8 +113,27 @@ export function parseSpecSlug(slug: string[]) {
     fileName = parts.pop();
   }
 
-  // Handle remaining parts (project, repo, spec) logic...
-  return { projectSlug: parts[0], specSlug: parts[1], fileName };
+  // Remaining parts can be:
+  // - [project, spec] - when project and repo have same name (2 segments)
+  // - [project, repo, spec] - when they differ (3 segments)
+  // In the 2-part form, repoSlug defaults to projectSlug.
+  if (parts.length === 2) {
+    return {
+      projectSlug: parts[0],
+      repoSlug: parts[0], // Default to projectSlug
+      specSlug: parts[1],
+      fileName,
+    };
+  } else if (parts.length === 3) {
+    return {
+      projectSlug: parts[0],
+      repoSlug: parts[1],
+      specSlug: parts[2],
+      fileName,
+    };
+  }
+  // See actual implementation for additional validation / edge cases
+  throw new Error("Invalid spec URL format");
 }
 ```
 

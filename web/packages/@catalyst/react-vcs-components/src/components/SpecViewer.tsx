@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import Link from "next/link";
 
 /**
@@ -69,9 +69,11 @@ export function SpecViewer({
   );
 
   // Sync selectedFileName with activeFile prop if it changes
-  if (activeFile && activeFile !== selectedFileName) {
-    setSelectedFileName(activeFile);
-  }
+  useEffect(() => {
+    if (activeFile && activeFile !== selectedFileName) {
+      setSelectedFileName(activeFile);
+    }
+  }, [activeFile, selectedFileName]);
 
   const handleFileSelect = (fileName: string) => {
     setSelectedFileName(fileName);
