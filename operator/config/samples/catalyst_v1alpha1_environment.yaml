@@ -4,6 +4,10 @@ metadata:
   labels:
     app.kubernetes.io/name: operator
     app.kubernetes.io/managed-by: kustomize
+    # Required hierarchy labels (FR-ENV-020)
+    catalyst.dev/team: "my-team"
+    catalyst.dev/project: "my-project"
+    catalyst.dev/environment: "environment-sample"
   name: environment-sample
   namespace: default
 spec:
