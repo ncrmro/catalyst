@@ -39,6 +39,11 @@ kind: Environment
 metadata:
   name: rails-pr-456
   namespace: default
+  # Required hierarchy labels (FR-ENV-020)
+  labels:
+    catalyst.dev/team: "example-team"
+    catalyst.dev/project: "rails-blog"
+    catalyst.dev/environment: "rails-pr-456"
 spec:
   projectRef:
     name: rails-blog
