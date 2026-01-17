@@ -4,7 +4,46 @@
  * OAuth flow helpers for GitHub App user authentication.
  */
 
+import { z } from "zod";
 import { GITHUB_CONFIG } from "./client";
+
+// ============================================================================
+// ZOD SCHEMAS FOR GITHUB API RESPONSES
+// ============================================================================
+
+/**
+ * Schema for GitHub OAuth token response
+ * Used by exchangeRefreshToken and exchangeAuthorizationCode
+ */
+const GitHubTokenResponseSchema = z.object({
+  access_token: z.string(),
+  refresh_token: z.string().optional(),
+  scope: z.string(),
+  error: z.string().optional(),
+  error_description: z.string().optional(),
+});
+
+/**
+ * Schema for GitHub user profile response
+ */
+const GitHubUserResponseSchema = z.object({
+  id: z.number(),
+  login: z.string(),
+  email: z.string().nullable(),
+  name: z.string().nullable(),
+  avatar_url: z.string(),
+});
+
+/**
+ * Schema for GitHub user emails response
+ */
+const GitHubEmailSchema = z.object({
+  email: z.string(),
+  primary: z.boolean(),
+  verified: z.boolean(),
+});
+
+const GitHubEmailsResponseSchema = z.array(GitHubEmailSchema);
 
 /**
  * Exchange a refresh token for a new access token
@@ -37,7 +76,8 @@ export async function exchangeRefreshToken(refreshToken: string): Promise<{
     throw new Error(`Failed to refresh token: ${response.statusText}`);
   }
 
-  const data = await response.json();
+  const json = await response.json();
+  const data = GitHubTokenResponseSchema.parse(json);
 
   if (data.error) {
     throw new Error(
@@ -95,7 +135,8 @@ export async function exchangeAuthorizationCode(
     );
   }
 
-  const data = await response.json();
+  const json = await response.json();
+  const data = GitHubTokenResponseSchema.parse(json);
 
   if (data.error) {
     throw new Error(
@@ -109,7 +150,7 @@ export async function exchangeAuthorizationCode(
 
   return {
     accessToken: data.access_token,
-    refreshToken: data.refresh_token,
+    refreshToken: data.refresh_token!,
     expiresAt,
     scope: data.scope,
     // Installation ID might be available in some contexts
@@ -145,7 +186,8 @@ export async function fetchGitHubUser(
     throw new Error(`Failed to fetch GitHub user: ${response.statusText}`);
   }
 
-  const user = await response.json();
+  const json = await response.json();
+  const user = GitHubUserResponseSchema.parse(json);
 
   // If email is null, fetch from emails endpoint (private emails)
   if (!user.email) {
@@ -158,14 +200,11 @@ export async function fetchGitHubUser(
     });
 
     if (emailsResponse.ok) {
-      const emails = await emailsResponse.json();
+      const emailsJson = await emailsResponse.json();
+      const emails = GitHubEmailsResponseSchema.parse(emailsJson);
       // Find primary email or first verified email
-      const primaryEmail = emails.find(
-        (e: { primary: boolean; verified: boolean }) => e.primary && e.verified,
-      );
-      const verifiedEmail = emails.find(
-        (e: { verified: boolean }) => e.verified,
-      );
+      const primaryEmail = emails.find((e) => e.primary && e.verified);
+      const verifiedEmail = emails.find((e) => e.verified);
       user.email = primaryEmail?.email || verifiedEmail?.email || null;
     }
   }
