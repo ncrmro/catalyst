@@ -9,7 +9,7 @@ import { auth } from "@/auth";
 import { getUserTeamIds } from "@/lib/team-auth";
 import { type Branch } from "@/lib/vcs-providers";
 import type { PullRequest, Issue } from "@/types/reports";
-import { vcs } from "@/lib/vcs";
+import { vcs, classifyGitHubError } from "@/lib/vcs";
 import { db } from "@/db";
 import { pullRequestPods } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -24,24 +24,50 @@ export async function fetchProjectDashboardData(
   projectId: string,
   slug: string,
 ) {
+  console.log(
+    `[fetchProjectDashboardData] Fetching dashboard data for project: ${slug}`,
+  );
+
   try {
     const [specsResult, pullRequests, issues] = await Promise.all([
       fetchProjectSpecs(projectId, slug).catch((e) => {
-        console.error("Failed to fetch specs:", e);
+        console.error("[fetchProjectDashboardData] Failed to fetch specs:", e);
         return {
           specs: [],
           error: { type: "error" as const, message: String(e) },
         };
       }),
       fetchProjectPullRequests(projectId).catch((e) => {
-        console.error("Failed to fetch PRs:", e);
+        const errorInfo = classifyGitHubError(e);
+        if (errorInfo.type === "auth") {
+          console.error(
+            `[fetchProjectDashboardData] Authentication error fetching PRs: ${errorInfo.message}`,
+          );
+        } else {
+          console.error(
+            `[fetchProjectDashboardData] Failed to fetch PRs (${errorInfo.type}): ${errorInfo.message}`,
+          );
+        }
         return [];
       }),
       fetchProjectIssues(projectId).catch((e) => {
-        console.error("Failed to fetch issues:", e);
+        const errorInfo = classifyGitHubError(e);
+        if (errorInfo.type === "auth") {
+          console.error(
+            `[fetchProjectDashboardData] Authentication error fetching issues: ${errorInfo.message}`,
+          );
+        } else {
+          console.error(
+            `[fetchProjectDashboardData] Failed to fetch issues (${errorInfo.type}): ${errorInfo.message}`,
+          );
+        }
         return [];
       }),
     ]);
+
+    console.log(
+      `[fetchProjectDashboardData] Dashboard data summary - Specs: ${specsResult.specs.length}, PRs: ${pullRequests.length}, Issues: ${issues.length}`,
+    );
 
     return {
       specsResult,
@@ -49,7 +75,10 @@ export async function fetchProjectDashboardData(
       issues,
     };
   } catch (error) {
-    console.error("Error fetching project dashboard data:", error);
+    const errorInfo = classifyGitHubError(error);
+    console.error(
+      `[fetchProjectDashboardData] Critical error fetching dashboard data (${errorInfo.type}): ${errorInfo.message}`,
+    );
     return {
       specsResult: {
         specs: [],
@@ -138,25 +167,47 @@ export async function fetchProjectPullRequests(
   try {
     const project = await fetchProjectById(projectId);
     if (!project) {
+      console.warn(
+        `[fetchProjectPullRequests] Project not found: ${projectId}`,
+      );
       return [];
     }
 
     const session = await auth();
     const userId = session?.user?.id;
     if (!userId) {
-      console.warn("No user ID found for fetching project pull requests");
+      console.warn(
+        "[fetchProjectPullRequests] No user ID found - user may not be authenticated",
+      );
       return [];
     }
+
+    console.log(
+      `[fetchProjectPullRequests] Fetching PRs for project ${project.fullName} (${project.repositories.length} repositories)`,
+    );
 
     const scopedVcs = vcs.getScoped(userId);
     const prPromises = project.repositories.map(async (relation) => {
       try {
         const [owner, repoName] = relation.repo.fullName.split("/");
-        if (!owner || !repoName) return [];
+        if (!owner || !repoName) {
+          console.warn(
+            `[fetchProjectPullRequests] Invalid repo name format: ${relation.repo.fullName}`,
+          );
+          return [];
+        }
+
+        console.log(
+          `[fetchProjectPullRequests] Fetching PRs from ${relation.repo.fullName}`,
+        );
 
         const prs = await scopedVcs.pullRequests.list(owner, repoName, {
           state: "open",
         });
+
+        console.log(
+          `[fetchProjectPullRequests] Found ${prs.length} PRs in ${relation.repo.fullName}`,
+        );
 
         // Convert to PullRequest type and enrich with required fields that might be missing
         return prs.map((pr) => ({
@@ -176,10 +227,29 @@ export async function fetchProjectPullRequests(
           headSha: pr.headSha,
         }));
       } catch (error) {
-        console.warn(
-          `Could not fetch PRs for ${relation.repo.fullName}:`,
-          error,
-        );
+        const errorInfo = classifyGitHubError(error);
+        
+        if (errorInfo.type === "auth") {
+          console.error(
+            `[fetchProjectPullRequests] Authentication error for ${relation.repo.fullName}: ${errorInfo.message}`,
+          );
+          console.error(
+            `[fetchProjectPullRequests] User ${userId} needs to re-authenticate with GitHub`,
+          );
+        } else if (errorInfo.type === "permission") {
+          console.warn(
+            `[fetchProjectPullRequests] Permission denied for ${relation.repo.fullName}: ${errorInfo.message}`,
+          );
+        } else if (errorInfo.type === "not_found") {
+          console.warn(
+            `[fetchProjectPullRequests] Repository not found or inaccessible: ${relation.repo.fullName}`,
+          );
+        } else {
+          console.warn(
+            `[fetchProjectPullRequests] Error fetching PRs from ${relation.repo.fullName} (${errorInfo.type}): ${errorInfo.message}`,
+          );
+        }
+        
         return [];
       }
     });
@@ -187,10 +257,17 @@ export async function fetchProjectPullRequests(
     const prResults = await Promise.all(prPromises);
     const prs = prResults.flat();
 
+    console.log(
+      `[fetchProjectPullRequests] Total PRs fetched: ${prs.length} across ${project.repositories.length} repositories`,
+    );
+
     // Enrich PRs with preview environment data
     return enrichPullRequestsWithPreviewEnvs(prs);
   } catch (error) {
-    console.error("Error fetching project pull requests:", error);
+    const errorInfo = classifyGitHubError(error);
+    console.error(
+      `[fetchProjectPullRequests] Failed to fetch project pull requests (${errorInfo.type}): ${errorInfo.message}`,
+    );
     return [];
   }
 }
@@ -259,25 +336,45 @@ export async function fetchProjectIssues(projectId: string): Promise<Issue[]> {
   try {
     const project = await fetchProjectById(projectId);
     if (!project) {
+      console.warn(`[fetchProjectIssues] Project not found: ${projectId}`);
       return [];
     }
 
     const session = await auth();
     const userId = session?.user?.id;
     if (!userId) {
-      console.warn("No user ID found for fetching project issues");
+      console.warn(
+        "[fetchProjectIssues] No user ID found - user may not be authenticated",
+      );
       return [];
     }
+
+    console.log(
+      `[fetchProjectIssues] Fetching issues for project ${project.fullName} (${project.repositories.length} repositories)`,
+    );
 
     const scopedVcs = vcs.getScoped(userId);
     const issuePromises = project.repositories.map(async (relation) => {
       try {
         const [owner, repoName] = relation.repo.fullName.split("/");
-        if (!owner || !repoName) return [];
+        if (!owner || !repoName) {
+          console.warn(
+            `[fetchProjectIssues] Invalid repo name format: ${relation.repo.fullName}`,
+          );
+          return [];
+        }
+
+        console.log(
+          `[fetchProjectIssues] Fetching issues from ${relation.repo.fullName}`,
+        );
 
         const issues = await scopedVcs.issues.list(owner, repoName, {
           state: "open",
         });
+
+        console.log(
+          `[fetchProjectIssues] Found ${issues.length} issues in ${relation.repo.fullName}`,
+        );
 
         return issues.map((issue) => ({
           id: parseInt(issue.id),
@@ -294,18 +391,46 @@ export async function fetchProjectIssues(projectId: string): Promise<Issue[]> {
           state: issue.state,
         }));
       } catch (error) {
-        console.warn(
-          `Could not fetch issues for ${relation.repo.fullName}:`,
-          error,
-        );
+        const errorInfo = classifyGitHubError(error);
+        
+        if (errorInfo.type === "auth") {
+          console.error(
+            `[fetchProjectIssues] Authentication error for ${relation.repo.fullName}: ${errorInfo.message}`,
+          );
+          console.error(
+            `[fetchProjectIssues] User ${userId} needs to re-authenticate with GitHub`,
+          );
+        } else if (errorInfo.type === "permission") {
+          console.warn(
+            `[fetchProjectIssues] Permission denied for ${relation.repo.fullName}: ${errorInfo.message}`,
+          );
+        } else if (errorInfo.type === "not_found") {
+          console.warn(
+            `[fetchProjectIssues] Repository not found or inaccessible: ${relation.repo.fullName}`,
+          );
+        } else {
+          console.warn(
+            `[fetchProjectIssues] Error fetching issues from ${relation.repo.fullName} (${errorInfo.type}): ${errorInfo.message}`,
+          );
+        }
+        
         return [];
       }
     });
 
     const results = await Promise.all(issuePromises);
-    return results.flat();
+    const issues = results.flat();
+
+    console.log(
+      `[fetchProjectIssues] Total issues fetched: ${issues.length} across ${project.repositories.length} repositories`,
+    );
+
+    return issues;
   } catch (error) {
-    console.error("Error fetching project issues:", error);
+    const errorInfo = classifyGitHubError(error);
+    console.error(
+      `[fetchProjectIssues] Failed to fetch project issues (${errorInfo.type}): ${errorInfo.message}`,
+    );
     return [];
   }
 }

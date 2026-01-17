@@ -231,12 +231,17 @@ export function registerTokenGetter(getter: TokenGetter): void {
  * @returns Authenticated Octokit instance
  */
 export async function getUserOctokit(userId: string): Promise<Octokit> {
+  console.log(`[GitHub Client] Getting Octokit for user: ${userId}`);
+  
   // Check if PAT is allowed in current environment
   const isPATAllowed =
     process.env.NODE_ENV !== "production" || GITHUB_CONFIG.ALLOW_PAT_FALLBACK;
 
   // First priority: Use PAT if allowed and available
   if (isPATAllowed && GITHUB_CONFIG.PAT) {
+    console.log(
+      `[GitHub Client] Using PAT authentication for user: ${userId} (development mode)`,
+    );
     return new Octokit({
       auth: GITHUB_CONFIG.PAT,
     });
@@ -244,18 +249,32 @@ export async function getUserOctokit(userId: string): Promise<Octokit> {
 
   // Second priority: Use GitHub App user tokens via registered getter
   if (registeredTokenGetter) {
+    console.log(
+      `[GitHub Client] Attempting OAuth token retrieval for user: ${userId}`,
+    );
     const tokens = await registeredTokenGetter(userId);
     if (tokens?.accessToken) {
+      console.log(
+        `[GitHub Client] Successfully authenticated user: ${userId} with OAuth token`,
+      );
       return new Octokit({
         auth: tokens.accessToken,
       });
+    } else {
+      console.error(
+        `[GitHub Client] Token retrieval returned null for user: ${userId} - token may be expired or missing`,
+      );
     }
+  } else {
+    console.error(
+      `[GitHub Client] No token getter registered - cannot retrieve OAuth tokens`,
+    );
   }
 
   // No authentication available
-  throw new Error(
-    "No GitHub authentication available. Please set GITHUB_PAT or authorize GitHub App.",
-  );
+  const errorMsg = `No GitHub authentication available for user ${userId}. Please set GITHUB_PAT or authorize GitHub App.`;
+  console.error(`[GitHub Client] ${errorMsg}`);
+  throw new Error(errorMsg);
 }
 
 /**
@@ -1299,6 +1318,91 @@ export function isGitHubTokenError(error: unknown): boolean {
     (err?.message?.includes("token") ?? false) ||
     (err?.message?.includes("authentication") ?? false)
   );
+}
+
+/**
+ * Classify GitHub API error and return a descriptive error type
+ * @param error The error to classify
+ * @returns Object with error type and user-friendly message
+ */
+export function classifyGitHubError(error: unknown): {
+  type: "auth" | "not_found" | "rate_limit" | "permission" | "network" | "unknown";
+  status?: number;
+  message: string;
+} {
+  if (!error || typeof error !== "object") {
+    return {
+      type: "unknown",
+      message: "An unknown error occurred",
+    };
+  }
+
+  const err = error as { 
+    status?: number; 
+    message?: string;
+    response?: { status?: number };
+  };
+  
+  const status = err.status || err.response?.status;
+  const message = err.message || "Unknown error";
+
+  // Authentication errors (401)
+  if (status === 401) {
+    return {
+      type: "auth",
+      status: 401,
+      message: "GitHub authentication failed - token may be missing or expired. Please sign in again.",
+    };
+  }
+
+  // Permission/Access errors (403)
+  if (status === 403) {
+    // Check if it's a rate limit issue
+    if (message.includes("rate limit") || message.includes("API rate")) {
+      return {
+        type: "rate_limit",
+        status: 403,
+        message: "GitHub API rate limit exceeded. Please try again later.",
+      };
+    }
+    
+    return {
+      type: "permission",
+      status: 403,
+      message: "Access denied - you may not have permission to access this resource, or your GitHub token needs additional scopes.",
+    };
+  }
+
+  // Not found errors (404)
+  if (status === 404) {
+    return {
+      type: "not_found",
+      status: 404,
+      message: "Resource not found - it may not exist or you may not have access to it.",
+    };
+  }
+
+  // Network errors
+  if (message.includes("ECONNREFUSED") || message.includes("ENOTFOUND") || message.includes("timeout")) {
+    return {
+      type: "network",
+      message: "Network error - unable to connect to GitHub API.",
+    };
+  }
+
+  // Token-related errors without explicit status code
+  if (message.includes("token") || message.includes("authentication")) {
+    return {
+      type: "auth",
+      message: "GitHub authentication issue - token may be invalid or expired.",
+    };
+  }
+
+  return {
+    type: "unknown",
+    status,
+    message: `GitHub API error: ${message}`,
+  };
 }
 
 /**
