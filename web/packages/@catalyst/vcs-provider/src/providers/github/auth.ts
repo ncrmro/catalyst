@@ -12,12 +12,24 @@ import { GITHUB_CONFIG } from "./client";
 // ============================================================================
 
 /**
- * Schema for GitHub OAuth token response
- * Used by exchangeRefreshToken and exchangeAuthorizationCode
+ * Schema for GitHub OAuth token response from exchangeRefreshToken
+ * The refresh_token is optional in refresh responses (GitHub may not always return a new one)
  */
-const GitHubTokenResponseSchema = z.object({
+const GitHubRefreshTokenResponseSchema = z.object({
   access_token: z.string(),
   refresh_token: z.string().optional(),
+  scope: z.string(),
+  error: z.string().optional(),
+  error_description: z.string().optional(),
+});
+
+/**
+ * Schema for GitHub OAuth token response from exchangeAuthorizationCode
+ * The refresh_token is required in authorization code exchange responses
+ */
+const GitHubAuthCodeResponseSchema = z.object({
+  access_token: z.string(),
+  refresh_token: z.string(),
   scope: z.string(),
   error: z.string().optional(),
   error_description: z.string().optional(),
@@ -77,7 +89,7 @@ export async function exchangeRefreshToken(refreshToken: string): Promise<{
   }
 
   const json = await response.json();
-  const data = GitHubTokenResponseSchema.parse(json);
+  const data = GitHubRefreshTokenResponseSchema.parse(json);
 
   if (data.error) {
     throw new Error(
@@ -136,18 +148,11 @@ export async function exchangeAuthorizationCode(
   }
 
   const json = await response.json();
-  const data = GitHubTokenResponseSchema.parse(json);
+  const data = GitHubAuthCodeResponseSchema.parse(json);
 
   if (data.error) {
     throw new Error(
       `GitHub auth error: ${data.error_description || data.error}`,
-    );
-  }
-
-  // Validate that GitHub returned a refresh token
-  if (!data.refresh_token) {
-    throw new Error(
-      "GitHub did not return a refresh_token in the authorization response",
     );
   }
 
