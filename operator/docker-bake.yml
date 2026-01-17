@@ -1,0 +1,10 @@
+# Docker Bake file for operator builds
+version: "3.8"
+
+services:
+  production:
+    build:
+      dockerfile: Dockerfile
+      context: .
+      platforms:
+        - linux/amd64
