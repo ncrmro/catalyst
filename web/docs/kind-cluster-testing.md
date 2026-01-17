@@ -168,7 +168,8 @@ kubectl delete deployment nginx-deployment-<timestamp>
    - **Solution**:
      - Check internet connectivity
      - Verify Docker can pull images: `docker pull nginx:alpine`
-     - For in-cluster registry issues, ensure registry pod is running: `kubectl get pods | grep registry`
+     - For in-cluster registry issues, ensure registry pod is running: `kubectl get pods -n default | grep registry`
+     - Note: Registry pod location varies by setup; check `default` or `kube-system` namespaces
 
 6. **Ingress Controller Not Ready**
    - **Cause**: NGINX Ingress Controller is not fully deployed or has errors
