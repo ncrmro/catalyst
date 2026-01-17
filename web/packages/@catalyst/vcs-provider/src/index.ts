@@ -53,6 +53,16 @@ export {
   getAllInstallations,
 } from "./providers/github/client";
 
+// 4. GitHub OAuth Authentication Exports
+export {
+  exchangeRefreshToken,
+  exchangeAuthorizationCode,
+  fetchGitHubUser,
+  generateAuthorizationUrl,
+} from "./providers/github/auth";
+
+export type { GitHubUserProfile } from "./providers/github/auth";
+
 export type {
   EnrichedPullRequest,
   EnrichedIssue,
