@@ -71,7 +71,7 @@ jobs:
           image: ${{ github.repository }}/operator
           platforms: linux/amd64
           workdir: "./operator"
-          files: "./docker-bake.yml"
+          files: "./docker-compose.build.yml"
 
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v1
@@ -105,7 +105,7 @@ jobs:
           image: ${{ github.repository }}/web
           platforms: linux/amd64
           workdir: "./web"
-          files: "./docker-bake.yml"
+          files: "./docker-compose.build.yml"
 
   deploy:
     name: Deploy

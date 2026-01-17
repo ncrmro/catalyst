@@ -1,0 +1,15 @@
+services:
+  development:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+      platforms:
+        - linux/amd64
+
+  production:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
