@@ -637,6 +637,7 @@ export async function createPreviewDeployment(
   params: CreatePreviewDeploymentParams,
 ): Promise<CreatePreviewDeploymentResult> {
   const {
+    pullRequestId,
     prNumber,
     branch,
     commitSha,
@@ -646,13 +647,64 @@ export async function createPreviewDeployment(
     repoName,
   } = params;
 
+  // Fetch team information from pull request record
+  let teamName: string | null = null;
+  let projectName: string | null = null;
+  
+  if (pullRequestId) {
+    try {
+      const prWithRepo = await db.query.pullRequests.findFirst({
+        where: eq(pullRequests.id, pullRequestId),
+        with: {
+          repo: {
+            with: {
+              team: true,
+            },
+          },
+        },
+      });
+      
+      if (prWithRepo?.repo?.team) {
+        teamName = prWithRepo.repo.team.name;
+        // Use repo name as project name if we don't have a better source
+        projectName = repoName;
+      }
+    } catch (error) {
+      previewLogger.warn("Failed to fetch team information for preview deployment", {
+        pullRequestId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   // Generate identifiers
   // CR Name: preview-<prNumber>
   const crName = `preview-${prNumber}`;
   // Target Namespace (managed by operator): env-preview-<prNumber>
   const targetNamespace = `env-${crName}`;
-  // CR Namespace: default (control plane)
-  const crNamespace = "default";
+  
+  // CR Namespace: use project namespace if we have team info, otherwise default
+  let crNamespace = "default";
+  if (teamName && projectName) {
+    const { generateProjectNamespace } = await import("@/lib/namespace-utils");
+    const { ensureProjectNamespace } = await import("@catalyst/kubernetes-client");
+    const { getClusterConfig } = await import("@/lib/k8s-client");
+    
+    try {
+      const kubeConfig = await getClusterConfig();
+      if (kubeConfig) {
+        crNamespace = generateProjectNamespace(teamName, projectName);
+        await ensureProjectNamespace(kubeConfig, teamName, projectName);
+      }
+    } catch (error) {
+      previewLogger.warn("Failed to create project namespace, using default", {
+        teamName,
+        projectName,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      crNamespace = "default";
+    }
+  }
 
   const publicUrl = generatePublicUrl(targetNamespace);
 
@@ -758,21 +810,36 @@ export async function createPreviewDeployment(
     commitSha,
   });
 
-  const crResult = await createEnvironmentCR(crNamespace, crName, {
-    projectRef: { name: repoName }, // Assuming Project CR named after repo or we need to map it
-    type: "development",
-    sources: [
-      {
-        name: "main",
-        commitSha,
-        branch,
-        prNumber,
+  // Add hierarchy labels if we have team info
+  const environmentLabels: Record<string, string> | undefined = 
+    teamName && projectName
+      ? {
+          "catalyst.dev/team": teamName,
+          "catalyst.dev/project": projectName,
+          "catalyst.dev/environment": crName,
+        }
+      : undefined;
+
+  const crResult = await createEnvironmentCR(
+    crNamespace,
+    crName,
+    {
+      projectRef: { name: repoName }, // Assuming Project CR named after repo or we need to map it
+      type: "development",
+      sources: [
+        {
+          name: "main",
+          commitSha,
+          branch,
+          prNumber,
+        },
+      ],
+      config: {
+        envVars: [], // Add any default env vars
       },
-    ],
-    config: {
-      envVars: [], // Add any default env vars
     },
-  });
+    environmentLabels,
+  );
 
   if (!crResult.success) {
     const errorMsg = crResult.error || "Failed to create Environment CR";
