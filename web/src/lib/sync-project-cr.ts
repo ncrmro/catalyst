@@ -148,7 +148,19 @@ export async function syncProjectToK8s(
     }
 
     const teamNamespace = generateTeamNamespace(teamName);
-    await ensureTeamNamespace(kubeConfig, teamName);
+    try {
+      await ensureTeamNamespace(kubeConfig, teamName);
+    } catch (namespaceError) {
+      console.error("Failed to ensure team namespace:", namespaceError);
+      return {
+        success: false,
+        error: `Failed to create team namespace "${teamNamespace}": ${
+          namespaceError instanceof Error
+            ? namespaceError.message
+            : "Unknown error"
+        }`,
+      };
+    }
 
     // 5. Create or update Project CR in team namespace
     const sanitizedName = projectWithTeam.name
@@ -176,6 +188,39 @@ export async function syncProjectToK8s(
       spec,
       projectLabels,
     );
+
+    // If creation failed due to namespace not found, try to create namespace and retry once
+    if (
+      !createResult.success &&
+      createResult.error?.includes("404") &&
+      createResult.error?.includes("namespaces")
+    ) {
+      console.log(
+        `Namespace "${teamNamespace}" not found, attempting to create it...`,
+      );
+      try {
+        await ensureTeamNamespace(kubeConfig, teamName);
+        // Retry creating the Project CR
+        const retryResult = await createProjectCR(
+          teamNamespace,
+          sanitizedName,
+          spec,
+          projectLabels,
+        );
+        if (retryResult.isExisting) {
+          return await updateProjectCR(teamNamespace, sanitizedName, spec);
+        }
+        return retryResult;
+      } catch (retryError) {
+        console.error("Failed to create namespace on retry:", retryError);
+        return {
+          success: false,
+          error: `Failed to create team namespace "${teamNamespace}" after retry: ${
+            retryError instanceof Error ? retryError.message : "Unknown error"
+          }`,
+        };
+      }
+    }
 
     // If it already exists, update it
     if (createResult.isExisting) {
