@@ -22,17 +22,6 @@ import type {
 import type { EnvironmentConfig } from "@/types/environment-config";
 
 /**
- * Check if an error indicates a namespace not found (404)
- */
-function isNamespaceNotFoundError(error: string | undefined): boolean {
-  if (!error) return false;
-  // Check for HTTP 404 status code
-  if (!error.includes("404")) return false;
-  // Ensure it's specifically about namespaces, not other resources
-  return error.includes("namespace") || error.includes("Namespace");
-}
-
-/**
  * Convert environment config method to deployment type
  */
 function configMethodToDeploymentType(
@@ -159,19 +148,7 @@ export async function syncProjectToK8s(
     }
 
     const teamNamespace = generateTeamNamespace(teamName);
-    try {
-      await ensureTeamNamespace(kubeConfig, teamName);
-    } catch (namespaceError) {
-      console.error("Failed to ensure team namespace:", namespaceError);
-      return {
-        success: false,
-        error: `Failed to create team namespace "${teamNamespace}": ${
-          namespaceError instanceof Error
-            ? namespaceError.message
-            : "Unknown error"
-        }`,
-      };
-    }
+    await ensureTeamNamespace(kubeConfig, teamName);
 
     // 5. Create or update Project CR in team namespace
     const sanitizedName = projectWithTeam.name
@@ -199,36 +176,6 @@ export async function syncProjectToK8s(
       spec,
       projectLabels,
     );
-
-    // If creation failed due to namespace not found, try to create namespace and retry once
-    if (!createResult.success && isNamespaceNotFoundError(createResult.error)) {
-      console.log(
-        `Namespace "${teamNamespace}" not found, attempting to create it...`,
-      );
-      try {
-        await ensureTeamNamespace(kubeConfig, teamName);
-      } catch (retryError) {
-        console.error("Failed to create namespace on retry:", retryError);
-        return {
-          success: false,
-          error: `Failed to create team namespace "${teamNamespace}" after retry: ${
-            retryError instanceof Error ? retryError.message : "Unknown error"
-          }`,
-        };
-      }
-
-      // Retry creating the Project CR
-      const retryResult = await createProjectCR(
-        teamNamespace,
-        sanitizedName,
-        spec,
-        projectLabels,
-      );
-      if (retryResult.isExisting) {
-        return await updateProjectCR(teamNamespace, sanitizedName, spec);
-      }
-      return retryResult;
-    }
 
     // If it already exists, update it
     if (createResult.isExisting) {
