@@ -4,22 +4,18 @@
 #   docker buildx bake development         # Build only development variant
 #   docker buildx bake runner              # Build only runner/production variant
 
-version: "3.8"
-
 # Web application build targets
-services:
+target:
   development:
-    build:
-      dockerfile: Dockerfile
-      context: .
-      target: development
-      platforms:
-        - linux/amd64
+    dockerfile: Dockerfile
+    context: .
+    target: development
+    platforms:
+      - linux/amd64
 
   production:
-    build:
-      dockerfile: Dockerfile
-      context: .
-      target: runner
-      platforms:
-        - linux/amd64
+    dockerfile: Dockerfile
+    context: .
+    target: runner
+    platforms:
+      - linux/amd64
