@@ -44,79 +44,25 @@ export class KubernetesError extends Error {
       return error;
     }
 
-    // Handle @kubernetes/client-node HttpError with message format:
-    // "HTTP-Code: 404\nMessage: ...\nBody: {...}"
-    if (error && typeof error === "object" && "message" in error) {
-      const errorMessage = (error as { message?: string }).message;
-      if (typeof errorMessage === "string") {
-        // Extract HTTP code from message
-        const codeMatch = errorMessage.match(/HTTP-Code:\s*(\d+)/);
-        if (codeMatch) {
-          const code = parseInt(codeMatch[1], 10);
-          
-          // Helper to extract message field
-          const extractMessage = (msg: string): string | undefined => {
-            const msgMatch = msg.match(/Message:\s*(.+?)(?:\n|$)/);
-            return msgMatch?.[1];
-          };
-          
-          // Try to extract and parse the JSON body
-          // Match Body: "..." where ... is the escaped JSON, ending at newline or end of string
-          // Using [\s\S] instead of . with /s flag for ES2017 compatibility
-          const bodyMatch = errorMessage.match(/Body:\s*"([\s\S]+?)"(?:\s*\n|$)/);
-          if (bodyMatch) {
-            try {
-              // The body is escaped JSON from Kubernetes API.
-              // We only need to unescape quotes and backslashes as these are the
-              // only characters that are escaped in the string format we receive.
-              const bodyStr = bodyMatch[1]
-                .replace(/\\"/g, '"')
-                .replace(/\\\\/g, '\\');
-              const body = JSON.parse(bodyStr);
-              
-              return new KubernetesError(
-                body.message || "Unknown Kubernetes API error",
-                code,
-                body.reason,
-                body.details,
-              );
-            } catch {
-              // If JSON parsing fails, extract message from the error text
-              return new KubernetesError(
-                extractMessage(errorMessage) || errorMessage,
-                code,
-              );
-            }
-          }
-          
-          // If no body, just use the code and message
-          return new KubernetesError(
-            extractMessage(errorMessage) || errorMessage,
-            code,
-          );
-        }
-      }
-    }
-
-    // Handle @kubernetes/client-node HttpError format (older/alternative format)
-    if (
-      error &&
-      typeof error === "object" &&
-      "response" in error &&
-      error.response &&
-      typeof error.response === "object"
-    ) {
-      const response = error.response as {
+    // Handle @kubernetes/client-node HttpError with .body and .statusCode
+    if (error && typeof error === "object") {
+      const err = error as {
         statusCode?: number;
-        body?: { message?: string; reason?: string };
+        body?: {
+          message?: string;
+          reason?: string;
+          details?: Record<string, unknown>;
+        };
       };
-      const statusCode = response.statusCode || 500;
-      const body = response.body || {};
-      return new KubernetesError(
-        body.message || "Unknown Kubernetes API error",
-        statusCode,
-        body.reason,
-      );
+
+      if (err.statusCode && err.body && typeof err.body === "object") {
+        return new KubernetesError(
+          err.body.message || "Unknown Kubernetes API error",
+          err.statusCode,
+          err.body.reason,
+          err.body.details,
+        );
+      }
     }
 
     // Handle generic errors
