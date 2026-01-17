@@ -217,8 +217,6 @@ export class VCSProviderSingleton {
     }
 
     for (const provider of config.providers) {
-      // Validate provider configuration
-      provider.validateConfig();
       providerRegistry.register(provider);
     }
 

@@ -51,14 +51,6 @@ export class GitHubProvider implements VCSProvider {
   }
 
   /**
-   * Validate provider configuration
-   */
-  validateConfig(): void {
-    // Validation happens once at startup in client.ts (buildGitHubConfig)
-    // This method is kept for interface compliance but is intentionally empty
-  }
-
-  /**
    * Check the connection status for a user
    *
    * NOTE: Token refresh is handled by VCSProviderSingleton.getValidToken()
