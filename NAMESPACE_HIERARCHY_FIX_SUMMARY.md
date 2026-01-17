@@ -58,13 +58,13 @@ Updated three key files to properly implement the namespace hierarchy:
 ### 3. Preview Deployments (`web/src/models/preview-environments.ts`)
 
 **Changes**:
-- Fetch team information from pull request database record
-- Generate project namespace when team info is available
+- Fetch team information from pull request database record (REQUIRED)
+- Generate project namespace using team hierarchy
 - Ensure project namespace exists before creating Environment CR
-- Add hierarchy labels when team context is available
-- Gracefully fallback to `"default"` if team info unavailable
+- Add hierarchy labels to all Environment CRs
+- Fail fast if team information is not available
 
-**Labels Added** (when team context available):
+**Labels Added**:
 ```typescript
 {
   "catalyst.dev/team": teamName,
@@ -77,7 +77,7 @@ Updated three key files to properly implement the namespace hierarchy:
 - Team: `acme-corp`
 - Repo: `web-app`
 - PR: `#123`
-- **Environment CR created in**: `acme-corp-web-app` namespace (or `default` if no team context)
+- **Environment CR created in**: `acme-corp-web-app` namespace
 - **Environment CR name**: `preview-123`
 - **Workloads deployed to**: `acme-corp-web-app-preview-123` namespace (managed by operator)
 
@@ -117,15 +117,16 @@ Environment Namespaces (created by operator):
 2. **Permission Boundaries**: RBAC can be applied at team or project level
 3. **Resource Quotas**: Can be set at team or project namespace level
 4. **Observability**: Team-based monitoring and metrics collection
-5. **Compliance**: Follows FR-ENV-020 namespace hierarchy specification
+5. **Compliance**: Follows FR-ENV-020 namespace hierarchy specification strictly
 6. **DNS-1123 Compliant**: All namespaces respect 63-char limit with hash truncation
 
-## Backward Compatibility
+## Requirements
 
-- Existing CRs in "default" namespace continue to work
-- Operator has fallback logic for CRs without hierarchy labels
-- No migration required
-- New deployments automatically use proper hierarchy
+**Team Information Required**:
+- All Project and Environment CRs MUST have team association
+- Pull requests MUST be linked to a repository with team information
+- Operations will fail if team context is not available
+- No fallback to "default" namespace
 
 ## Testing
 

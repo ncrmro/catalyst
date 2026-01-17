@@ -647,64 +647,56 @@ export async function createPreviewDeployment(
     repoName,
   } = params;
 
-  // Fetch team information from pull request record
-  let teamName: string | null = null;
-  let projectName: string | null = null;
-  
-  if (pullRequestId) {
-    try {
-      const prWithRepo = await db.query.pullRequests.findFirst({
-        where: eq(pullRequests.id, pullRequestId),
-        with: {
-          repo: {
-            with: {
-              team: true,
-            },
-          },
-        },
-      });
-      
-      if (prWithRepo?.repo?.team) {
-        teamName = prWithRepo.repo.team.name;
-        // Use repo name as project name if we don't have a better source
-        projectName = repoName;
-      }
-    } catch (error) {
-      previewLogger.warn("Failed to fetch team information for preview deployment", {
-        pullRequestId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
+  // Fetch team information from pull request record - REQUIRED
+  if (!pullRequestId) {
+    return {
+      success: false,
+      error: "pullRequestId is required to fetch team information",
+    };
   }
+
+  const prWithRepo = await db.query.pullRequests.findFirst({
+    where: eq(pullRequests.id, pullRequestId),
+    with: {
+      repo: {
+        with: {
+          team: true,
+        },
+      },
+    },
+  });
+
+  if (!prWithRepo?.repo?.team) {
+    return {
+      success: false,
+      error: "Team information not found for pull request",
+    };
+  }
+
+  const teamName = prWithRepo.repo.team.name;
+  const projectName = repoName;
 
   // Generate identifiers
   // CR Name: preview-<prNumber>
   const crName = `preview-${prNumber}`;
   // Target Namespace (managed by operator): env-preview-<prNumber>
   const targetNamespace = `env-${crName}`;
-  
-  // CR Namespace: use project namespace if we have team info, otherwise default
-  let crNamespace = "default";
-  if (teamName && projectName) {
-    const { generateProjectNamespace } = await import("@/lib/namespace-utils");
-    const { ensureProjectNamespace } = await import("@catalyst/kubernetes-client");
-    const { getClusterConfig } = await import("@/lib/k8s-client");
-    
-    try {
-      const kubeConfig = await getClusterConfig();
-      if (kubeConfig) {
-        crNamespace = generateProjectNamespace(teamName, projectName);
-        await ensureProjectNamespace(kubeConfig, teamName, projectName);
-      }
-    } catch (error) {
-      previewLogger.warn("Failed to create project namespace, using default", {
-        teamName,
-        projectName,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      crNamespace = "default";
-    }
+
+  // Generate project namespace using team hierarchy
+  const { generateProjectNamespace } = await import("@/lib/namespace-utils");
+  const { ensureProjectNamespace } = await import("@catalyst/kubernetes-client");
+  const { getClusterConfig } = await import("@/lib/k8s-client");
+
+  const kubeConfig = await getClusterConfig();
+  if (!kubeConfig) {
+    return {
+      success: false,
+      error: "Kubernetes config not available",
+    };
   }
+
+  const crNamespace = generateProjectNamespace(teamName, projectName);
+  await ensureProjectNamespace(kubeConfig, teamName, projectName);
 
   const publicUrl = generatePublicUrl(targetNamespace);
 
@@ -811,14 +803,11 @@ export async function createPreviewDeployment(
   });
 
   // Add hierarchy labels if we have team info
-  const environmentLabels: Record<string, string> | undefined = 
-    teamName && projectName
-      ? {
-          "catalyst.dev/team": teamName,
-          "catalyst.dev/project": projectName,
-          "catalyst.dev/environment": crName,
-        }
-      : undefined;
+  const environmentLabels = {
+    "catalyst.dev/team": teamName,
+    "catalyst.dev/project": projectName,
+    "catalyst.dev/environment": crName,
+  };
 
   const crResult = await createEnvironmentCR(
     crNamespace,
@@ -925,9 +914,37 @@ export async function deletePreviewDeploymentOrchestrated(
   }
 
   // Step 3: Delete Kubernetes resources (Environment CR)
+  // Fetch team information from pull request to generate correct namespace
+  const prWithRepo = await db.query.pullRequests.findFirst({
+    where: eq(pullRequests.id, pod.pullRequest.id),
+    with: {
+      repo: {
+        with: {
+          team: true,
+        },
+      },
+    },
+  });
+
+  if (!prWithRepo?.repo?.team) {
+    previewLogger.error("Failed to fetch team info for CR deletion", {
+      podId,
+      pullRequestId: pod.pullRequest.id,
+    });
+    return {
+      success: false,
+      error: "Team information not found for pull request",
+    };
+  }
+
+  const teamName = prWithRepo.repo.team.name;
+  const projectName = prWithRepo.repo.name;
+
+  const { generateProjectNamespace } = await import("@/lib/namespace-utils");
+  const crNamespace = generateProjectNamespace(teamName, projectName);
+
   // CR Name: preview-<prNumber>
   const crName = pod.deploymentName;
-  const crNamespace = "default";
 
   const deleteResult = await deleteEnvironmentCR(crNamespace, crName);
 
@@ -1012,10 +1029,37 @@ export async function getPreviewDeploymentStatusFull(podId: string): Promise<{
   const pod = podResult.pod;
 
   // Get live CR status
-  // Namespace for CR is "default" (as per creation)
+  // Fetch team information from pull request to generate correct namespace
+  const prWithRepo = await db.query.pullRequests.findFirst({
+    where: eq(pullRequests.id, pod.pullRequest.id),
+    with: {
+      repo: {
+        with: {
+          team: true,
+        },
+      },
+    },
+  });
+
+  if (!prWithRepo?.repo?.team) {
+    previewLogger.error("Failed to fetch team info for CR status check", {
+      podId,
+      pullRequestId: pod.pullRequest.id,
+    });
+    return {
+      success: false,
+      error: "Team information not found for pull request",
+    };
+  }
+
+  const teamName = prWithRepo.repo.team.name;
+  const projectName = prWithRepo.repo.name;
+
+  const { generateProjectNamespace } = await import("@/lib/namespace-utils");
+  const crNamespace = generateProjectNamespace(teamName, projectName);
+
   // Name is pod.deploymentName (which is "preview-123")
   const crName = pod.deploymentName;
-  const crNamespace = "default";
 
   try {
     const cr = await getEnvironmentCR(crNamespace, crName);
