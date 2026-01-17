@@ -460,43 +460,25 @@ export async function refreshTokenIfNeeded(
     return null;
   }
 
-  // If no expiration date, treat as expired and force refresh
-  if (!tokens.expiresAt) {
-    console.warn(
-      `Token for user ${userId} has no expiration date, forcing refresh`,
-    );
+  // Determine if refresh is needed
+  const isEpochDate = tokens.expiresAt?.getTime() === 0;
+  const needsRefresh =
+    !tokens.expiresAt || // No expiration date
+    isEpochDate || // Epoch date (indicates null was converted)
+    new Date() > new Date(tokens.expiresAt.getTime() - EXPIRATION_BUFFER_MS); // About to expire
+
+  if (needsRefresh) {
     try {
-      const newTokens = await exchangeRefreshToken(tokens.refreshToken);
-
-      // Store the new tokens
-      await storeGitHubTokens(userId, {
-        ...newTokens,
-        installationId: tokens.installationId,
-      });
-
-      return {
-        ...newTokens,
-        installationId: tokens.installationId,
-      };
-    } catch (error) {
-      console.error("Failed to refresh token with no expiration:", error);
-      await invalidateTokens(userId);
-      return null;
-    }
-  }
-
-  // Check if token is about to expire (within buffer time)
-  const now = new Date();
-  const expirationWithBuffer = new Date(
-    tokens.expiresAt.getTime() - EXPIRATION_BUFFER_MS,
-  );
-
-  if (now > expirationWithBuffer) {
-    try {
-      // Token is expiring soon, refresh it
-      console.log(
-        `Refreshing token for user ${userId} that expires at ${tokens.expiresAt}`,
-      );
+      // Log appropriate message based on reason for refresh
+      if (!tokens.expiresAt || isEpochDate) {
+        console.warn(
+          `Token for user ${userId} has no expiration date, forcing refresh`,
+        );
+      } else {
+        console.log(
+          `Refreshing token for user ${userId} that expires at ${tokens.expiresAt}`,
+        );
+      }
 
       const newTokens = await exchangeRefreshToken(tokens.refreshToken);
 
