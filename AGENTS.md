@@ -137,6 +137,8 @@ Different contexts use different Kubernetes cluster providers:
 
 Both environments support the same path-based ingress routing pattern (`http://localhost:8080/{namespace}/`), ensuring test parity between local development and CI.
 
+**Kind Cluster Troubleshooting:** See `web/docs/kind-cluster-testing.md` for detailed troubleshooting guides, common issues, platform-specific problems, and how to report new issues.
+
 ## CI/CD and Release Process
 
 The project uses a unified release workflow (`.github/workflows/release.yml`) that automatically detects and builds only the components that have changed:
