@@ -94,7 +94,7 @@ export const GITHUB_CONFIG = buildGitHubConfig();
 export interface GitHubTokens {
   accessToken: string;
   refreshToken: string;
-  expiresAt: Date;
+  expiresAt?: Date;
   scope: string;
   installationId?: string;
 }
@@ -196,26 +196,10 @@ export async function getGitHubTokens(
       return null;
     }
 
-    // Check for missing expiration (should not happen, but be defensive)
-    if (!record.tokenExpiresAt) {
-      console.warn(
-        `Token for user ${userId} has no expiration date in database`,
-      );
-      // Return tokens anyway so refreshTokenIfNeeded can handle it
-      // Using a date in the past to force refresh
-      return {
-        accessToken,
-        refreshToken,
-        expiresAt: new Date(0), // Unix epoch - definitely expired
-        scope: record.tokenScope || "",
-        installationId: record.installationId || undefined,
-      };
-    }
-
     return {
       accessToken,
       refreshToken,
-      expiresAt: record.tokenExpiresAt,
+      expiresAt: record.tokenExpiresAt || undefined,
       scope: record.tokenScope || "",
       installationId: record.installationId || undefined,
     };
@@ -461,17 +445,15 @@ export async function refreshTokenIfNeeded(
   }
 
   // Determine if refresh is needed
-  // Check for null/undefined or epoch date (indicates null was converted in getGitHubTokens)
-  const hasValidExpiration =
-    tokens.expiresAt && tokens.expiresAt.getTime() !== 0;
+  // No expiration date means we should refresh immediately
   const needsRefresh =
-    !hasValidExpiration ||
+    !tokens.expiresAt ||
     new Date() > new Date(tokens.expiresAt.getTime() - EXPIRATION_BUFFER_MS);
 
   if (needsRefresh) {
     try {
       // Log appropriate message based on reason for refresh
-      if (!hasValidExpiration) {
+      if (!tokens.expiresAt) {
         console.warn(
           `Token for user ${userId} has no expiration date, forcing refresh`,
         );
@@ -537,6 +519,11 @@ export async function areTokensValid(userId: string): Promise<boolean> {
   const tokens = await getGitHubTokens(userId);
 
   if (!tokens || !tokens.accessToken || !tokens.refreshToken) {
+    return false;
+  }
+
+  // If no expiration date, consider tokens invalid (need refresh)
+  if (!tokens.expiresAt) {
     return false;
   }
 

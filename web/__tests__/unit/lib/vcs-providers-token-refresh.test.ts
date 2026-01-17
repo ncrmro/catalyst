@@ -88,13 +88,11 @@ describe("vcs-providers token refresh", () => {
       const { getGitHubTokens } = await import("@/lib/vcs-providers");
       const tokens = await getGitHubTokens("user-123");
 
-      // Should return tokens with a default expiration (epoch) instead of failing
+      // Should return tokens with undefined expiresAt instead of failing
       expect(tokens).toBeTruthy();
       expect(tokens?.accessToken).toBe("access");
       expect(tokens?.refreshToken).toBe("refresh");
-      expect(tokens?.expiresAt).toBeInstanceOf(Date);
-      // Should be set to epoch (very old date) to force refresh
-      expect(tokens?.expiresAt.getTime()).toBeLessThan(Date.now());
+      expect(tokens?.expiresAt).toBeUndefined();
     });
 
     it("should return tokens with valid expiresAt", async () => {
@@ -131,9 +129,7 @@ describe("vcs-providers token refresh", () => {
 
   describe("refreshTokenIfNeeded", () => {
     it("should force refresh when expiresAt is null", async () => {
-      // Setup: getGitHubTokens returns tokens with null-ish expiresAt (converted to epoch)
-      const epochDate = new Date(0);
-
+      // Setup: getGitHubTokens returns tokens with undefined expiresAt
       mockDb.select.mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
