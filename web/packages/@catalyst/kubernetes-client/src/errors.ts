@@ -62,7 +62,8 @@ export class KubernetesError extends Error {
           
           // Try to extract and parse the JSON body
           // Match Body: "..." where ... is the escaped JSON, ending at newline or end of string
-          const bodyMatch = errorMessage.match(/Body:\s*"(.+?)"(?:\s*\n|$)/s);
+          // Using [\s\S] instead of . with /s flag for ES2017 compatibility
+          const bodyMatch = errorMessage.match(/Body:\s*"([\s\S]+?)"(?:\s*\n|$)/);
           if (bodyMatch) {
             try {
               // The body is escaped JSON from Kubernetes API.
