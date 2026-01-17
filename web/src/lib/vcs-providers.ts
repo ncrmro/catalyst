@@ -196,10 +196,26 @@ export async function getGitHubTokens(
       return null;
     }
 
+    // Check for missing expiration (should not happen, but be defensive)
+    if (!record.tokenExpiresAt) {
+      console.warn(
+        `Token for user ${userId} has no expiration date in database`,
+      );
+      // Return tokens anyway so refreshTokenIfNeeded can handle it
+      // Using a date in the past to force refresh
+      return {
+        accessToken,
+        refreshToken,
+        expiresAt: new Date(0), // Unix epoch - definitely expired
+        scope: record.tokenScope || "",
+        installationId: record.installationId || undefined,
+      };
+    }
+
     return {
       accessToken,
       refreshToken,
-      expiresAt: record.tokenExpiresAt!,
+      expiresAt: record.tokenExpiresAt,
       scope: record.tokenScope || "",
       installationId: record.installationId || undefined,
     };
@@ -442,6 +458,31 @@ export async function refreshTokenIfNeeded(
 
   if (!tokens) {
     return null;
+  }
+
+  // If no expiration date, treat as expired and force refresh
+  if (!tokens.expiresAt) {
+    console.warn(
+      `Token for user ${userId} has no expiration date, forcing refresh`,
+    );
+    try {
+      const newTokens = await exchangeRefreshToken(tokens.refreshToken);
+
+      // Store the new tokens
+      await storeGitHubTokens(userId, {
+        ...newTokens,
+        installationId: tokens.installationId,
+      });
+
+      return {
+        ...newTokens,
+        installationId: tokens.installationId,
+      };
+    } catch (error) {
+      console.error("Failed to refresh token with no expiration:", error);
+      await invalidateTokens(userId);
+      return null;
+    }
   }
 
   // Check if token is about to expire (within buffer time)

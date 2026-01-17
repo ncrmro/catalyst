@@ -229,5 +229,25 @@ describe("JWT Callback Token Refresh", () => {
       // Should return null to indicate re-auth is needed
       expect(result).toBeNull();
     });
+
+    it("should handle tokens with null expiresAt by forcing refresh", async () => {
+      // This tests the specific bug fix: tokens with null expiresAt should
+      // be handled gracefully rather than throwing TypeError
+      const refreshedTokens = {
+        accessToken: "refreshed-token",
+        refreshToken: "new-refresh-token",
+        expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000),
+        scope: "repo,user",
+      };
+
+      // Mock should handle null expiresAt and force a refresh
+      mockRefreshTokenIfNeeded.mockResolvedValue(refreshedTokens);
+
+      const result = await mockRefreshTokenIfNeeded("user-123");
+
+      // Should successfully return refreshed tokens
+      expect(result).toEqual(refreshedTokens);
+      expect(result?.accessToken).toBe("refreshed-token");
+    });
   });
 });
