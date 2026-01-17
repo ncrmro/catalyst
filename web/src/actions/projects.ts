@@ -7,9 +7,9 @@
 import { getProjects } from "@/models/projects";
 import { auth } from "@/auth";
 import { getUserTeamIds } from "@/lib/team-auth";
-import { type Branch } from "@/lib/vcs-providers";
+import { type Branch, classifyGitHubError } from "@/lib/vcs-providers";
 import type { PullRequest, Issue } from "@/types/reports";
-import { vcs, classifyGitHubError } from "@/lib/vcs";
+import { vcs } from "@/lib/vcs";
 import { db } from "@/db";
 import { pullRequestPods } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
