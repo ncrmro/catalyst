@@ -21,6 +21,9 @@ import type {
 } from "@/types/preview-environments";
 import type { InferSelectModel } from "drizzle-orm";
 import { nameGenerator } from "@/lib/name-generator";
+import { generateProjectNamespace } from "@/lib/namespace-utils";
+import { ensureProjectNamespace } from "@catalyst/kubernetes-client";
+import { getClusterConfig } from "@/lib/k8s-client";
 
 // Type exports for use in actions layer
 export type SelectPullRequestPod = InferSelectModel<typeof pullRequestPods>;
@@ -103,6 +106,36 @@ export function generatePublicUrl(namespace: string, domain?: string): string {
   const baseDomain =
     domain || process.env.PREVIEW_DOMAIN || "preview.localhost";
   return `https://${namespace}.${baseDomain}`;
+}
+
+/**
+ * Fetch team information from pull request record.
+ * 
+ * @param pullRequestId - Pull request database ID
+ * @returns Team name and project name, or null if not found
+ */
+async function getTeamInfoFromPullRequest(
+  pullRequestId: string,
+): Promise<{ teamName: string; projectName: string } | null> {
+  const prWithRepo = await db.query.pullRequests.findFirst({
+    where: eq(pullRequests.id, pullRequestId),
+    with: {
+      repo: {
+        with: {
+          team: true,
+        },
+      },
+    },
+  });
+
+  if (!prWithRepo?.repo?.team) {
+    return null;
+  }
+
+  return {
+    teamName: prWithRepo.repo.team.name,
+    projectName: prWithRepo.repo.name,
+  };
 }
 
 /**
@@ -593,8 +626,8 @@ import {
 } from "@/lib/logging";
 
 export interface CreatePreviewDeploymentParams {
-  /** Optional: Used for DB tracking when DB sync is enabled */
-  pullRequestId?: string;
+  /** Required: Pull request database ID for team context */
+  pullRequestId: string;
   prNumber: number;
   branch: string;
   commitSha: string;
@@ -637,6 +670,7 @@ export async function createPreviewDeployment(
   params: CreatePreviewDeploymentParams,
 ): Promise<CreatePreviewDeploymentResult> {
   const {
+    pullRequestId,
     prNumber,
     branch,
     commitSha,
@@ -646,13 +680,35 @@ export async function createPreviewDeployment(
     repoName,
   } = params;
 
+  // Fetch team information from pull request record - REQUIRED
+  const teamInfo = await getTeamInfoFromPullRequest(pullRequestId);
+  
+  if (!teamInfo) {
+    return {
+      success: false,
+      error: "Team information not found for pull request",
+    };
+  }
+
+  const { teamName, projectName } = teamInfo;
+
   // Generate identifiers
   // CR Name: preview-<prNumber>
   const crName = `preview-${prNumber}`;
   // Target Namespace (managed by operator): env-preview-<prNumber>
   const targetNamespace = `env-${crName}`;
-  // CR Namespace: default (control plane)
-  const crNamespace = "default";
+
+  // Generate project namespace using team hierarchy
+  const kubeConfig = await getClusterConfig();
+  if (!kubeConfig) {
+    return {
+      success: false,
+      error: "Kubernetes config not available",
+    };
+  }
+
+  const crNamespace = generateProjectNamespace(teamName, projectName);
+  await ensureProjectNamespace(kubeConfig, teamName, projectName);
 
   const publicUrl = generatePublicUrl(targetNamespace);
 
@@ -758,21 +814,33 @@ export async function createPreviewDeployment(
     commitSha,
   });
 
-  const crResult = await createEnvironmentCR(crNamespace, crName, {
-    projectRef: { name: repoName }, // Assuming Project CR named after repo or we need to map it
-    type: "development",
-    sources: [
-      {
-        name: "main",
-        commitSha,
-        branch,
-        prNumber,
+  // Add hierarchy labels if we have team info
+  const environmentLabels = {
+    "catalyst.dev/team": teamName,
+    "catalyst.dev/project": projectName,
+    "catalyst.dev/environment": crName,
+  };
+
+  const crResult = await createEnvironmentCR(
+    crNamespace,
+    crName,
+    {
+      projectRef: { name: repoName }, // Assuming Project CR named after repo or we need to map it
+      type: "development",
+      sources: [
+        {
+          name: "main",
+          commitSha,
+          branch,
+          prNumber,
+        },
+      ],
+      config: {
+        envVars: [], // Add any default env vars
       },
-    ],
-    config: {
-      envVars: [], // Add any default env vars
     },
-  });
+    environmentLabels,
+  );
 
   if (!crResult.success) {
     const errorMsg = crResult.error || "Failed to create Environment CR";
@@ -858,9 +926,25 @@ export async function deletePreviewDeploymentOrchestrated(
   }
 
   // Step 3: Delete Kubernetes resources (Environment CR)
+  // Fetch team information from pull request to generate correct namespace
+  const teamInfo = await getTeamInfoFromPullRequest(pod.pullRequest.id);
+  
+  if (!teamInfo) {
+    previewLogger.error("Failed to fetch team info for CR deletion", {
+      podId,
+      pullRequestId: pod.pullRequest.id,
+    });
+    return {
+      success: false,
+      error: "Team information not found for pull request",
+    };
+  }
+
+  const { teamName, projectName } = teamInfo;
+  const crNamespace = generateProjectNamespace(teamName, projectName);
+
   // CR Name: preview-<prNumber>
   const crName = pod.deploymentName;
-  const crNamespace = "default";
 
   const deleteResult = await deleteEnvironmentCR(crNamespace, crName);
 
@@ -945,10 +1029,25 @@ export async function getPreviewDeploymentStatusFull(podId: string): Promise<{
   const pod = podResult.pod;
 
   // Get live CR status
-  // Namespace for CR is "default" (as per creation)
+  // Fetch team information from pull request to generate correct namespace
+  const teamInfo = await getTeamInfoFromPullRequest(pod.pullRequest.id);
+  
+  if (!teamInfo) {
+    previewLogger.error("Failed to fetch team info for CR status check", {
+      podId,
+      pullRequestId: pod.pullRequest.id,
+    });
+    return {
+      success: false,
+      error: "Team information not found for pull request",
+    };
+  }
+
+  const { teamName, projectName } = teamInfo;
+  const crNamespace = generateProjectNamespace(teamName, projectName);
+
   // Name is pod.deploymentName (which is "preview-123")
   const crName = pod.deploymentName;
-  const crNamespace = "default";
 
   try {
     const cr = await getEnvironmentCR(crNamespace, crName);
@@ -1580,10 +1679,37 @@ export async function findOrCreateEnvironment(
   const [owner, repoName] = repoFullName.split("/");
   const imageUri = `ghcr.io/${owner}/${repoName}:pr-${prNumber}-${commitSha.slice(0, 7)}`;
 
+  // Look up the pull request from database to get the actual ID
+  // This is required for team context
+  // First get the repo to find the PR
+  const repo = await db.query.repos.findFirst({
+    where: eq(repos.fullName, repoFullName),
+  });
+
+  if (!repo) {
+    return {
+      success: false,
+      error: `Repository ${repoFullName} not found in database`,
+    };
+  }
+
+  const prRecord = await db.query.pullRequests.findFirst({
+    where: and(
+      eq(pullRequests.repoId, repo.id),
+      eq(pullRequests.number, prNumber),
+    ),
+  });
+
+  if (!prRecord) {
+    return {
+      success: false,
+      error: `Pull request #${prNumber} not found in database for ${repoFullName}. Ensure the PR webhook has been processed.`,
+    };
+  }
+
   // Create the preview deployment
-  // Note: pullRequestId is a placeholder since DB sync is disabled for MVP
   const deploymentResult = await createPreviewDeployment({
-    pullRequestId: `pr-${prNumber}`, // Placeholder - not used when DB disabled
+    pullRequestId: prRecord.id,
     prNumber,
     branch,
     commitSha,
