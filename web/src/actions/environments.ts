@@ -1,11 +1,17 @@
 "use server";
 
 import { z } from "zod";
+import { db } from "@/db";
+import { projects } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { getProjects } from "@/models/projects";
 import { revalidatePath } from "next/cache";
 import { getUserTeamIds } from "@/lib/team-auth";
 import { createEnvironmentCR } from "@/lib/k8s-operator";
 import { generateNameUnchecked } from "@/lib/name-generator";
+import { generateProjectNamespace } from "@/lib/namespace-utils";
+import { ensureProjectNamespace } from "@catalyst/kubernetes-client";
+import { getClusterConfig } from "@/lib/k8s-client";
 import type { EnvironmentType } from "@/types/crd";
 
 /**
@@ -61,19 +67,36 @@ export async function createProjectEnvironment(
 
     // Check if the user has access to this project
     const userTeamIds = await getUserTeamIds();
-    const projects = await getProjects({
+    const projectsResult = await getProjects({
       ids: [projectId],
       teamIds: userTeamIds,
     });
 
-    if (projects.length === 0) {
+    if (projectsResult.length === 0) {
       return {
         success: false,
         message: "Project not found or you do not have access to it",
       };
     }
 
-    const project = projects[0];
+    const project = projectsResult[0];
+
+    // Get team information to generate proper namespace
+    const projectWithTeam = await db.query.projects.findFirst({
+      where: eq(projects.id, projectId),
+      with: {
+        team: true,
+      },
+    });
+
+    if (!projectWithTeam?.team) {
+      return {
+        success: false,
+        message: "Project team not found",
+      };
+    }
+
+    const teamName = projectWithTeam.team.name;
 
     // Get the primary repository ID for this project
     if (!project.repositories || project.repositories.length === 0) {
@@ -118,24 +141,45 @@ export async function createProjectEnvironment(
       environmentName = deploymentSubType || "production";
     }
 
-    // Create the Environment CR directly
-    // We bypass the database check and creation as requested
-    const envResult = await createEnvironmentCR("default", environmentName, {
-      projectRef: {
-        name: sanitizedProjectName,
-      },
-      type: validatedEnvType,
-      sources: [
-        {
-          name: "primary",
-          commitSha: "HEAD", // TODO: Get actual commit SHA
-          branch: branch,
+    // Ensure project namespace exists
+    const kubeConfig = await getClusterConfig();
+    if (!kubeConfig) {
+      return {
+        success: false,
+        message: "No cluster config available",
+      };
+    }
+
+    const projectNamespace = generateProjectNamespace(teamName, sanitizedProjectName);
+    await ensureProjectNamespace(kubeConfig, teamName, sanitizedProjectName);
+
+    // Create the Environment CR in project namespace with hierarchy labels
+    const environmentLabels = {
+      "catalyst.dev/team": teamName,
+      "catalyst.dev/project": sanitizedProjectName,
+      "catalyst.dev/environment": environmentName,
+    };
+    const envResult = await createEnvironmentCR(
+      projectNamespace,
+      environmentName,
+      {
+        projectRef: {
+          name: sanitizedProjectName,
         },
-      ],
-      config: {
-        envVars: [],
+        type: validatedEnvType,
+        sources: [
+          {
+            name: "primary",
+            commitSha: "HEAD", // TODO: Get actual commit SHA
+            branch: branch,
+          },
+        ],
+        config: {
+          envVars: [],
+        },
       },
-    });
+      environmentLabels,
+    );
 
     // Check if Environment creation failed
     if (!envResult.success) {

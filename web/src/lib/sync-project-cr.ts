@@ -5,9 +5,15 @@
  * This ensures the operator has the correct configuration to deploy environments.
  */
 
+import { db } from "@/db";
+import { projects } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { getProjects } from "@/models/projects";
 import { getEnvironments } from "@/models/environments";
 import { createProjectCR, updateProjectCR } from "./k8s-operator";
+import { generateTeamNamespace } from "./namespace-utils";
+import { ensureTeamNamespace } from "@catalyst/kubernetes-client";
+import { getClusterConfig } from "./k8s-client";
 import type {
   ProjectCRSpec,
   SourceConfig,
@@ -78,16 +84,35 @@ export async function syncProjectToK8s(
   projectId: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // 1. Fetch project from database (source of truth)
-    const projects = await getProjects({ ids: [projectId] });
-    const project = projects[0];
+    // 1. Fetch project from database (source of truth) with team info
+    const projectsQuery = await getProjects({ ids: [projectId] });
+    const project = projectsQuery[0];
 
     if (!project) {
       return { success: false, error: "Project not found" };
     }
 
+    // Get team information - need to fetch with team relation
+    const projectWithTeam = await db.query.projects.findFirst({
+      where: eq(projects.id, projectId),
+      with: {
+        team: true,
+        repositories: {
+          with: {
+            repo: true,
+          },
+        },
+      },
+    });
+
+    if (!projectWithTeam?.team) {
+      return { success: false, error: "Project team not found" };
+    }
+
+    const teamName = projectWithTeam.team.name;
+
     // 2. Build sources array from project repositories
-    const sources: SourceConfig[] = project.repositories.map((rel, idx) => ({
+    const sources: SourceConfig[] = projectWithTeam.repositories.map((rel, idx) => ({
       name: rel.isPrimary ? "primary" : `source-${idx}`,
       repositoryUrl: rel.repo.url,
       branch: "main", // TODO: Get default branch from GitHub API
@@ -116,8 +141,17 @@ export async function syncProjectToK8s(
       }
     }
 
-    // 4. Create or update Project CR
-    const sanitizedName = project.name
+    // 4. Ensure team namespace exists
+    const kubeConfig = await getClusterConfig();
+    if (!kubeConfig) {
+      return { success: false, error: "No cluster config available" };
+    }
+
+    const teamNamespace = generateTeamNamespace(teamName);
+    await ensureTeamNamespace(kubeConfig, teamName);
+
+    // 5. Create or update Project CR in team namespace
+    const sanitizedName = projectWithTeam.name
       .toLowerCase()
       .replace(/[^a-z0-9-]/g, "-");
     const spec: ProjectCRSpec = {
@@ -131,13 +165,22 @@ export async function syncProjectToK8s(
       },
     };
 
-    // Try create first
-    const createResult = await createProjectCR("default", sanitizedName, spec);
+    // Try create first in team namespace with labels
+    const projectLabels = {
+      "catalyst.dev/team": teamName,
+      "catalyst.dev/project": projectWithTeam.name,
+    };
+    const createResult = await createProjectCR(
+      teamNamespace,
+      sanitizedName,
+      spec,
+      projectLabels,
+    );
 
     // If it already exists, update it
     if (createResult.isExisting) {
       const updateResult = await updateProjectCR(
-        "default",
+        teamNamespace,
         sanitizedName,
         spec,
       );
