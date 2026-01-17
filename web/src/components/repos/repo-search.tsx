@@ -28,7 +28,9 @@ const reposSchema = z.union([reposDataSchema, reposDataWithReasonSchema]);
 /**
  * Convert GitHub-specific repo data to VCS-agnostic format
  */
-function convertGitHubRepoToRepository(repo: GitHubRepo): RepositoryWithConnections {
+function convertGitHubRepoToRepository(
+  repo: GitHubRepo,
+): RepositoryWithConnections {
   // Try to extract default branch from the GitHub API data if available
   // The GitHub API returns default_branch but it's not in our current schema
   const defaultBranch =
@@ -66,33 +68,38 @@ export function RepoSearch({
   });
 
   // Convert GitHub data to VCS-agnostic format
-  const vcsRepos: ReposData | null = repos ? {
-    user_repos: repos.user_repos.map(convertGitHubRepoToRepository),
-    organizations: repos.organizations.map(org => ({
-      id: org.id.toString(),
-      login: org.login,
-      name: org.login,
-      description: org.description ?? undefined,
-      avatarUrl: org.avatar_url,
-      url: `https://github.com/${org.login}`,
-      type: "Organization" as const,
-    })),
-    org_repos: Object.fromEntries(
-      Object.entries(repos.org_repos).map(([org, orgRepos]) => [
-        org,
-        orgRepos.map(convertGitHubRepoToRepository),
-      ])
-    ),
-    vcs_integration_enabled: repos.github_integration_enabled,
-    reason: 'reason' in repos ? repos.reason : undefined,
-  } : null;
+  const vcsRepos: ReposData | null = repos
+    ? {
+        user_repos: repos.user_repos.map(convertGitHubRepoToRepository),
+        organizations: repos.organizations.map((org) => ({
+          id: org.id.toString(),
+          login: org.login,
+          name: org.login,
+          description: org.description ?? undefined,
+          avatarUrl: org.avatar_url,
+          url: `https://github.com/${org.login}`,
+          type: "Organization" as const,
+        })),
+        org_repos: Object.fromEntries(
+          Object.entries(repos.org_repos).map(([org, orgRepos]) => [
+            org,
+            orgRepos.map(convertGitHubRepoToRepository),
+          ]),
+        ),
+        vcs_integration_enabled: repos.github_integration_enabled,
+        reason: "reason" in repos ? repos.reason : undefined,
+      }
+    : null;
 
   // Convert VCS-agnostic repo back to GitHub format for callback
   const handleSelect = (repo: RepositoryWithConnections) => {
     // Find the original GitHub repo to preserve all fields
-    const originalRepo = repos?.user_repos.find(r => r.id.toString() === repo.id) ||
-      Object.values(repos?.org_repos ?? {}).flat().find(r => r.id.toString() === repo.id);
-    
+    const originalRepo =
+      repos?.user_repos.find((r) => r.id.toString() === repo.id) ||
+      Object.values(repos?.org_repos ?? {})
+        .flat()
+        .find((r) => r.id.toString() === repo.id);
+
     if (originalRepo) {
       onSelect(originalRepo);
     }

@@ -48,17 +48,19 @@ export class KubernetesError extends Error {
     if (error && typeof error === "object") {
       const err = error as {
         code?: number;
-        statusCode?: number;  // Keep for backwards compatibility
-        body?: string | {
-          message?: string;
-          reason?: string;
-          details?: Record<string, unknown>;
-        };
+        statusCode?: number; // Keep for backwards compatibility
+        body?:
+          | string
+          | {
+              message?: string;
+              reason?: string;
+              details?: Record<string, unknown>;
+            };
       };
 
       // Support both .code (ApiException) and .statusCode (HttpError)
       const errorCode = err.code ?? err.statusCode;
-      
+
       if (errorCode) {
         // Try to parse body if it exists
         let parsedBody: {
@@ -90,12 +92,9 @@ export class KubernetesError extends Error {
             parsedBody.details,
           );
         }
-        
+
         // If body is missing or not parseable, use errorCode with generic message
-        return new KubernetesError(
-          "Kubernetes API error",
-          errorCode,
-        );
+        return new KubernetesError("Kubernetes API error", errorCode);
       }
     }
 

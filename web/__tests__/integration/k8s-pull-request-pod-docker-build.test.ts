@@ -229,11 +229,13 @@ describe("Pull Request Pod Docker Build Integration", () => {
       expect(logs).toContain("=== PR Pod Build Script ===");
       expect(logs).toContain("=== Verifying pre-installed tools ===");
       expect(logs).toContain("✓ All tools verified");
-      
+
       // Since NEEDS_BUILD=false, buildx setup should be skipped
-      expect(logs).toContain("=== Skipping buildx setup (NEEDS_BUILD=false) ===");
+      expect(logs).toContain(
+        "=== Skipping buildx setup (NEEDS_BUILD=false) ===",
+      );
       expect(logs).toContain("⏭ Buildx not needed for this run");
-      
+
       expect(logs).toContain("=== Cloning Repository ===");
       expect(logs).toContain("Repository cloned successfully!");
       expect(logs).toContain("Build required: false");
