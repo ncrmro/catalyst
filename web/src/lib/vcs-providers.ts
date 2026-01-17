@@ -153,6 +153,8 @@ export async function storeGitHubTokens(
 export async function getGitHubTokens(
   userId: string,
 ): Promise<GitHubTokens | null> {
+  console.log(`[GitHub Token] Fetching tokens for user: ${userId}`);
+  
   const tokenRecord = await db
     .select()
     .from(githubUserTokens)
@@ -160,6 +162,7 @@ export async function getGitHubTokens(
     .limit(1);
 
   if (!tokenRecord.length) {
+    console.warn(`[GitHub Token] No token record found for user: ${userId}`);
     return null;
   }
 
@@ -174,6 +177,9 @@ export async function getGitHubTokens(
     !record.refreshTokenIv ||
     !record.refreshTokenAuthTag
   ) {
+    console.warn(
+      `[GitHub Token] Incomplete encrypted token data for user: ${userId}`,
+    );
     return null;
   }
 
@@ -193,8 +199,19 @@ export async function getGitHubTokens(
 
     // Check for empty tokens (indicates invalidated tokens)
     if (!accessToken || !refreshToken) {
+      console.warn(
+        `[GitHub Token] Empty decrypted tokens for user: ${userId} (tokens may have been invalidated)`,
+      );
       return null;
     }
+
+    const expiresAt = record.tokenExpiresAt!;
+    const now = new Date();
+    const isExpired = now > expiresAt;
+    
+    console.log(
+      `[GitHub Token] Retrieved tokens for user: ${userId}, expires: ${expiresAt.toISOString()}, expired: ${isExpired}`,
+    );
 
     return {
       accessToken,
@@ -441,6 +458,9 @@ export async function refreshTokenIfNeeded(
   const tokens = await getGitHubTokens(userId);
 
   if (!tokens) {
+    console.warn(
+      `[GitHub Token] Cannot refresh - no tokens found for user: ${userId}`,
+    );
     return null;
   }
 
@@ -454,7 +474,7 @@ export async function refreshTokenIfNeeded(
     try {
       // Token is expiring soon, refresh it
       console.log(
-        `Refreshing token for user ${userId} that expires at ${tokens.expiresAt}`,
+        `[GitHub Token] Refreshing token for user ${userId} that expires at ${tokens.expiresAt.toISOString()}`,
       );
 
       const newTokens = await exchangeRefreshToken(tokens.refreshToken);
@@ -465,12 +485,19 @@ export async function refreshTokenIfNeeded(
         installationId: tokens.installationId, // Preserve installation ID
       });
 
+      console.log(
+        `[GitHub Token] Successfully refreshed token for user ${userId}, new expiration: ${newTokens.expiresAt.toISOString()}`,
+      );
+
       return {
         ...newTokens,
         installationId: tokens.installationId,
       };
     } catch (error) {
-      console.error("Failed to refresh token:", error);
+      console.error(
+        `[GitHub Token] Failed to refresh token for user ${userId}:`,
+        error instanceof Error ? error.message : error,
+      );
       // If refresh fails, return null to indicate re-authorization is needed
       await invalidateTokens(userId);
       return null;
@@ -478,6 +505,9 @@ export async function refreshTokenIfNeeded(
   }
 
   // Token is still valid
+  console.log(
+    `[GitHub Token] Token for user ${userId} is still valid (expires: ${tokens.expiresAt.toISOString()})`,
+  );
   return tokens;
 }
 
@@ -487,6 +517,10 @@ export async function refreshTokenIfNeeded(
  * @param userId The user ID to invalidate tokens for
  */
 export async function invalidateTokens(userId: string): Promise<void> {
+  console.warn(
+    `[GitHub Token] Invalidating tokens for user ${userId} - re-authentication will be required`,
+  );
+  
   const tokens = await getGitHubTokens(userId);
 
   if (tokens?.installationId) {
@@ -562,6 +596,7 @@ export {
   fetchPullRequestById,
   fetchUserRepositoryPullRequests,
   isGitHubTokenError,
+  classifyGitHubError,
 
   // GitHub App management
   getAllInstallations,

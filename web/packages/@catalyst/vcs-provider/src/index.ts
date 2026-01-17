@@ -44,6 +44,7 @@ export {
   fetchCIStatus,
   fetchUserRepositoryPullRequests,
   isGitHubTokenError,
+  classifyGitHubError,
   determinePRPriority,
   determinePRStatus,
   // Token getter registration for dependency injection
