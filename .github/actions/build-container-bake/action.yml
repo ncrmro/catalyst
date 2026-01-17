@@ -285,7 +285,8 @@ runs:
         PRODUCTION_DIGEST=""
         if [ -n "${{ steps.bake.outputs.metadata }}" ]; then
           # Parse the metadata JSON to extract the digest for the production target
-          PRODUCTION_DIGEST=$(echo '${{ steps.bake.outputs.metadata }}' | jq -r '.production."containerimage.digest" // empty')
+          # Using jq with error handling - returns empty string if metadata is invalid or path doesn't exist
+          PRODUCTION_DIGEST=$(echo '${{ steps.bake.outputs.metadata }}' | jq -r '.production."containerimage.digest" // empty' 2>/dev/null || echo "")
         fi
         
         echo "production-image=$FIRST_PRODUCTION_TAG" >> $GITHUB_OUTPUT
