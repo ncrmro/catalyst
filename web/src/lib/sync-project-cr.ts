@@ -232,7 +232,7 @@ export async function syncProjectToK8s(
       if (retryNamespaceError) {
         return { success: false, error: retryNamespaceError };
       }
-      
+
       // Retry creating the Project CR
       const retryResult = await createProjectCR(
         teamNamespace,
