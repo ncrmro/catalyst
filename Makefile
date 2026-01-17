@@ -11,3 +11,6 @@ e2e: ## Run web e2e tests
 
 up: ## Start the web development environment
 	$(MAKE) -C web up
+
+build-docker: ## Build docker images for web and operator
+	docker buildx bake -f docker-compose.build.yml
