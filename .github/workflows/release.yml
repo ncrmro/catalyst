@@ -70,8 +70,10 @@ jobs:
           registry: ghcr.io
           image: ${{ github.repository }}/operator
           platforms: linux/amd64
-          workdir: "./operator"
+          workdir: "."
           files: "./docker-compose.build.yml"
+          target-development: "operator-development"
+          target-production: "operator-production"
 
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v1
@@ -104,8 +106,10 @@ jobs:
           registry: ghcr.io
           image: ${{ github.repository }}/web
           platforms: linux/amd64
-          workdir: "./web"
+          workdir: "."
           files: "./docker-compose.build.yml"
+          target-development: "web-development"
+          target-production: "web-production"
 
   deploy:
     name: Deploy
