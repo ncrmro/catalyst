@@ -161,6 +161,12 @@ As a power user, I want to configure deployments using standard tools (Docker Co
 - **FR-ENV-021**: The System MUST validate and enforce the Kubernetes 63-character limit for namespace names:
     - If the generated namespace name (`<team>-<project>-<env>`) exceeds 63 characters, the System MUST truncate the components and append a hash to ensure uniqueness and validity.
     - See [Namespace Generation Procedure](#namespace-generation-procedure) for the specific algorithm.
+- **FR-ENV-022**: The System MUST support just-in-time namespace creation to ensure zero-friction environment provisioning:
+    - When creating a Project CR, the System MUST automatically create the Team Namespace if it doesn't exist.
+    - When creating an Environment CR, the System MUST automatically create the Project Namespace if it doesn't exist.
+    - Namespace creation MUST be idempotent—if a namespace already exists, the operation MUST succeed without error.
+    - If namespace creation fails, the System MUST retry once and provide clear error messages indicating the failure reason.
+    - This requirement ensures users can create development environments without pre-provisioning namespaces, reducing setup friction and enabling self-service workflows.
 
 ### Key Entities
 
@@ -264,6 +270,16 @@ All environments operate within dedicated Kubernetes namespaces, structured hier
 1.  **Team Namespace** (`<team-name>`): Contains shared infrastructure (monitoring, logging) and **Project CRs**.
 2.  **Project Namespace** (`<team-name>-<project-name>`): Contains **Environment CRs** and provides a boundary for project-level permissions.
 3.  **Environment Namespace** (`<team-name>-<project-name>-<environment-name>`): The actual target for workload deployments (Pods, Services, etc.).
+
+**Just-in-Time Namespace Creation (FR-ENV-022):**
+
+To enable zero-friction workflows, namespaces are created automatically when needed:
+
+- When creating a **Project CR**, the system ensures the Team Namespace exists (creating it if needed).
+- When creating an **Environment CR**, the system ensures the Project Namespace exists (creating it if needed).
+- The operator ensures the Environment Namespace exists when reconciling the Environment CR.
+
+This approach allows users to create development environments immediately without pre-provisioning infrastructure, while maintaining the hierarchical structure for permission isolation.
 
 **Namespace Generation Procedure:**
 
