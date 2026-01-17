@@ -44,23 +44,57 @@ export class KubernetesError extends Error {
       return error;
     }
 
-    // Handle @kubernetes/client-node HttpError with .body and .statusCode
+    // Handle @kubernetes/client-node ApiException with .body and .code
     if (error && typeof error === "object") {
       const err = error as {
-        statusCode?: number;
-        body?: {
+        code?: number;
+        statusCode?: number;  // Keep for backwards compatibility
+        body?: string | {
           message?: string;
           reason?: string;
           details?: Record<string, unknown>;
         };
       };
 
-      if (err.statusCode && err.body && typeof err.body === "object") {
+      // Support both .code (ApiException) and .statusCode (HttpError)
+      const errorCode = err.code ?? err.statusCode;
+      
+      if (errorCode) {
+        // Try to parse body if it exists
+        let parsedBody: {
+          message?: string;
+          reason?: string;
+          details?: Record<string, unknown>;
+        } | null = null;
+
+        if (err.body) {
+          if (typeof err.body === "string") {
+            // Try to parse JSON string
+            try {
+              parsedBody = JSON.parse(err.body);
+            } catch {
+              // If parsing fails, body is not JSON - use generic message
+            }
+          } else if (typeof err.body === "object") {
+            // Body is already an object
+            parsedBody = err.body;
+          }
+        }
+
+        // If we have parsed body data, use it
+        if (parsedBody && typeof parsedBody === "object") {
+          return new KubernetesError(
+            parsedBody.message || "Unknown Kubernetes API error",
+            errorCode,
+            parsedBody.reason,
+            parsedBody.details,
+          );
+        }
+        
+        // If body is missing or not parseable, use errorCode with generic message
         return new KubernetesError(
-          err.body.message || "Unknown Kubernetes API error",
-          err.statusCode,
-          err.body.reason,
-          err.body.details,
+          "Kubernetes API error",
+          errorCode,
         );
       }
     }
