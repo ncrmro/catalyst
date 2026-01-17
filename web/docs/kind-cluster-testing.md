@@ -146,7 +146,8 @@ kubectl delete deployment nginx-deployment-<timestamp>
      - Verify cluster is accessible: `kubectl cluster-info`
      - Check if kind cluster is healthy: `kubectl get nodes`
      - Ensure Docker is running: `docker ps`
-     - Try restarting the kind cluster: `kind delete cluster --name <cluster-name> && kind create cluster --name <cluster-name>`
+     - Try restarting the kind cluster: `kind delete cluster --name preview-cluster && kind create cluster --name preview-cluster`
+     - Note: If using the default cluster name, use: `kind delete cluster && kind create cluster`
 
 3. **Database Connection Errors**
    - **Cause**: PostgreSQL service is not running or connection parameters are incorrect
@@ -201,7 +202,11 @@ kubectl delete deployment nginx-deployment-<timestamp>
 
 #### Linux
 - **Issue**: SELinux or AppArmor may block Docker operations
-  - **Solution**: Check security policies or temporarily disable SELinux: `sudo setenforce 0` (not recommended for production)
+  - **Solution**: 
+    - First, check SELinux audit logs for denials: `sudo ausearch -m avc -ts recent`
+    - Review and adjust SELinux policies if needed: `sudo audit2allow -a`
+    - For AppArmor, check logs: `sudo dmesg | grep apparmor`
+    - As a last resort (not recommended for production): temporarily set SELinux to permissive mode: `sudo setenforce 0`
 
 ### Verifying Configuration
 
@@ -219,7 +224,7 @@ kubectl auth can-i create deployments
 kubectl get pods -A
 
 # Check for any failing pods
-kubectl get pods -A | grep -v Running | grep -v Completed
+kubectl get pods -A --field-selector=status.phase!=Running,status.phase!=Succeeded
 ```
 
 ### Reporting New Issues
