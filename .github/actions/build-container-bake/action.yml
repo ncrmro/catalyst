@@ -111,7 +111,7 @@ outputs:
     value: ${{ steps.set-outputs.outputs.pr-dev-cache-image }}
   digest:
     description: 'Production image digest (for immutable deployments)'
-    value: ${{ steps.bake.outputs.digest-production }}
+    value: ${{ steps.set-outputs.outputs.digest }}
 
 runs:
   using: 'composite'
@@ -281,12 +281,20 @@ runs:
         DEV_CACHE_TAG="${BASE_NAME}:${FIRST_BRANCH}-dev-cache"
         PR_DEV_CACHE_TAG="${BASE_NAME}:${{ env.TAG_SUFFIX }}-dev-cache"
         
+        # Extract digest from bake metadata for production target
+        PRODUCTION_DIGEST=""
+        if [ -n "${{ steps.bake.outputs.metadata }}" ]; then
+          # Parse the metadata JSON to extract the digest for the production target
+          PRODUCTION_DIGEST=$(echo '${{ steps.bake.outputs.metadata }}' | jq -r '.production."containerimage.digest" // empty')
+        fi
+        
         echo "production-image=$FIRST_PRODUCTION_TAG" >> $GITHUB_OUTPUT
         echo "development-image=$FIRST_DEVELOPMENT_TAG" >> $GITHUB_OUTPUT
         echo "cache-image=$CACHE_TAG" >> $GITHUB_OUTPUT
         echo "dev-cache-image=$DEV_CACHE_TAG" >> $GITHUB_OUTPUT
         echo "pr-cache-image=${{ env.PR_CACHE_TAG }}" >> $GITHUB_OUTPUT
         echo "pr-dev-cache-image=$PR_DEV_CACHE_TAG" >> $GITHUB_OUTPUT
+        echo "digest=$PRODUCTION_DIGEST" >> $GITHUB_OUTPUT
 
     # TODO we need to read the subject-digest for each of the image build during bake and run this step for each image.
     # - name: Generate artifact attestation for production image
