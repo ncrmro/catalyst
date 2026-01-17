@@ -54,12 +54,20 @@ export class KubernetesError extends Error {
         if (codeMatch) {
           const code = parseInt(codeMatch[1], 10);
           
+          // Helper to extract message field
+          const extractMessage = (msg: string): string | undefined => {
+            const msgMatch = msg.match(/Message:\s*(.+?)(?:\n|$)/);
+            return msgMatch?.[1];
+          };
+          
           // Try to extract and parse the JSON body
           // Match Body: "..." where ... is the escaped JSON, ending at newline or end of string
-          const bodyMatch = errorMessage.match(/Body:\s*"(.+?)"\s*\n/s);
+          const bodyMatch = errorMessage.match(/Body:\s*"(.+?)"(?:\s*\n|$)/s);
           if (bodyMatch) {
             try {
-              // The body is escaped JSON, need to unescape it
+              // The body is escaped JSON from Kubernetes API.
+              // We only need to unescape quotes and backslashes as these are the
+              // only characters that are escaped in the string format we receive.
               const bodyStr = bodyMatch[1]
                 .replace(/\\"/g, '"')
                 .replace(/\\\\/g, '\\');
@@ -73,18 +81,16 @@ export class KubernetesError extends Error {
               );
             } catch {
               // If JSON parsing fails, extract message from the error text
-              const msgMatch = errorMessage.match(/Message:\s*(.+?)(?:\n|$)/);
               return new KubernetesError(
-                msgMatch?.[1] || errorMessage,
+                extractMessage(errorMessage) || errorMessage,
                 code,
               );
             }
           }
           
           // If no body, just use the code and message
-          const msgMatch = errorMessage.match(/Message:\s*(.+?)(?:\n|$)/);
           return new KubernetesError(
-            msgMatch?.[1] || errorMessage,
+            extractMessage(errorMessage) || errorMessage,
             code,
           );
         }
