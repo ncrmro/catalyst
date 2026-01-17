@@ -144,13 +144,20 @@ export async function exchangeAuthorizationCode(
     );
   }
 
+  // Validate that GitHub returned a refresh token
+  if (!data.refresh_token) {
+    throw new Error(
+      "GitHub did not return a refresh_token in the authorization response",
+    );
+  }
+
   // Calculate expiration (GitHub App user tokens expire in 8 hours)
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + 8);
 
   return {
     accessToken: data.access_token,
-    refreshToken: data.refresh_token!,
+    refreshToken: data.refresh_token,
     expiresAt,
     scope: data.scope,
     // Installation ID might be available in some contexts
