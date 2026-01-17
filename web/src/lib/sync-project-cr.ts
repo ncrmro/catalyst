@@ -13,7 +13,6 @@ import { getEnvironments } from "@/models/environments";
 import { createProjectCR, updateProjectCR } from "./k8s-operator";
 import { generateTeamNamespace } from "./namespace-utils";
 import { ensureTeamNamespace } from "@catalyst/kubernetes-client";
-import type { KubeConfig } from "@catalyst/kubernetes-client";
 import { getClusterConfig } from "./k8s-client";
 import type {
   ProjectCRSpec,
@@ -31,29 +30,6 @@ function isNamespaceNotFoundError(error: string | undefined): boolean {
   if (!error.includes("404")) return false;
   // Ensure it's specifically about namespaces, not other resources
   return error.includes("namespace") || error.includes("Namespace");
-}
-
-/**
- * Ensure team namespace exists with proper error handling
- * 
- * @returns Error message if namespace creation fails, undefined if successful
- */
-async function ensureTeamNamespaceWithErrorHandling(
-  kubeConfig: KubeConfig,
-  teamName: string,
-  namespaceName: string,
-): Promise<string | undefined> {
-  try {
-    await ensureTeamNamespace(kubeConfig, teamName);
-    return undefined;
-  } catch (namespaceError) {
-    console.error("Failed to ensure team namespace:", namespaceError);
-    return `Failed to create team namespace "${namespaceName}": ${
-      namespaceError instanceof Error
-        ? namespaceError.message
-        : "Unknown error"
-    }`;
-  }
 }
 
 /**
@@ -183,13 +159,18 @@ export async function syncProjectToK8s(
     }
 
     const teamNamespace = generateTeamNamespace(teamName);
-    const namespaceError = await ensureTeamNamespaceWithErrorHandling(
-      kubeConfig,
-      teamName,
-      teamNamespace,
-    );
-    if (namespaceError) {
-      return { success: false, error: namespaceError };
+    try {
+      await ensureTeamNamespace(kubeConfig, teamName);
+    } catch (namespaceError) {
+      console.error("Failed to ensure team namespace:", namespaceError);
+      return {
+        success: false,
+        error: `Failed to create team namespace "${teamNamespace}": ${
+          namespaceError instanceof Error
+            ? namespaceError.message
+            : "Unknown error"
+        }`,
+      };
     }
 
     // 5. Create or update Project CR in team namespace
@@ -224,13 +205,16 @@ export async function syncProjectToK8s(
       console.log(
         `Namespace "${teamNamespace}" not found, attempting to create it...`,
       );
-      const retryNamespaceError = await ensureTeamNamespaceWithErrorHandling(
-        kubeConfig,
-        teamName,
-        teamNamespace,
-      );
-      if (retryNamespaceError) {
-        return { success: false, error: retryNamespaceError };
+      try {
+        await ensureTeamNamespace(kubeConfig, teamName);
+      } catch (retryError) {
+        console.error("Failed to create namespace on retry:", retryError);
+        return {
+          success: false,
+          error: `Failed to create team namespace "${teamNamespace}" after retry: ${
+            retryError instanceof Error ? retryError.message : "Unknown error"
+          }`,
+        };
       }
 
       // Retry creating the Project CR
