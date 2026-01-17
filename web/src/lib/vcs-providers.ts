@@ -461,16 +461,17 @@ export async function refreshTokenIfNeeded(
   }
 
   // Determine if refresh is needed
-  const isEpochDate = tokens.expiresAt?.getTime() === 0;
+  // Check for null/undefined or epoch date (indicates null was converted in getGitHubTokens)
+  const hasValidExpiration =
+    tokens.expiresAt && tokens.expiresAt.getTime() !== 0;
   const needsRefresh =
-    !tokens.expiresAt || // No expiration date
-    isEpochDate || // Epoch date (indicates null was converted)
-    new Date() > new Date(tokens.expiresAt.getTime() - EXPIRATION_BUFFER_MS); // About to expire
+    !hasValidExpiration ||
+    new Date() > new Date(tokens.expiresAt.getTime() - EXPIRATION_BUFFER_MS);
 
   if (needsRefresh) {
     try {
       // Log appropriate message based on reason for refresh
-      if (!tokens.expiresAt || isEpochDate) {
+      if (!hasValidExpiration) {
         console.warn(
           `Token for user ${userId} has no expiration date, forcing refresh`,
         );
