@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/entity-card";
 import type { EnvironmentCR } from "@/types/crd";
 import { CreateDevEnvironment } from "./create-dev-environment";
+import { CreateDeploymentEnvironment } from "./create-deployment-environment";
 
 const ENVIRONMENT_TABS: EntityCardTab[] = [
   { value: "status", label: "Status" },
@@ -71,6 +72,7 @@ function EnvironmentRowItem({ environment, projectSlug }: EnvironmentRowProps) {
 export interface DeploymentEnvironmentsCardProps {
   environments: EnvironmentCR[];
   projectSlug: string;
+  projectId: string;
   /** Config tab content - passed from server component with Suspense boundary */
   configContent: ReactNode;
 }
@@ -78,6 +80,7 @@ export interface DeploymentEnvironmentsCardProps {
 export function DeploymentEnvironmentsCard({
   environments,
   projectSlug,
+  projectId,
   configContent,
 }: DeploymentEnvironmentsCardProps) {
   const [activeTab, setActiveTab] = useState("status");
@@ -121,19 +124,7 @@ export function DeploymentEnvironmentsCard({
       </div>
     ),
     config: configContent,
-    new: (
-      <div className="space-y-4">
-        <p className="text-sm text-on-surface-variant">
-          Create a new deployment environment (staging, production, etc.)
-        </p>
-        <Link
-          href={`/environments/${projectSlug}`}
-          className="inline-flex items-center px-4 py-2 text-sm font-medium text-on-primary bg-primary rounded-md hover:opacity-90 transition-opacity"
-        >
-          New Environment
-        </Link>
-      </div>
-    ),
+    new: <CreateDeploymentEnvironment projectId={projectId} />,
   };
 
   return (
