@@ -134,16 +134,74 @@ kubectl delete deployment nginx-deployment-<timestamp>
 ### Common Issues
 
 1. **"Failed to load Kubernetes configuration"**
-   - Ensure kind cluster is running: `kind get clusters`
-   - Check kubectl context: `kubectl config current-context`
+   - **Cause**: Kind cluster is not running or kubeconfig is not properly configured
+   - **Solution**: 
+     - Ensure kind cluster is running: `kind get clusters`
+     - Check kubectl context: `kubectl config current-context`
+     - Verify kubeconfig file exists and is readable: `ls -la ~/.kube/config`
 
 2. **"Cannot connect to Kubernetes cluster"**
-   - Verify cluster is accessible: `kubectl cluster-info`
-   - Check if kind cluster is healthy: `kubectl get nodes`
+   - **Cause**: Cluster is not accessible or network connectivity issues
+   - **Solution**:
+     - Verify cluster is accessible: `kubectl cluster-info`
+     - Check if kind cluster is healthy: `kubectl get nodes`
+     - Ensure Docker is running: `docker ps`
+     - Try restarting the kind cluster: `kind delete cluster --name <cluster-name> && kind create cluster --name <cluster-name>`
 
 3. **Database Connection Errors**
-   - Ensure PostgreSQL is running: `docker ps | grep postgres`
-   - Run database migrations: `npm run db:migrate`
+   - **Cause**: PostgreSQL service is not running or connection parameters are incorrect
+   - **Solution**:
+     - Ensure PostgreSQL is running: `docker ps | grep postgres`
+     - Run database migrations: `npm run db:migrate`
+     - Check database connection string in `.env` file
+
+4. **Port Conflicts**
+   - **Cause**: Required ports (8080, 6443) are already in use by other services
+   - **Solution**:
+     - Check what's using the ports: `lsof -i :8080` or `lsof -i :6443`
+     - Stop the conflicting service or configure kind to use different ports
+     - When creating kind cluster with custom ports, update the `extraPortMappings` configuration
+
+5. **Image Pull Errors**
+   - **Cause**: Container images cannot be pulled from registry
+   - **Solution**:
+     - Check internet connectivity
+     - Verify Docker can pull images: `docker pull nginx:alpine`
+     - For in-cluster registry issues, ensure registry pod is running: `kubectl get pods | grep registry`
+
+6. **Ingress Controller Not Ready**
+   - **Cause**: NGINX Ingress Controller is not fully deployed or has errors
+   - **Solution**:
+     - Check ingress controller status: `kubectl get pods -n ingress-nginx`
+     - View controller logs: `kubectl logs -n ingress-nginx deployment/ingress-nginx-controller`
+     - Ensure the cluster was created with proper port mappings (see E2E test setup in `.github/workflows/web.test.yml`)
+
+7. **"Context deadline exceeded" or Timeout Errors**
+   - **Cause**: Operations are taking longer than expected, often due to slow image pulls or resource constraints
+   - **Solution**:
+     - Increase timeout values in test configurations
+     - Check Docker resources allocated (CPU/Memory)
+     - Pre-pull required images: `docker pull nginx:alpine`, `docker pull postgres:17-alpine`
+
+### Known Platform-Specific Issues
+
+#### macOS
+- **Issue**: Docker Desktop resource limits may cause slow cluster creation
+  - **Solution**: Increase Docker Desktop resources (Preferences → Resources → Advanced)
+  
+- **Issue**: VPNs can interfere with kind networking
+  - **Solution**: Temporarily disable VPN or configure split tunneling to exclude localhost
+
+#### Windows (WSL2)
+- **Issue**: Port forwarding may not work properly between WSL2 and Windows
+  - **Solution**: Access kind cluster from within WSL2, or configure Windows port forwarding manually
+
+- **Issue**: File permissions can cause issues with kubeconfig files
+  - **Solution**: Ensure proper permissions: `chmod 600 ~/.kube/config`
+
+#### Linux
+- **Issue**: SELinux or AppArmor may block Docker operations
+  - **Solution**: Check security policies or temporarily disable SELinux: `sudo setenforce 0` (not recommended for production)
 
 ### Verifying Configuration
 
@@ -156,7 +214,49 @@ kubectl config view --raw
 
 # Test cluster connectivity
 kubectl auth can-i create deployments
+
+# Verify all required components
+kubectl get pods -A
+
+# Check for any failing pods
+kubectl get pods -A | grep -v Running | grep -v Completed
 ```
+
+### Reporting New Issues
+
+If you encounter issues not listed above, please help improve this documentation by reporting them:
+
+1. **Gather Diagnostic Information**:
+   ```bash
+   # Cluster information
+   kind get clusters
+   kubectl cluster-info
+   kubectl get nodes -o wide
+   kubectl get pods -A
+   
+   # System information
+   docker --version
+   kubectl version
+   kind --version
+   
+   # Check logs
+   kubectl logs -n kube-system -l component=kube-apiserver
+   kubectl logs -n ingress-nginx deployment/ingress-nginx-controller
+   ```
+
+2. **Include in Your Issue Report**:
+   - Operating system and version
+   - Docker version
+   - kind version
+   - kubectl version
+   - Exact error message and stack trace
+   - Steps to reproduce the issue
+   - Diagnostic information from above
+   - Relevant workflow file (if CI/CD related)
+
+3. **Where to Report**:
+   - Create a GitHub issue in the repository with the label `kind-cluster`
+   - Or update this documentation directly with your findings via pull request
 
 ## Integration with CI/CD
 
