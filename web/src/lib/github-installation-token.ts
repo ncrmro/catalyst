@@ -34,7 +34,9 @@ export async function generateInstallationToken(
 
     // The installation Octokit already handles token generation internally
     // We need to extract the token from the auth
-    const auth = await octokit.auth({ type: "installation" });
+    const auth = (await octokit.auth({ type: "installation" })) as {
+      token: string;
+    };
 
     // GitHub App installation tokens expire after 1 hour
     const expiresAt = new Date();

@@ -38,6 +38,7 @@ export { GitHubProvider } from "./providers/github/provider";
 export {
   GITHUB_CONFIG,
   getGitHubAccessToken,
+  getInstallationOctokit,
   fetchPullRequests,
   fetchIssues,
   fetchPullRequestById,
