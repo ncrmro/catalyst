@@ -575,6 +575,7 @@ export { _VCSProviderSingleton as VCSProviderSingleton };
 export {
   // Provider classes for explicit registration
   GitHubProvider,
+  MockVCSProvider,
 
   // GitHub API fetchers (still used in specialized areas)
   getGitHubAccessToken,
