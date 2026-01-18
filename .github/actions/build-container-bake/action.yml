@@ -89,6 +89,14 @@ inputs:
     description: 'List of bake definition files (e.g., "docker-bake.yml"). If not specified, uses inline configurations.'
     required: false
     default: ''
+  target-development:
+    description: 'Name of the development target in the bake definition'
+    required: false
+    default: 'development'
+  target-production:
+    description: 'Name of the production target in the bake definition'
+    required: false
+    default: 'production'
 
 outputs:
   production-image:
@@ -111,7 +119,7 @@ outputs:
     value: ${{ steps.set-outputs.outputs.pr-dev-cache-image }}
   digest:
     description: 'Production image digest (for immutable deployments)'
-    value: ${{ steps.bake.outputs.digest-production }}
+    value: ${{ steps.set-outputs.outputs.digest }}
 
 runs:
   using: 'composite'
@@ -191,6 +199,9 @@ runs:
         CACHE_TO_DEV=""
         CURRENT_BRANCH="${{ github.ref_name }}"
         IS_RELEASE_BRANCH=false
+        
+        TARGET_DEV="${{ inputs.target-development }}"
+        TARGET_PROD="${{ inputs.target-production }}"
 
         # Convert release-branches to array for checking
         IFS=',' read -ra RELEASE_BRANCHES <<< "${{ inputs.release-branches }}"
@@ -213,10 +224,10 @@ runs:
             fi
             
             # Add all release branch caches as sources
-            CACHE_FROM_ENTRIES+=("development.cache-from=type=registry,ref=$BRANCH_DEV_CACHE_TAG")
-            CACHE_FROM_ENTRIES+=("development.cache-from=type=registry,ref=$BRANCH_CACHE_TAG")
-            CACHE_FROM_ENTRIES+=("production.cache-from=type=registry,ref=$BRANCH_CACHE_TAG")
-            CACHE_FROM_ENTRIES+=("production.cache-from=type=registry,ref=$BRANCH_DEV_CACHE_TAG")
+            CACHE_FROM_ENTRIES+=("${TARGET_DEV}.cache-from=type=registry,ref=$BRANCH_DEV_CACHE_TAG")
+            CACHE_FROM_ENTRIES+=("${TARGET_DEV}.cache-from=type=registry,ref=$BRANCH_CACHE_TAG")
+            CACHE_FROM_ENTRIES+=("${TARGET_PROD}.cache-from=type=registry,ref=$BRANCH_CACHE_TAG")
+            CACHE_FROM_ENTRIES+=("${TARGET_PROD}.cache-from=type=registry,ref=$BRANCH_DEV_CACHE_TAG")
           fi
         done
 
@@ -227,18 +238,18 @@ runs:
           PR_DEV_CACHE_TAG="${BASE_NAME}:${{ env.TAG_SUFFIX }}-dev-cache"
           
           # Add PR cache to sources
-          CACHE_FROM_ENTRIES+=("development.cache-from=type=registry,ref=$PR_DEV_CACHE_TAG")
-          CACHE_FROM_ENTRIES+=("development.cache-from=type=registry,ref=$PR_CACHE_TAG")
-          CACHE_FROM_ENTRIES+=("production.cache-from=type=registry,ref=$PR_CACHE_TAG")
-          CACHE_FROM_ENTRIES+=("production.cache-from=type=registry,ref=$PR_DEV_CACHE_TAG")
+          CACHE_FROM_ENTRIES+=("${TARGET_DEV}.cache-from=type=registry,ref=$PR_DEV_CACHE_TAG")
+          CACHE_FROM_ENTRIES+=("${TARGET_DEV}.cache-from=type=registry,ref=$PR_CACHE_TAG")
+          CACHE_FROM_ENTRIES+=("${TARGET_PROD}.cache-from=type=registry,ref=$PR_CACHE_TAG")
+          CACHE_FROM_ENTRIES+=("${TARGET_PROD}.cache-from=type=registry,ref=$PR_DEV_CACHE_TAG")
           
           # Set cache destination for PR builds
-          CACHE_TO_PROD="production.cache-to=type=registry,ref=$PR_CACHE_TAG,mode=max,compression=zstd"
-          CACHE_TO_DEV="development.cache-to=type=registry,ref=$PR_DEV_CACHE_TAG,mode=max,compression=zstd"
+          CACHE_TO_PROD="${TARGET_PROD}.cache-to=type=registry,ref=$PR_CACHE_TAG,mode=max,compression=zstd"
+          CACHE_TO_DEV="${TARGET_DEV}.cache-to=type=registry,ref=$PR_DEV_CACHE_TAG,mode=max,compression=zstd"
         elif [ "$IS_RELEASE_BRANCH" = "true" ]; then
           # For release branches, update their caches
-          CACHE_TO_PROD="production.cache-to=type=registry,ref=$CURRENT_CACHE_TAG,mode=max,compression=zstd"
-          CACHE_TO_DEV="development.cache-to=type=registry,ref=$CURRENT_DEV_CACHE_TAG,mode=max,compression=zstd"
+          CACHE_TO_PROD="${TARGET_PROD}.cache-to=type=registry,ref=$CURRENT_CACHE_TAG,mode=max,compression=zstd"
+          CACHE_TO_DEV="${TARGET_DEV}.cache-to=type=registry,ref=$CURRENT_DEV_CACHE_TAG,mode=max,compression=zstd"
         fi
         
         # Convert array to string and save to environment
@@ -257,18 +268,22 @@ runs:
         workdir: ${{ inputs.workdir }}
         files: ${{ inputs.files }}
         push: ${{ inputs.push }}
+        targets: "${{ inputs.target-development }},${{ inputs.target-production }}"
         set: |
-          development.tags=${{ env.DEVELOPMENT_TAGS }}
-          development.output=type=registry,push=${{ inputs.push }},compression=zstd
+          ${{ inputs.target-development }}.tags=${{ env.DEVELOPMENT_TAGS }}
+          ${{ inputs.target-development }}.output=type=registry,push=${{ inputs.push }},compression=zstd
           ${{ env.CACHE_FROM_TAGS }}
-          production.tags=${{ env.PRODUCTION_TAGS }}
-          production.output=type=registry,push=${{ inputs.push }},compression=zstd
+          ${{ inputs.target-production }}.tags=${{ env.PRODUCTION_TAGS }}
+          ${{ inputs.target-production }}.output=type=registry,push=${{ inputs.push }},compression=zstd
           ${{ env.CACHE_TO_PROD }}
           ${{ env.CACHE_TO_DEV }}
 
     - name: Set outputs
       id: set-outputs
       shell: bash
+      env:
+        BAKE_METADATA: ${{ steps.bake.outputs.metadata }}
+        TARGET_PROD: ${{ inputs.target-production }}
       run: |
         BASE_NAME="${{ inputs.registry }}/${{ env.IMAGE_NAME }}"
         # Extract first tag from comma-separated lists for outputs
@@ -281,12 +296,30 @@ runs:
         DEV_CACHE_TAG="${BASE_NAME}:${FIRST_BRANCH}-dev-cache"
         PR_DEV_CACHE_TAG="${BASE_NAME}:${{ env.TAG_SUFFIX }}-dev-cache"
         
+        # Extract digest from bake metadata for production target
+        PRODUCTION_DIGEST=""
+        if [ -n "$BAKE_METADATA" ]; then
+          # Debug: Print metadata structure (keys only to avoid log spam)
+          echo "Debug: Metadata keys for target $TARGET_PROD:"
+          echo "$BAKE_METADATA" | jq 'keys' || echo "Failed to parse metadata keys"
+          
+          # Parse the metadata JSON to extract the digest for the production target
+          # Using environment variable for metadata to avoid quoting issues
+          # Using --arg for target name to handle special characters
+          PRODUCTION_DIGEST=$(echo "$BAKE_METADATA" | jq -r --arg target "$TARGET_PROD" '.[$target]."containerimage.digest" // empty' 2>/dev/null || echo "")
+          
+          echo "Debug: Extracted digest: $PRODUCTION_DIGEST"
+        else
+          echo "Debug: No metadata available"
+        fi
+        
         echo "production-image=$FIRST_PRODUCTION_TAG" >> $GITHUB_OUTPUT
         echo "development-image=$FIRST_DEVELOPMENT_TAG" >> $GITHUB_OUTPUT
         echo "cache-image=$CACHE_TAG" >> $GITHUB_OUTPUT
         echo "dev-cache-image=$DEV_CACHE_TAG" >> $GITHUB_OUTPUT
         echo "pr-cache-image=${{ env.PR_CACHE_TAG }}" >> $GITHUB_OUTPUT
         echo "pr-dev-cache-image=$PR_DEV_CACHE_TAG" >> $GITHUB_OUTPUT
+        echo "digest=$PRODUCTION_DIGEST" >> $GITHUB_OUTPUT
 
     # TODO we need to read the subject-digest for each of the image build during bake and run this step for each image.
     # - name: Generate artifact attestation for production image

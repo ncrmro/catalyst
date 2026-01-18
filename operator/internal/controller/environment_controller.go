@@ -127,9 +127,11 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// Fetch Project to access Templates
+	// Projects are stored in the team namespace, not the environment namespace
 	project := &catalystv1alpha1.Project{}
-	if err := r.Get(ctx, client.ObjectKey{Name: env.Spec.ProjectRef.Name, Namespace: env.Namespace}, project); err != nil {
-		log.Error(err, "Failed to fetch Project", "projectName", env.Spec.ProjectRef.Name)
+	teamNamespace := hierarchy.Team
+	if err := r.Get(ctx, client.ObjectKey{Name: env.Spec.ProjectRef.Name, Namespace: teamNamespace}, project); err != nil {
+		log.Error(err, "Failed to fetch Project", "projectName", env.Spec.ProjectRef.Name, "teamNamespace", teamNamespace)
 		return ctrl.Result{}, err
 	}
 

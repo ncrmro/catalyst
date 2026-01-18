@@ -11,6 +11,7 @@ React components for Version Control System (VCS) integration in Catalyst.
 A searchable repository picker component that integrates with any VCS provider to display and select repositories.
 
 **Features:**
+
 - Search and filter repositories by name and description
 - Shows user and organization repositories
 - Displays repository metadata (private/public, connections)
@@ -18,21 +19,22 @@ A searchable repository picker component that integrates with any VCS provider t
 - **Provider-agnostic**: Works with GitHub, GitLab, and other VCS providers
 
 **Usage:**
+
 ```tsx
-import { RepoSearch } from '@catalyst/react-vcs-components';
-import type { RepositoryWithConnections } from '@catalyst/react-vcs-components';
+import { RepoSearch } from "@catalyst/react-vcs-components";
+import type { RepositoryWithConnections } from "@catalyst/react-vcs-components";
 
 function MyComponent() {
   const handleSelect = (repo: RepositoryWithConnections) => {
-    console.log('Selected repo:', repo.fullName);
+    console.log("Selected repo:", repo.fullName);
   };
 
   return (
     <RepoSearch
       onSelect={handleSelect}
-      repos={reposData}  // VCS-agnostic ReposData format
+      repos={reposData} // VCS-agnostic ReposData format
       isLoading={false}
-      excludeUrls={['https://github.com/org/already-connected']}
+      excludeUrls={["https://github.com/org/already-connected"]}
       placeholder="Search repositories..."
     />
   );
@@ -44,24 +46,26 @@ function MyComponent() {
 A component for viewing specification documents from a VCS repository.
 
 **Features:**
+
 - Displays markdown content with syntax highlighting
 - File navigation sidebar
 - Supports multiple spec files (spec.md, plan.md, tasks.md, etc.)
 - Supports client-side navigation via `Link` or state-based switching
 
 **Usage:**
+
 ```tsx
-import { SpecViewer } from '@catalyst/react-vcs-components';
+import { SpecViewer } from "@catalyst/react-vcs-components";
 
 function SpecPage() {
   return (
     <SpecViewer
       specFiles={[
-        { name: 'spec.md', path: 'specs/001/spec.md', content: '# Spec...' },
-        { name: 'plan.md', path: 'specs/001/plan.md', content: '# Plan...' }
+        { name: "spec.md", path: "specs/001/spec.md", content: "# Spec..." },
+        { name: "plan.md", path: "specs/001/plan.md", content: "# Plan..." },
       ]}
       activeFile="spec.md"
-      onFileSelect={(fileName) => console.log('Selected:', fileName)}
+      onFileSelect={(fileName) => console.log("Selected:", fileName)}
     />
   );
 }
@@ -72,13 +76,14 @@ function SpecPage() {
 A sidebar component for navigating between spec files.
 
 **Usage:**
+
 ```tsx
-import { SpecFilesSidebar } from '@catalyst/react-vcs-components';
+import { SpecFilesSidebar } from "@catalyst/react-vcs-components";
 
 function MyLayout() {
   return (
     <SpecFilesSidebar
-      files={['spec.md', 'plan.md', 'tasks.md']}
+      files={["spec.md", "plan.md", "tasks.md"]}
       activeFile="spec.md"
       onFileSelect={(file) => console.log(file)}
       basePath="/projects/my-project/spec/001"
@@ -94,6 +99,7 @@ To implement a full-featured spec viewer in Next.js App Router that handles dyna
 ### 1. Route Definition
 
 Create a catch-all route `app/specs/[...slug]/page.tsx` to handle flexible URL segments:
+
 - `/specs/[project]/[spec]` (Index/Tasks view)
 - `/specs/[project]/[repo]/[spec]` (When project != repo)
 - `/specs/[project]/[spec]/[file.md]` (File view)
@@ -109,7 +115,10 @@ export function parseSpecSlug(slug: string[]) {
   let fileName: string | undefined;
 
   // Heuristic: Check if last segment is a markdown file
-  if (parts.length > 0 && parts[parts.length - 1].toLowerCase().endsWith(".md")) {
+  if (
+    parts.length > 0 &&
+    parts[parts.length - 1].toLowerCase().endsWith(".md")
+  ) {
     fileName = parts.pop();
   }
 
@@ -175,7 +184,7 @@ import { MarkdownRenderer } from "@/components/MarkdownRenderer"; // Your server
 export async function SpecContentTab({ fileName, ...props }) {
   // 1. List all files in spec directory (to populate sidebar)
   const files = await listDirectory(repo, `specs/${specSlug}`);
-  
+
   // 2. Read content ONLY for the active file
   const activeContent = await readFile(repo, `specs/${specSlug}/${fileName}`);
 
@@ -184,11 +193,11 @@ export async function SpecContentTab({ fileName, ...props }) {
 
   // 4. Construct SpecFile objects
   // Note: 'content' string is fallback; 'rendered' ReactNode is primary
-  const specFiles = files.map(f => ({
+  const specFiles = files.map((f) => ({
     name: f.name,
     path: f.path,
-    content: f.name === fileName ? activeContent : "", 
-    rendered: f.name === fileName ? renderedContent : undefined
+    content: f.name === fileName ? activeContent : "",
+    rendered: f.name === fileName ? renderedContent : undefined,
   }));
 
   // 5. Provide baseHref to enable Link-based navigation in SpecViewer
@@ -204,7 +213,7 @@ export async function SpecContentTab({ fileName, ...props }) {
 
 ### 5. Required Server Actions
 
-To power these components, your application must implement server actions for data fetching. The components are agnostic to *how* you fetch data (GitLab, GitHub, Bitbucket, filesystem, etc.), but the examples above assume the following interfaces:
+To power these components, your application must implement server actions for data fetching. The components are agnostic to _how_ you fetch data (GitLab, GitHub, Bitbucket, filesystem, etc.), but the examples above assume the following interfaces:
 
 ```typescript
 // actions/version-control-provider.ts
@@ -236,9 +245,9 @@ export interface VCSFileResult {
  * List files in a directory
  */
 export async function listDirectory(
-  repoFullName: string, 
-  path: string, 
-  ref?: string
+  repoFullName: string,
+  path: string,
+  ref?: string,
 ): Promise<VCSDirectoryResult> {
   // Implementation (e.g. using @catalyst/vcs-provider or Octokit)
 }
@@ -247,9 +256,9 @@ export async function listDirectory(
  * Read content of a specific file
  */
 export async function readFile(
-  repoFullName: string, 
-  path: string, 
-  ref?: string
+  repoFullName: string,
+  path: string,
+  ref?: string,
 ): Promise<VCSFileResult> {
   // Implementation
 }

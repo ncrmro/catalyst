@@ -55,28 +55,28 @@ export interface RepoSearchProps {
    * Callback function called when a repository is selected
    */
   onSelect: (repo: RepositoryWithConnections) => void;
-  
+
   /**
    * Repository data to display
    * Can be null if still loading or unavailable
    */
   repos: ReposData | null;
-  
+
   /**
    * Whether the data is currently loading
    */
   isLoading?: boolean;
-  
+
   /**
    * List of repository URLs to exclude from the search results
    */
   excludeUrls?: string[];
-  
+
   /**
    * Placeholder text for the search input
    */
   placeholder?: string;
-  
+
   /**
    * Link to account settings page for connecting VCS provider
    */
@@ -87,7 +87,7 @@ type VCSStatus = "loading" | "connected" | "not_connected" | "not_configured";
 
 /**
  * RepoSearch - A searchable repository picker component
- * 
+ *
  * Features:
  * - Search and filter repositories by name and description
  * - Shows user and organization repositories

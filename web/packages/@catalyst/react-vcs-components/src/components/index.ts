@@ -1,6 +1,6 @@
 /**
  * @catalyst/react-vcs-components
- * 
+ *
  * React components for VCS integration
  */
 

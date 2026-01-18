@@ -52,56 +52,34 @@ jobs:
     if: needs.detect-changes.outputs.operator_changed == 'true'
     runs-on: ubuntu-latest
     outputs:
-      digest: ${{ steps.build.outputs.digest }}
+      digest: ${{ steps.bake.outputs.digest }}
       image: ghcr.io/${{ github.repository }}/operator
     permissions:
       contents: read
       packages: write
       id-token: write
       attestations: write
-    defaults:
-      run:
-        working-directory: ./operator
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+      - name: Build and push containers with Docker Bake
+        id: bake
+        uses: ./.github/actions/build-container-bake
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}/operator
-          tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=branch
-            type=sha,prefix={{branch}}-
-
-      - name: Build and push
-        id: build
-        uses: docker/build-push-action@v5
-        with:
-          context: ./operator
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          image: ${{ github.repository }}/operator
+          platforms: linux/amd64
+          workdir: "."
+          files: "./docker-compose.build.yml"
+          target-development: "operator-development"
+          target-production: "operator-production"
 
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v1
         with:
           subject-name: ghcr.io/${{ github.repository }}/operator
-          subject-digest: ${{ steps.build.outputs.digest }}
+          subject-digest: ${{ steps.bake.outputs.digest }}
           push-to-registry: true
 
   build-web:
@@ -128,8 +106,10 @@ jobs:
           registry: ghcr.io
           image: ${{ github.repository }}/web
           platforms: linux/amd64
-          workdir: "./web"
-          files: "./docker-bake.yml"
+          workdir: "."
+          files: "./docker-compose.build.yml"
+          target-development: "web-development"
+          target-production: "web-production"
 
   deploy:
     name: Deploy
@@ -141,9 +121,19 @@ jobs:
       (needs.build-operator.result == 'success' || needs.build-web.result == 'success' || needs.detect-changes.outputs.charts_changed == 'true')
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Deploy Web to Railway
         if: needs.build-web.result == 'success'
@@ -166,21 +156,59 @@ jobs:
 
       - name: Determine image references
         id: image-refs
-        # Use SHA256 digests when available for immutable deployments, fallback to 'latest' tag otherwise.
-        # Digests ensure we deploy the exact image that was just built, regardless of tags.
-        # Digests from Docker actions are in "sha256:..." format; we prepend "@" to create "@sha256:..." for Helm template compatibility
+        # Use SHA256 digests when available for immutable deployments.
+        # If build skipped, try to find existing digest for 'latest' tag.
         run: |
+          # Helper to get digest for latest tag
+          get_latest_digest() {
+            local image=$1
+            local digest
+            echo "Checking for existing digest for $image:latest..." >&2
+            # Use grep/awk to parse the output because --format '{{.Manifest.Digest}}' fails on OCI indexes
+            digest=$(docker buildx imagetools inspect "$image:latest" 2>/dev/null | grep -m 1 "^Digest:" | awk '{print $2}')
+            echo "$digest"
+          }
+
+          # WEB
           if [ "${{ needs.build-web.result }}" == "success" ]; then
-            # Use digest for immutable reference, passed as "tag" with @ prefix
-            echo "web_tag=@${{ needs.build-web.outputs.digest }}" >> $GITHUB_OUTPUT
+            WEB_DIGEST="${{ needs.build-web.outputs.digest }}"
+            if [ -z "$WEB_DIGEST" ]; then
+              echo "Error: Web build succeeded but digest is empty!"
+              exit 1
+            fi
+            echo "web_tag=@$WEB_DIGEST" >> $GITHUB_OUTPUT
+            echo "Using built Web digest: $WEB_DIGEST"
           else
-            echo "web_tag=latest" >> $GITHUB_OUTPUT
+            echo "Web build skipped. Looking up existing digest..."
+            EXISTING_DIGEST=$(get_latest_digest "ghcr.io/${{ github.repository }}/web")
+            if [ -n "$EXISTING_DIGEST" ]; then
+              echo "Found existing Web digest: $EXISTING_DIGEST"
+              echo "web_tag=@$EXISTING_DIGEST" >> $GITHUB_OUTPUT
+            else
+              echo "Warning: No existing digest found for Web. Falling back to 'latest'."
+              echo "web_tag=latest" >> $GITHUB_OUTPUT
+            fi
           fi
+          
+          # OPERATOR
           if [ "${{ needs.build-operator.result }}" == "success" ]; then
-            # Use digest for immutable reference, passed as "tag" with @ prefix
-            echo "operator_tag=@${{ needs.build-operator.outputs.digest }}" >> $GITHUB_OUTPUT
+            OPERATOR_DIGEST="${{ needs.build-operator.outputs.digest }}"
+            if [ -z "$OPERATOR_DIGEST" ]; then
+              echo "Error: Operator build succeeded but digest is empty!"
+              exit 1
+            fi
+            echo "operator_tag=@$OPERATOR_DIGEST" >> $GITHUB_OUTPUT
+            echo "Using built Operator digest: $OPERATOR_DIGEST"
           else
-            echo "operator_tag=latest" >> $GITHUB_OUTPUT
+            echo "Operator build skipped. Looking up existing digest..."
+            EXISTING_DIGEST=$(get_latest_digest "ghcr.io/${{ github.repository }}/operator")
+            if [ -n "$EXISTING_DIGEST" ]; then
+              echo "Found existing Operator digest: $EXISTING_DIGEST"
+              echo "operator_tag=@$EXISTING_DIGEST" >> $GITHUB_OUTPUT
+            else
+              echo "Warning: No existing digest found for Operator. Falling back to 'latest'."
+              echo "operator_tag=latest" >> $GITHUB_OUTPUT
+            fi
           fi
 
       - name: Update Helm dependencies

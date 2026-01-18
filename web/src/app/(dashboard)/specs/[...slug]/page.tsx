@@ -24,7 +24,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const { projectSlug, specSlug, fileName } = parseSpecSlug(slug);
 
-  const title = fileName 
+  const title = fileName
     ? `${fileName} - ${specSlug} - ${projectSlug} - Catalyst`
     : `${specSlug} - ${projectSlug} - Catalyst`;
 
@@ -34,9 +34,7 @@ export async function generateMetadata({
   };
 }
 
-export default async function SpecPage({
-  params,
-}: SpecPageProps) {
+export default async function SpecPage({ params }: SpecPageProps) {
   const { slug } = await params;
   const { projectSlug, repoSlug, specSlug, fileName } = parseSpecSlug(slug);
 

@@ -11,6 +11,7 @@ This package contains reusable React components for VCS (Version Control System)
 A data-driven repository picker component that works with any VCS provider.
 
 **Key Design Decisions:**
+
 - **VCS-Agnostic**: Uses `Repository` type from `@catalyst/vcs-provider` instead of GitHub-specific types
 - **Data-driven**: Takes `repos` data as a prop instead of fetching internally
 - **Backward Compatible**: The wrapper in `web/src/components/repos/repo-search.tsx` adapts GitHub data to VCS format
@@ -18,6 +19,7 @@ A data-driven repository picker component that works with any VCS provider.
 - **Type-safe**: Uses TypeScript interfaces that work with any VCS provider
 
 **When Modifying:**
+
 - Keep the component pure - it should only display data passed to it
 - Don't add data fetching logic to the base component
 - Use VCS-agnostic types from `@catalyst/vcs-provider` - never add provider-specific types
@@ -29,11 +31,13 @@ A data-driven repository picker component that works with any VCS provider.
 A component for displaying specification documents with file navigation.
 
 **Key Design Decisions:**
+
 - **Flexible Renderer**: Accepts a custom MarkdownRenderer component as a prop
 - **File Navigation**: Includes integrated sidebar for multi-file specs
 - **State Management**: Manages active file selection internally but also accepts external control
 
 **When Modifying:**
+
 - Keep it presentational - data fetching should happen outside the component
 - Maintain the SpecFile interface for consistency
 - Support both controlled and uncontrolled usage patterns
@@ -43,6 +47,7 @@ A component for displaying specification documents with file navigation.
 A standalone sidebar component for spec file navigation.
 
 **Key Design Decisions:**
+
 - **Dual Mode**: Supports both Next.js Link-based navigation and callback-based navigation
 - **Flexible**: Can be used standalone or as part of SpecViewer
 - **Accessible**: Uses proper semantic HTML and ARIA attributes
@@ -91,6 +96,7 @@ A standalone sidebar component for spec file navigation.
 ### Updating RepoSearch
 
 When updating RepoSearch:
+
 1. Modify the base component in `packages/@catalyst/react-vcs-components/src/components/RepoSearch.tsx`
 2. Update the wrapper in `web/src/components/repos/repo-search.tsx` if the API changes
 3. Check all usages with: `grep -r "RepoSearch" web/src --include="*.tsx"`
@@ -99,6 +105,7 @@ When updating RepoSearch:
 ### Updating SpecViewer
 
 When updating SpecViewer:
+
 1. Modify the component in `packages/@catalyst/react-vcs-components/src/components/SpecViewer.tsx`
 2. Check spec page implementations in `web/src/app/(dashboard)/specs/` and `web/src/app/(dashboard)/projects/[slug]/spec/`
 3. Verify markdown rendering works correctly
@@ -108,6 +115,7 @@ When updating SpecViewer:
 ### Main Application
 
 The package is consumed by:
+
 - `web/src/components/repos/repo-search.tsx` - Wrapper for backward compatibility
 - `web/src/app/(dashboard)/specs/[...slug]/_components/SpecContentTab.tsx` - Spec viewing
 - `web/src/app/(dashboard)/projects/[slug]/spec/[specId]/page.tsx` - Project spec viewing
@@ -131,6 +139,7 @@ The package follows these principles to remain provider-agnostic:
 ### Example Type Mapping
 
 GitHub-specific → VCS-agnostic:
+
 - `full_name` → `fullName`
 - `html_url` → `htmlUrl`
 - `updated_at` → `updatedAt` (Date object)

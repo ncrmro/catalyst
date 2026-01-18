@@ -5,7 +5,10 @@ import {
   type VCSEntry,
 } from "@/actions/version-control-provider";
 import { MarkdownRenderer } from "@tetrastack/react-markdown";
-import { SpecViewer, type SpecFile } from "@catalyst/react-vcs-components/SpecViewer";
+import {
+  SpecViewer,
+  type SpecFile,
+} from "@catalyst/react-vcs-components/SpecViewer";
 import { buildSpecUrl } from "@/lib/spec-url";
 
 interface SpecContentTabProps {
@@ -66,7 +69,7 @@ export async function SpecContentTab({
 
   // Determine active file (use requested fileName or default to first file)
   const activeFileName = fileName || sortedFiles[0]?.name;
-  
+
   // Read content only for the active file
   const activeFileEntry = sortedFiles.find((f) => f.name === activeFileName);
   let activeContent = "";

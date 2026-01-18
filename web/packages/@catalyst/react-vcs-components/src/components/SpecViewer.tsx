@@ -19,23 +19,23 @@ export interface SpecViewerProps {
    * List of spec files to display
    */
   specFiles: SpecFile[];
-  
+
   /**
    * Currently active file name
    */
   activeFile?: string;
-  
+
   /**
    * Callback when a file is selected
    */
   onFileSelect?: (fileName: string) => void;
-  
+
   /**
    * Custom markdown renderer component
    * If not provided, displays raw content
    */
   MarkdownRenderer?: React.ComponentType<{ content: string }>;
-  
+
   /**
    * Optional empty state message
    */
@@ -50,7 +50,7 @@ export interface SpecViewerProps {
 
 /**
  * SpecViewer - A component for viewing specification documents
- * 
+ *
  * Features:
  * - Displays markdown content with optional custom renderer
  * - File navigation sidebar
@@ -65,7 +65,7 @@ export function SpecViewer({
   baseHref,
 }: SpecViewerProps) {
   const [selectedFileName, setSelectedFileName] = useState(
-    activeFile || specFiles[0]?.name
+    activeFile || specFiles[0]?.name,
   );
 
   // Sync selectedFileName with activeFile prop if it changes
@@ -80,7 +80,8 @@ export function SpecViewer({
     onFileSelect?.(fileName);
   };
 
-  const activeSpec = specFiles.find((f) => f.name === selectedFileName) || specFiles[0];
+  const activeSpec =
+    specFiles.find((f) => f.name === selectedFileName) || specFiles[0];
 
   if (!activeSpec) {
     return (

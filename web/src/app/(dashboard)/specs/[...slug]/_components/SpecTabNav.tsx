@@ -20,7 +20,7 @@ export function SpecTabNav({
 
   // Exact match for tasks (index)
   const isTasks = pathname === baseSpecUrl;
-  
+
   // Prefix match for spec files (any file under the spec path)
   const isSpec = pathname.startsWith(`${baseSpecUrl}/`);
 
@@ -30,7 +30,9 @@ export function SpecTabNav({
         Tasks
       </TabButton>
       <TabButton
-        href={buildSpecUrl(projectSlug, repoSlug, specSlug, { file: "spec.md" })}
+        href={buildSpecUrl(projectSlug, repoSlug, specSlug, {
+          file: "spec.md",
+        })}
         active={isSpec}
       >
         Spec

@@ -11,24 +11,24 @@ export interface SpecFilesSidebarProps {
    * List of file names to display
    */
   files: string[];
-  
+
   /**
    * Currently active file name
    */
   activeFile: string;
-  
+
   /**
    * Callback when a file is clicked (for client-side navigation)
    * If not provided, uses Link component for navigation
    */
   onFileSelect?: (fileName: string) => void;
-  
+
   /**
    * Base path for building file URLs (used with Link)
    * Example: "/projects/my-project/spec/001"
    */
   basePath?: string;
-  
+
   /**
    * Optional back link configuration
    */
@@ -40,7 +40,7 @@ export interface SpecFilesSidebarProps {
 
 /**
  * SpecFilesSidebar - A sidebar component for navigating between spec files
- * 
+ *
  * Features:
  * - Displays list of spec files
  * - Highlights active file
@@ -66,13 +66,13 @@ export function SpecFilesSidebar({
       <h3 className="text-xs font-medium text-on-surface-variant uppercase tracking-wider mb-3">
         Files
       </h3>
-      
+
       {files.length > 0 ? (
         <nav className="space-y-1">
           {files.map((fileName) => {
             const isActive = fileName === activeFile;
             const href = basePath ? `${basePath}?file=${fileName}` : "#";
-            
+
             return (
               <Link
                 key={fileName}

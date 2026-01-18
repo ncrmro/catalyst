@@ -1,0 +1,31 @@
+services:
+  web-development:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      target: development
+      platforms:
+        - linux/amd64
+
+  web-production:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      target: runner
+      platforms:
+        - linux/amd64
+
+  operator-development:
+    build:
+      context: ./operator
+      dockerfile: Dockerfile
+      target: builder
+      platforms:
+        - linux/amd64
+
+  operator-production:
+    build:
+      context: ./operator
+      dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
