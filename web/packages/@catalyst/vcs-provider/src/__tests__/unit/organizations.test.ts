@@ -8,12 +8,14 @@ const {
   mockListMembers,
   mockGetMembershipForUser,
   mockGetMembershipForAuthenticatedUser,
+  mockPaginate,
   mockOctokit,
 } = vi.hoisted(() => {
   const mockGetOrg = vi.fn();
   const mockListMembers = vi.fn();
   const mockGetMembershipForUser = vi.fn();
   const mockGetMembershipForAuthenticatedUser = vi.fn();
+  const mockPaginate = vi.fn();
 
   const mockOctokit = {
     rest: {
@@ -25,6 +27,7 @@ const {
           mockGetMembershipForAuthenticatedUser,
       },
     },
+    paginate: mockPaginate,
   };
 
   return {
@@ -32,6 +35,7 @@ const {
     mockListMembers,
     mockGetMembershipForUser,
     mockGetMembershipForAuthenticatedUser,
+    mockPaginate,
     mockOctokit,
   };
 });
@@ -122,20 +126,19 @@ describe("GitHubProvider - Organization Operations", () => {
 
   describe("listOrganizationMembers", () => {
     it("should list organization members with roles", async () => {
-      mockListMembers.mockResolvedValue({
-        data: [
-          {
-            id: 1,
-            login: "user1",
-            avatar_url: "https://avatars.githubusercontent.com/u/1",
-          },
-          {
-            id: 2,
-            login: "user2",
-            avatar_url: "https://avatars.githubusercontent.com/u/2",
-          },
-        ],
-      });
+      // Mock paginate to return members directly
+      mockPaginate.mockResolvedValue([
+        {
+          id: 1,
+          login: "user1",
+          avatar_url: "https://avatars.githubusercontent.com/u/1",
+        },
+        {
+          id: 2,
+          login: "user2",
+          avatar_url: "https://avatars.githubusercontent.com/u/2",
+        },
+      ]);
 
       mockGetMembershipForUser
         .mockResolvedValueOnce({
@@ -153,10 +156,13 @@ describe("GitHubProvider - Organization Operations", () => {
 
       const result = await provider.listOrganizationMembers(client, "test-org");
 
-      expect(mockListMembers).toHaveBeenCalledWith({
-        org: "test-org",
-        per_page: 100,
-      });
+      expect(mockPaginate).toHaveBeenCalledWith(
+        mockOctokit.rest.orgs.listMembers,
+        {
+          org: "test-org",
+          per_page: 100,
+        },
+      );
 
       expect(mockGetMembershipForUser).toHaveBeenCalledTimes(2);
       expect(mockGetMembershipForUser).toHaveBeenNthCalledWith(1, {
@@ -187,15 +193,14 @@ describe("GitHubProvider - Organization Operations", () => {
     });
 
     it("should default to member role if membership details fail", async () => {
-      mockListMembers.mockResolvedValue({
-        data: [
-          {
-            id: 1,
-            login: "user1",
-            avatar_url: "https://avatars.githubusercontent.com/u/1",
-          },
-        ],
-      });
+      // Mock paginate to return members directly
+      mockPaginate.mockResolvedValue([
+        {
+          id: 1,
+          login: "user1",
+          avatar_url: "https://avatars.githubusercontent.com/u/1",
+        },
+      ]);
 
       // Simulate API error when getting membership details
       mockGetMembershipForUser.mockRejectedValue(new Error("API error"));

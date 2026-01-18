@@ -142,9 +142,13 @@ export class GitHubProvider implements VCSProvider {
     client: AuthenticatedClient,
   ): Promise<Array<{ login: string; id: string; avatarUrl: string }>> {
     const octokit = client.raw as Octokit;
-    const { data: orgs } = await octokit.rest.orgs.listForAuthenticatedUser({
-      per_page: 100,
-    });
+    // Use bulk pagination to get all organizations across all pages
+    const orgs = await octokit.paginate(
+      octokit.rest.orgs.listForAuthenticatedUser,
+      {
+        per_page: 100,
+      },
+    );
 
     return orgs.map((org) => ({
       login: org.login,
@@ -160,10 +164,14 @@ export class GitHubProvider implements VCSProvider {
     client: AuthenticatedClient,
   ): Promise<Repository[]> {
     const octokit = client.raw as Octokit;
-    const { data: repos } = await octokit.rest.repos.listForAuthenticatedUser({
-      per_page: 100,
-      sort: "updated",
-    });
+    // Use bulk pagination to get all repositories across all pages
+    const repos = await octokit.paginate(
+      octokit.rest.repos.listForAuthenticatedUser,
+      {
+        per_page: 100,
+        sort: "updated",
+      },
+    );
 
     return repos.map((repo) => this.mapRepository(repo));
   }
@@ -176,7 +184,8 @@ export class GitHubProvider implements VCSProvider {
     org: string,
   ): Promise<Repository[]> {
     const octokit = client.raw as Octokit;
-    const { data: repos } = await octokit.rest.repos.listForOrg({
+    // Use bulk pagination to get all repositories across all pages
+    const repos = await octokit.paginate(octokit.rest.repos.listForOrg, {
       org,
       per_page: 100,
       sort: "updated",
@@ -582,7 +591,8 @@ export class GitHubProvider implements VCSProvider {
     options?: { state?: "open" | "closed" | "all" },
   ): Promise<PullRequest[]> {
     const octokit = client.raw as Octokit;
-    const { data: prs } = await octokit.rest.pulls.list({
+    // Use bulk pagination to get all pull requests across all pages
+    const prs = await octokit.paginate(octokit.rest.pulls.list, {
       owner,
       repo,
       state: options?.state || "open",
@@ -646,10 +656,12 @@ export class GitHubProvider implements VCSProvider {
     number: number,
   ): Promise<Review[]> {
     const octokit = client.raw as Octokit;
-    const { data: reviews } = await octokit.rest.pulls.listReviews({
+    // Use bulk pagination to get all reviews across all pages
+    const reviews = await octokit.paginate(octokit.rest.pulls.listReviews, {
       owner,
       repo,
       pull_number: number,
+      per_page: 100,
     });
 
     return reviews.map((review) => ({
@@ -673,10 +685,12 @@ export class GitHubProvider implements VCSProvider {
     number: number,
   ): Promise<PRComment[]> {
     const octokit = client.raw as Octokit;
-    const { data: comments } = await octokit.rest.issues.listComments({
+    // Use bulk pagination to get all comments across all pages
+    const comments = await octokit.paginate(octokit.rest.issues.listComments, {
       owner,
       repo,
       issue_number: number,
+      per_page: 100,
     });
 
     return comments.map((comment) => ({
@@ -766,7 +780,8 @@ export class GitHubProvider implements VCSProvider {
     options?: { state?: "open" | "closed" | "all" },
   ): Promise<Issue[]> {
     const octokit = client.raw as Octokit;
-    const { data: issues } = await octokit.rest.issues.listForRepo({
+    // Use bulk pagination to get all issues across all pages
+    const issues = await octokit.paginate(octokit.rest.issues.listForRepo, {
       owner,
       repo,
       state: options?.state || "open",
@@ -800,7 +815,8 @@ export class GitHubProvider implements VCSProvider {
     repo: string,
   ): Promise<Branch[]> {
     const octokit = client.raw as Octokit;
-    const { data: branches } = await octokit.rest.repos.listBranches({
+    // Use bulk pagination to get all branches across all pages
+    const branches = await octokit.paginate(octokit.rest.repos.listBranches, {
       owner,
       repo,
       per_page: 100,
@@ -909,6 +925,14 @@ export class GitHubProvider implements VCSProvider {
 
   /**
    * List organization members with their roles
+   * 
+   * Note: This method uses bulk pagination to efficiently fetch all members,
+   * but still requires individual API calls to get role details for each member.
+   * GitHub's API doesn't provide role information in the bulk list endpoint.
+   * 
+   * Performance consideration: For large organizations (1000+ members), this will
+   * make 1 paginated call + N individual calls where N = number of members.
+   * Consider rate limiting implications when calling this method.
    */
   async listOrganizationMembers(
     client: AuthenticatedClient,
@@ -916,12 +940,14 @@ export class GitHubProvider implements VCSProvider {
   ): Promise<OrganizationMember[]> {
     const octokit = client.raw as Octokit;
 
-    // Get all members
-    const { data: members } = await octokit.rest.orgs.listMembers({
+    // Use bulk pagination to get all members across all pages
+    const members = await octokit.paginate(octokit.rest.orgs.listMembers, {
       org,
       per_page: 100,
     });
 
+    // TODO: Investigate if GitHub provides a bulk endpoint for membership details
+    // Currently requires individual API calls for each member to get role information
     // Get membership details for each member to determine role
     const membersWithRoles = await Promise.all(
       members.map(async (member) => {
