@@ -457,3 +457,282 @@ await upsertDeploymentComment({
   userId: "user-id",
 });
 ```
+
+## Testing with MockVCSProvider
+
+### Basic Setup
+
+```typescript
+import { VCSProviderSingleton, MockVCSProvider } from "@catalyst/vcs-provider";
+
+// Initialize with mock provider for testing
+VCSProviderSingleton.initialize({
+  providers: [new MockVCSProvider()],
+  getTokenData: async () => ({
+    accessToken: "mock-token",
+    refreshToken: "mock-refresh-token",
+    expiresAt: new Date(Date.now() + 3600000), // 1 hour from now
+    scope: "repo",
+  }),
+  refreshToken: async () => ({
+    accessToken: "mock-token-refreshed",
+    refreshToken: "mock-refresh-token-refreshed",
+    expiresAt: new Date(Date.now() + 3600000),
+    scope: "repo",
+  }),
+  storeTokenData: async () => {},
+});
+
+// Use the VCS singleton as normal
+const vcs = VCSProviderSingleton.getInstance();
+const repos = await vcs.repos.listUser("test-user", "github");
+```
+
+### Environment-Based Initialization
+
+```typescript
+// src/lib/vcs.ts
+import {
+  VCSProviderSingleton,
+  GitHubProvider,
+  MockVCSProvider,
+} from "@catalyst/vcs-provider";
+
+const useMockProvider = process.env.VCS_MOCK === "true";
+
+VCSProviderSingleton.initialize({
+  providers: useMockProvider
+    ? [new MockVCSProvider()]
+    : [new GitHubProvider()],
+  // ... rest of config
+});
+```
+
+### Custom Mock Data
+
+```typescript
+const mockProvider = new MockVCSProvider({
+  // Custom repositories
+  repositories: [
+    {
+      id: "custom-1",
+      name: "my-test-repo",
+      fullName: "myorg/my-test-repo",
+      owner: "myorg",
+      defaultBranch: "main",
+      private: false,
+      htmlUrl: "https://github.com/myorg/my-test-repo",
+      description: "A custom test repository",
+      language: "TypeScript",
+      updatedAt: new Date(),
+    },
+  ],
+
+  // Custom directory structure
+  directories: {
+    "src": [
+      {
+        type: "dir",
+        name: "components",
+        path: "src/components",
+        sha: "sha-1",
+        htmlUrl: "https://github.com/myorg/my-test-repo/tree/main/src/components",
+      },
+      {
+        type: "file",
+        name: "index.ts",
+        path: "src/index.ts",
+        sha: "sha-2",
+        htmlUrl: "https://github.com/myorg/my-test-repo/blob/main/src/index.ts",
+      },
+    ],
+    "src/components": [
+      {
+        type: "file",
+        name: "Button.tsx",
+        path: "src/components/Button.tsx",
+        sha: "sha-3",
+        htmlUrl: "https://github.com/myorg/my-test-repo/blob/main/src/components/Button.tsx",
+      },
+    ],
+  },
+
+  // Custom file contents
+  files: {
+    "src/index.ts": 'export * from "./components";',
+    "src/components/Button.tsx": `
+import React from 'react';
+
+export const Button = ({ children }) => (
+  <button>{children}</button>
+);
+`,
+  },
+
+  // Simulate network delay (ms)
+  delay: 100,
+});
+
+VCSProviderSingleton.initialize({
+  providers: [mockProvider],
+  // ... rest of config
+});
+```
+
+### Testing Error Scenarios
+
+```typescript
+// Test authentication errors
+const authErrorProvider = new MockVCSProvider({
+  errors: {
+    authenticate: new Error("Authentication failed"),
+  },
+});
+
+// Test file access errors
+const contentErrorProvider = new MockVCSProvider({
+  errors: {
+    getContent: new Error("File not found"),
+    getDirectory: new Error("Directory access denied"),
+  },
+});
+
+// Test repository listing errors
+const listErrorProvider = new MockVCSProvider({
+  errors: {
+    listRepos: new Error("API rate limit exceeded"),
+  },
+});
+```
+
+### Testing Loading States
+
+```typescript
+// Simulate slow API for loading state testing
+const slowProvider = new MockVCSProvider({
+  delay: 2000, // 2 second delay
+});
+
+VCSProviderSingleton.initialize({
+  providers: [slowProvider],
+  // ... rest of config
+});
+
+// Now all VCS operations will have a 2s delay
+const vcs = VCSProviderSingleton.getInstance();
+await vcs.repos.listUser("user-id", "github"); // Takes 2+ seconds
+```
+
+### Unit Test Example
+
+```typescript
+import { describe, it, expect, beforeEach } from "vitest";
+import { VCSProviderSingleton, MockVCSProvider } from "@catalyst/vcs-provider";
+
+describe("Repository Operations", () => {
+  beforeEach(() => {
+    VCSProviderSingleton.reset();
+    VCSProviderSingleton.initialize({
+      providers: [new MockVCSProvider()],
+      getTokenData: async () => ({
+        accessToken: "test-token",
+        expiresAt: new Date(Date.now() + 3600000),
+      }),
+      refreshToken: async (token) => ({
+        accessToken: "refreshed-token",
+        expiresAt: new Date(Date.now() + 3600000),
+      }),
+      storeTokenData: async () => {},
+    });
+  });
+
+  it("should list user repositories", async () => {
+    const vcs = VCSProviderSingleton.getInstance();
+    const repos = await vcs.repos.listUser("test-user", "github");
+
+    expect(repos).toBeInstanceOf(Array);
+    expect(repos.length).toBeGreaterThan(0);
+    expect(repos[0]).toHaveProperty("id");
+    expect(repos[0]).toHaveProperty("name");
+  });
+
+  it("should get file content", async () => {
+    const vcs = VCSProviderSingleton.getInstance();
+    const content = await vcs.files.getContent(
+      "test-user",
+      "github",
+      "test-owner",
+      "test-repo",
+      "specs/001-test-feature/spec.md"
+    );
+
+    expect(content).not.toBeNull();
+    expect(content?.content).toContain("# Test Feature");
+  });
+});
+```
+
+### Integration Test Example
+
+```typescript
+import { describe, it, expect } from "vitest";
+import { MockVCSProvider } from "@catalyst/vcs-provider";
+
+describe("MockVCSProvider Integration", () => {
+  it("should handle full workflow", async () => {
+    const mockProvider = new MockVCSProvider({
+      repositories: [
+        {
+          id: "1",
+          name: "test-repo",
+          fullName: "org/test-repo",
+          owner: "org",
+          defaultBranch: "main",
+          private: false,
+          htmlUrl: "https://github.com/org/test-repo",
+          updatedAt: new Date(),
+        },
+      ],
+      files: {
+        "README.md": "# Test Repository",
+      },
+    });
+
+    const client = await mockProvider.authenticate("test-user");
+
+    // List repositories
+    const repos = await mockProvider.listUserRepositories(client);
+    expect(repos).toHaveLength(1);
+
+    // Get file content
+    const content = await mockProvider.getFileContent(
+      client,
+      "org",
+      "test-repo",
+      "README.md"
+    );
+    expect(content?.content).toBe("# Test Repository");
+
+    // Create branch
+    const branch = await mockProvider.createBranch(
+      client,
+      "org",
+      "test-repo",
+      "feature/test"
+    );
+    expect(branch.name).toBe("feature/test");
+
+    // Create PR
+    const pr = await mockProvider.createPullRequest(
+      client,
+      "org",
+      "test-repo",
+      "Test PR",
+      "feature/test",
+      "main"
+    );
+    expect(pr.title).toBe("Test PR");
+  });
+});
+```
+

@@ -378,6 +378,129 @@ const devCookies = {
 cookies: process.env.NODE_ENV === "development" ? devCookies : undefined,
 ```
 
+## Testing with MockVCSProvider
+
+For testing VCS integration flows without real GitHub credentials, use the **MockVCSProvider**. This is a fully functional VCS provider that returns mock data and doesn't require external API calls.
+
+### Quick Start
+
+```typescript
+import { VCSProviderSingleton, MockVCSProvider } from "@catalyst/vcs-provider";
+
+// Initialize with mock provider
+VCSProviderSingleton.initialize({
+  providers: [new MockVCSProvider()],
+  getTokenData: async () => ({
+    accessToken: "mock-token",
+    refreshToken: "mock-refresh",
+    expiresAt: new Date(Date.now() + 3600000),
+  }),
+  refreshToken: async () => ({ /* mock tokens */ }),
+  storeTokenData: async () => {},
+});
+```
+
+### Environment Variable Support
+
+Enable mock provider in your application:
+
+```bash
+# .env or .env.local
+VCS_MOCK=true
+```
+
+The web application (`web/src/lib/vcs.ts`) automatically uses MockVCSProvider when `VCS_MOCK=true`.
+
+### Custom Mock Data
+
+Customize repositories, directories, and file contents:
+
+```typescript
+const mockProvider = new MockVCSProvider({
+  // Custom repositories
+  repositories: [
+    {
+      id: "1",
+      name: "my-repo",
+      fullName: "org/my-repo",
+      owner: "org",
+      defaultBranch: "main",
+      private: false,
+      htmlUrl: "https://github.com/org/my-repo",
+      updatedAt: new Date(),
+    },
+  ],
+  
+  // Custom directory structure
+  directories: {
+    "docs": [
+      {
+        type: "file",
+        name: "README.md",
+        path: "docs/README.md",
+        sha: "abc123",
+        htmlUrl: "https://github.com/org/my-repo/blob/main/docs/README.md",
+      },
+    ],
+  },
+  
+  // Custom file contents
+  files: {
+    "docs/README.md": "# My Documentation\n\nContent here...",
+  },
+  
+  // Simulate network delays (useful for loading state testing)
+  delay: 500,
+  
+  // Simulate errors for specific operations
+  errors: {
+    authenticate: new Error("Mock auth error"),
+    getContent: new Error("Mock content error"),
+  },
+});
+```
+
+### Default Mock Data
+
+The MockVCSProvider comes with sensible defaults:
+
+- **Repositories**: 2 sample repositories (test-repo, another-repo)
+- **Directory Structure**: `specs/` directory with 2 feature folders
+- **Files**: Sample spec.md, plan.md, and tasks.md files
+- **All VCS Operations**: Fully implemented (branches, PRs, issues, comments, etc.)
+
+### Testing Scenarios
+
+**Test loading states:**
+```typescript
+const slowProvider = new MockVCSProvider({ delay: 1000 });
+```
+
+**Test error handling:**
+```typescript
+const errorProvider = new MockVCSProvider({
+  errors: { authenticate: new Error("Token expired") },
+});
+```
+
+**Test with custom data:**
+```typescript
+const customProvider = new MockVCSProvider({
+  repositories: myCustomRepos,
+  files: myCustomFiles,
+});
+```
+
+### Benefits
+
+- ✅ No GitHub credentials required
+- ✅ Fast test execution (no network calls)
+- ✅ Deterministic test data
+- ✅ Error simulation support
+- ✅ Delay simulation for loading states
+- ✅ Full VCSProvider interface implementation
+- ✅ Works in CI/CD environments
+
 ## Related
 
 - [EXAMPLES.md](./EXAMPLES.md) - Code examples and server actions
