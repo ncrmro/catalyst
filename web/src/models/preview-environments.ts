@@ -115,17 +115,24 @@ export function generatePublicUrl(namespace: string, domain?: string): string {
  * Fetch team information from pull request record.
  *
  * @param pullRequestId - Pull request database ID
- * @returns Team name and project name, or null if not found
+ * @returns Team name, project name, and optional project ID if linked
  */
-async function getTeamInfoFromPullRequest(
-  pullRequestId: string,
-): Promise<{ teamName: string; projectName: string } | null> {
+async function getTeamInfoFromPullRequest(pullRequestId: string): Promise<{
+  teamName: string;
+  projectName: string;
+  projectId?: string;
+} | null> {
   const prWithRepo = await db.query.pullRequests.findFirst({
     where: eq(pullRequests.id, pullRequestId),
     with: {
       repo: {
         with: {
           team: true,
+          projectConnections: {
+            with: {
+              project: true,
+            },
+          },
         },
       },
     },
@@ -135,9 +142,15 @@ async function getTeamInfoFromPullRequest(
     return null;
   }
 
+  // Get the project ID if the repo is linked to a project
+  const linkedProject = prWithRepo.repo.projectConnections?.find(
+    (pc) => pc.isPrimary,
+  )?.project;
+
   return {
     teamName: prWithRepo.repo.team.name,
     projectName: prWithRepo.repo.name,
+    projectId: linkedProject?.id,
   };
 }
 
@@ -693,7 +706,7 @@ export async function createPreviewDeployment(
     };
   }
 
-  const { teamName, projectName } = teamInfo;
+  const { teamName, projectName, projectId } = teamInfo;
 
   // Generate identifiers
   // CR Name: preview-<prNumber>
@@ -712,6 +725,20 @@ export async function createPreviewDeployment(
 
   const crNamespace = generateProjectNamespace(teamName, projectName);
   await ensureProjectNamespace(kubeConfig, teamName, projectName);
+
+  // Sync Project CR to Kubernetes if project is linked
+  // This ensures the operator can find the Project CR when reconciling the Environment
+  if (projectId) {
+    const { syncProjectToK8s } = await import("@/lib/sync-project-cr");
+    const syncResult = await syncProjectToK8s(projectId);
+    if (!syncResult.success) {
+      previewLogger.warn("Failed to sync Project CR (non-blocking)", {
+        projectId,
+        error: syncResult.error,
+      });
+      // Continue anyway - the project might already exist or we can create a minimal one
+    }
+  }
 
   const publicUrl = generatePublicUrl(targetNamespace);
 
