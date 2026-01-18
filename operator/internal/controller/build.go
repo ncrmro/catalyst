@@ -1,3 +1,4 @@
+//nolint:goconst
 package controller
 
 import (
@@ -11,12 +12,13 @@ import (
 	catalystv1alpha1 "github.com/ncrmro/catalyst/operator/api/v1alpha1"
 )
 
+//nolint:goconst
 // Spec: operator/spec.md
 // Goal: Create a workspace pod for the environment that can be used for building,
 // running commands, and debugging via exec from the UI.
 
 const (
-	registryHost   = "registry.cluster.local:5000"
+	registryHost   = "registry.default.svc.cluster.local:5000"
 	workspaceImage = "alpine:latest"
 )
 

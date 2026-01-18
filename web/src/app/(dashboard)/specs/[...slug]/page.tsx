@@ -16,30 +16,27 @@ interface SpecPageProps {
   params: Promise<{
     slug: string[];
   }>;
-  searchParams: Promise<{
-    tab?: string;
-  }>;
 }
 
 export async function generateMetadata({
   params,
 }: SpecPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const { projectSlug, specSlug } = parseSpecSlug(slug);
+  const { projectSlug, specSlug, fileName } = parseSpecSlug(slug);
+
+  const title = fileName
+    ? `${fileName} - ${specSlug} - ${projectSlug} - Catalyst`
+    : `${specSlug} - ${projectSlug} - Catalyst`;
 
   return {
-    title: `${specSlug} - ${projectSlug} - Catalyst`,
-    description: `Specification: ${specSlug}`,
+    title,
+    description: `Specification: ${specSlug}${fileName ? ` / ${fileName}` : ""}`,
   };
 }
 
-export default async function SpecPage({
-  params,
-  searchParams,
-}: SpecPageProps) {
+export default async function SpecPage({ params }: SpecPageProps) {
   const { slug } = await params;
-  const { projectSlug, specSlug } = parseSpecSlug(slug);
-  const { tab = "tasks" } = await searchParams;
+  const { projectSlug, repoSlug, specSlug, fileName } = parseSpecSlug(slug);
 
   const project = await fetchProjectBySlug(projectSlug);
   if (!project) {
@@ -84,12 +81,14 @@ export default async function SpecPage({
     return matchedSpec === specSlug;
   });
 
-  if (tab === "spec") {
+  if (fileName) {
     return (
       <SpecContentTab
         projectId={project.id}
         projectSlug={projectSlug}
+        repoSlug={repoSlug}
         specSlug={specSlug}
+        fileName={fileName}
       />
     );
   }

@@ -60,6 +60,7 @@ apiVersion: catalyst.catalyst.dev/v1alpha1
 kind: Project
 metadata:
   name: my-project
+  namespace: my-team # Lives in the Team Namespace
 spec:
   source:
     repositoryUrl: "https://github.com/org/repo"
@@ -85,7 +86,7 @@ apiVersion: catalyst.catalyst.dev/v1alpha1
 kind: Environment
 metadata:
   name: pr-123
-  namespace: catalyst-system # Where the CR lives
+  namespace: my-team-my-project # Lives in the Project Namespace
   labels:
     catalyst.dev/team: "my-team"
     catalyst.dev/project: "my-project"
@@ -123,6 +124,7 @@ The core logic resides here. When an `Environment` CR is created or updated:
 
 1.  **Namespace Management**:
     - Create target namespace following the hierarchy: `<team-name>-<project-name>-<environment-name>`.
+    - **Validation**: Ensure the namespace name does not exceed 63 characters. If it does, apply the truncation and hashing procedure defined in the [Environments Specification](../specs/001-environments/spec.md#namespace-generation-procedure).
     - Apply standard labels to the namespace:
         - `catalyst.dev/team`: `<team-name>`
         - `catalyst.dev/project`: `<project-name>`

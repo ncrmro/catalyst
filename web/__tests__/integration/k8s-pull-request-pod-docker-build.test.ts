@@ -229,8 +229,13 @@ describe("Pull Request Pod Docker Build Integration", () => {
       expect(logs).toContain("=== PR Pod Build Script ===");
       expect(logs).toContain("=== Verifying pre-installed tools ===");
       expect(logs).toContain("✓ All tools verified");
-      expect(logs).toContain("=== Setting up buildx kubernetes builder ===");
-      expect(logs).toContain("✓ Buildx kubernetes driver ready");
+
+      // Since NEEDS_BUILD=false, buildx setup should be skipped
+      expect(logs).toContain(
+        "=== Skipping buildx setup (NEEDS_BUILD=false) ===",
+      );
+      expect(logs).toContain("⏭ Buildx not needed for this run");
+
       expect(logs).toContain("=== Cloning Repository ===");
       expect(logs).toContain("Repository cloned successfully!");
       expect(logs).toContain("Build required: false");
@@ -238,7 +243,7 @@ describe("Pull Request Pod Docker Build Integration", () => {
       expect(logs).toContain("=== Test Complete ===");
 
       // Verify job status
-      const status = await getPullRequestPodJobStatus(
+      let status = await getPullRequestPodJobStatus(
         createdJobName,
         testNamespace,
         "PRIMARY",
@@ -248,6 +253,17 @@ describe("Pull Request Pod Docker Build Integration", () => {
 
       // Pod should succeed since we're skipping the build
       if (podStatus === "Succeeded") {
+        // Wait for Job controller to update status
+        let attempts = 0;
+        while ((status.succeeded || 0) === 0 && attempts < 10) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          status = await getPullRequestPodJobStatus(
+            createdJobName,
+            testNamespace,
+            "PRIMARY",
+          );
+          attempts++;
+        }
         expect(status.succeeded).toBeGreaterThan(0);
       }
     }, 180000); // 3 minute timeout

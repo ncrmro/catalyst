@@ -174,6 +174,8 @@ export async function deployPreviewApplication(
                   },
                   initialDelaySeconds: 10,
                   periodSeconds: 5,
+                  timeoutSeconds: 3,
+                  failureThreshold: 5,
                 },
               },
             ],

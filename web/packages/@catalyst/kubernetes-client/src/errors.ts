@@ -44,25 +44,58 @@ export class KubernetesError extends Error {
       return error;
     }
 
-    // Handle @kubernetes/client-node HttpError format
-    if (
-      error &&
-      typeof error === "object" &&
-      "response" in error &&
-      error.response &&
-      typeof error.response === "object"
-    ) {
-      const response = error.response as {
-        statusCode?: number;
-        body?: { message?: string; reason?: string };
+    // Handle @kubernetes/client-node ApiException with .body and .code
+    if (error && typeof error === "object") {
+      const err = error as {
+        code?: number;
+        statusCode?: number; // Keep for backwards compatibility
+        body?:
+          | string
+          | {
+              message?: string;
+              reason?: string;
+              details?: Record<string, unknown>;
+            };
       };
-      const statusCode = response.statusCode || 500;
-      const body = response.body || {};
-      return new KubernetesError(
-        body.message || "Unknown Kubernetes API error",
-        statusCode,
-        body.reason,
-      );
+
+      // Support both .code (ApiException) and .statusCode (HttpError)
+      const errorCode = err.code ?? err.statusCode;
+
+      if (errorCode) {
+        // Try to parse body if it exists
+        let parsedBody: {
+          message?: string;
+          reason?: string;
+          details?: Record<string, unknown>;
+        } | null = null;
+
+        if (err.body) {
+          if (typeof err.body === "string") {
+            // Try to parse JSON string
+            try {
+              parsedBody = JSON.parse(err.body);
+            } catch {
+              // If parsing fails, body is not JSON - use generic message
+            }
+          } else if (typeof err.body === "object") {
+            // Body is already an object
+            parsedBody = err.body;
+          }
+        }
+
+        // If we have parsed body data, use it
+        if (parsedBody && typeof parsedBody === "object") {
+          return new KubernetesError(
+            parsedBody.message || "Unknown Kubernetes API error",
+            errorCode,
+            parsedBody.reason,
+            parsedBody.details,
+          );
+        }
+
+        // If body is missing or not parseable, use errorCode with generic message
+        return new KubernetesError("Kubernetes API error", errorCode);
+      }
     }
 
     // Handle generic errors

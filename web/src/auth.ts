@@ -44,7 +44,7 @@ async function createUserWithPersonalTeam(params: {
       })
       .returning();
 
-    const teamName = name ? `${name}'s Team` : `${email.split("@")[0]}'s Team`;
+    const teamName = name ?? email.split("@")[0];
 
     const [team] = await tx
       .insert(teams)

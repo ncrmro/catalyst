@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+//nolint:goconst
 package controller
 
 import (
@@ -38,6 +39,7 @@ import (
 	catalystv1alpha1 "github.com/ncrmro/catalyst/operator/api/v1alpha1"
 )
 
+//nolint:goconst
 const environmentFinalizer = "catalyst.dev/finalizer"
 
 // EnvironmentReconciler reconciles a Environment object
@@ -86,7 +88,11 @@ func sanitizeLabelValue(s string) string {
 // +kubebuilder:rbac:groups="",resources=resourcequotas,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 
+//nolint:gocyclo
 func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
@@ -95,12 +101,37 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	targetNamespace := fmt.Sprintf("%s-%s", env.Spec.ProjectRef.Name, env.Name)
+	// Extract namespace hierarchy from Environment CR labels (FR-ENV-020)
+	// Generate target namespace for workload deployment (FR-ENV-021)
+	var targetNamespace string
+	hierarchy := ExtractNamespaceHierarchy(env.Labels)
+	if hierarchy == nil {
+		// Missing hierarchy labels - this is a configuration error
+		err := fmt.Errorf("environment CR is missing required hierarchy labels (catalyst.dev/team, catalyst.dev/project, catalyst.dev/environment)")
+		log.Error(err, "Cannot generate namespace without hierarchy labels", "environment", env.Name)
+		return ctrl.Result{}, err
+	}
+
+	// Generate environment namespace using hierarchy with hash-based truncation
+	targetNamespace = GenerateEnvironmentNamespace(hierarchy.Team, hierarchy.Project, hierarchy.Environment)
+	log.Info(
+		"Generated environment namespace from hierarchy",
+		"namespace", targetNamespace,
+		"hierarchy", fmt.Sprintf("team=%s,project=%s,environment=%s", hierarchy.Team, hierarchy.Project, hierarchy.Environment),
+	)
+
+	// Validate namespace name
+	if !IsValidNamespaceName(targetNamespace) {
+		log.Error(fmt.Errorf("invalid namespace name"), "Generated namespace name is not DNS-1123 compliant", "namespace", targetNamespace)
+		return ctrl.Result{}, fmt.Errorf("invalid namespace name: %s", targetNamespace)
+	}
 
 	// Fetch Project to access Templates
+	// Projects are stored in the team namespace, not the environment namespace
 	project := &catalystv1alpha1.Project{}
-	if err := r.Get(ctx, client.ObjectKey{Name: env.Spec.ProjectRef.Name, Namespace: env.Namespace}, project); err != nil {
-		log.Error(err, "Failed to fetch Project", "projectName", env.Spec.ProjectRef.Name)
+	teamNamespace := hierarchy.Team
+	if err := r.Get(ctx, client.ObjectKey{Name: env.Spec.ProjectRef.Name, Namespace: teamNamespace}, project); err != nil {
+		log.Error(err, "Failed to fetch Project", "projectName", env.Spec.ProjectRef.Name, "teamNamespace", teamNamespace)
 		return ctrl.Result{}, err
 	}
 
@@ -113,7 +144,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// Finalizer logic
-	if !env.ObjectMeta.DeletionTimestamp.IsZero() {
+	if !env.DeletionTimestamp.IsZero() {
 		if controllerutil.ContainsFinalizer(env, environmentFinalizer) {
 			// Delete external resources
 			log.Info("Deleting target namespace", "namespace", targetNamespace)
@@ -155,15 +186,20 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			branch = env.Spec.Sources[0].Branch
 		}
 
+		// Build labels with hierarchy information (FR-ENV-020)
+		// hierarchy is guaranteed to be non-nil at this point due to earlier check
+		labels := map[string]string{
+			"catalyst.dev/environment":    sanitizeLabelValue(env.Name),
+			"catalyst.dev/branch":         sanitizeLabelValue(branch),
+			"catalyst.dev/namespace-type": sanitizeLabelValue("environment"),
+			"catalyst.dev/team":           sanitizeLabelValue(hierarchy.Team),
+			"catalyst.dev/project":        sanitizeLabelValue(hierarchy.Project),
+		}
+
 		ns = &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: targetNamespace,
-				Labels: map[string]string{
-					"catalyst.dev/team":        "catalyst", // TODO: Get from Project or Env
-					"catalyst.dev/project":     sanitizeLabelValue(env.Spec.ProjectRef.Name),
-					"catalyst.dev/environment": sanitizeLabelValue(env.Name),
-					"catalyst.dev/branch":      sanitizeLabelValue(branch),
-				},
+				Name:   targetNamespace,
+				Labels: labels,
 			},
 		}
 		// Note: We cannot set OwnerReference for cluster-scoped resources like Namespace
@@ -183,6 +219,16 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	policy := desiredNetworkPolicy(targetNamespace)
 	if err := r.Create(ctx, policy); err != nil && !apierrors.IsAlreadyExists(err) {
+		return ctrl.Result{}, err
+	}
+
+	// 2b. Manage Registry Credentials
+	if err := r.ensureRegistryCredentials(ctx, project.Namespace, targetNamespace); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("Waiting for resources (Secret/SA) for registry credentials")
+			return ctrl.Result{RequeueAfter: time.Second}, nil
+		}
+		log.Error(err, "Failed to ensure registry credentials")
 		return ctrl.Result{}, err
 	}
 
@@ -221,9 +267,11 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if deploymentMode == "" {
 		if envTemplate != nil && envTemplate.Type == "helm" {
 			deploymentMode = "helm"
+		} else if envTemplate != nil && envTemplate.Type == "docker-compose" {
+			deploymentMode = "docker-compose"
 		} else if env.Spec.Type == "development" {
 			deploymentMode = "development"
-		} else if env.Spec.Type == "staging" || env.Spec.Type == "production" {
+		} else if env.Spec.Type == "deployment" || env.Spec.Type == "staging" || env.Spec.Type == "production" {
 			deploymentMode = "production"
 		} else {
 			deploymentMode = "workspace" // Default fallback
@@ -242,13 +290,16 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	case "helm":
 		return r.reconcileHelmModeWithStatus(ctx, env, project, targetNamespace, isLocal, ingressPort, envTemplate)
 
+	case "docker-compose":
+		return r.reconcileComposeModeWithStatus(ctx, env, project, targetNamespace, envTemplate)
+
 	default: // "workspace" or any unrecognized value defaults to workspace
 		return r.reconcileWorkspaceMode(ctx, env, targetNamespace)
 	}
 }
 
-// reconcileHelmModeWithStatus handles helm deployment with status updates
-func (r *EnvironmentReconciler) reconcileHelmModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, isLocal bool, ingressPort string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
+// reconcileComposeModeWithStatus handles docker-compose deployment with status updates
+func (r *EnvironmentReconciler) reconcileComposeModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
 	// Wait for default service account
@@ -262,7 +313,90 @@ func (r *EnvironmentReconciler) reconcileHelmModeWithStatus(ctx context.Context,
 	}
 
 	// Set provisioning status
-	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" {
+	// Note: We check != "Failed" to prevent an infinite loop where the controller flip-flops
+	// between "Failed" (due to error) and "Provisioning" (here), triggering constant updates.
+	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" && env.Status.Phase != "Building" && env.Status.Phase != "Failed" {
+		env.Status.Phase = "Provisioning"
+		if err := r.Status().Update(ctx, env); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	// Run compose reconciliation
+	ready, err := r.ReconcileComposeMode(ctx, env, project, namespace, template)
+	if err != nil {
+		if env.Status.Phase != "Failed" {
+			env.Status.Phase = "Failed"
+			if updateErr := r.Status().Update(ctx, env); updateErr != nil {
+				return ctrl.Result{}, updateErr
+			}
+		}
+
+		if strings.Contains(err.Error(), "source not found") {
+			log.Error(err, "Compose reconciliation failed due to missing source; pausing until fixed")
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	if ready {
+		if env.Status.Phase != "Ready" {
+			env.Status.Phase = "Ready"
+			if err := r.Status().Update(ctx, env); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+		return ctrl.Result{}, nil
+	}
+
+	// Not ready yet (re-reconcile for builds or resources)
+	return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+}
+
+// reconcileHelmModeWithStatus handles helm deployment with status updates
+func (r *EnvironmentReconciler) reconcileHelmModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, _ bool, _ string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
+	log := logf.FromContext(ctx)
+
+	// Wait for default service account
+	sa := &corev1.ServiceAccount{}
+	if err := r.Get(ctx, client.ObjectKey{Name: "default", Namespace: namespace}, sa); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("Waiting for default ServiceAccount", "namespace", namespace)
+			return ctrl.Result{RequeueAfter: time.Second}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	// Reconcile Builds (Zero-Config / Dockerfile Builds)
+	var builtImages map[string]string
+	if template != nil && len(template.Builds) > 0 {
+		// Update status to Building if not already (and not failed)
+		if env.Status.Phase != "Building" && env.Status.Phase != "Ready" && env.Status.Phase != "Failed" {
+			env.Status.Phase = "Building"
+			if err := r.Status().Update(ctx, env); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+
+		var err error
+		builtImages, err = r.reconcileBuilds(ctx, env, project, namespace, template)
+		if err != nil {
+			log.Error(err, "Build failed")
+			env.Status.Phase = "Failed"
+			_ = r.Status().Update(ctx, env)
+			return ctrl.Result{}, err
+		}
+
+		if builtImages == nil {
+			log.Info("Builds in progress...")
+			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+		}
+	}
+
+	// Set provisioning status (if not building)
+	// Note: We check != "Failed" to prevent an infinite loop where the controller flip-flops
+	// between "Failed" (due to error) and "Provisioning" (here), triggering constant updates.
+	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" && env.Status.Phase != "Building" && env.Status.Phase != "Failed" {
 		env.Status.Phase = "Provisioning"
 		if err := r.Status().Update(ctx, env); err != nil {
 			return ctrl.Result{}, err
@@ -270,10 +404,19 @@ func (r *EnvironmentReconciler) reconcileHelmModeWithStatus(ctx context.Context,
 	}
 
 	// Run helm reconciliation
-	ready, err := r.ReconcileHelmMode(ctx, env, project, namespace, template)
+	ready, err := r.ReconcileHelmMode(ctx, env, project, namespace, template, builtImages)
 	if err != nil {
-		env.Status.Phase = "Failed"
-		_ = r.Status().Update(ctx, env)
+		if env.Status.Phase != "Failed" {
+			env.Status.Phase = "Failed"
+			if updateErr := r.Status().Update(ctx, env); updateErr != nil {
+				return ctrl.Result{}, updateErr
+			}
+		}
+
+		if strings.Contains(err.Error(), "source not found") {
+			log.Error(err, "Helm reconciliation failed due to missing source; pausing until fixed")
+			return ctrl.Result{}, nil
+		}
 		return ctrl.Result{}, err
 	}
 
@@ -292,7 +435,7 @@ func (r *EnvironmentReconciler) reconcileHelmModeWithStatus(ctx context.Context,
 }
 
 // reconcileDevelopmentModeWithStatus handles development mode deployment with status updates
-func (r *EnvironmentReconciler) reconcileDevelopmentModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, ingressPort string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
+func (r *EnvironmentReconciler) reconcileDevelopmentModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, _ bool, _ string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
 	// Wait for default service account
@@ -306,7 +449,9 @@ func (r *EnvironmentReconciler) reconcileDevelopmentModeWithStatus(ctx context.C
 	}
 
 	// Set provisioning status
-	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" {
+	// Note: We check != "Failed" to prevent an infinite loop where the controller flip-flops
+	// between "Failed" (due to error) and "Provisioning" (here), triggering constant updates.
+	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" && env.Status.Phase != "Failed" {
 		env.Status.Phase = "Provisioning"
 		if err := r.Status().Update(ctx, env); err != nil {
 			return ctrl.Result{}, err
@@ -336,7 +481,7 @@ func (r *EnvironmentReconciler) reconcileDevelopmentModeWithStatus(ctx context.C
 }
 
 // reconcileProductionModeWithStatus handles production mode deployment with status updates
-func (r *EnvironmentReconciler) reconcileProductionModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, ingressPort string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
+func (r *EnvironmentReconciler) reconcileProductionModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, _ string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
 	// Wait for default service account
@@ -350,7 +495,9 @@ func (r *EnvironmentReconciler) reconcileProductionModeWithStatus(ctx context.Co
 	}
 
 	// Set provisioning status
-	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" {
+	// Note: We check != "Failed" to prevent an infinite loop where the controller flip-flops
+	// between "Failed" (due to error) and "Provisioning" (here), triggering constant updates.
+	if env.Status.Phase != "Provisioning" && env.Status.Phase != "Ready" && env.Status.Phase != "Failed" {
 		env.Status.Phase = "Provisioning"
 		if err := r.Status().Update(ctx, env); err != nil {
 			return ctrl.Result{}, err
@@ -419,7 +566,8 @@ func (r *EnvironmentReconciler) reconcileWorkspaceMode(ctx context.Context, env 
 	}
 
 	// Check Pod Status
-	if workspacePod.Status.Phase == corev1.PodRunning {
+	switch workspacePod.Status.Phase {
+	case corev1.PodRunning:
 		// Pod is running and ready for exec
 		// Note: Keep the URL that was set from the Ingress
 		if env.Status.Phase != "Ready" {
@@ -429,13 +577,13 @@ func (r *EnvironmentReconciler) reconcileWorkspaceMode(ctx context.Context, env 
 				return ctrl.Result{}, err
 			}
 		}
-	} else if workspacePod.Status.Phase == corev1.PodFailed {
+	case corev1.PodFailed:
 		env.Status.Phase = "Failed"
 		if err := r.Status().Update(ctx, env); err != nil {
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
-	} else {
+	default:
 		// Still starting up (Pending, etc.)
 		if env.Status.Phase != "Provisioning" {
 			env.Status.Phase = "Provisioning"

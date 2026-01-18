@@ -77,7 +77,7 @@ export async function createUserWithTeam(params: {
       })
       .returning();
 
-    const teamName = name ? `${name}'s Team` : `${email.split("@")[0]}'s Team`;
+    const teamName = name ?? email.split("@")[0];
 
     const [team] = await tx
       .insert(teams)
@@ -142,17 +142,17 @@ export async function createCatalystAndMezeProjects(teamId: string) {
     })
     .onConflictDoNothing();
 
-  // Query to get the actual repos (repos are shared across teams due to unique github_id constraint)
+  // Query to get the actual repos for this team
   const [catalystRepo] = await db
     .select()
     .from(repos)
-    .where(eq(repos.fullName, "ncrmro/catalyst"))
+    .where(and(eq(repos.fullName, "ncrmro/catalyst"), eq(repos.teamId, teamId)))
     .limit(1);
 
   const [mezeRepo] = await db
     .select()
     .from(repos)
-    .where(eq(repos.fullName, "ncrmro/meze"))
+    .where(and(eq(repos.fullName, "ncrmro/meze"), eq(repos.teamId, teamId)))
     .limit(1);
 
   // Insert projects (skip if already exists)
@@ -363,7 +363,6 @@ export async function createTeamProjects(
     relationships: projectRepoData,
   };
 }
-
 /**
  * Multipurpose seeding function that can:
  * 1. Create a user if it doesn't exist (with default admin or regular user settings)
@@ -659,9 +658,9 @@ export async function seedMockDataFromYaml() {
                   .select()
                   .from(repos)
                   .where(
-                    eq(
-                      repos.githubId,
-                      primaryRepo.id + allTeams.indexOf(team) * 1000000,
+                    and(
+                      eq(repos.fullName, primaryRepo.full_name),
+                      eq(repos.teamId, team.id),
                     ),
                   )
                   .limit(1);

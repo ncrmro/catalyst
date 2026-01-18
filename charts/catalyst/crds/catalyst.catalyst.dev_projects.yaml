@@ -39,23 +39,6 @@ spec:
           spec:
             description: spec defines the desired state of Project
             properties:
-              deployment:
-                description: Deployment strategy configuration
-                properties:
-                  path:
-                    description: Path to the deployment definition (e.g. chart path)
-                    type: string
-                  type:
-                    description: Type of deployment (helm, manifest, kustomize)
-                    type: string
-                  values:
-                    description: Values are the default values to inject
-                    type: object
-                    x-kubernetes-preserve-unknown-fields: true
-                required:
-                - path
-                - type
-                type: object
               resources:
                 description: Resources configuration (quotas, limits)
                 properties:
@@ -71,22 +54,149 @@ spec:
                         type: string
                     type: object
                 type: object
-              source:
-                description: Source configuration for the project
-                properties:
-                  branch:
-                    description: Branch is the default branch to use
-                    type: string
-                  repositoryUrl:
-                    description: RepositoryURL is the git repository URL
-                    type: string
-                required:
-                - branch
-                - repositoryUrl
+              sources:
+                description: Sources configuration for the project (supports multiple
+                  repos)
+                items:
+                  properties:
+                    branch:
+                      description: Branch is the default branch to use
+                      type: string
+                    name:
+                      description: Name to identify this source component (e.g. "frontend",
+                        "backend")
+                      type: string
+                    repositoryUrl:
+                      description: RepositoryURL is the git repository URL
+                      type: string
+                  required:
+                  - branch
+                  - name
+                  - repositoryUrl
+                  type: object
+                type: array
+              templates:
+                additionalProperties:
+                  properties:
+                    builds:
+                      description: |-
+                        Builds defines the artifacts (container images) to be built from sources before deployment.
+                        This separates the "deployment logic" (e.g. Helm Chart) from the "application code" (e.g. Dockerfiles).
+                        The operator will build these images and can inject them into the deployment (e.g. via Helm values).
+                      items:
+                        properties:
+                          dockerfile:
+                            description: |-
+                              Dockerfile is the path to the Dockerfile relative to Path.
+                              If empty, auto-detection or default "Dockerfile" is assumed.
+                            type: string
+                          name:
+                            description: |-
+                              Name identifies this build artifact (e.g. "frontend", "api").
+                              This name is used to inject the built image into the deployment values.
+                              Example: for name "frontend", values might receive global.images.frontend.repository
+                            type: string
+                          path:
+                            description: |-
+                              Path is the build context directory relative to the SourceRef root.
+                              Defaults to root if empty.
+                            type: string
+                          resources:
+                            description: Resources allows customizing the build job
+                              resources (requests/limits)
+                            properties:
+                              claims:
+                                description: |-
+                                  Claims lists the names of resources, defined in spec.resourceClaims,
+                                  that are used by this container.
+
+                                  This field depends on the
+                                  DynamicResourceAllocation feature gate.
+
+                                  This field is immutable. It can only be set for containers.
+                                items:
+                                  description: ResourceClaim references one entry
+                                    in PodSpec.ResourceClaims.
+                                  properties:
+                                    name:
+                                      description: |-
+                                        Name must match the name of one entry in pod.spec.resourceClaims of
+                                        the Pod where this field is used. It makes that resource available
+                                        inside a container.
+                                      type: string
+                                    request:
+                                      description: |-
+                                        Request is the name chosen for a request in the referenced claim.
+                                        If empty, everything from the claim is made available, otherwise
+                                        only the result of this request.
+                                      type: string
+                                  required:
+                                  - name
+                                  type: object
+                                type: array
+                                x-kubernetes-list-map-keys:
+                                - name
+                                x-kubernetes-list-type: map
+                              limits:
+                                additionalProperties:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                  x-kubernetes-int-or-string: true
+                                description: |-
+                                  Limits describes the maximum amount of compute resources allowed.
+                                  More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                                type: object
+                              requests:
+                                additionalProperties:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                  x-kubernetes-int-or-string: true
+                                description: |-
+                                  Requests describes the minimum amount of compute resources required.
+                                  If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+                                  otherwise to an implementation-defined value. Requests cannot exceed Limits.
+                                  More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                                type: object
+                            type: object
+                          sourceRef:
+                            description: SourceRef refers to the Project.Source containing
+                              the application code.
+                            type: string
+                        required:
+                        - name
+                        - sourceRef
+                        type: object
+                      type: array
+                    path:
+                      description: Path to the deployment definition (e.g. chart path)
+                        relative to SourceRef root.
+                      type: string
+                    sourceRef:
+                      description: |-
+                        SourceRef refers to one of the sources defined in Project.Sources
+                        containing the deployment configuration (e.g. Chart.yaml or k8s manifests).
+                        If empty, assumes the first source or a primary source.
+                      type: string
+                    type:
+                      description: Type of deployment (helm, manifest, kustomize)
+                      type: string
+                    values:
+                      description: Values are the default values to inject
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                  required:
+                  - type
+                  type: object
+                description: |-
+                  Templates for different environment types.
+                  Standard keys: "development" (previews) and "deployment" (production/staging).
                 type: object
             required:
-            - deployment
-            - source
+            - sources
             type: object
           status:
             description: status defines the observed state of Project

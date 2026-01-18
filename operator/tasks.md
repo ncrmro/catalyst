@@ -58,3 +58,10 @@
 ## Phase 6: Web App Integration
 - [x] **T020**: Update Web App to create `Environment` CRs.
 - [x] **T021**: Update Web App to poll `Environment` CR status.
+
+## Phase 7: Cleanup & Lifecycle
+- [ ] **T022**: Implement Project Finalizer.
+  - Add finalizer `catalyst.catalyst.dev/finalizer` to Project on creation.
+  - On deletion, check for Environments referencing the Project.
+  - If Environments exist, block deletion (requeue).
+  - If no Environments, remove finalizer.

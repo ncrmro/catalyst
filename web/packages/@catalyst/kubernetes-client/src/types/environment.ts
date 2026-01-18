@@ -28,6 +28,8 @@ export interface ProjectReference {
  * Source configuration for the environment
  */
 export interface EnvironmentSource {
+  /** Name identifies the component */
+  name: string;
   /** Git commit SHA to deploy */
   commitSha: string;
   /** Branch name */
@@ -85,7 +87,7 @@ export interface EnvironmentSpec {
   /** Deployment mode: "production", "development", or "workspace" (default) */
   deploymentMode?: DeploymentMode;
   /** Source configuration */
-  source: EnvironmentSource;
+  sources?: EnvironmentSource[];
   /** Configuration overrides */
   config?: EnvironmentConfig;
 }

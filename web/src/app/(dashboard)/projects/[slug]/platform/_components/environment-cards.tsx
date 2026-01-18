@@ -8,6 +8,7 @@ import {
   type EntityCardTab,
 } from "@/components/ui/entity-card";
 import type { EnvironmentCR } from "@/types/crd";
+import { CreateDevEnvironment } from "./create-dev-environment";
 
 const ENVIRONMENT_TABS: EntityCardTab[] = [
   { value: "status", label: "Status" },
@@ -153,6 +154,9 @@ export function DeploymentEnvironmentsCard({
 export interface DevelopmentEnvironmentsCardProps {
   environments: EnvironmentCR[];
   projectSlug: string;
+  projectId: string;
+  primaryRepoId?: string;
+  primaryRepoFullName?: string;
   /** Config tab content - passed from server component with Suspense boundary */
   configContent: ReactNode;
 }
@@ -160,6 +164,9 @@ export interface DevelopmentEnvironmentsCardProps {
 export function DevelopmentEnvironmentsCard({
   environments,
   projectSlug,
+  projectId,
+  primaryRepoId,
+  primaryRepoFullName,
   configContent,
 }: DevelopmentEnvironmentsCardProps) {
   const [activeTab, setActiveTab] = useState("status");
@@ -203,19 +210,15 @@ export function DevelopmentEnvironmentsCard({
       </div>
     ),
     config: configContent,
-    new: (
-      <div className="space-y-4">
-        <p className="text-sm text-on-surface-variant">
-          Development environments are created automatically from pull requests.
-        </p>
-        <Link
-          href={`/projects/${projectSlug}/configure`}
-          className="inline-flex items-center px-4 py-2 text-sm font-medium text-on-primary bg-primary rounded-md hover:opacity-90 transition-opacity"
-        >
-          Configure Development Settings
-        </Link>
-      </div>
-    ),
+    new:
+      primaryRepoId && primaryRepoFullName ? (
+        <CreateDevEnvironment projectId={projectId} />
+      ) : (
+        <div className="text-sm text-on-surface-variant">
+          No repository connected. Connect a repository to create development
+          environments.
+        </div>
+      ),
   };
 
   return (

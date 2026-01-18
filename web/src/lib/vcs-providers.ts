@@ -224,9 +224,13 @@ export async function deleteGitHubTokens(userId: string): Promise<void> {
 /**
  * Exchange a refresh token for a new access token
  * @param refreshToken The refresh token to exchange
+ * @param currentScope Optional: The current scope to preserve if the new scope is empty
  * @returns New tokens with updated expiration
  */
-export async function exchangeRefreshToken(refreshToken: string): Promise<{
+export async function exchangeRefreshToken(
+  refreshToken: string,
+  currentScope?: string,
+): Promise<{
   accessToken: string;
   refreshToken: string;
   expiresAt: Date;
@@ -264,15 +268,20 @@ export async function exchangeRefreshToken(refreshToken: string): Promise<{
     );
   }
 
-  // Calculate expiration (GitHub App user tokens expire in 8 hours)
+  // Calculate expiration
+  // Use expires_in if available, otherwise default to 8 hours (GitHub App user tokens)
   const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + 8);
+  if (data.expires_in && typeof data.expires_in === "number") {
+    expiresAt.setSeconds(expiresAt.getSeconds() + data.expires_in);
+  } else {
+    expiresAt.setHours(expiresAt.getHours() + 8);
+  }
 
   return {
     accessToken: data.access_token,
     refreshToken: data.refresh_token || refreshToken, // Use new refresh token if provided
     expiresAt,
-    scope: data.scope,
+    scope: data.scope || currentScope || "",
   };
 }
 
@@ -326,9 +335,14 @@ export async function exchangeAuthorizationCode(
     );
   }
 
-  // Calculate expiration (GitHub App user tokens expire in 8 hours)
+  // Calculate expiration
+  // Use expires_in if available, otherwise default to 8 hours (GitHub App user tokens)
   const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + 8);
+  if (data.expires_in && typeof data.expires_in === "number") {
+    expiresAt.setSeconds(expiresAt.getSeconds() + data.expires_in);
+  } else {
+    expiresAt.setHours(expiresAt.getHours() + 8);
+  }
 
   return {
     accessToken: data.access_token,
@@ -432,10 +446,12 @@ const EXPIRATION_BUFFER_MS = 5 * 60 * 1000;
 /**
  * Check if token needs refresh and refresh if needed
  * @param userId The user ID to check tokens for
+ * @param options Optional configuration for refresh behavior
  * @returns Valid tokens or null if re-authorization is needed
  */
 export async function refreshTokenIfNeeded(
   userId: string,
+  options?: { forceRefresh?: boolean },
 ): Promise<GitHubTokens | null> {
   // Get current tokens
   const tokens = await getGitHubTokens(userId);
@@ -450,14 +466,17 @@ export async function refreshTokenIfNeeded(
     tokens.expiresAt.getTime() - EXPIRATION_BUFFER_MS,
   );
 
-  if (now > expirationWithBuffer) {
+  if (options?.forceRefresh || now > expirationWithBuffer) {
     try {
-      // Token is expiring soon, refresh it
+      // Token is expiring soon or forced refresh, refresh it
       console.log(
-        `Refreshing token for user ${userId} that expires at ${tokens.expiresAt}`,
+        `Refreshing token for user ${userId} (Reason: ${options?.forceRefresh ? "forced via 401 interceptor" : "expiring soon"})`,
       );
 
-      const newTokens = await exchangeRefreshToken(tokens.refreshToken);
+      const newTokens = await exchangeRefreshToken(
+        tokens.refreshToken,
+        tokens.scope,
+      );
 
       // Store the new tokens
       await storeGitHubTokens(userId, {
@@ -533,13 +552,15 @@ import {
 
 // Register token getters on module load
 // This provides the package with access to token management without circular deps
-registerTokenGetter(async (userId: string) => {
-  const tokens = await refreshTokenIfNeeded(userId);
-  if (tokens?.accessToken) {
-    return { accessToken: tokens.accessToken };
-  }
-  return null;
-});
+registerTokenGetter(
+  async (userId: string, options?: { forceRefresh?: boolean }) => {
+    const tokens = await refreshTokenIfNeeded(userId, options);
+    if (tokens?.accessToken) {
+      return { accessToken: tokens.accessToken };
+    }
+    return null;
+  },
+);
 
 registerTokenStatusChecker(async (userId: string) => {
   const tokens = await getGitHubTokens(userId);

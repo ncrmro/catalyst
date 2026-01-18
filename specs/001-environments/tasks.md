@@ -516,7 +516,7 @@ This delivers the core value proposition: automatic preview deployments with pub
 
 **Purpose**: Connect the web UI to real Kubernetes data using the new client package.
 
-- [ ] T136 Add "@catalyst/kubernetes-client": "workspace:*" to web/package.json
+- [ ] T136 Add "@catalyst/kubernetes-client": "workspace:\*" to web/package.json
 - [ ] T137 Update web/src/actions/preview-environments.ts to use @catalyst/kubernetes-client
   - Replace `getPreviewDeploymentStatusFull` implementation to use `EnvironmentClient`
   - Replace `getPreviewDeploymentLogs` implementation to use `getPodLogs`
@@ -574,21 +574,25 @@ This delivers the core value proposition: automatic preview deployments with pub
 **Purpose**: Deliver fully functional development environments for the three key use cases.
 
 ### Step 1: Operator Implementation (Logic)
-- [ ] T147 [US6] Implement `type: helm` support using Helm SDK in `operator/internal/controller/`
-- [ ] T148 [US1] Implement "Zero-Config" build logic (Kaniko) for projects without Dockerfiles
+
+- [ ] T147 [US6] Implement `type: helm` support using Helm SDK, including source resolution (cloning repo defined in `SourceRef`) and finding the chart at `Path`
+- [ ] T148 [US1] Implement "Zero-Config" build logic (Kaniko) with init containers to clone source (`SourceRef`), generate Dockerfile if missing, and build
 - [ ] T149 [US6] Implement `docker-compose` parser and Kubernetes translation logic (`FR-ENV-012`)
 
 ### Step 2: Local Validation (Extended Test)
+
 - [ ] T150 [US6] Create `make validate` script (or `bin/validate-envs`) for local environment testing
 - [ ] T151 [US6] Validate Catalyst (Helm) environment in local K3s using `make validate`
 - [ ] T152 [US6] Validate Rails (Compose) environment in local K3s using `make validate`
 - [ ] T153 [US1] Validate Next.js (Zero-Config) environment in local K3s using `make validate`
 
 ### Step 3: UI Manual Validation
+
 - [ ] T154 [US2] Manually verify "Platform" page displays correct template config for all North Star cases
 - [ ] T155 [US2] Manually verify "Environment" detail page shows logs/status for North Star environments
 
 ### Step 4: CI Integration (Lightweight)
+
 - [ ] T156 [US1] Create lightweight GitHub Action workflow for Next.js (Zero-Config) integration test in Kind
 
 ---
@@ -600,6 +604,70 @@ This delivers the core value proposition: automatic preview deployments with pub
 - [ ] T157 [US6] Implement `ensureRegistrySecret` in `environment_controller.go` to copy project registry secrets to target namespace.
 - [ ] T158 [US6] Implement logic to patch `default` ServiceAccount with `imagePullSecrets`.
 - [ ] T159 [US6] Update `build_kaniko.go` to mount registry credentials if provided (for pushing).
+
+---
+
+## Phase 16: Namespace Validation & Limits (Priority: P1)
+
+**Purpose**: Enforce Kubernetes 63-character limit on namespace names to prevent deployment failures.
+
+- [ ] T160 [FR-ENV-021] Implement namespace truncation and hashing logic in `web/src/models/preview-environments.ts` (helper function) ensuring < 63 chars.
+- [ ] T161 [FR-ENV-021] Create unit tests for `web` namespace generation verifying truncation and hashing.
+- [ ] T162 [FR-ENV-021] Implement namespace truncation and hashing logic in `operator/internal/controller/environment_controller.go` (or util).
+- [ ] T163 [FR-ENV-021] Create unit tests for `operator` namespace generation verifying truncation and hashing.
+
+---
+
+## Phase 17: Namespace Hierarchy Implementation (Priority: P1)
+
+**Purpose**: Implement FR-ENV-020 namespace hierarchy to isolate Project and Environment CRs.
+
+- [ ] T170 [Web] Implement `ensureTeamNamespace` logic in `web/src/models/preview-environments.ts` (or shared util) to lazily create the Team Namespace (`<team>`) if it doesn't exist.
+- [ ] T171 [Web] Implement `ensureProjectNamespace` logic in `web/src/models/preview-environments.ts` (or shared util) to lazily create the Project Namespace (`<team>-<project>`) if it doesn't exist.
+- [ ] T164 [Web] Update `createPreviewDeployment` in `web/src/models/preview-environments.ts` to fetch Team/Project info and construct hierarchy names (`teamNamespace`, `projectNamespace`).
+- [ ] T167 [Web] Update `createPreviewDeployment` to call `ensureTeamNamespace` and `ensureProjectNamespace` before creating resources.
+- [ ] T165 [Web] Update `createPreviewDeployment` to inject `catalyst.dev/team` and `catalyst.dev/project` labels into the Environment CR.
+- [ ] T166 [Web] Update `createPreviewDeployment` to create the Environment CR in the `projectNamespace` (e.g., `<team>-<project>`) instead of `default`.
+- [ ] T168 [Operator] Update `EnvironmentController` in `operator/internal/controller/environment_controller.go` to construct target workload namespace using labels (`catalyst.dev/team`, `catalyst.dev/project`) + CR name.
+- [ ] T169 [Operator] Validate that the resulting workload namespace name complies with the 63-char limit (using logic from Phase 16).
+
+---
+
+## Phase 18: FR-ENV-023 - PVC-Based Code Volumes (Priority: P1)
+
+**Purpose**: Replace HostPath volumes with PVC + git-clone for development mode deployments. See [research.git-sidecar.md](./research.git-sidecar.md) for architecture.
+
+### Operator Changes
+
+- [ ] T172 [FR-ENV-023] [Operator] Add `desiredCodePVC()` function in `operator/internal/controller/development_deploy.go` to create PVC for code storage (1Gi)
+- [ ] T173 [FR-ENV-023] [Operator] Add git-clone init container to `desiredDevelopmentDeployment()` that clones repo into PVC
+- [ ] T174 [FR-ENV-023] [Operator] Replace HostPath volume with PVC volume in `desiredDevelopmentDeployment()`
+- [ ] T175 [FR-ENV-023] [Operator] Add git-credentials volume (from Secret) to `desiredDevelopmentDeployment()`
+- [ ] T176 [FR-ENV-023] [Operator] Implement `ensureGitCredentials()` to copy Secret from project namespace to environment namespace
+- [ ] T177 [FR-ENV-023] [Operator] Update `ReconcileDevelopmentMode()` to call `ensureGitCredentials()` before creating deployment
+
+### API Changes
+
+- [ ] T178 [FR-ENV-023] [Operator] Add `AuthSecretRef` field to `SourceConfig` in `operator/api/v1alpha1/project_types.go`
+- [ ] T179 [FR-ENV-023] [Operator] Add `SecretReference` type to `operator/api/v1alpha1/project_types.go`
+- [ ] T180 [FR-ENV-023] [Operator] Regenerate CRD with `make manifests`
+
+### Web App Changes
+
+- [ ] T181 [FR-ENV-023] [Web] Implement `generateInstallationToken()` in `web/src/lib/github-installation-token.ts` to generate 1-hour GitHub App tokens
+- [ ] T182 [FR-ENV-023] [Web] Implement `createGitCredentialsSecret()` in `web/src/models/preview-environments.ts` to create K8s Secret with git credentials
+- [ ] T183 [FR-ENV-023] [Web] Update `createPreviewDeployment()` to call `createGitCredentialsSecret()` before creating Environment CR
+- [ ] T184 [FR-ENV-023] [Web] Update `syncProjectToK8s()` in `web/src/lib/sync-project-cr.ts` to include `authSecretRef` in Project CR
+
+### Testing
+
+- [ ] T185 [FR-ENV-023] [Operator] Add unit test for `desiredCodePVC()` function
+- [ ] T186 [FR-ENV-023] [Operator] Add unit test for git-clone init container spec
+- [ ] T187 [FR-ENV-023] [Web] Add unit test for `generateInstallationToken()`
+- [ ] T188 [FR-ENV-023] [Web] Add unit test for `createGitCredentialsSecret()`
+- [ ] T189 [FR-ENV-023] [Integration] Add integration test verifying PVC-based deployment works end-to-end
+
+**Checkpoint**: Development mode deployments use PVC + git-clone instead of HostPath
 
 ---
 

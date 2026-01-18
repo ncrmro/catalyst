@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,6 +49,19 @@ var _ = Describe("Environment Controller", func() {
 		}
 
 		BeforeEach(func() {
+			By("Creating the Git Secret")
+			gitSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "github-pat-secret",
+					Namespace: namespace,
+				},
+				Data: map[string][]byte{
+					"token": []byte("dummy-token"),
+				},
+			}
+			_ = k8sClient.Delete(ctx, gitSecret)
+			Expect(k8sClient.Create(ctx, gitSecret)).To(Succeed())
+
 			By("Creating the Project CR")
 			project := &catalystv1alpha1.Project{
 				ObjectMeta: metav1.ObjectMeta{
@@ -62,6 +76,11 @@ var _ = Describe("Environment Controller", func() {
 							Branch:        "main",
 						},
 					},
+					Templates: map[string]catalystv1alpha1.EnvironmentTemplate{
+						"development": {
+							Type: "development",
+						},
+					},
 				},
 			}
 			// Ignore if exists or delete/recreate
@@ -73,6 +92,12 @@ var _ = Describe("Environment Controller", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      resourceName,
 					Namespace: namespace,
+					// Add required hierarchy labels (FR-ENV-020)
+					Labels: map[string]string{
+						"catalyst.dev/team":        "test-team",
+						"catalyst.dev/project":     projectName,
+						"catalyst.dev/environment": resourceName,
+					},
 				},
 				Spec: catalystv1alpha1.EnvironmentSpec{
 					ProjectRef:     catalystv1alpha1.ProjectReference{Name: projectName},
@@ -99,16 +124,16 @@ var _ = Describe("Environment Controller", func() {
 			if err == nil {
 				// We need to remove the finalizer to allow deletion in test
 				controllerutil.RemoveFinalizer(resource, "catalyst.dev/finalizer")
-				k8sClient.Update(ctx, resource)
+				_ = k8sClient.Update(ctx, resource)
 
 				By("Cleaning up the Environment CR")
 				Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 			}
 
-			// Cleanup Namespace
-			targetNsName := projectName + "-" + resourceName
+			// Cleanup Namespace using proper hierarchy-based name generation
+			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
 			ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}}
-			k8sClient.Delete(ctx, ns)
+			_ = k8sClient.Delete(ctx, ns)
 		})
 
 		It("should successfully create a Namespace, Quotas, Policies and Workspace Pod", func() {
@@ -124,8 +149,8 @@ var _ = Describe("Environment Controller", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			// 1. Verify Namespace Created
-			targetNsName := projectName + "-" + resourceName
+			// 1. Verify Namespace Created using proper hierarchy-based name
+			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
 			ns := &corev1.Namespace{}
 			Eventually(func() error {
 				return k8sClient.Get(ctx, types.NamespacedName{Name: targetNsName}, ns)
@@ -229,6 +254,19 @@ var _ = Describe("Environment Controller", func() {
 		}
 
 		BeforeEach(func() {
+			By("Creating the Git Secret")
+			gitSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "github-pat-secret",
+					Namespace: namespace,
+				},
+				Data: map[string][]byte{
+					"token": []byte("dummy-token"),
+				},
+			}
+			_ = k8sClient.Delete(ctx, gitSecret)
+			Expect(k8sClient.Create(ctx, gitSecret)).To(Succeed())
+
 			By("Creating the Project CR with Helm template")
 			project := &catalystv1alpha1.Project{
 				ObjectMeta: metav1.ObjectMeta{
@@ -260,6 +298,11 @@ var _ = Describe("Environment Controller", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      resourceName,
 					Namespace: namespace,
+					Labels: map[string]string{
+						"catalyst.dev/team":        "test-team",
+						"catalyst.dev/project":     projectName,
+						"catalyst.dev/environment": resourceName,
+					},
 				},
 				Spec: catalystv1alpha1.EnvironmentSpec{
 					ProjectRef: catalystv1alpha1.ProjectReference{Name: projectName},
@@ -281,11 +324,11 @@ var _ = Describe("Environment Controller", func() {
 			resource := &catalystv1alpha1.Environment{}
 			if err := k8sClient.Get(ctx, typeNamespacedName, resource); err == nil {
 				controllerutil.RemoveFinalizer(resource, "catalyst.dev/finalizer")
-				k8sClient.Update(ctx, resource)
-				k8sClient.Delete(ctx, resource)
+				_ = k8sClient.Update(ctx, resource)
+				_ = k8sClient.Delete(ctx, resource)
 			}
-			targetNsName := projectName + "-" + resourceName
-			k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
+			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
+			_ = k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
 		})
 
 		It("should successfully deploy the Helm chart", func() {
@@ -302,7 +345,7 @@ var _ = Describe("Environment Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// 1. Verify Namespace Created
-			targetNsName := projectName + "-" + resourceName
+			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
 			ns := &corev1.Namespace{}
 			Eventually(func() error {
 				return k8sClient.Get(ctx, types.NamespacedName{Name: targetNsName}, ns)
@@ -327,7 +370,7 @@ var _ = Describe("Environment Controller", func() {
 			// We check if a Deployment exists in the target namespace
 			deployList := &appsv1.DeploymentList{}
 			Eventually(func() int {
-				k8sClient.List(ctx, deployList, client.InNamespace(targetNsName))
+				_ = k8sClient.List(ctx, deployList, client.InNamespace(targetNsName))
 				return len(deployList.Items)
 			}, time.Second*20, time.Millisecond*500).Should(BeNumerically(">", 0), "Expected at least one Deployment to be created by Helm")
 
@@ -368,6 +411,11 @@ var _ = Describe("Environment Controller", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "invalid-path-env",
 					Namespace: namespace,
+					Labels: map[string]string{
+						"catalyst.dev/team":        "test-team",
+						"catalyst.dev/project":     "invalid-path-project",
+						"catalyst.dev/environment": "invalid-path-env",
+					},
 				},
 				Spec: catalystv1alpha1.EnvironmentSpec{
 					ProjectRef: catalystv1alpha1.ProjectReference{Name: "invalid-path-project"},
@@ -397,7 +445,7 @@ var _ = Describe("Environment Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// Create ServiceAccount to proceed past waiting state
-			targetNsName := "invalid-path-project-invalid-path-env"
+			targetNsName := GenerateEnvironmentNamespace("test-team", "invalid-path-project", "invalid-path-env")
 			sa := &corev1.ServiceAccount{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "default",
@@ -406,23 +454,23 @@ var _ = Describe("Environment Controller", func() {
 			}
 			Expect(k8sClient.Create(ctx, sa)).To(Succeed())
 
-			// Second reconcile should fail with chart not found
+			// Second reconcile should NOT return error (to prevent requeue)
+			// but should mark the environment as Failed
 			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
 				NamespacedName: types.NamespacedName{Name: "invalid-path-env", Namespace: namespace},
 			})
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("chart not found"))
+			Expect(err).NotTo(HaveOccurred(), "Controller should not return error for missing source to avoid continuous reconciliation")
 
 			// Verify status is Failed
 			env := &catalystv1alpha1.Environment{}
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "invalid-path-env", Namespace: namespace}, env)).To(Succeed())
-			Expect(env.Status.Phase).To(Equal("Failed"))
+			Expect(env.Status.Phase).To(Equal("Failed"), "Environment should be marked as Failed when source is not found")
 
 			// Cleanup
-			k8sClient.Delete(ctx, sa)
-			k8sClient.Delete(ctx, invalidEnv)
-			k8sClient.Delete(ctx, invalidProject)
-			k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
+			_ = k8sClient.Delete(ctx, sa)
+			_ = k8sClient.Delete(ctx, invalidEnv)
+			_ = k8sClient.Delete(ctx, invalidProject)
+			_ = k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
 		})
 
 		It("should fail when SourceRef is missing", func() {
@@ -457,6 +505,11 @@ var _ = Describe("Environment Controller", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "missing-ref-env",
 					Namespace: namespace,
+					Labels: map[string]string{
+						"catalyst.dev/team":        "test-team",
+						"catalyst.dev/project":     "missing-ref-project",
+						"catalyst.dev/environment": "missing-ref-env",
+					},
 				},
 				Spec: catalystv1alpha1.EnvironmentSpec{
 					ProjectRef: catalystv1alpha1.ProjectReference{Name: "missing-ref-project"},
@@ -486,7 +539,7 @@ var _ = Describe("Environment Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// Create ServiceAccount to proceed past waiting state
-			targetNsName := "missing-ref-project-missing-ref-env"
+			targetNsName := GenerateEnvironmentNamespace("test-team", "missing-ref-project", "missing-ref-env")
 			sa := &corev1.ServiceAccount{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "default",
@@ -508,10 +561,10 @@ var _ = Describe("Environment Controller", func() {
 			Expect(env.Status.Phase).To(Equal("Failed"))
 
 			// Cleanup
-			k8sClient.Delete(ctx, sa)
-			k8sClient.Delete(ctx, missingRefEnv)
-			k8sClient.Delete(ctx, missingRefProject)
-			k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
+			_ = k8sClient.Delete(ctx, sa)
+			_ = k8sClient.Delete(ctx, missingRefEnv)
+			_ = k8sClient.Delete(ctx, missingRefProject)
+			_ = k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
 		})
 
 		It("should fail when helm template is nil", func() {
@@ -539,6 +592,11 @@ var _ = Describe("Environment Controller", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "no-template-env",
 					Namespace: namespace,
+					Labels: map[string]string{
+						"catalyst.dev/team":        "test-team",
+						"catalyst.dev/project":     "no-template-project",
+						"catalyst.dev/environment": "no-template-env",
+					},
 				},
 				Spec: catalystv1alpha1.EnvironmentSpec{
 					ProjectRef:     catalystv1alpha1.ProjectReference{Name: "no-template-project"},
@@ -569,7 +627,7 @@ var _ = Describe("Environment Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// Create ServiceAccount to proceed past waiting state
-			targetNsName := "no-template-project-no-template-env"
+			targetNsName := GenerateEnvironmentNamespace("test-team", "no-template-project", "no-template-env")
 			sa := &corev1.ServiceAccount{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "default",
@@ -591,10 +649,365 @@ var _ = Describe("Environment Controller", func() {
 			Expect(env.Status.Phase).To(Equal("Failed"))
 
 			// Cleanup
-			k8sClient.Delete(ctx, sa)
-			k8sClient.Delete(ctx, noTemplateEnv)
-			k8sClient.Delete(ctx, noTemplateProject)
-			k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
+			_ = k8sClient.Delete(ctx, sa)
+			_ = k8sClient.Delete(ctx, noTemplateEnv)
+			_ = k8sClient.Delete(ctx, noTemplateProject)
+			_ = k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
+		})
+	})
+
+	Context("When reconciling a Zero-Config environment", func() {
+		const resourceName = "zero-config-test"
+		const projectName = "zero-config-project"
+		const namespace = "default"
+
+		ctx := context.Background()
+
+		typeNamespacedName := types.NamespacedName{
+			Name:      resourceName,
+			Namespace: namespace,
+		}
+
+		BeforeEach(func() {
+			By("Creating the Git Secret")
+			gitSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "github-pat-secret",
+					Namespace: namespace,
+				},
+				Data: map[string][]byte{
+					"token": []byte("dummy-token"),
+				},
+			}
+			_ = k8sClient.Delete(ctx, gitSecret)
+			Expect(k8sClient.Create(ctx, gitSecret)).To(Succeed())
+
+			By("Creating the Registry Secret")
+			registrySecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "registry-credentials",
+					Namespace: namespace,
+				},
+				Data: map[string][]byte{
+					".dockerconfigjson": []byte("{}"),
+				},
+				Type: corev1.SecretTypeDockerConfigJson,
+			}
+			_ = k8sClient.Delete(ctx, registrySecret)
+			Expect(k8sClient.Create(ctx, registrySecret)).To(Succeed())
+
+			By("Creating the Project CR with Builds")
+			project := &catalystv1alpha1.Project{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      projectName,
+					Namespace: namespace,
+				},
+				Spec: catalystv1alpha1.ProjectSpec{
+					Sources: []catalystv1alpha1.SourceConfig{
+						{
+							Name:          "web",
+							RepositoryURL: "https://github.com/org/web",
+							Branch:        "main",
+						},
+					},
+					Templates: map[string]catalystv1alpha1.EnvironmentTemplate{
+						"zero-config": {
+							Type: "helm",
+							Path: "../../../charts/example",
+							Builds: []catalystv1alpha1.BuildSpec{
+								{
+									Name:      "web",
+									SourceRef: "web",
+									// Dockerfile missing -> Zero Config logic
+								},
+							},
+						},
+					},
+				},
+			}
+			_ = k8sClient.Delete(ctx, project)
+			Expect(k8sClient.Create(ctx, project)).To(Succeed())
+
+			By("Creating the Environment CR")
+			resource := &catalystv1alpha1.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      resourceName,
+					Namespace: namespace,
+					Labels: map[string]string{
+						"catalyst.dev/team":        "test-team",
+						"catalyst.dev/project":     projectName,
+						"catalyst.dev/environment": resourceName,
+					},
+				},
+				Spec: catalystv1alpha1.EnvironmentSpec{
+					ProjectRef: catalystv1alpha1.ProjectReference{Name: projectName},
+					Type:       "zero-config",
+					Sources: []catalystv1alpha1.EnvironmentSource{
+						{
+							Name:      "web",
+							CommitSha: "abc1234",
+							Branch:    "main",
+						},
+					},
+				},
+			}
+			_ = k8sClient.Delete(ctx, resource)
+			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			resource := &catalystv1alpha1.Environment{}
+			if err := k8sClient.Get(ctx, typeNamespacedName, resource); err == nil {
+				controllerutil.RemoveFinalizer(resource, "catalyst.dev/finalizer")
+				_ = k8sClient.Update(ctx, resource)
+				_ = k8sClient.Delete(ctx, resource)
+			}
+			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
+			_ = k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
+		})
+
+		It("should create a Build Job with init containers", func() {
+			controllerReconciler := &EnvironmentReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+				Config: cfg,
+			}
+
+			// Reconcile
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
+
+			// Simulate Controller Manager: Create default ServiceAccount
+			sa := &corev1.ServiceAccount{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "default",
+					Namespace: targetNsName,
+				},
+			}
+			// Wait for namespace to be created first
+			ns := &corev1.Namespace{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: targetNsName}, ns)
+			}, time.Second*10, time.Millisecond*250).Should(Succeed())
+
+			Expect(k8sClient.Create(ctx, sa)).To(Succeed())
+
+			// Trigger Reconcile again (as it probably returned RequeueAfter)
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			// 1. Verify Job Created
+			jobName := "build-web-abc1234"
+			job := &batchv1.Job{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: jobName, Namespace: targetNsName}, job)
+			}, time.Second*10, time.Millisecond*250).Should(Succeed())
+
+			// 2. Verify Init Containers
+			Expect(job.Spec.Template.Spec.InitContainers).To(HaveLen(1))
+			Expect(job.Spec.Template.Spec.InitContainers[0].Name).To(Equal("git-sync"))
+			// Expect(job.Spec.Template.Spec.InitContainers[1].Name).To(Equal("dockerfile-gen"))
+
+			// 3. Verify Env Status
+			env := &catalystv1alpha1.Environment{}
+			Expect(k8sClient.Get(ctx, typeNamespacedName, env)).To(Succeed())
+			Expect(env.Status.Phase).To(Equal("Building"))
+
+			// 4. Simulate Job Success
+			job.Status.Succeeded = 1
+			Expect(k8sClient.Status().Update(ctx, job)).To(Succeed())
+
+			// Trigger Reconcile Again
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			// 5. Verify Registry Secret copied
+			targetRegSecret := &corev1.Secret{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: "registry-credentials", Namespace: targetNsName}, targetRegSecret)
+			}, time.Second*10, time.Millisecond*250).Should(Succeed())
+
+			// 6. Verify ServiceAccount patched
+			targetSA := &corev1.ServiceAccount{}
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: "default", Namespace: targetNsName}, targetSA); err != nil {
+					return false
+				}
+				for _, s := range targetSA.ImagePullSecrets {
+					if s.Name == "registry-credentials" {
+						return true
+					}
+				}
+				return false
+			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+		})
+	})
+
+	Context("When reconciling a Docker Compose environment", func() {
+		const resourceName = "compose-test"
+		const projectName = "compose-project"
+		const namespace = "default"
+
+		ctx := context.Background()
+
+		typeNamespacedName := types.NamespacedName{
+			Name:      resourceName,
+			Namespace: namespace,
+		}
+
+		BeforeEach(func() {
+			By("Creating the Git Secret")
+			gitSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "github-pat-secret",
+					Namespace: namespace,
+				},
+				Data: map[string][]byte{
+					"token": []byte("dummy-token"),
+				},
+			}
+			_ = k8sClient.Delete(ctx, gitSecret)
+			Expect(k8sClient.Create(ctx, gitSecret)).To(Succeed())
+
+			By("Creating the Project CR with Compose template")
+			project := &catalystv1alpha1.Project{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      projectName,
+					Namespace: namespace,
+				},
+				Spec: catalystv1alpha1.ProjectSpec{
+					Sources: []catalystv1alpha1.SourceConfig{
+						{
+							Name:          "app",
+							RepositoryURL: "https://github.com/org/app",
+							Branch:        "main",
+						},
+					},
+					Templates: map[string]catalystv1alpha1.EnvironmentTemplate{
+						"compose": {
+							Type: "docker-compose",
+							Path: "./testdata/compose",
+						},
+					},
+				},
+			}
+			_ = k8sClient.Delete(ctx, project)
+			Expect(k8sClient.Create(ctx, project)).To(Succeed())
+
+			By("Creating the Environment CR")
+			resource := &catalystv1alpha1.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      resourceName,
+					Namespace: namespace,
+					Labels: map[string]string{
+						"catalyst.dev/team":        "test-team",
+						"catalyst.dev/project":     projectName,
+						"catalyst.dev/environment": resourceName,
+					},
+				},
+				Spec: catalystv1alpha1.EnvironmentSpec{
+					ProjectRef: catalystv1alpha1.ProjectReference{Name: projectName},
+					Type:       "compose",
+					Sources: []catalystv1alpha1.EnvironmentSource{
+						{
+							Name:      "app",
+							CommitSha: "abc1234",
+							Branch:    "main",
+						},
+					},
+				},
+			}
+			_ = k8sClient.Delete(ctx, resource)
+			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			resource := &catalystv1alpha1.Environment{}
+			if err := k8sClient.Get(ctx, typeNamespacedName, resource); err == nil {
+				controllerutil.RemoveFinalizer(resource, "catalyst.dev/finalizer")
+				_ = k8sClient.Update(ctx, resource)
+				_ = k8sClient.Delete(ctx, resource)
+			}
+			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
+			_ = k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
+		})
+
+		It("should successfully translate Compose to K8s resources", func() {
+			controllerReconciler := &EnvironmentReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+				Config: cfg,
+			}
+
+			// Reconcile
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
+
+			// Simulate Controller Manager: Create default ServiceAccount
+			sa := &corev1.ServiceAccount{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "default",
+					Namespace: targetNsName,
+				},
+			}
+			ns := &corev1.Namespace{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: targetNsName}, ns)
+			}, time.Second*10, time.Millisecond*250).Should(Succeed())
+			Expect(k8sClient.Create(ctx, sa)).To(Succeed())
+
+			// Trigger Reconcile again
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			// 1. Verify Build Job created for 'web' service
+			jobName := "build-web-abc1234"
+			job := &batchv1.Job{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: jobName, Namespace: targetNsName}, job)
+			}, time.Second*10, time.Millisecond*250).Should(Succeed())
+
+			// 2. Simulate Build Success
+			job.Status.Succeeded = 1
+			Expect(k8sClient.Status().Update(ctx, job)).To(Succeed())
+
+			// Trigger Reconcile again
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			// 3. Verify Deployments created for both 'web' and 'db'
+			webDeploy := &appsv1.Deployment{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: "web", Namespace: targetNsName}, webDeploy)
+			}, time.Second*10, time.Millisecond*250).Should(Succeed())
+
+			dbDeploy := &appsv1.Deployment{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: "db", Namespace: targetNsName}, dbDeploy)
+			}, time.Second*10, time.Millisecond*250).Should(Succeed())
+
+			// 4. Verify Service created for 'web'
+			webSvc := &corev1.Service{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: "web", Namespace: targetNsName}, webSvc)
+			}, time.Second*10, time.Millisecond*250).Should(Succeed())
+			Expect(webSvc.Spec.Ports[0].Port).To(Equal(int32(80)))
 		})
 	})
 })

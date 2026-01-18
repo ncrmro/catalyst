@@ -21,6 +21,8 @@ export const PROJECT_API = {
  * Source configuration for the project
  */
 export interface SourceConfig {
+  /** Name identifier for this source (e.g., "frontend", "backend", "primary") */
+  name: string;
   /** Git repository URL */
   repositoryUrl: string;
   /** Default branch to use */
@@ -28,12 +30,52 @@ export interface SourceConfig {
 }
 
 /**
- * Deployment type
+ * Build specification for container images
  */
-export type DeploymentType = "helm" | "manifest" | "kustomize";
+export interface BuildSpec {
+  /** Name identifier for this build artifact */
+  name: string;
+  /** Reference to source by name */
+  sourceRef: string;
+  /** Build context directory (relative to repo root) */
+  path?: string;
+  /** Path to Dockerfile (relative to build context) */
+  dockerfile?: string;
+  /** Resource requirements for build */
+  resources?: {
+    limits?: { cpu?: string; memory?: string };
+    requests?: { cpu?: string; memory?: string };
+  };
+}
 
 /**
- * Deployment strategy configuration
+ * Deployment type
+ */
+export type DeploymentType =
+  | "helm"
+  | "manifest"
+  | "kustomize"
+  | "docker-compose";
+
+/**
+ * Environment template for specific environment types
+ */
+export interface EnvironmentTemplate {
+  /** Reference to source by name */
+  sourceRef: string;
+  /** Type of deployment */
+  type: DeploymentType;
+  /** Path to the deployment definition (relative to repo root) */
+  path: string;
+  /** Build configurations for this template */
+  builds?: BuildSpec[];
+  /** Default values to inject (JSON) */
+  values?: Record<string, unknown>;
+}
+
+/**
+ * @deprecated Use EnvironmentTemplate instead
+ * Deployment strategy configuration (legacy)
  */
 export interface DeploymentConfig {
   /** Type of deployment */
@@ -66,6 +108,19 @@ export interface ResourceConfig {
  * ProjectSpec defines the desired state of Project
  */
 export interface ProjectSpec {
+  /** Source configurations (supports multiple repos) */
+  sources: SourceConfig[];
+  /** Templates for different environment types (keyed by type: "development", "deployment") */
+  templates?: Record<string, EnvironmentTemplate>;
+  /** Resource configuration */
+  resources?: ResourceConfig;
+}
+
+/**
+ * @deprecated Use ProjectSpec with sources[] and templates{}
+ * Legacy ProjectSpec for backward compatibility
+ */
+export interface LegacyProjectSpec {
   /** Source configuration */
   source: SourceConfig;
   /** Deployment strategy */

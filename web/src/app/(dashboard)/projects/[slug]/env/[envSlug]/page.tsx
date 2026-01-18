@@ -1,6 +1,7 @@
 import { getEnvironmentCR } from "@/lib/k8s-operator";
 import { KubeResourceNotFound } from "@/components/kube/resource-not-found";
 import { getEnvironmentByName } from "@/models/environments";
+import { listPodsInNamespace, type PodInfo } from "@/lib/k8s-pods";
 import EnvironmentDetailView from "./environment-detail";
 
 interface EnvironmentPageProps {
@@ -28,13 +29,28 @@ export default async function EnvironmentPage({
   // Fetch environment config from database
   const dbEnvironment = await getEnvironmentByName(slug, envSlug);
 
-  // Calculate target namespace and pod name as per operator logic
-  const targetNamespace = `env-${environment.metadata.name}`;
+  // Calculate target namespace matching operator logic
+  // operator/internal/controller/environment_controller.go:104
+  // targetNamespace := fmt.Sprintf("%s-%s", env.Spec.ProjectRef.Name, env.Name)
+  const targetNamespace = `${environment.spec.projectRef.name}-${environment.metadata.name}`;
 
   // Helper to generate workspace pod name matching the operator logic
   // operator/internal/controller/build.go: workspacePodName
-  const commitPart = environment.spec.source.commitSha.substring(0, 7);
+  const commitPart =
+    environment.spec.sources?.[0]?.commitSha.substring(0, 7) || "unknown";
   const podName = `workspace-${environment.spec.projectRef.name}-${commitPart.toLowerCase()}`;
+
+  // Fetch pods from the target namespace
+  let pods: PodInfo[] = [];
+  try {
+    pods = await listPodsInNamespace(targetNamespace);
+  } catch (error) {
+    console.error(
+      `Failed to fetch pods for namespace ${targetNamespace}:`,
+      error,
+    );
+    // Continue with empty pods array - UI will show empty state
+  }
 
   return (
     <EnvironmentDetailView
@@ -43,6 +59,7 @@ export default async function EnvironmentPage({
       podName={podName}
       environmentId={dbEnvironment?.id}
       environmentConfig={dbEnvironment?.config}
+      pods={pods}
     />
   );
 }

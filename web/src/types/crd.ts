@@ -1,7 +1,17 @@
+// KEEP IN SYNC: This definition must match the CRD in operator/api/v1alpha1/environment_types.go
+// If the CRD changes, update this file.
+
 export type EnvironmentType = "deployment" | "development";
 
 // DeploymentMode specifies how the operator deploys the environment
 export type DeploymentMode = "production" | "development" | "workspace";
+
+export interface EnvironmentSource {
+  name: string;
+  commitSha: string;
+  branch: string;
+  prNumber?: number;
+}
 
 export interface EnvironmentCRSpec {
   projectRef: {
@@ -10,11 +20,7 @@ export interface EnvironmentCRSpec {
   type: EnvironmentType;
   // DeploymentMode: "production" | "development" | "workspace" (default)
   deploymentMode?: DeploymentMode;
-  source: {
-    commitSha: string;
-    branch: string;
-    prNumber?: number;
-  };
+  sources?: EnvironmentSource[];
   config?: {
     envVars?: Array<{ name: string; value: string }>;
   };
@@ -34,16 +40,35 @@ export interface EnvironmentCR {
   };
 }
 
+// KEEP IN SYNC: This definition must match operator/api/v1alpha1/project_types.go
+export interface SourceConfig {
+  name: string;
+  repositoryUrl: string;
+  branch: string;
+}
+
+export interface BuildSpec {
+  name: string;
+  sourceRef: string;
+  path?: string;
+  dockerfile?: string;
+  resources?: {
+    limits?: { cpu?: string; memory?: string };
+    requests?: { cpu?: string; memory?: string };
+  };
+}
+
+export interface EnvironmentTemplate {
+  sourceRef: string;
+  type: "helm" | "manifest" | "kustomize" | "docker-compose";
+  path: string;
+  builds?: BuildSpec[];
+  values?: Record<string, unknown>;
+}
+
 export interface ProjectCRSpec {
-  source: {
-    repositoryUrl: string;
-    branch: string;
-  };
-  deployment: {
-    type: string;
-    path: string;
-    values?: Record<string, unknown>;
-  };
+  sources: SourceConfig[];
+  templates?: Record<string, EnvironmentTemplate>;
   resources?: {
     defaultQuota?: {
       cpu?: string;

@@ -11,6 +11,7 @@ export async function createProjectCR(
   namespace: string,
   name: string,
   spec: ProjectCRSpec,
+  labels?: Record<string, string>,
 ) {
   const CustomObjectsApi = await getCustomObjectsApi();
   const config = await getClusterConfig();
@@ -24,6 +25,7 @@ export async function createProjectCR(
     metadata: {
       name,
       namespace,
+      labels,
     },
     spec,
   };
@@ -42,12 +44,56 @@ export async function createProjectCR(
       response?: { statusCode?: number };
       message?: string;
     };
-    if (err.response?.statusCode === 409) {
-      // Already exists, try update (PATCH)?
-      // For now return success
+
+    // Check for 409 Conflict (already exists) using comprehensive helper
+    if (isKubeConflict(error)) {
       return { success: true, isExisting: true };
     }
+
     console.error("Failed to create Project CR:", error);
+    return { success: false, error: err.message || "Unknown error" };
+  }
+}
+
+export async function updateProjectCR(
+  namespace: string,
+  name: string,
+  spec: ProjectCRSpec,
+): Promise<{ success: boolean; error?: string }> {
+  const CustomObjectsApi = await getCustomObjectsApi();
+  const config = await getClusterConfig();
+  if (!config) throw new Error("No cluster config");
+
+  const client = config.makeApiClient(CustomObjectsApi);
+
+  try {
+    // Fetch existing to preserve metadata
+    const existing = await client.getNamespacedCustomObject({
+      group: GROUP,
+      version: VERSION,
+      namespace,
+      plural: "projects",
+      name,
+    });
+
+    const body = {
+      ...existing,
+      spec,
+    };
+
+    await client.replaceNamespacedCustomObject({
+      group: GROUP,
+      version: VERSION,
+      namespace,
+      plural: "projects",
+      name,
+      body,
+    });
+
+    return { success: true };
+  } catch (error: unknown) {
+    const err = error as { message?: string };
+    console.error("Failed to update Project CR:", error);
     return { success: false, error: err.message || "Unknown error" };
   }
 }
@@ -56,6 +102,7 @@ export async function createEnvironmentCR(
   namespace: string,
   name: string,
   spec: EnvironmentCRSpec,
+  labels?: Record<string, string>,
 ) {
   const CustomObjectsApi = await getCustomObjectsApi();
   const config = await getClusterConfig();
@@ -69,6 +116,7 @@ export async function createEnvironmentCR(
     metadata: {
       name,
       namespace,
+      labels,
     },
     spec,
   };
@@ -260,6 +308,51 @@ function isKubeNotFound(error: unknown): boolean {
     if (err.message.includes("HTTP-Code: 404")) return true;
     if (err.message.includes("Not Found") && err.message.includes("404"))
       return true;
+  }
+
+  return false;
+}
+
+/**
+ * Check if error is a Kubernetes 409 Conflict/AlreadyExists error
+ * Checks multiple error structures to handle different client implementations
+ */
+function isKubeConflict(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const err = error as KubernetesError;
+
+  // Check standard response.statusCode
+  if (err.response?.statusCode === 409) return true;
+
+  // Check statusCode property directly (some clients)
+  if (err.statusCode === 409) return true;
+
+  // Check direct code property (the actual structure in some errors)
+  if ("code" in err && err.code === 409) return true;
+
+  // Check body structure if response is missing but body is present
+  if (err.body) {
+    if (typeof err.body === "string") {
+      try {
+        const body = JSON.parse(err.body);
+        if (body.code === 409) return true;
+        if (body.reason === "AlreadyExists") return true;
+      } catch {
+        /* ignore parse errors */
+      }
+    } else if (typeof err.body === "object") {
+      const body = err.body as Record<string, unknown>;
+      if (body.code === 409) return true;
+      if (body.reason === "AlreadyExists") return true;
+    }
+  }
+
+  // Check message content patterns
+  if (typeof err.message === "string") {
+    if (err.message.includes("HTTP-Code: 409")) return true;
+    if (err.message.includes("already exists")) return true;
+    if (err.message.includes("AlreadyExists")) return true;
   }
 
   return false;

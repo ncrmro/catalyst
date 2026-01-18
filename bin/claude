@@ -83,6 +83,7 @@ def main():
     args = sys.argv[1:]
     processed_args = []
     workspace_path = project_root  # Default to project root
+    branch_input = None  # Track the branch/spec name if worktree is used
     i = 0
 
     while i < len(args):
@@ -178,18 +179,15 @@ def main():
 
             # Add the --append-system-prompt flag
             system_prompt = (
-                f"You are handling work in worktree located at {worktree_path}. "
-                f"Your working directory has been set to this path. "
-                f"Only read or edit files in this directory, and all commands should be run here. "
+                f"You are handling work in a worktree located at {worktree_path}. "
+                f"You were launched from the project root, but all file operations and commands should be directed to the worktree path. "
+                f"Only read or edit files in the worktree directory. "
+                f"When running commands, ensure they are executed within the worktree context. "
                 f"{spec_instructions}"
                 f"Note: The development server has NOT been started automatically. If you need to run the application, "
-                f"please run 'make up' within the worktree directory. "
-                f"Acknowledge this setup and wait for further instructions."
+                f"please run 'make up' within the worktree directory."
             )
             processed_args.extend(["--append-system-prompt", system_prompt])
-
-            # Change to the worktree directory
-            os.chdir(worktree_path)
 
             # Skip the worktree branch name argument
             i += 2
@@ -198,6 +196,10 @@ def main():
             processed_args.append(args[i])
             i += 1
 
+    # Track if we're working with a spec worktree
+    working_with_spec = workspace_path != project_root
+    spec_display_name = None
+
     # If no worktree was specified, check if the current directory is a spec
     # Use workspace_path == project_root as an indicator that no worktree was set
     if workspace_path == project_root:
@@ -205,26 +207,51 @@ def main():
         spec_path = os.path.join(cwd, "spec.md")
         if os.path.exists(spec_path):
             spec_name = os.path.basename(cwd)
+            spec_display_name = spec_name
+            working_with_spec = True
             rename_zellij_tab(f"claude-{spec_name}")
             spec_instructions = f"Refocus on the spec '{spec_name}' which is available in the current directory. "
-            
+
             # Add context files using @ syntax
             # If we are already inside a spec directory (e.g. specs/007-agents)
             # then spec.md is just ./spec.md
             for filename in ["spec.md", "plan.md", "tasks.md"]:
                 if os.path.exists(os.path.join(cwd, filename)):
                     spec_instructions += f" @{filename}"
-                
+
             # Get spec status
             spec_status = get_spec_status(spec_name, project_root)
             if spec_status:
                 spec_instructions += f"\n\nHere is the recent activity/status for this spec:\n\n{spec_status}\n"
 
             processed_args.extend(["--append-system-prompt", spec_instructions])
+    elif workspace_path != project_root:
+        # We're using a worktree, extract the spec name
+        if branch_input.startswith("specs/"):
+            spec_display_name = branch_input[len("specs/"):]
+        elif branch_input.startswith("spec/"):
+            spec_display_name = branch_input[len("spec/"):]
+        else:
+            spec_display_name = branch_input
 
     # Create MCP config with the appropriate workspace path
     mcp_config = create_mcp_config(workspace_path)
     mcp_config_json = json.dumps(mcp_config)
+
+    # Add initial prompt if working with a spec
+    if working_with_spec and spec_display_name:
+        initial_prompt = (
+            f"I'm working on spec '{spec_display_name}'. "
+            f"Please confirm:\n"
+            f"1. You understand you're working in the worktree at {workspace_path}\n"
+            f"2. You have access to the spec files (spec.md, plan.md, tasks.md if they exist)\n\n"
+            f"Then provide a brief summary of:\n"
+            f"- The spec's objective\n"
+            f"- Current implementation status\n"
+            f"- What remains to be done\n\n"
+            f"Based on the spec files and recent git activity."
+        )
+        processed_args.append(initial_prompt)
 
     # Build the command: claude --mcp-config <json> <processed args>
     cmd = ["claude", "--mcp-config", mcp_config_json] + processed_args
