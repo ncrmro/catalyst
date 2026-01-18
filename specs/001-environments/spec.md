@@ -155,18 +155,27 @@ As a power user, I want to configure deployments using standard tools (Docker Co
 - **FR-ENV-018**: System MUST support provisioning an internal container registry (cluster-wide or per-project) backed by object storage for zero-config image hosting.
 - **FR-ENV-019**: Operator MUST support a sidecar/init mechanism in "development" mode to clone sources into the development pod and enable bi-directional sync (push back to Git) for interactive development workflows.
 - **FR-ENV-020**: Custom Resources (CRs) MUST follow a strict namespace hierarchy to ensure permission isolation and resource tracking:
-    - **Project CRs** MUST be created in the Team Namespace (`<team-name>`).
-    - **Environment CRs** MUST be created in the Project Namespace (`<team-name>-<project-name>`).
-    - The Operator MUST generate the final Environment Namespace (workload target) as `<team-name>-<project-name>-<environment-name>`.
+  - **Project CRs** MUST be created in the Team Namespace (`<team-name>`).
+  - **Environment CRs** MUST be created in the Project Namespace (`<team-name>-<project-name>`).
+  - The Operator MUST generate the final Environment Namespace (workload target) as `<team-name>-<project-name>-<environment-name>`.
 - **FR-ENV-021**: The System MUST validate and enforce the Kubernetes 63-character limit for namespace names:
-    - If the generated namespace name (`<team>-<project>-<env>`) exceeds 63 characters, the System MUST truncate the components and append a hash to ensure uniqueness and validity.
-    - See [Namespace Generation Procedure](#namespace-generation-procedure) for the specific algorithm.
+  - If the generated namespace name (`<team>-<project>-<env>`) exceeds 63 characters, the System MUST truncate the components and append a hash to ensure uniqueness and validity.
+  - See [Namespace Generation Procedure](#namespace-generation-procedure) for the specific algorithm.
 - **FR-ENV-022**: The System MUST support just-in-time namespace creation to ensure zero-friction environment provisioning:
-    - When creating a Project CR, the System MUST automatically create the Team Namespace if it doesn't exist.
-    - When creating an Environment CR, the System MUST automatically create the Project Namespace if it doesn't exist.
-    - Namespace creation MUST be idempotent—if a namespace already exists, the operation MUST succeed without error.
-    - If namespace creation fails, the System MUST retry once and provide clear error messages indicating the failure reason.
-    - This requirement ensures users can create development environments without pre-provisioning namespaces, reducing setup friction and enabling self-service workflows.
+  - When creating a Project CR, the System MUST automatically create the Team Namespace if it doesn't exist.
+  - When creating an Environment CR, the System MUST automatically create the Project Namespace if it doesn't exist.
+  - Namespace creation MUST be idempotent—if a namespace already exists, the operation MUST succeed without error.
+  - If namespace creation fails, the System MUST retry once and provide clear error messages indicating the failure reason.
+  - This requirement ensures users can create development environments without pre-provisioning namespaces, reducing setup friction and enabling self-service workflows.
+- **FR-ENV-023**: The Operator MUST use PersistentVolumeClaims (PVCs) for code storage in development mode deployments (not HostPath):
+  - A PVC (`web-code`) MUST be created to store the cloned repository code.
+  - A git-clone init container MUST clone the repository into the PVC before the main container starts.
+  - Git authentication MUST use short-lived GitHub App installation tokens (1-hour TTL) stored in a Kubernetes Secret.
+  - The Web App MUST create the git credentials Secret in the project namespace before creating the Environment CR.
+  - The Operator MUST copy the git credentials Secret from the project namespace to the environment namespace.
+  - Git credentials Secrets MUST be deleted when the Environment CR/namespace is deleted (standard K8s garbage collection).
+  - Authentication MUST be required for all repositories (public and private) to support push operations to feature branches.
+  - See [research.git-sidecar.md](./research.git-sidecar.md) for architecture details.
 
 ### Key Entities
 
@@ -185,10 +194,10 @@ Deployment environments run production and staging workloads. They are long-live
 Projects define **templates** that specify how different types of environments should be deployed. To ensure consistency across the platform, projects should define two standard templates:
 
 1.  **`development`**: Used for interactive, ephemeral environments (e.g., PR previews, local dev).
-    *   Features: Hot-reload setup, smaller resource limits, "preview" configuration values.
+    - Features: Hot-reload setup, smaller resource limits, "preview" configuration values.
 2.  **`deployment`**: Used for stable, long-lived workloads (e.g., Staging, Production).
-    *   Features: Optimized container builds, higher resource limits, production-grade configuration.
-    *   Note: A "staging" environment is simply an instance that uses the `deployment` template (potentially with specific override values), ensuring parity with production.
+    - Features: Optimized container builds, higher resource limits, production-grade configuration.
+    - Note: A "staging" environment is simply an instance that uses the `deployment` template (potentially with specific override values), ensuring parity with production.
 
 Projects may define additional custom templates if necessary, but these two are the primary conventions.
 
@@ -292,7 +301,8 @@ Kubernetes namespaces are limited to 63 characters. When generating the namespac
     - Total length: 57 + 1 + 5 = 63 characters.
 4.  **Sanitization**: Ensure the final string complies with DNS-1123 (lowercase alphanumeric and hyphens only).
 
-*Example:*
+_Example:_
+
 - Team: `my-super-long-team-name` (23)
 - Project: `my-super-long-project-name` (26)
 - Env: `feature-very-long-branch-name` (29)
@@ -340,11 +350,13 @@ The operator supports a "production" deployment mode that creates a static deplo
 **[FR-ENV-005] Development Deployment Mode**:
 The operator supports a "development" deployment mode that creates a hot-reload development environment. Development deployments include:
 
-- hostPath volume mount for live code changes (`/code`)
+- PVC-backed code volume with git-clone init container (see FR-ENV-023)
 - Init containers for `npm install` and database migrations
 - PVCs for node_modules and .next cache persistence
 - `WATCHPACK_POLLING=true` for file system watching in VMs
 - PostgreSQL sidecar for database
+
+> **Note**: For local K3s development (`.k3s-vm`), HostPath volumes may still be used to mount code from the host machine. Production and remote clusters MUST use PVC + git-clone.
 
 **[FR-ENV-006] Automatic Project Type Detection**:
 When creating a development environment, the system attempts to detect the project type and infer sensible defaults for the dev server command. Detection is best-effort—if incorrect, users can override in the environment configuration. Detection heuristics include:
@@ -407,6 +419,7 @@ User overrides to detected configuration follow these rules:
 
 **[FR-ENV-012] Docker Compose Support**:
 The platform supports using `docker-compose.yml` files as the definition for environments. This allows projects to reuse their existing local development configuration for Catalyst environments.
+
 - **Mechanism**: The template specifies `type: docker-compose` and points to the file.
 - **Example**: See [`operator/examples/compose.project.yaml`](../../operator/examples/compose.project.yaml).
 - **Behavior**: The operator translates the Compose services into Kubernetes Deployments and Services (e.g., using Kompose logic or internal translation).
@@ -414,6 +427,7 @@ The platform supports using `docker-compose.yml` files as the definition for env
 
 **[FR-ENV-013] Prebuilt Image Deployment**:
 Projects can define templates that use prebuilt container images from a registry, rather than building from source.
+
 - **Template**: Defines the repository URL and default configuration.
 - **Example**: See [`operator/examples/prebuilt.project.yaml`](../../operator/examples/prebuilt.project.yaml).
 - **Environment Instance**: Specifies the specific image tag or Git commit SHA to deploy.
@@ -421,6 +435,7 @@ Projects can define templates that use prebuilt container images from a registry
 
 **[FR-ENV-014] Custom/External Helm Chart Support**:
 Advanced users can provide their own Helm charts for full control over the deployment.
+
 - **Internal**: Path to a chart within the repository.
 - **Example**: See [`operator/examples/custom-helm.project.yaml`](../../operator/examples/custom-helm.project.yaml).
 - **External**: URL to an external Helm chart repository (future).
@@ -428,11 +443,12 @@ Advanced users can provide their own Helm charts for full control over the deplo
 
 **[FR-ENV-015] Nix Flake Support**:
 The platform supports using Nix Flakes to define the development environment's toolchain and shell.
+
 - **Mechanism**: The template specifies `type: nix-flake` and points to the `flake.nix` location.
 - **Example**: See [`operator/examples/nix.project.yaml`](../../operator/examples/nix.project.yaml) for dev shells, and [`operator/examples/catalyst-nix.project.yaml`](../../operator/examples/catalyst-nix.project.yaml) for production builds.
 - **Behavior**:
-    - **Development**: The operator provisions an environment using the specified `devShell`.
-    - **Production**: The operator builds container images using Nix attributes (e.g., `packages.x86_64-linux.image`) and deploys them using Helm.
+  - **Development**: The operator provisions an environment using the specified `devShell`.
+  - **Production**: The operator builds container images using Nix attributes (e.g., `packages.x86_64-linux.image`) and deploys them using Helm.
 
 ### User Interfaces
 
@@ -635,12 +651,14 @@ const result = await exec(kubeConfig, {
 While not part of this initial specification, the preview environment architecture should be designed with future devcontainer support in mind. This would enable preview environments to serve as full interactive development environments for both humans and AI agents.
 
 **Future Capabilities:**
+
 - SSH access to preview environment containers for interactive development
 - Port forwarding to enable local IDE connections (VS Code Remote, JetBrains Gateway)
 - Devcontainer configuration support for standardized development environments
 - AI agent access to development containers via SSH for autonomous coding workflows
 
 **Architectural Implications for Current Design:**
+
 - Preview environment containers should expose SSH ports (even if not immediately used)
 - Namespace security policies should anticipate future SSH access requirements
 - Container images should be structured to support both runtime and development modes
