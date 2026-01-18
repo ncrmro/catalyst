@@ -35,6 +35,15 @@ export type SelectPullRequest = InferSelectModel<typeof pullRequests>;
 export type SelectRepo = InferSelectModel<typeof repos>;
 
 // ============================================================================
+// Constants
+// ============================================================================
+
+/**
+ * Standard secret name for GitHub credentials used by git-clone init containers
+ */
+export const GIT_CREDENTIALS_SECRET_NAME = "github-credentials";
+
+// ============================================================================
 // Git Credentials Management
 // ============================================================================
 
@@ -46,13 +55,13 @@ export type SelectRepo = InferSelectModel<typeof repos>;
  *
  * @param namespace - Kubernetes namespace for the Secret
  * @param installationId - GitHub App installation ID
- * @param secretName - Name for the Secret (default: "github-credentials")
+ * @param secretName - Name for the Secret (default: GIT_CREDENTIALS_SECRET_NAME)
  * @returns Success status
  */
 export async function createGitCredentialsSecret(
   namespace: string,
   installationId: number,
-  secretName: string = "github-credentials",
+  secretName: string = GIT_CREDENTIALS_SECRET_NAME,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Generate a fresh 1-hour installation token
@@ -99,8 +108,7 @@ export async function createGitCredentialsSecret(
     // Check if Secret already exists
     const isAlreadyExists =
       (error as { response?: { statusCode?: number } })?.response
-        ?.statusCode === 409 ||
-      (error instanceof Error && error.message.includes("already exists"));
+        ?.statusCode === 409;
 
     if (isAlreadyExists) {
       console.log(
@@ -926,7 +934,7 @@ export async function createPreviewDeployment(
     const secretResult = await createGitCredentialsSecret(
       crNamespace,
       installationId,
-      "github-credentials",
+      GIT_CREDENTIALS_SECRET_NAME,
     );
     if (!secretResult.success) {
       previewLogger.warn(

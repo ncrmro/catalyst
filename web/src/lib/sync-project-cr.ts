@@ -23,6 +23,7 @@ import type {
   EnvironmentTemplate,
 } from "@/types/crd";
 import type { EnvironmentConfig } from "@/types/environment-config";
+import { GIT_CREDENTIALS_SECRET_NAME } from "@/models/preview-environments";
 
 /**
  * Convert environment config method to deployment type
@@ -121,7 +122,7 @@ export async function syncProjectToK8s(
         repositoryUrl: rel.repo.url,
         branch: "main", // TODO: Get default branch from GitHub API
         authSecretRef: {
-          name: "github-credentials",
+          name: GIT_CREDENTIALS_SECRET_NAME,
           // Secret will be in the team-project namespace
         },
       }),

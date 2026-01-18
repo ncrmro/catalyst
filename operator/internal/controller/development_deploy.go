@@ -34,17 +34,18 @@ import (
 
 // Development mode constants - hardcoded templates based on .k3s-vm/manifests/base.json
 const (
-	nodeImage           = "node:22"
-	postgresImage       = "postgres:16"
-	gitCloneImage       = "alpine/git:latest"
-	hostCodePath        = "/code"
-	webWorkDir          = "/code/web"
-	nodeModulesPath     = "/code/web/node_modules"
-	nextCachePath       = "/code/web/.next"
-	nodeModulesStorage  = "2Gi"
-	nextCacheStorage    = "1Gi"
-	postgresDataStorage = "1Gi"
-	codeStorage         = "1Gi"
+	nodeImage              = "node:22"
+	postgresImage          = "postgres:16"
+	gitCloneImage          = "alpine/git:latest"
+	hostCodePath           = "/code"
+	webWorkDir             = "/code/web"
+	nodeModulesPath        = "/code/web/node_modules"
+	nextCachePath          = "/code/web/.next"
+	nodeModulesStorage     = "2Gi"
+	nextCacheStorage       = "1Gi"
+	postgresDataStorage    = "1Gi"
+	codeStorage            = "1Gi"
+	gitCredentialsSecret   = "github-credentials"
 )
 
 // desiredNodeModulesPVC creates a PVC for node_modules
@@ -287,7 +288,10 @@ chmod 600 ~/.netrc
 # Clone and checkout specific commit
 git clone $GIT_REPO_URL /code
 cd /code
-git checkout $GIT_COMMIT_SHA`,
+git checkout $GIT_COMMIT_SHA
+
+# Clean up credentials file
+rm -f ~/.netrc`,
 			},
 			Env: []corev1.EnvVar{
 				{Name: "GIT_REPO_URL", Value: gitRepoURL},
@@ -503,9 +507,8 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 
 	// 2. Copy git credentials Secret from project namespace to environment namespace
 	// The secret name is expected to be "github-credentials"
-	gitCredentialsSecretName := "github-credentials"
 	projectNamespace := namespace // TODO: Get actual project namespace from Environment CR labels
-	if err := r.ensureGitCredentials(ctx, projectNamespace, namespace, gitCredentialsSecretName); err != nil {
+	if err := r.ensureGitCredentials(ctx, projectNamespace, namespace, gitCredentialsSecret); err != nil {
 		log.Error(err, "Failed to ensure git credentials", "namespace", namespace)
 		// Continue anyway - the deployment will fail if git-clone needs credentials
 	}
@@ -532,7 +535,7 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 	}
 
 	// 5. Create web deployment and service
-	webDeployment := desiredDevelopmentDeployment(env, namespace, gitCredentialsSecretName)
+	webDeployment := desiredDevelopmentDeployment(env, namespace, gitCredentialsSecret)
 	if err := r.Create(ctx, webDeployment); err != nil && !isAlreadyExists(err) {
 		return false, err
 	}
