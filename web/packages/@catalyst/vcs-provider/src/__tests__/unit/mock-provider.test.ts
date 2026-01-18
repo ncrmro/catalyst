@@ -381,13 +381,25 @@ describe("MockVCSProvider", () => {
   });
 
   describe("Webhooks", () => {
-    it("should verify webhook signature", () => {
+    it("should verify webhook signature by default", () => {
       const result = provider.verifyWebhookSignature(
         "payload",
         "signature",
         "secret",
       );
       expect(result).toBe(true);
+    });
+
+    it("should respect webhookSignatureValid configuration", () => {
+      const invalidProvider = new MockVCSProvider({
+        webhookSignatureValid: false,
+      });
+      const result = invalidProvider.verifyWebhookSignature(
+        "payload",
+        "signature",
+        "secret",
+      );
+      expect(result).toBe(false);
     });
 
     it("should parse webhook event", () => {
@@ -480,6 +492,68 @@ describe("MockVCSProvider", () => {
         "README.md",
       );
       expect(content?.content).toBe("# Custom README\nThis is custom content");
+    });
+  });
+
+  describe("State Management", () => {
+    it("should reset file state to original", async () => {
+      // Update a file
+      await provider.updateFile(
+        mockClient,
+        "test-owner",
+        "test-repo",
+        "specs/001-test-feature/spec.md",
+        "Modified content",
+        "Update spec",
+        "main",
+      );
+
+      // Verify file was updated
+      let content = await provider.getFileContent(
+        mockClient,
+        "test-owner",
+        "test-repo",
+        "specs/001-test-feature/spec.md",
+      );
+      expect(content?.content).toBe("Modified content");
+
+      // Reset provider
+      provider.reset();
+
+      // Verify file is back to original
+      content = await provider.getFileContent(
+        mockClient,
+        "test-owner",
+        "test-repo",
+        "specs/001-test-feature/spec.md",
+      );
+      expect(content?.content).toContain("# Test Feature");
+    });
+
+    it("should isolate file updates between instances", async () => {
+      const provider1 = new MockVCSProvider();
+      const provider2 = new MockVCSProvider();
+
+      // Update file in provider1
+      await provider1.updateFile(
+        mockClient,
+        "test-owner",
+        "test-repo",
+        "specs/001-test-feature/spec.md",
+        "Provider 1 content",
+        "Update",
+        "main",
+      );
+
+      // Provider2 should have original content
+      const content = await provider2.getFileContent(
+        mockClient,
+        "test-owner",
+        "test-repo",
+        "specs/001-test-feature/spec.md",
+      );
+      expect(content?.content).toContain("# Test Feature");
+      expect(content?.content).not.toContain("Provider 1 content");
     });
   });
 });

@@ -457,8 +457,30 @@ const mockProvider = new MockVCSProvider({
     authenticate: new Error("Mock auth error"),
     getContent: new Error("Mock content error"),
   },
+  
+  // Control webhook signature verification (useful for security testing)
+  webhookSignatureValid: false,
 });
 ```
+
+### State Management
+
+The MockVCSProvider supports resetting state between tests:
+
+```typescript
+const provider = new MockVCSProvider();
+
+// Update a file
+await provider.updateFile(client, "owner", "repo", "file.md", "new content", "commit", "main");
+
+// Reset to original state
+provider.reset();
+
+// File is back to original content
+const content = await provider.getFileContent(client, "owner", "repo", "file.md");
+```
+
+This is particularly useful when reusing a provider instance across multiple tests.
 
 ### Default Mock Data
 

@@ -603,6 +603,11 @@ const listErrorProvider = new MockVCSProvider({
     listRepos: new Error("API rate limit exceeded"),
   },
 });
+
+// Test webhook signature validation failures
+const webhookErrorProvider = new MockVCSProvider({
+  webhookSignatureValid: false,
+});
 ```
 
 ### Testing Loading States

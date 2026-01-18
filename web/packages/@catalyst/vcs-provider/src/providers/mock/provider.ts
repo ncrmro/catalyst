@@ -47,6 +47,8 @@ export interface MockVCSProviderOptions {
     getContent?: Error;
     listRepos?: Error;
   };
+  /** Control webhook signature verification behavior (default: true) */
+  webhookSignatureValid?: boolean;
 }
 
 /**
@@ -58,9 +60,11 @@ export class MockVCSProvider implements VCSProvider {
   readonly name = "GitHub (Mock)";
   readonly iconName = "github";
 
-  private options: Required<Omit<MockVCSProviderOptions, "errors">> & {
+  private options: Required<Omit<MockVCSProviderOptions, "errors" | "webhookSignatureValid">> & {
     errors: NonNullable<MockVCSProviderOptions["errors"]>;
+    webhookSignatureValid: boolean;
   };
+  private originalFiles: Record<string, string>;
 
   constructor(options: MockVCSProviderOptions = {}) {
     this.options = {
@@ -69,7 +73,26 @@ export class MockVCSProvider implements VCSProvider {
       files: options.files ?? DEFAULT_MOCK_FILES,
       delay: options.delay ?? 0,
       errors: options.errors ?? {},
+      webhookSignatureValid: options.webhookSignatureValid ?? true,
     };
+    // Keep a copy of original files to support reset
+    this.originalFiles = { ...this.options.files };
+  }
+
+  /**
+   * Reset the provider state to initial configuration
+   * Useful for test isolation when reusing the same provider instance
+   */
+  reset(): void {
+    this.options.files = { ...this.originalFiles };
+  }
+
+  /**
+   * Generate a mock SHA for a given path
+   */
+  private generateMockSha(path: string, suffix = ""): string {
+    const normalized = path.replace(/\//g, "-");
+    return suffix ? `mock-sha-${normalized}-${suffix}` : `mock-sha-${normalized}`;
   }
 
   /**
@@ -205,7 +228,7 @@ export class MockVCSProvider implements VCSProvider {
       name: fileName,
       path,
       content,
-      sha: `mock-sha-${path.replace(/\//g, "-")}`,
+      sha: this.generateMockSha(path),
       htmlUrl: `https://github.com/${owner}/${repo}/blob/${ref || "main"}/${path}`,
     };
   }
@@ -257,14 +280,14 @@ export class MockVCSProvider implements VCSProvider {
     branch: string,
   ): Promise<FileContent> {
     await this.maybeDelay();
-    // Update our internal mock data
-    this.options.files[path] = content;
+    // Update our internal mock data (creates a new copy to avoid mutation issues)
+    this.options.files = { ...this.options.files, [path]: content };
     const fileName = path.split("/").pop() || path;
     return {
       name: fileName,
       path,
       content,
-      sha: `mock-sha-${path.replace(/\//g, "-")}-updated`,
+      sha: this.generateMockSha(path, "updated"),
       htmlUrl: `https://github.com/${owner}/${repo}/blob/${branch}/${path}`,
     };
   }
@@ -544,14 +567,14 @@ export class MockVCSProvider implements VCSProvider {
 
   /**
    * Verify webhook signature
+   * By default returns true unless configured otherwise
    */
   verifyWebhookSignature(
     payload: string,
     signature: string,
     secret: string,
   ): boolean {
-    // Mock always returns true
-    return true;
+    return this.options.webhookSignatureValid;
   }
 
   /**
