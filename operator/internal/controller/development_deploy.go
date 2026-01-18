@@ -36,6 +36,7 @@ import (
 const (
 	nodeImage           = "node:22"
 	postgresImage       = "postgres:16"
+	gitCloneImage       = "alpine/git:latest"
 	hostCodePath        = "/code"
 	webWorkDir          = "/code/web"
 	nodeModulesPath     = "/code/web/node_modules"
@@ -43,6 +44,7 @@ const (
 	nodeModulesStorage  = "2Gi"
 	nextCacheStorage    = "1Gi"
 	postgresDataStorage = "1Gi"
+	codeStorage         = "1Gi"
 )
 
 // desiredNodeModulesPVC creates a PVC for node_modules
@@ -99,6 +101,26 @@ func desiredPostgresDataPVC(namespace string) *corev1.PersistentVolumeClaim {
 			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceStorage: resource.MustParse(postgresDataStorage),
+				},
+			},
+		},
+	}
+}
+
+// desiredCodePVC creates a PVC for code storage
+func desiredCodePVC(namespace string) *corev1.PersistentVolumeClaim {
+	return &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "web-code",
+			Namespace: namespace,
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes: []corev1.PersistentVolumeAccessMode{
+				corev1.ReadWriteOnce,
+			},
+			Resources: corev1.VolumeResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceStorage: resource.MustParse(codeStorage),
 				},
 			},
 		},
@@ -192,10 +214,9 @@ func desiredPostgresService(namespace string) *corev1.Service {
 }
 
 // desiredDevelopmentDeployment creates the web app deployment for development mode
-// with init containers for npm install and db:migrate, and hot-reload
-func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, namespace string) *appsv1.Deployment {
+// with init containers for git-clone, npm install, and db:migrate, with hot-reload
+func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, namespace string, gitCredentialsSecretName string) *appsv1.Deployment {
 	replicas := int32(1)
-	hostPathType := corev1.HostPathDirectory
 
 	// Build DATABASE_URL based on namespace
 	databaseURL := fmt.Sprintf("postgres://postgres:postgres@postgres.%s.svc.cluster.local:5432/catalyst", namespace)
@@ -214,7 +235,25 @@ func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, namespace s
 		envVars = append(envVars, corev1.EnvVar{Name: "SEED_SELF_DEPLOY", Value: "true"})
 	}
 
-	// Volume mounts for init containers
+	// Extract git repository URL and commit SHA from environment sources
+	var gitRepoURL, gitCommitSha string
+	if len(env.Spec.Sources) > 0 {
+		// Use the first source for now (assumes single repo)
+		// TODO: Support multi-repo in future phases
+		source := env.Spec.Sources[0]
+		// Repository URL would come from Project CR lookup in the future
+		// For now, we'll use a placeholder that the reconciler will populate
+		gitRepoURL = "https://github.com/ncrmro/catalyst.git" // TODO: Get from Project CR
+		gitCommitSha = source.CommitSha
+	}
+
+	// Volume mounts for git-clone init container
+	gitCloneVolumeMounts := []corev1.VolumeMount{
+		{Name: "code", MountPath: hostCodePath},
+		{Name: "git-credentials", MountPath: "/etc/git-credentials", ReadOnly: true},
+	}
+
+	// Volume mounts for npm/db init containers
 	initVolumeMounts := []corev1.VolumeMount{
 		{Name: "code", MountPath: hostCodePath},
 		{Name: "node-modules", MountPath: nodeModulesPath},
@@ -225,6 +264,128 @@ func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, namespace s
 		{Name: "code", MountPath: hostCodePath},
 		{Name: "node-modules", MountPath: nodeModulesPath},
 		{Name: "next-cache", MountPath: nextCachePath},
+	}
+
+	// Build init containers array
+	initContainers := []corev1.Container{}
+
+	// Add git-clone init container if we have repository info
+	if gitRepoURL != "" && gitCommitSha != "" {
+		initContainers = append(initContainers, corev1.Container{
+			Name:  "git-clone",
+			Image: gitCloneImage,
+			Command: []string{"/bin/sh", "-c"},
+			Args: []string{
+				`# Setup .netrc for authentication
+cat > ~/.netrc <<EOF
+machine github.com
+login x-access-token
+password $(cat /etc/git-credentials/password)
+EOF
+chmod 600 ~/.netrc
+
+# Clone and checkout specific commit
+git clone $GIT_REPO_URL /code
+cd /code
+git checkout $GIT_COMMIT_SHA`,
+			},
+			Env: []corev1.EnvVar{
+				{Name: "GIT_REPO_URL", Value: gitRepoURL},
+				{Name: "GIT_COMMIT_SHA", Value: gitCommitSha},
+			},
+			VolumeMounts: gitCloneVolumeMounts,
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("100m"),
+					corev1.ResourceMemory: resource.MustParse("128Mi"),
+				},
+				Limits: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("500m"),
+					corev1.ResourceMemory: resource.MustParse("256Mi"),
+				},
+			},
+		})
+	}
+
+	// Add npm-install init container
+	initContainers = append(initContainers, corev1.Container{
+		Name:         "npm-install",
+		Image:        nodeImage,
+		WorkingDir:   webWorkDir,
+		Command:      []string{"npm", "install"},
+		VolumeMounts: initVolumeMounts,
+		Resources: corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("100m"),
+				corev1.ResourceMemory: resource.MustParse("256Mi"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("1000m"),
+				corev1.ResourceMemory: resource.MustParse("1Gi"),
+			},
+		},
+	})
+
+	// Add db-migrate init container
+	initContainers = append(initContainers, corev1.Container{
+		Name:         "db-migrate",
+		Image:        nodeImage,
+		WorkingDir:   webWorkDir,
+		Command:      []string{"/bin/sh", "-c", "npm run db:migrate && npm run seed"},
+		VolumeMounts: initVolumeMounts,
+		Env: []corev1.EnvVar{
+			{Name: "DATABASE_URL", Value: databaseURL},
+		},
+		Resources: corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("100m"),
+				corev1.ResourceMemory: resource.MustParse("256Mi"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("500m"),
+				corev1.ResourceMemory: resource.MustParse("512Mi"),
+			},
+		},
+	})
+
+	// Build volumes array
+	volumes := []corev1.Volume{
+		{
+			Name: "code",
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: "web-code",
+				},
+			},
+		},
+		{
+			Name: "node-modules",
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: "web-node-modules",
+				},
+			},
+		},
+		{
+			Name: "next-cache",
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: "web-next-cache",
+				},
+			},
+		},
+	}
+
+	// Add git-credentials volume if secret name is provided
+	if gitCredentialsSecretName != "" {
+		volumes = append(volumes, corev1.Volume{
+			Name: "git-credentials",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: gitCredentialsSecretName,
+				},
+			},
+		})
 	}
 
 	return &appsv1.Deployment{
@@ -245,46 +406,7 @@ func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, namespace s
 					Labels: map[string]string{"app": "web"},
 				},
 				Spec: corev1.PodSpec{
-					// Init containers: npm install, then db:migrate + seed
-					InitContainers: []corev1.Container{
-						{
-							Name:         "npm-install",
-							Image:        nodeImage,
-							WorkingDir:   webWorkDir,
-							Command:      []string{"npm", "install"},
-							VolumeMounts: initVolumeMounts,
-							Resources: corev1.ResourceRequirements{
-								Requests: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("100m"),
-									corev1.ResourceMemory: resource.MustParse("256Mi"),
-								},
-								Limits: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("1000m"),
-									corev1.ResourceMemory: resource.MustParse("1Gi"),
-								},
-							},
-						},
-						{
-							Name:         "db-migrate",
-							Image:        nodeImage,
-							WorkingDir:   webWorkDir,
-							Command:      []string{"/bin/sh", "-c", "npm run db:migrate && npm run seed"},
-							VolumeMounts: initVolumeMounts,
-							Env: []corev1.EnvVar{
-								{Name: "DATABASE_URL", Value: databaseURL},
-							},
-							Resources: corev1.ResourceRequirements{
-								Requests: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("100m"),
-									corev1.ResourceMemory: resource.MustParse("256Mi"),
-								},
-								Limits: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("500m"),
-									corev1.ResourceMemory: resource.MustParse("512Mi"),
-								},
-							},
-						},
-					},
+					InitContainers: initContainers,
 					Containers: []corev1.Container{
 						{
 							Name:         "web",
@@ -327,33 +449,7 @@ func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, namespace s
 							},
 						},
 					},
-					Volumes: []corev1.Volume{
-						{
-							Name: "code",
-							VolumeSource: corev1.VolumeSource{
-								HostPath: &corev1.HostPathVolumeSource{
-									Path: hostCodePath,
-									Type: &hostPathType,
-								},
-							},
-						},
-						{
-							Name: "node-modules",
-							VolumeSource: corev1.VolumeSource{
-								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-									ClaimName: "web-node-modules",
-								},
-							},
-						},
-						{
-							Name: "next-cache",
-							VolumeSource: corev1.VolumeSource{
-								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-									ClaimName: "web-next-cache",
-								},
-							},
-						},
-					},
+					Volumes: volumes,
 				},
 			},
 		},
@@ -385,6 +481,11 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 	log := logf.FromContext(ctx)
 
 	// 1. Create PVCs (idempotent)
+	codePVC := desiredCodePVC(namespace)
+	if err := r.Create(ctx, codePVC); err != nil && !isAlreadyExists(err) {
+		return false, err
+	}
+
 	nodeModulesPVC := desiredNodeModulesPVC(namespace)
 	if err := r.Create(ctx, nodeModulesPVC); err != nil && !isAlreadyExists(err) {
 		return false, err
@@ -400,7 +501,16 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 		return false, err
 	}
 
-	// 2. Create PostgreSQL deployment and service
+	// 2. Copy git credentials Secret from project namespace to environment namespace
+	// The secret name is expected to be "github-credentials"
+	gitCredentialsSecretName := "github-credentials"
+	projectNamespace := namespace // TODO: Get actual project namespace from Environment CR labels
+	if err := r.ensureGitCredentials(ctx, projectNamespace, namespace, gitCredentialsSecretName); err != nil {
+		log.Error(err, "Failed to ensure git credentials", "namespace", namespace)
+		// Continue anyway - the deployment will fail if git-clone needs credentials
+	}
+
+	// 3. Create PostgreSQL deployment and service
 	postgresDeployment := desiredPostgresDeployment(namespace)
 	if err := r.Create(ctx, postgresDeployment); err != nil && !isAlreadyExists(err) {
 		return false, err
@@ -411,7 +521,7 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 		return false, err
 	}
 
-	// 3. Wait for PostgreSQL to be ready before creating web deployment
+	// 4. Wait for PostgreSQL to be ready before creating web deployment
 	postgresReady, err := r.isDeploymentReady(ctx, namespace, "postgres")
 	if err != nil {
 		return false, err
@@ -421,8 +531,8 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 		return false, nil // Requeue
 	}
 
-	// 4. Create web deployment and service
-	webDeployment := desiredDevelopmentDeployment(env, namespace)
+	// 5. Create web deployment and service
+	webDeployment := desiredDevelopmentDeployment(env, namespace, gitCredentialsSecretName)
 	if err := r.Create(ctx, webDeployment); err != nil && !isAlreadyExists(err) {
 		return false, err
 	}
@@ -432,13 +542,65 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 		return false, err
 	}
 
-	// 5. Check if web deployment is ready
+	// 6. Check if web deployment is ready
 	webReady, err := r.isDeploymentReady(ctx, namespace, "web")
 	if err != nil {
 		return false, err
 	}
 
 	return webReady, nil
+}
+
+// ensureGitCredentials copies git credentials Secret from project namespace to environment namespace
+func (r *EnvironmentReconciler) ensureGitCredentials(ctx context.Context, projectNamespace, envNamespace, secretName string) error {
+	log := logf.FromContext(ctx)
+
+	// Get the source Secret from project namespace
+	sourceSecret := &corev1.Secret{}
+	err := r.Get(ctx, client.ObjectKey{Name: secretName, Namespace: projectNamespace}, sourceSecret)
+	if err != nil {
+		if client.IgnoreNotFound(err) == nil {
+			// Secret doesn't exist in project namespace - this is OK, it might not be set up yet
+			log.Info("Git credentials secret not found in project namespace", "projectNamespace", projectNamespace, "secretName", secretName)
+			return nil
+		}
+		return fmt.Errorf("failed to get source secret: %w", err)
+	}
+
+	// Create a copy of the Secret in the environment namespace
+	targetSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: envNamespace,
+			Labels: map[string]string{
+				"catalyst.dev/copied-from": projectNamespace,
+			},
+		},
+		Type: sourceSecret.Type,
+		Data: sourceSecret.Data,
+	}
+
+	// Try to create the Secret
+	if err := r.Create(ctx, targetSecret); err != nil {
+		if !isAlreadyExists(err) {
+			return fmt.Errorf("failed to create target secret: %w", err)
+		}
+		// Secret already exists, update it instead
+		existingSecret := &corev1.Secret{}
+		if err := r.Get(ctx, client.ObjectKey{Name: secretName, Namespace: envNamespace}, existingSecret); err != nil {
+			return fmt.Errorf("failed to get existing secret: %w", err)
+		}
+		existingSecret.Data = sourceSecret.Data
+		existingSecret.Type = sourceSecret.Type
+		if err := r.Update(ctx, existingSecret); err != nil {
+			return fmt.Errorf("failed to update existing secret: %w", err)
+		}
+		log.Info("Updated git credentials secret in environment namespace", "namespace", envNamespace, "secretName", secretName)
+	} else {
+		log.Info("Created git credentials secret in environment namespace", "namespace", envNamespace, "secretName", secretName)
+	}
+
+	return nil
 }
 
 // isDeploymentReady checks if a deployment has ready replicas

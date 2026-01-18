@@ -26,12 +26,99 @@ import {
   sanitizeNamespaceComponent,
 } from "@/lib/namespace-utils";
 import { ensureProjectNamespace } from "@catalyst/kubernetes-client";
-import { getClusterConfig } from "@/lib/k8s-client";
+import { getClusterConfig, getCoreV1Api } from "@/lib/k8s-client";
+import { generateInstallationToken } from "@/lib/github-installation-token";
 
 // Type exports for use in actions layer
 export type SelectPullRequestPod = InferSelectModel<typeof pullRequestPods>;
 export type SelectPullRequest = InferSelectModel<typeof pullRequests>;
 export type SelectRepo = InferSelectModel<typeof repos>;
+
+// ============================================================================
+// Git Credentials Management
+// ============================================================================
+
+/**
+ * Create a Kubernetes Secret with GitHub credentials for git operations
+ *
+ * This Secret is used by the operator's git-clone init container to
+ * authenticate when cloning private repositories.
+ *
+ * @param namespace - Kubernetes namespace for the Secret
+ * @param installationId - GitHub App installation ID
+ * @param secretName - Name for the Secret (default: "github-credentials")
+ * @returns Success status
+ */
+export async function createGitCredentialsSecret(
+  namespace: string,
+  installationId: number,
+  secretName: string = "github-credentials",
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Generate a fresh 1-hour installation token
+    const { token } = await generateInstallationToken(installationId);
+
+    // Get Kubernetes client
+    const kc = await getClusterConfig();
+    if (!kc) {
+      return { success: false, error: "Kubernetes cluster not configured" };
+    }
+
+    const CoreV1Api = await getCoreV1Api();
+    const coreApi = kc.makeApiClient(CoreV1Api);
+
+    // Create the Secret
+    // Type: kubernetes.io/basic-auth
+    // Data: username=x-access-token, password=<github-token>
+    await coreApi.createNamespacedSecret({
+      namespace,
+      body: {
+        apiVersion: "v1",
+        kind: "Secret",
+        metadata: {
+          name: secretName,
+          namespace,
+          labels: {
+            "catalyst.dev/managed-by": "catalyst",
+            "catalyst.dev/secret-type": "git-credentials",
+          },
+        },
+        type: "kubernetes.io/basic-auth",
+        stringData: {
+          username: "x-access-token",
+          password: token,
+        },
+      },
+    });
+
+    console.log(
+      `Created git credentials secret ${secretName} in namespace ${namespace}`,
+    );
+    return { success: true };
+  } catch (error: unknown) {
+    // Check if Secret already exists
+    const isAlreadyExists =
+      (error as { response?: { statusCode?: number } })?.response
+        ?.statusCode === 409 ||
+      (error instanceof Error && error.message.includes("already exists"));
+
+    if (isAlreadyExists) {
+      console.log(
+        `Git credentials secret ${secretName} already exists in namespace ${namespace}`,
+      );
+      return { success: true };
+    }
+
+    console.error(
+      `Failed to create git credentials secret in namespace ${namespace}:`,
+      error,
+    );
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
 
 // ============================================================================
 // Helper Functions
@@ -833,7 +920,27 @@ export async function createPreviewDeployment(
     });
   }
 
-  // Step 3: Create Environment CR
+  // Step 3: Create git credentials Secret in project namespace
+  // This will be copied by the operator to the environment namespace
+  if (installationId) {
+    const secretResult = await createGitCredentialsSecret(
+      crNamespace,
+      installationId,
+      "github-credentials",
+    );
+    if (!secretResult.success) {
+      previewLogger.warn(
+        "Failed to create git credentials secret (non-blocking)",
+        {
+          namespace: crNamespace,
+          error: secretResult.error,
+        },
+      );
+      // Continue anyway - public repos might not need credentials
+    }
+  }
+
+  // Step 4: Create Environment CR
   // TODO: Re-enable DB status updates when caching layer is implemented
   // await updatePodStatus(podId, "deploying");
 

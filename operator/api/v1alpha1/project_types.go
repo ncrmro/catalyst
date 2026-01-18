@@ -46,6 +46,22 @@ type SourceConfig struct {
 
 	// Branch is the default branch to use
 	Branch string `json:"branch"`
+
+	// AuthSecretRef references the Secret containing git credentials (optional)
+	// Used by the operator to authenticate git-clone operations
+	// +optional
+	AuthSecretRef *SecretReference `json:"authSecretRef,omitempty"`
+}
+
+// SecretReference references a Kubernetes Secret
+type SecretReference struct {
+	// Name is the name of the Secret
+	Name string `json:"name"`
+
+	// Namespace is the namespace of the Secret
+	// If empty, defaults to the same namespace as the Project CR
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
 }
 
 type EnvironmentTemplate struct {

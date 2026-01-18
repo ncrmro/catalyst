@@ -120,6 +120,10 @@ export async function syncProjectToK8s(
         name: rel.isPrimary ? "primary" : `source-${idx}`,
         repositoryUrl: rel.repo.url,
         branch: "main", // TODO: Get default branch from GitHub API
+        authSecretRef: {
+          name: "github-credentials",
+          // Secret will be in the team-project namespace
+        },
       }),
     );
 

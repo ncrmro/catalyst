@@ -41,10 +41,16 @@ export interface EnvironmentCR {
 }
 
 // KEEP IN SYNC: This definition must match operator/api/v1alpha1/project_types.go
+export interface SecretReference {
+  name: string;
+  namespace?: string;
+}
+
 export interface SourceConfig {
   name: string;
   repositoryUrl: string;
   branch: string;
+  authSecretRef?: SecretReference;
 }
 
 export interface BuildSpec {
