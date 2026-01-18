@@ -639,25 +639,25 @@ This delivers the core value proposition: automatic preview deployments with pub
 
 ### Operator Changes
 
-- [ ] T172 [FR-ENV-023] [Operator] Add `desiredCodePVC()` function in `operator/internal/controller/development_deploy.go` to create PVC for code storage (1Gi)
-- [ ] T173 [FR-ENV-023] [Operator] Add git-clone init container to `desiredDevelopmentDeployment()` that clones repo into PVC
-- [ ] T174 [FR-ENV-023] [Operator] Replace HostPath volume with PVC volume in `desiredDevelopmentDeployment()`
-- [ ] T175 [FR-ENV-023] [Operator] Add git-credentials volume (from Secret) to `desiredDevelopmentDeployment()`
-- [ ] T176 [FR-ENV-023] [Operator] Implement `ensureGitCredentials()` to copy Secret from project namespace to environment namespace
-- [ ] T177 [FR-ENV-023] [Operator] Update `ReconcileDevelopmentMode()` to call `ensureGitCredentials()` before creating deployment
+- [x] T172 [FR-ENV-023] [Operator] Add `desiredCodePVC()` function in `operator/internal/controller/development_deploy.go` to create PVC for code storage (1Gi)
+- [x] T173 [FR-ENV-023] [Operator] Add git-clone init container to `desiredDevelopmentDeployment()` that clones repo into PVC
+- [x] T174 [FR-ENV-023] [Operator] Replace HostPath volume with PVC volume in `desiredDevelopmentDeployment()`
+- [x] T175 [FR-ENV-023] [Operator] Add git-credentials volume (from Secret) to `desiredDevelopmentDeployment()`
+- [x] T176 [FR-ENV-023] [Operator] Implement `ensureGitCredentials()` to copy Secret from project namespace to environment namespace
+- [x] T177 [FR-ENV-023] [Operator] Update `ReconcileDevelopmentMode()` to call `ensureGitCredentials()` before creating deployment
 
 ### API Changes
 
-- [ ] T178 [FR-ENV-023] [Operator] Add `AuthSecretRef` field to `SourceConfig` in `operator/api/v1alpha1/project_types.go`
-- [ ] T179 [FR-ENV-023] [Operator] Add `SecretReference` type to `operator/api/v1alpha1/project_types.go`
-- [ ] T180 [FR-ENV-023] [Operator] Regenerate CRD with `make manifests`
+- [x] T178 [FR-ENV-023] [Operator] Add `AuthSecretRef` field to `SourceConfig` in `operator/api/v1alpha1/project_types.go`
+- [x] T179 [FR-ENV-023] [Operator] Add `SecretReference` type to `operator/api/v1alpha1/project_types.go`
+- [x] T180 [FR-ENV-023] [Operator] Regenerate CRD with `make manifests`
 
 ### Web App Changes
 
-- [ ] T181 [FR-ENV-023] [Web] Implement `generateInstallationToken()` in `web/src/lib/github-installation-token.ts` to generate 1-hour GitHub App tokens
-- [ ] T182 [FR-ENV-023] [Web] Implement `createGitCredentialsSecret()` in `web/src/models/preview-environments.ts` to create K8s Secret with git credentials
-- [ ] T183 [FR-ENV-023] [Web] Update `createPreviewDeployment()` to call `createGitCredentialsSecret()` before creating Environment CR
-- [ ] T184 [FR-ENV-023] [Web] Update `syncProjectToK8s()` in `web/src/lib/sync-project-cr.ts` to include `authSecretRef` in Project CR
+- [x] T181 [FR-ENV-023] [Web] Implement `generateInstallationToken()` in `web/src/lib/github-installation-token.ts` to generate 1-hour GitHub App tokens
+- [x] T182 [FR-ENV-023] [Web] Implement `createGitCredentialsSecret()` in `web/src/models/preview-environments.ts` to create K8s Secret with git credentials
+- [x] T183 [FR-ENV-023] [Web] Update `createPreviewDeployment()` to call `createGitCredentialsSecret()` before creating Environment CR
+- [x] T184 [FR-ENV-023] [Web] Update `syncProjectToK8s()` in `web/src/lib/sync-project-cr.ts` to include `authSecretRef` in Project CR
 
 ### Testing
 
