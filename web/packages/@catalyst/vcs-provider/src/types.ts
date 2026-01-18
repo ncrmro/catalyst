@@ -119,7 +119,13 @@ export interface PRComment {
 
 // Webhook types
 export interface WebhookEvent {
-  type: "push" | "pull_request" | "installation" | "issue";
+  type:
+    | "push"
+    | "pull_request"
+    | "installation"
+    | "issue"
+    | "organization"
+    | "membership";
   action?: string;
   repository?: Repository;
   pullRequest?: PullRequest;
@@ -340,6 +346,20 @@ export interface VCSProvider {
     owner: string,
     repo: string,
   ): Promise<Branch[]>;
+
+  // Organizations
+  getOrganization(
+    client: AuthenticatedClient,
+    org: string,
+  ): Promise<Organization>;
+  listOrganizationMembers(
+    client: AuthenticatedClient,
+    org: string,
+  ): Promise<OrganizationMember[]>;
+  getMyOrganizationMembership(
+    client: AuthenticatedClient,
+    org: string,
+  ): Promise<MembershipCheck>;
 
   // Webhooks
   verifyWebhookSignature(
