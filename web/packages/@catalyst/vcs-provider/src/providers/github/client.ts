@@ -208,6 +208,7 @@ export async function getOctokitForComments(installationId?: number) {
  */
 export type TokenGetter = (
   userId: string,
+  options?: { forceRefresh?: boolean },
 ) => Promise<{ accessToken: string } | null>;
 
 /**
@@ -246,9 +247,59 @@ export async function getUserOctokit(userId: string): Promise<Octokit> {
   if (registeredTokenGetter) {
     const tokens = await registeredTokenGetter(userId);
     if (tokens?.accessToken) {
-      return new Octokit({
+      const octokit = new Octokit({
         auth: tokens.accessToken,
       });
+
+      // Add 401 interceptor for reactive token refresh
+      octokit.hook.error("request", async (error, options) => {
+        // Only handle 401 Unauthorized errors
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if ((error as any).status === 401 && registeredTokenGetter) {
+          // Avoid infinite loops - only retry once
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if ((options.request as any).retryCount) {
+            throw error;
+          }
+
+          console.log(
+            `Received 401 for ${options.method} ${options.url}. Attempting token refresh for user ${userId}...`,
+          );
+
+          try {
+            // Force refresh the token
+            const newTokens = await registeredTokenGetter(userId, {
+              forceRefresh: true,
+            });
+
+            if (newTokens?.accessToken) {
+              console.log("Token refresh successful. Retrying request...");
+
+              // Retry request with new token
+              const newOptions = {
+                ...options,
+                headers: {
+                  ...options.headers,
+                  authorization: `token ${newTokens.accessToken}`,
+                },
+                request: {
+                  ...options.request,
+                  retryCount: 1,
+                },
+              };
+
+              return octokit.request(newOptions);
+            }
+          } catch (refreshError) {
+            console.error("Failed to recover from 401:", refreshError);
+            // Fall through to throw original error
+          }
+        }
+
+        throw error;
+      });
+
+      return octokit;
     }
   }
 
