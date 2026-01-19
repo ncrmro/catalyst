@@ -241,14 +241,20 @@ async function getInstallationIdForNamespace(
     const installationIdLabel =
       env.metadata?.labels?.["catalyst.dev/installation-id"];
     if (installationIdLabel) {
-      return parseInt(installationIdLabel, 10);
+      const parsedLabelId = parseInt(installationIdLabel, 10);
+      if (!Number.isNaN(parsedLabelId)) {
+        return parsedLabelId;
+      }
     }
 
     // Check for installation ID in annotations (fallback)
     const installationIdAnnotation =
       env.metadata?.annotations?.["catalyst.dev/installation-id"];
     if (installationIdAnnotation) {
-      return parseInt(installationIdAnnotation, 10);
+      const parsedAnnotationId = parseInt(installationIdAnnotation, 10);
+      if (!Number.isNaN(parsedAnnotationId)) {
+        return parsedAnnotationId;
+      }
     }
 
     return null;

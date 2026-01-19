@@ -52,12 +52,39 @@ WEB_SERVER_URL="${CATALYST_WEB_URL:-http://catalyst-web.catalyst-system.svc.clus
 # Fetch fresh GitHub token from Catalyst web server
 # The web server validates our ServiceAccount token and returns a fresh
 # GitHub App installation token
-TOKEN=$(curl -sf \
+RESPONSE=$(curl -sS -w '|%{http_code}' \
   -H "Authorization: Bearer $SA_TOKEN" \
   "$WEB_SERVER_URL/api/git-token/$INSTALLATION_ID")
+curl_exit=$?
 
-if [ $? -ne 0 ] || [ -z "$TOKEN" ]; then
-    echo "Error: Failed to get git credentials from catalyst-web" >&2
+# Handle curl-level errors (DNS, connectivity, TLS, etc.)
+if [ $curl_exit -ne 0 ]; then
+    echo "Error: Failed to contact catalyst-web for git credentials (curl exit code: $curl_exit)" >&2
+    exit 1
+fi
+
+# Split response into body (token) and HTTP status code
+HTTP_STATUS=${RESPONSE##*|}
+TOKEN=${RESPONSE%|*}
+
+# Handle authentication/authorization failures explicitly
+if [ "$HTTP_STATUS" = "401" ] || [ "$HTTP_STATUS" = "403" ]; then
+    echo "Error: Authentication failed when fetching git credentials from catalyst-web (HTTP status: $HTTP_STATUS)" >&2
+    exit 1
+fi
+
+# Handle other non-success HTTP responses
+case "$HTTP_STATUS" in
+  2??) : ;;
+  *)
+    echo "Error: Failed to get git credentials from catalyst-web (HTTP status: $HTTP_STATUS)" >&2
+    exit 1
+    ;;
+esac
+
+# Verify token is not empty
+if [ -z "$TOKEN" ]; then
+    echo "Error: Received empty git token from catalyst-web" >&2
     exit 1
 fi
 

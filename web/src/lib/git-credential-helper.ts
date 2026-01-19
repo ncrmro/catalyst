@@ -176,6 +176,10 @@ export function createGitCredentialHelperInitContainer(options: {
     targetDir,
   });
 
+  const webUrl =
+    process.env.CATALYST_WEB_URL ||
+    "http://catalyst-web.catalyst-system.svc.cluster.local:3000";
+
   return {
     name,
     image,
@@ -185,6 +189,10 @@ export function createGitCredentialHelperInitContainer(options: {
       {
         name: "INSTALLATION_ID",
         value: installationId.toString(),
+      },
+      {
+        name: "CATALYST_WEB_URL",
+        value: webUrl,
       },
     ],
     volumeMounts: [

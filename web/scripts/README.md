@@ -56,12 +56,15 @@ To use the credential helper in a pod:
        catalyst.dev/installation-id: "12345"
    ```
 
-2. **Set Environment Variable**:
+2. **Set Environment Variables**:
 
    ```yaml
    env:
      - name: INSTALLATION_ID
        value: "12345"
+     # Optional: Override the web server URL for non-standard deployments
+     - name: CATALYST_WEB_URL
+       value: "http://custom-web-server:3000"
    ```
 
 3. **Install and Configure Git** (in init container or main container):
@@ -76,6 +79,13 @@ To use the credential helper in a pod:
    # Configure git
    git config --global credential.helper /usr/local/bin/git-credential-catalyst
    ```
+
+### Environment Variables
+
+- **`INSTALLATION_ID`** (required): GitHub App installation ID for token generation
+- **`CATALYST_WEB_URL`** (optional): URL of the Catalyst web server. Defaults to `http://catalyst-web.catalyst-system.svc.cluster.local:3000`
+  - Set this when using a different namespace, service name, or non-standard deployment
+  - Example: `http://my-custom-web.my-namespace.svc.cluster.local:8080`
 
 ### In TypeScript Code
 
