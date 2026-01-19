@@ -1,14 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  createKubernetesNamespace,
-  deleteKubernetesNamespace,
-} from "@/actions/kubernetes";
 import { GITHUB_CONFIG } from "@/lib/vcs-providers";
-import {
-  createPullRequestPodJob,
-  cleanupPullRequestPodJob,
-  PullRequestPodResult,
-} from "@/lib/k8s-pull-request-pod";
 import {
   upsertPullRequest,
   findRepoByGitHubData,
@@ -408,80 +399,10 @@ async function handlePullRequestEvent(payload: {
       );
     }
 
-    // Also create namespace and build job for 'opened' action
-    if (action === "opened") {
-      try {
-        const [owner, repo] = repository.full_name.split("/");
-        const environment = `gh-pr-${pull_request.number}`;
-
-        const namespaceResult = await createKubernetesNamespace(
-          owner,
-          repo,
-          environment,
-        );
-
-        // Create pull request pod job for buildx support
-        let podJobResult: PullRequestPodResult | null = null;
-        try {
-          const prJobName = `pr-${pull_request.number}-${repository.name}`;
-          podJobResult = await createPullRequestPodJob({
-            name: prJobName,
-            namespace: namespaceResult.success
-              ? namespaceResult.namespace?.name || "default"
-              : "default",
-            env: {
-              REPO_URL: `https://github.com/${repository.full_name}.git`,
-              PR_BRANCH: pull_request.head.ref,
-              PR_NUMBER: pull_request.number.toString(),
-              GITHUB_USER: repository.owner.login,
-              IMAGE_NAME: `${repository.name}/web`,
-              NEEDS_BUILD: "true",
-              SHALLOW_CLONE: "true",
-              MANIFEST_DOCKERFILE: "/web/Dockerfile",
-              TARGET_NAMESPACE: namespaceResult.success
-                ? namespaceResult.namespace?.name || ""
-                : "",
-            },
-          });
-          console.log(
-            `Pull request pod job created for PR ${pull_request.number}:`,
-            podJobResult,
-          );
-        } catch (podJobError) {
-          console.error(
-            `Failed to create pull request pod job for PR ${pull_request.number}:`,
-            podJobError,
-          );
-        }
-
-        return NextResponse.json({
-          success: true,
-          message: `Pull request ${action} processed with preview deployment`,
-          pr_number: pull_request.number,
-          namespace: namespaceResult.namespace,
-          podJob: podJobResult,
-          preview_deployment: "initiated",
-        });
-      } catch (error) {
-        console.error(
-          `Error in PR opened handler for PR ${pull_request.number}:`,
-          error,
-        );
-        return NextResponse.json({
-          success: true,
-          message: `Pull request ${action} processed but namespace creation failed`,
-          pr_number: pull_request.number,
-          namespace_error:
-            error instanceof Error ? error.message : "Unknown error",
-          preview_deployment: "initiated",
-        });
-      }
-    }
-
-    // For synchronize and reopened, just return success (deployment is async)
+    // For all actions (opened, synchronize, reopened), just return success (deployment is async)
     return NextResponse.json({
       success: true,
-      message: `Pull request ${action} processed with preview redeployment`,
+      message: `Pull request ${action} processed with preview deployment`,
       pr_number: pull_request.number,
       commit_sha: pull_request.head.sha,
       preview_deployment: "initiated",
@@ -535,57 +456,22 @@ async function handlePullRequestEvent(payload: {
         }
       }
 
-      // Clean up pull request pod job resources
-      try {
-        const prJobName = `pr-${pull_request.number}-${repository.name}`;
-        await cleanupPullRequestPodJob(prJobName, "default");
-        console.log(
-          `Pull request pod job cleaned up for PR ${pull_request.number}`,
-        );
-      } catch (podJobError) {
-        console.error(
-          `Failed to cleanup pull request pod job for PR ${pull_request.number}:`,
-          podJobError,
-        );
-      }
-
-      const deleteResult = await deleteKubernetesNamespace(
-        owner,
-        repo,
-        environment,
-      );
-
-      if (deleteResult.success) {
-        return NextResponse.json({
-          success: true,
-          message: `Pull request ${action} processed and namespace deleted`,
-          pr_number: pull_request.number,
-          namespace_deleted: deleteResult.namespaceName,
-          preview_deployment: "cleanup_initiated",
-        });
-      } else {
-        console.error(
-          `Failed to delete namespace for PR ${pull_request.number}:`,
-          deleteResult.error,
-        );
-        return NextResponse.json({
-          success: true,
-          message: `Pull request ${action} processed but namespace deletion failed`,
-          pr_number: pull_request.number,
-          namespace_error: deleteResult.error,
-          preview_deployment: "cleanup_initiated",
-        });
-      }
+      return NextResponse.json({
+        success: true,
+        message: `Pull request ${action} processed`,
+        pr_number: pull_request.number,
+        preview_deployment: "cleanup_initiated",
+      });
     } catch (error) {
       console.error(
-        `Error deleting namespace for PR ${pull_request.number}:`,
+        `Error in PR closed handler for PR ${pull_request.number}:`,
         error,
       );
       return NextResponse.json({
         success: true,
-        message: `Pull request ${action} processed but namespace deletion failed`,
+        message: `Pull request ${action} processed but cleanup had errors`,
         pr_number: pull_request.number,
-        namespace_error:
+        cleanup_error:
           error instanceof Error ? error.message : "Unknown error",
       });
     }

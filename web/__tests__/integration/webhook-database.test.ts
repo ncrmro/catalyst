@@ -46,15 +46,6 @@ vi.mock("@/actions/kubernetes", () => ({
   }),
 }));
 
-// Mock k8s pod job operations
-vi.mock("@/lib/k8s-pull-request-pod", () => ({
-  createPullRequestPodJob: vi.fn().mockResolvedValue({
-    jobName: "test-job",
-    created: true,
-  }),
-  cleanupPullRequestPodJob: vi.fn().mockResolvedValue(undefined),
-}));
-
 /**
  * Integration test for GitHub webhook database operations
  *
