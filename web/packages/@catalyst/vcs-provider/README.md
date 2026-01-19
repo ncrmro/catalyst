@@ -523,6 +523,18 @@ const customProvider = new MockVCSProvider({
 - ✅ Full VCSProvider interface implementation
 - ✅ Works in CI/CD environments
 
+### Complete E2E Example
+
+For a comprehensive end-to-end example demonstrating project creation, specs viewing, and spec content display, see:
+
+**[E2E Project and Specs Flow Example](./examples/e2e-project-specs-flow.md)**
+
+This example shows how to:
+- Configure MockVCSProvider with realistic repository and spec data
+- Create a project with a repository (matching the real GitHub PAT flow)
+- View specs on the project page
+- Click on a spec and view its content (spec.md, plan.md, tasks.md)
+
 ## Related
 
 - [EXAMPLES.md](./EXAMPLES.md) - Code examples and server actions
