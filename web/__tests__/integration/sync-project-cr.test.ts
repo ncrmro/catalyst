@@ -82,10 +82,12 @@ describe("syncProjectToK8s Integration", () => {
 
     // Create a test repo for this team
     const timestamp = Date.now();
+    // Use a random number within 32-bit integer range for githubId
+    const uniqueGithubId = Math.floor(Math.random() * 2000000000);
     const [repo] = await db
       .insert(repos)
       .values({
-        githubId: timestamp,
+        githubId: uniqueGithubId,
         name: "sync-project-test",
         fullName: `test/sync-project-test-${timestamp}`,
         url: `https://github.com/test/sync-project-test-${timestamp}`,

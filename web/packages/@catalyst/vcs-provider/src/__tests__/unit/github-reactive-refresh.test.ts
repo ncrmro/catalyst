@@ -7,7 +7,7 @@ const mockHookError = vi.fn();
 
 vi.mock("@octokit/rest", () => {
   return {
-    Octokit: vi.fn(function() {
+    Octokit: vi.fn(function () {
       return {
         hook: {
           error: mockHookError,
@@ -21,7 +21,7 @@ vi.mock("@octokit/rest", () => {
 describe("getUserOctokit Reactive Refresh", () => {
   const userId = "test-user";
   const mockTokenGetter = vi.fn();
-  
+
   // Variables for dynamically imported functions
   let getUserOctokit: (userId: string) => Promise<Octokit>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,7 +30,7 @@ describe("getUserOctokit Reactive Refresh", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     vi.resetModules();
-    
+
     // Stub environment variables to ensure PAT fallback is disabled
     vi.stubEnv("GITHUB_PAT", "");
     vi.stubEnv("GITHUB_TOKEN", "");
@@ -43,10 +43,10 @@ describe("getUserOctokit Reactive Refresh", () => {
 
     // Re-import module to pick up new env vars
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const clientModule = await import("../../providers/github/client") as any;
+    const clientModule = (await import("../../providers/github/client")) as any;
     getUserOctokit = clientModule.getUserOctokit;
     registerTokenGetter = clientModule.registerTokenGetter;
-    
+
     registerTokenGetter(mockTokenGetter);
   });
 
@@ -82,17 +82,21 @@ describe("getUserOctokit Reactive Refresh", () => {
     await errorHook(error, options);
 
     // Verify token refresh was attempted with forceRefresh: true
-    expect(mockTokenGetter).toHaveBeenCalledWith(userId, { forceRefresh: true });
+    expect(mockTokenGetter).toHaveBeenCalledWith(userId, {
+      forceRefresh: true,
+    });
 
     // Verify request was retried with new token
-    expect(mockRequest).toHaveBeenCalledWith(expect.objectContaining({
-      headers: expect.objectContaining({
-        authorization: "token refreshed-token",
+    expect(mockRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          authorization: "token refreshed-token",
+        }),
+        request: expect.objectContaining({
+          retryCount: 1,
+        }),
       }),
-      request: expect.objectContaining({
-        retryCount: 1,
-      }),
-    }));
+    );
   });
 
   it("should not retry if retryCount is already set (prevent infinite loop)", async () => {

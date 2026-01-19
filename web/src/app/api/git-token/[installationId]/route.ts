@@ -23,10 +23,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getClusterConfig } from "@/lib/k8s-client";
-import {
-  AuthenticationV1Api,
-  CustomObjectsApi,
-} from "@kubernetes/client-node";
+import { AuthenticationV1Api, CustomObjectsApi } from "@kubernetes/client-node";
 import { z } from "zod";
 
 // =============================================================================
@@ -62,8 +59,8 @@ const TokenReviewResponseSchema = z.object({
 const EnvironmentMetadataSchema = z.object({
   name: z.string().optional(),
   namespace: z.string().optional(),
-  labels: z.record(z.string()).optional(),
-  annotations: z.record(z.string()).optional(),
+  labels: z.record(z.string(), z.string()).optional(),
+  annotations: z.record(z.string(), z.string()).optional(),
 });
 
 /**
@@ -100,9 +97,7 @@ interface ValidationResult {
  * @param token ServiceAccount token from Authorization header
  * @returns Validation result with namespace and installation ID
  */
-async function validatePodRequest(
-  token: string,
-): Promise<ValidationResult> {
+async function validatePodRequest(token: string): Promise<ValidationResult> {
   try {
     // Get Kubernetes config
     const kc = await getClusterConfig();
@@ -154,7 +149,11 @@ async function validatePodRequest(
     }
 
     const parts = username.split(":");
-    if (parts.length < 3 || parts[0] !== "system" || parts[1] !== "serviceaccount") {
+    if (
+      parts.length < 3 ||
+      parts[0] !== "system" ||
+      parts[1] !== "serviceaccount"
+    ) {
       return {
         valid: false,
         error: "Invalid ServiceAccount username format",
@@ -239,13 +238,15 @@ async function getInstallationIdForNamespace(
     const env = environments[0];
 
     // Check for installation-id label
-    const installationIdLabel = env.metadata?.labels?.["catalyst.dev/installation-id"];
+    const installationIdLabel =
+      env.metadata?.labels?.["catalyst.dev/installation-id"];
     if (installationIdLabel) {
       return parseInt(installationIdLabel, 10);
     }
 
     // Check for installation ID in annotations (fallback)
-    const installationIdAnnotation = env.metadata?.annotations?.["catalyst.dev/installation-id"];
+    const installationIdAnnotation =
+      env.metadata?.annotations?.["catalyst.dev/installation-id"];
     if (installationIdAnnotation) {
       return parseInt(installationIdAnnotation, 10);
     }
@@ -314,10 +315,7 @@ export async function GET(
     const validation = await validatePodRequest(token);
     if (!validation.valid) {
       console.error("Pod validation failed:", validation.error);
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Resolve params
@@ -334,18 +332,20 @@ export async function GET(
     // Verify pod belongs to this installation
     // If we couldn't derive installation ID from namespace (e.g., for PR pods),
     // we skip this check and trust the requested installation ID
-    if (validation.installationId && validation.installationId !== requestedInstallationId) {
+    if (
+      validation.installationId &&
+      validation.installationId !== requestedInstallationId
+    ) {
       console.error(
         `Installation ID mismatch: pod has ${validation.installationId}, requested ${requestedInstallationId}`,
       );
-      return NextResponse.json(
-        { error: "Forbidden" },
-        { status: 403 },
-      );
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Generate fresh GitHub App installation token
-    const githubToken = await generateInstallationToken(requestedInstallationId);
+    const githubToken = await generateInstallationToken(
+      requestedInstallationId,
+    );
 
     // Audit log: Log successful token requests for security compliance
     console.log("GitHub token generated for pod", {
