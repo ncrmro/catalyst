@@ -49,6 +49,7 @@ The git credential helper replaces the secret-based authentication approach with
 To use the credential helper in a pod:
 
 1. **Add Installation ID label**:
+
    ```yaml
    metadata:
      labels:
@@ -56,6 +57,7 @@ To use the credential helper in a pod:
    ```
 
 2. **Set Environment Variable**:
+
    ```yaml
    env:
      - name: INSTALLATION_ID
@@ -63,13 +65,14 @@ To use the credential helper in a pod:
    ```
 
 3. **Install and Configure Git** (in init container or main container):
+
    ```bash
    # Copy helper script
    cat > /usr/local/bin/git-credential-catalyst <<'EOF'
    [content of git-credential-catalyst.sh]
    EOF
    chmod +x /usr/local/bin/git-credential-catalyst
-   
+
    # Configure git
    git config --global credential.helper /usr/local/bin/git-credential-catalyst
    ```
@@ -125,6 +128,7 @@ await createPullRequestPodJob({
 ## Testing
 
 Run unit tests:
+
 ```bash
 npm run test:unit -- __tests__/unit/git-credential-helper.test.ts
 ```

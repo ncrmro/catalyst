@@ -31,7 +31,9 @@ describe("Git Credential Helper Library", () => {
         targetDir: "/workspace",
       });
 
-      expect(commands).toContain("git clone https://github.com/test/repo.git /workspace");
+      expect(commands).toContain(
+        "git clone https://github.com/test/repo.git /workspace",
+      );
       expect(commands).toContain("Cloning Repository");
     });
 

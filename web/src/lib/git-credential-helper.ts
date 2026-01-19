@@ -61,8 +61,12 @@ export function generateGitCredentialHelperInitCommands(options: {
   commitSha?: string;
   targetDir?: string;
 }): string {
-  const { installationId, repoUrl, commitSha, targetDir = "/workspace" } =
-    options;
+  const {
+    installationId,
+    repoUrl,
+    commitSha,
+    targetDir = "/workspace",
+  } = options;
 
   // Load the credential helper script content so we can embed it into the init commands
   // if the script is not already present in the container image.

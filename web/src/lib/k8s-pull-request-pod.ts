@@ -433,9 +433,9 @@ echo ""
           "pr-name": name,
           // Add installation ID label if using credential helper
           ...(useCredentialHelper &&
-          installationId && {
-            "catalyst.dev/installation-id": installationId.toString(),
-          }),
+            installationId && {
+              "catalyst.dev/installation-id": installationId.toString(),
+            }),
         },
       },
       spec: {
@@ -447,9 +447,9 @@ echo ""
               "pr-name": name,
               // Add installation ID label if using credential helper
               ...(useCredentialHelper &&
-              installationId && {
-                "catalyst.dev/installation-id": installationId.toString(),
-              }),
+                installationId && {
+                  "catalyst.dev/installation-id": installationId.toString(),
+                }),
             },
           },
           spec: {
@@ -461,8 +461,7 @@ echo ""
                 image: image,
                 env: [
                   // Conditionally add GITHUB_TOKEN from secret (legacy) or INSTALLATION_ID (new)
-                  ...(useCredentialHelper &&
-                  installationId
+                  ...(useCredentialHelper && installationId
                     ? [
                         {
                           name: "INSTALLATION_ID",
