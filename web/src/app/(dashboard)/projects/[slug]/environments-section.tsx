@@ -40,10 +40,10 @@ export async function EnvironmentsSection({
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-on-surface">Environments</h2>
         <Link
-          href={`/environments/${project.slug}`}
+          href={`/projects/${project.slug}/platform`}
           className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-on-primary bg-primary rounded-lg hover:opacity-90 transition-opacity"
         >
-          Add Environment
+          Manage Environments
         </Link>
       </div>
 
