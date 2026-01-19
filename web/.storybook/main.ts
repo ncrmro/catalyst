@@ -33,12 +33,37 @@ const config: StorybookConfig = {
     config.resolve.alias = config.resolve.alias || {};
 
     // Use Object.assign to ADD aliases without replacing the object
+    // IMPORTANT: More specific aliases must come before general ones
+    // Otherwise "next-auth/providers/credentials" would match "next-auth" first
     Object.assign(config.resolve.alias, {
       "@/__tests__": path.resolve(__dirname, "../__tests__"),
       "@fixtures": path.resolve(__dirname, "../fixtures"),
       // Mock Node.js-only modules that cannot run in the browser
+      crypto: path.resolve(__dirname, "./mocks/crypto.js"),
       pg: path.resolve(__dirname, "./mocks/pg.js"),
       "next/server": path.resolve(__dirname, "./mocks/next-server.js"),
+      // Specific next-auth submodule mocks MUST come before general next-auth mock
+      "next-auth/providers/credentials": path.resolve(
+        __dirname,
+        "./mocks/next-auth-providers-credentials.js",
+      ),
+      "next-auth/providers/github": path.resolve(
+        __dirname,
+        "./mocks/next-auth-providers-github.js",
+      ),
+      "next-auth/providers": path.resolve(
+        __dirname,
+        "./mocks/next-auth-providers.js",
+      ),
+      "next-auth/jwt": path.resolve(
+        __dirname,
+        "./mocks/next-auth-jwt.js",
+      ),
+      "next-auth/react": path.resolve(
+        __dirname,
+        "./mocks/next-auth-react.js",
+      ),
+      // General next-auth mock comes after all specific submodules
       "next-auth": path.resolve(__dirname, "./mocks/next-auth.js"),
       "@/auth": path.resolve(__dirname, "./mocks/next-auth.js"),
       // Mock server actions that import server-only code
