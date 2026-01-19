@@ -61,7 +61,9 @@ export async function setup() {
               `${kubectl} apply -f "${crdPath}" --kubeconfig "${tempKubeConfigPath}"`,
               { stdio: "inherit" },
             );
-            console.log("CRDs installed successfully. Waiting for them to be established...");
+            console.log(
+              "CRDs installed successfully. Waiting for them to be established...",
+            );
 
             // Wait for CRDs to be established using kubectl wait
             try {
@@ -70,7 +72,7 @@ export async function setup() {
                 { stdio: "inherit" },
               );
               console.log("CRDs are established and ready.");
-            } catch (waitError) {
+            } catch (_waitError) {
               console.warn(
                 "Warning: Timed out waiting for CRDs to be established, but proceeding anyway.",
               );
@@ -81,10 +83,11 @@ export async function setup() {
         } else {
           console.log("Required CRDs already exist.");
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
+        const errorMessage = e instanceof Error ? e.message : String(e);
         console.warn(
           "Failed to check/install CRDs (kubectl might be missing or cluster unreachable):",
-          e.message,
+          errorMessage,
         );
       }
     } finally {
