@@ -39,6 +39,13 @@ spec:
           spec:
             description: spec defines the desired state of Project
             properties:
+              githubInstallationId:
+                description: |-
+                  GitHubInstallationId is the GitHub App installation ID for this project.
+                  This is the numeric ID assigned when the GitHub App is installed on a
+                  repository or organization. Used by the credential helper to fetch
+                  fresh GitHub tokens for git operations.
+                type: string
               resources:
                 description: Resources configuration (quotas, limits)
                 properties:

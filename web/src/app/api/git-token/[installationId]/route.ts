@@ -294,6 +294,9 @@ async function generateInstallationToken(
  *
  * Returns a fresh GitHub App installation token for git operations.
  * Authenticates pods via ServiceAccount tokens.
+ *
+ * Special case: When installationId is "pat", returns the configured GITHUB_PAT
+ * directly for local development scenarios where a GitHub App is not configured.
  */
 export async function GET(
   request: NextRequest,
@@ -320,6 +323,35 @@ export async function GET(
 
     // Resolve params
     const { installationId: installationIdStr } = await params;
+
+    // Handle PAT mode for local development
+    // When installationId is "pat", return the configured GITHUB_PAT directly
+    if (installationIdStr === "pat") {
+      const { GITHUB_CONFIG } = await import("@/lib/vcs-providers");
+
+      if (!GITHUB_CONFIG.PAT) {
+        console.error("PAT mode requested but GITHUB_PAT is not configured");
+        return NextResponse.json(
+          { error: "GITHUB_PAT not configured" },
+          { status: 500 },
+        );
+      }
+
+      // Audit log: Log PAT token request
+      console.log("GitHub PAT returned for pod", {
+        namespace: validation.namespace,
+        mode: "pat",
+        timestamp: new Date().toISOString(),
+      });
+
+      return new NextResponse(GITHUB_CONFIG.PAT, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/plain",
+        },
+      });
+    }
+
     const requestedInstallationId = parseInt(installationIdStr, 10);
 
     if (isNaN(requestedInstallationId)) {

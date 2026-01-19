@@ -447,6 +447,16 @@ export async function getCustomObjectsApi(): Promise<
 }
 
 /**
+ * Get the BatchV1Api constructor
+ */
+export async function getBatchV1Api(): Promise<
+  typeof import("@kubernetes/client-node").BatchV1Api
+> {
+  const k8s = await loadKubernetesClient();
+  return k8s.BatchV1Api;
+}
+
+/**
  * Reset the global registry (for testing)
  */
 export function resetKubeConfigRegistry(): void {

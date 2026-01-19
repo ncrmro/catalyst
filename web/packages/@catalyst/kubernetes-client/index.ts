@@ -12,6 +12,7 @@ export {
   getClusters,
   getClusterConfig,
   getAppsV1Api,
+  getBatchV1Api,
   getCoreV1Api,
   getCustomObjectsApi,
   KubeConfig,

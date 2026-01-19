@@ -4,7 +4,6 @@
 
 import { getCoreV1Api, getClusterConfig } from "./k8s-client";
 import { GITHUB_CONFIG } from "./vcs-providers";
-import { generateGitCredentialHelperInitCommands } from "./git-credential-helper";
 
 export interface PullRequestPodOptions {
   name: string;
@@ -20,8 +19,6 @@ export interface PullRequestPodOptions {
     // Optional additional environment variables
     [key: string]: string;
   };
-  // Optional installation ID for git credential helper
-  installationId?: number;
 }
 
 export interface PullRequestPodResult {
@@ -377,7 +374,6 @@ export async function createPullRequestPodJob(
     image = "ghcr.io/ncrmro/catalyst/pr-job-pod:latest",
     clusterName,
     env,
-    installationId,
   } = options;
 
   const kc = await getClusterConfig(clusterName);
@@ -398,28 +394,10 @@ export async function createPullRequestPodJob(
   // First create the service account and RBAC
   await createBuildxServiceAccount(name, namespace, clusterName);
 
-  // Use credential helper if installationId is provided, otherwise use PAT secret
-  const useCredentialHelper = !!installationId;
-
-  if (!useCredentialHelper) {
-    // Legacy approach: Create GitHub PAT secret for repository access
-    await createGitHubPATSecret(namespace, clusterName);
-  }
+  // Create GitHub PAT secret for repository access
+  await createGitHubPATSecret(namespace, clusterName);
 
   try {
-    // Determine git setup script based on credential helper option
-    const gitSetupScript = useCredentialHelper
-      ? generateGitCredentialHelperInitCommands({
-          installationId: installationId as number,
-        })
-      : `
-echo "=== Setting up Git Configuration ==="
-echo "Setting up git configuration (using GITHUB_TOKEN secret)..."
-git config --global credential.helper '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN"; }; f'
-echo "✓ Git configured"
-echo ""
-`;
-
     // Create job manifest
     const job = {
       apiVersion: "batch/v1",
@@ -431,11 +409,6 @@ echo ""
           app: "catalyst-pr-job",
           "created-by": "catalyst-web-app",
           "pr-name": name,
-          // Add installation ID label if using credential helper
-          ...(useCredentialHelper &&
-            installationId && {
-              "catalyst.dev/installation-id": installationId.toString(),
-            }),
         },
       },
       spec: {
@@ -445,11 +418,6 @@ echo ""
               app: "catalyst-pr-job",
               "created-by": "catalyst-web-app",
               "pr-name": name,
-              // Add installation ID label if using credential helper
-              ...(useCredentialHelper &&
-                installationId && {
-                  "catalyst.dev/installation-id": installationId.toString(),
-                }),
             },
           },
           spec: {
@@ -460,44 +428,16 @@ echo ""
                 name: "buildx-container",
                 image: image,
                 env: [
-                  // Conditionally add GITHUB_TOKEN from secret (legacy) or INSTALLATION_ID (new)
-                  ...(useCredentialHelper && installationId
-                    ? [
-                        {
-                          name: "INSTALLATION_ID",
-                          value: installationId.toString(),
-                        },
-                      ]
-                    : [
-                        {
-                          name: "GITHUB_TOKEN",
-                          valueFrom: {
-                            secretKeyRef: {
-                              name: "github-pat-secret",
-                              key: "token",
-                            },
-                          },
-                        },
-                      ]),
-                  // Add CATALYST_WEB_URL when using credential helper
-                  ...(useCredentialHelper
-                    ? [
-                        {
-                          name: "CATALYST_WEB_URL",
-                          value: (() => {
-                            const webUrl =
-                              process.env.CATALYST_WEB_URL ||
-                              "http://catalyst-web.catalyst-system.svc.cluster.local:3000";
-                            if (!webUrl) {
-                              throw new Error(
-                                "CATALYST_WEB_URL must be defined when using credential helper",
-                              );
-                            }
-                            return webUrl;
-                          })(),
-                        },
-                      ]
-                    : []),
+                  // GITHUB_TOKEN from secret for git operations
+                  {
+                    name: "GITHUB_TOKEN",
+                    valueFrom: {
+                      secretKeyRef: {
+                        name: "github-pat-secret",
+                        key: "token",
+                      },
+                    },
+                  },
                   // Environment variables passed from webhook
                   ...(env
                     ? Object.entries(env).map(([name, value]) => ({
@@ -529,7 +469,6 @@ echo ""
                   echo "  PR Number: \$PR_NUMBER"
                   echo "  Image: \$IMAGE_NAME"
                   echo "  Build Required: \$NEEDS_BUILD"
-                  ${useCredentialHelper ? 'echo "  Auth Method: Git Credential Helper"' : 'echo "  Auth Method: GitHub Token Secret"'}
                   echo ""
 
                   echo "=== Verifying pre-installed tools ==="
@@ -560,7 +499,11 @@ echo ""
                     echo ""
                   fi
 
-                  ${gitSetupScript}
+                  echo "=== Setting up Git Configuration ==="
+                  echo "Setting up git configuration..."
+                  git config --global credential.helper '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN"; }; f'
+                  echo "✓ Git configured"
+                  echo ""
 
                   echo "=== Cloning Repository ==="
                   echo "Shallow clone enabled: \$SHALLOW_CLONE"

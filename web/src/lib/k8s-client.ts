@@ -1,5 +1,6 @@
 export {
   getAppsV1Api,
+  getBatchV1Api,
   getClusterConfig,
   getClusters,
   getCoreV1Api,

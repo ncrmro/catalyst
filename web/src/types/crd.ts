@@ -47,6 +47,22 @@ export interface SourceConfig {
   branch: string;
 }
 
+export interface ProjectCRSpec {
+  /**
+   * GitHub App installation ID for this project.
+   * Used by the credential helper to fetch fresh GitHub tokens for git operations.
+   */
+  githubInstallationId?: string;
+  sources: SourceConfig[];
+  templates?: Record<string, EnvironmentTemplate>;
+  resources?: {
+    defaultQuota?: {
+      cpu?: string;
+      memory?: string;
+    };
+  };
+}
+
 export interface BuildSpec {
   name: string;
   sourceRef: string;
@@ -64,15 +80,4 @@ export interface EnvironmentTemplate {
   path: string;
   builds?: BuildSpec[];
   values?: Record<string, unknown>;
-}
-
-export interface ProjectCRSpec {
-  sources: SourceConfig[];
-  templates?: Record<string, EnvironmentTemplate>;
-  resources?: {
-    defaultQuota?: {
-      cpu?: string;
-      memory?: string;
-    };
-  };
 }

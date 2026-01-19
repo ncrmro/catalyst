@@ -6,7 +6,7 @@
  */
 
 import { db } from "@/db";
-import { projects } from "@/db/schema";
+import { projects, teamsMemberships, githubUserTokens } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getProjects } from "@/models/projects";
 import { getEnvironments } from "@/models/environments";
@@ -23,6 +23,42 @@ import type {
   EnvironmentTemplate,
 } from "@/types/crd";
 import type { EnvironmentConfig } from "@/types/environment-config";
+
+/**
+ * Get GitHub installation ID for a team
+ *
+ * Looks up team members' GitHub tokens to find an installation ID.
+ * The installation ID is needed for the operator to fetch fresh tokens
+ * for git operations via the credential helper.
+ *
+ * @param teamId The team ID to get the installation ID for
+ * @returns Installation ID or undefined if not found
+ */
+async function getGitHubInstallationIdForTeam(
+  teamId: string,
+): Promise<string | undefined> {
+  // Find team members who have GitHub tokens with installation IDs
+  const teamMembers = await db
+    .select({
+      userId: teamsMemberships.userId,
+      installationId: githubUserTokens.installationId,
+    })
+    .from(teamsMemberships)
+    .leftJoin(
+      githubUserTokens,
+      eq(teamsMemberships.userId, githubUserTokens.userId),
+    )
+    .where(eq(teamsMemberships.teamId, teamId));
+
+  // Return the first installation ID found
+  for (const member of teamMembers) {
+    if (member.installationId) {
+      return member.installationId;
+    }
+  }
+
+  return undefined;
+}
 
 /**
  * Convert environment config method to deployment type
@@ -155,11 +191,17 @@ export async function syncProjectToK8s(
     const teamNamespace = generateTeamNamespace(teamName);
     await ensureTeamNamespace(kubeConfig, teamName);
 
-    // 5. Create or update Project CR in team namespace
+    // 5. Get GitHub installation ID for the team
+    const githubInstallationId = await getGitHubInstallationIdForTeam(
+      projectWithTeam.team.id,
+    );
+
+    // 6. Create or update Project CR in team namespace
     const sanitizedName = projectWithTeam.name
       .toLowerCase()
       .replace(/[^a-z0-9-]/g, "-");
     const spec: ProjectCRSpec = {
+      githubInstallationId,
       sources,
       templates,
       resources: {
