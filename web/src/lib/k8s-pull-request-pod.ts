@@ -4,6 +4,7 @@
 
 import { getCoreV1Api, getClusterConfig } from "./k8s-client";
 import { GITHUB_CONFIG } from "./vcs-providers";
+import { generateGitCredentialHelperInitCommands } from "./git-credential-helper";
 
 export interface PullRequestPodOptions {
   name: string;
@@ -19,6 +20,8 @@ export interface PullRequestPodOptions {
     // Optional additional environment variables
     [key: string]: string;
   };
+  // Optional installation ID for git credential helper
+  installationId?: number;
 }
 
 export interface PullRequestPodResult {
@@ -374,6 +377,7 @@ export async function createPullRequestPodJob(
     image = "ghcr.io/ncrmro/catalyst/pr-job-pod:latest",
     clusterName,
     env,
+    installationId,
   } = options;
 
   const kc = await getClusterConfig(clusterName);
@@ -394,10 +398,28 @@ export async function createPullRequestPodJob(
   // First create the service account and RBAC
   await createBuildxServiceAccount(name, namespace, clusterName);
 
-  // Create GitHub PAT secret for repository access
-  await createGitHubPATSecret(namespace, clusterName);
+  // Use credential helper if installationId is provided, otherwise use PAT secret
+  const useCredentialHelper = !!installationId;
+
+  if (!useCredentialHelper) {
+    // Legacy approach: Create GitHub PAT secret for repository access
+    await createGitHubPATSecret(namespace, clusterName);
+  }
 
   try {
+    // Determine git setup script based on credential helper option
+    const gitSetupScript = useCredentialHelper
+      ? generateGitCredentialHelperInitCommands({
+          installationId: installationId!,
+        })
+      : `
+echo "=== Setting up Git Configuration ==="
+echo "Setting up git configuration (using GITHUB_TOKEN secret)..."
+git config --global credential.helper '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN"; }; f'
+echo "✓ Git configured"
+echo ""
+`;
+
     // Create job manifest
     const job = {
       apiVersion: "batch/v1",
@@ -409,6 +431,10 @@ export async function createPullRequestPodJob(
           app: "catalyst-pr-job",
           "created-by": "catalyst-web-app",
           "pr-name": name,
+          // Add installation ID label if using credential helper
+          ...(useCredentialHelper && {
+            "catalyst.dev/installation-id": installationId!.toString(),
+          }),
         },
       },
       spec: {
@@ -418,6 +444,10 @@ export async function createPullRequestPodJob(
               app: "catalyst-pr-job",
               "created-by": "catalyst-web-app",
               "pr-name": name,
+              // Add installation ID label if using credential helper
+              ...(useCredentialHelper && {
+                "catalyst.dev/installation-id": installationId!.toString(),
+              }),
             },
           },
           spec: {
@@ -428,16 +458,25 @@ export async function createPullRequestPodJob(
                 name: "buildx-container",
                 image: image,
                 env: [
-                  // GitHub token from secret
-                  {
-                    name: "GITHUB_TOKEN",
-                    valueFrom: {
-                      secretKeyRef: {
-                        name: "github-pat-secret",
-                        key: "token",
-                      },
-                    },
-                  },
+                  // Conditionally add GITHUB_TOKEN from secret (legacy) or INSTALLATION_ID (new)
+                  ...(useCredentialHelper
+                    ? [
+                        {
+                          name: "INSTALLATION_ID",
+                          value: installationId!.toString(),
+                        },
+                      ]
+                    : [
+                        {
+                          name: "GITHUB_TOKEN",
+                          valueFrom: {
+                            secretKeyRef: {
+                              name: "github-pat-secret",
+                              key: "token",
+                            },
+                          },
+                        },
+                      ]),
                   // Environment variables passed from webhook
                   ...(env
                     ? Object.entries(env).map(([name, value]) => ({
@@ -469,6 +508,7 @@ export async function createPullRequestPodJob(
                   echo "  PR Number: \$PR_NUMBER"
                   echo "  Image: \$IMAGE_NAME"
                   echo "  Build Required: \$NEEDS_BUILD"
+                  ${useCredentialHelper ? 'echo "  Auth Method: Git Credential Helper"' : 'echo "  Auth Method: GitHub Token Secret"'}
                   echo ""
 
                   echo "=== Verifying pre-installed tools ==="
@@ -499,10 +539,7 @@ export async function createPullRequestPodJob(
                     echo ""
                   fi
 
-                  echo "=== Setting up Git Configuration ==="
-                  echo "Setting up git configuration..."
-                  git config --global credential.helper '!f() { echo "username=x-access-token"; echo "password=\$GITHUB_TOKEN"; }; f'
-                  echo ""
+                  ${gitSetupScript}
 
                   echo "=== Cloning Repository ==="
                   echo "Shallow clone enabled: \$SHALLOW_CLONE"
