@@ -412,10 +412,6 @@ async function handlePullRequestEvent(payload: {
   // Delete namespace and preview deployment when PR is closed
   if (action === "closed") {
     try {
-      // Extract team and project from repository full_name (owner/repo)
-      const [owner, repo] = repository.full_name.split("/");
-      const environment = `gh-pr-${pull_request.number}`;
-
       // Clean up preview deployment pods from database
       if (repoResult.success && repoResult.repo) {
         const prRecord = await db
