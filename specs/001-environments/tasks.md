@@ -633,41 +633,42 @@ This delivers the core value proposition: automatic preview deployments with pub
 
 ---
 
-## Phase 18: FR-ENV-023 - PVC-Based Code Volumes (Priority: P1)
+## Phase 18: FR-ENV-023 - PVC-Based Code Volumes with Credential Helper (Priority: P1)
 
-**Purpose**: Replace HostPath volumes with PVC + git-clone for development mode deployments. See [research.git-sidecar.md](./research.git-sidecar.md) for architecture.
+**Purpose**: Replace HostPath volumes with PVC + git-clone for development mode deployments. Use credential helper for on-demand token fetching (no secrets). See [research.git-credential-helper.md](./research.git-credential-helper.md) for architecture.
 
 ### Operator Changes
 
 - [ ] T172 [FR-ENV-023] [Operator] Add `desiredCodePVC()` function in `operator/internal/controller/development_deploy.go` to create PVC for code storage (1Gi)
-- [ ] T173 [FR-ENV-023] [Operator] Add git-clone init container to `desiredDevelopmentDeployment()` that clones repo into PVC
-- [ ] T174 [FR-ENV-023] [Operator] Replace HostPath volume with PVC volume in `desiredDevelopmentDeployment()`
-- [ ] T175 [FR-ENV-023] [Operator] Add git-credentials volume (from Secret) to `desiredDevelopmentDeployment()`
-- [ ] T176 [FR-ENV-023] [Operator] Implement `ensureGitCredentials()` to copy Secret from project namespace to environment namespace
-- [ ] T177 [FR-ENV-023] [Operator] Update `ReconcileDevelopmentMode()` to call `ensureGitCredentials()` before creating deployment
-
-### API Changes
-
-- [ ] T178 [FR-ENV-023] [Operator] Add `AuthSecretRef` field to `SourceConfig` in `operator/api/v1alpha1/project_types.go`
-- [ ] T179 [FR-ENV-023] [Operator] Add `SecretReference` type to `operator/api/v1alpha1/project_types.go`
-- [ ] T180 [FR-ENV-023] [Operator] Regenerate CRD with `make manifests`
+- [ ] T173 [FR-ENV-023] [Operator] Replace HostPath volume with PVC volume in `desiredDevelopmentDeployment()`
+- [ ] T174 [FR-ENV-023] [Operator] Add git-clone init container with credential helper script that:
+  - Reads pod's ServiceAccount token from `/var/run/secrets/kubernetes.io/serviceaccount/token`
+  - Calls web server `/api/git-token/:installationId` endpoint with Bearer token auth
+  - Configures git credential helper before cloning
+- [ ] T175 [FR-ENV-023] [Operator] Pass `INSTALLATION_ID` environment variable to init container (from Environment CR or labels)
+- [ ] T176 [FR-ENV-023] [Operator] Update `ReconcileDevelopmentMode()` to create code PVC before deployment
 
 ### Web App Changes
 
-- [ ] T181 [FR-ENV-023] [Web] Implement `generateInstallationToken()` in `web/src/lib/github-installation-token.ts` to generate 1-hour GitHub App tokens
-- [ ] T182 [FR-ENV-023] [Web] Implement `createGitCredentialsSecret()` in `web/src/models/preview-environments.ts` to create K8s Secret with git credentials
-- [ ] T183 [FR-ENV-023] [Web] Update `createPreviewDeployment()` to call `createGitCredentialsSecret()` before creating Environment CR
-- [ ] T184 [FR-ENV-023] [Web] Update `syncProjectToK8s()` in `web/src/lib/sync-project-cr.ts` to include `authSecretRef` in Project CR
+- [ ] T177 [FR-ENV-023] [Web] Create `/api/git-token/[installationId]/route.ts` endpoint that:
+  - Validates request using Kubernetes TokenReview API
+  - Extracts namespace from ServiceAccount username
+  - Looks up Environment CR to verify installation ID
+  - Generates fresh GitHub App installation token
+  - Returns plain text token
+- [ ] T178 [FR-ENV-023] [Web] Implement `validatePodRequest()` in `web/src/lib/k8s-auth.ts` for ServiceAccount token validation
+- [ ] T179 [FR-ENV-023] [Web] Implement `generateInstallationToken()` in `web/src/lib/github-installation-token.ts`
+- [ ] T180 [FR-ENV-023] [Web] Add `installation-id` to Environment CR metadata/labels when creating preview deployments
 
 ### Testing
 
-- [ ] T185 [FR-ENV-023] [Operator] Add unit test for `desiredCodePVC()` function
-- [ ] T186 [FR-ENV-023] [Operator] Add unit test for git-clone init container spec
-- [ ] T187 [FR-ENV-023] [Web] Add unit test for `generateInstallationToken()`
-- [ ] T188 [FR-ENV-023] [Web] Add unit test for `createGitCredentialsSecret()`
-- [ ] T189 [FR-ENV-023] [Integration] Add integration test verifying PVC-based deployment works end-to-end
+- [ ] T181 [FR-ENV-023] [Operator] Add unit test for `desiredCodePVC()` function
+- [ ] T182 [FR-ENV-023] [Operator] Add unit test for git-clone init container with credential helper
+- [ ] T183 [FR-ENV-023] [Web] Add unit test for `/api/git-token` endpoint
+- [ ] T184 [FR-ENV-023] [Web] Add unit test for `validatePodRequest()`
+- [ ] T185 [FR-ENV-023] [Integration] Add integration test verifying PVC-based deployment with credential helper works end-to-end
 
-**Checkpoint**: Development mode deployments use PVC + git-clone instead of HostPath
+**Checkpoint**: Development mode deployments use PVC + git-clone with credential helper (no secrets)
 
 ---
 

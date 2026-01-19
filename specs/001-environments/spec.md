@@ -170,12 +170,15 @@ As a power user, I want to configure deployments using standard tools (Docker Co
 - **FR-ENV-023**: The Operator MUST use PersistentVolumeClaims (PVCs) for code storage in development mode deployments (not HostPath):
   - A PVC (`web-code`) MUST be created to store the cloned repository code.
   - A git-clone init container MUST clone the repository into the PVC before the main container starts.
-  - Git authentication MUST use short-lived GitHub App installation tokens (1-hour TTL) stored in a Kubernetes Secret.
-  - The Web App MUST create the git credentials Secret in the project namespace before creating the Environment CR.
-  - The Operator MUST copy the git credentials Secret from the project namespace to the environment namespace.
-  - Git credentials Secrets MUST be deleted when the Environment CR/namespace is deleted (standard K8s garbage collection).
+  - Git authentication MUST use a credential helper that fetches fresh tokens on-demand from the web server:
+    - The Operator MUST configure git with a credential helper script in the init container.
+    - The credential helper MUST call the web server's `/api/git-token/:installationId` endpoint.
+    - The credential helper MUST authenticate using the pod's ServiceAccount token.
+    - The web server MUST validate requests using the Kubernetes TokenReview API.
+    - The web server MUST generate fresh GitHub App installation tokens (1-hour TTL) for each request.
   - Authentication MUST be required for all repositories (public and private) to support push operations to feature branches.
-  - See [research.git-sidecar.md](./research.git-sidecar.md) for architecture details.
+  - The `installation-id` MUST be passed to the pod via environment variable or label.
+  - See [research.git-credential-helper.md](./research.git-credential-helper.md) for architecture details.
 
 ### Key Entities
 

@@ -1,137 +1,50 @@
 # Research: Private Repository Access via Git-Sync Sidecar
 
 **Date**: 2026-01-10
-**Status**: Adopted
+**Status**: Superseded
 **Related**: FR-ENV-019, FR-ENV-023
+**Superseded By**: [research.git-credential-helper.md](./research.git-credential-helper.md)
 
-## Context
+## Summary
 
-We need a secure and reliable way for user applications (running in Preview Environments) to access private repositories, particularly for "pull later" scenarios or hot-reloading where the code needs to be kept in sync with the remote repository.
+This document originally proposed a secret-based approach for git authentication. That approach has been **superseded** by the credential helper approach documented in [research.git-credential-helper.md](./research.git-credential-helper.md).
 
-## Adopted Approach: Init Container with PVC
+## Why Superseded
 
-For **FR-ENV-023**, we adopt a simpler init container approach (not a continuous sidecar) for the initial implementation:
+The secret-based approach had limitations:
 
-### Architecture
+1. **Token expiration**: 1-hour tokens stored in secrets expire, breaking push operations
+2. **Secret management complexity**: Secrets needed to be created, copied between namespaces, and cleaned up
+3. **No push support**: After token expiration, push operations would fail
 
-```
-┌─────────────────────────────────────────────────────────┐
-│ Web App (createPreviewDeployment)                       │
-│ 1. Generate fresh 1-hour GitHub token via installation │
-│ 2. Create K8s Secret in project namespace              │
-│    - Type: kubernetes.io/basic-auth                    │
-│    - Data: username=x-access-token, password=<token>   │
-│ 3. Create Environment CR                               │
-└─────────────────────────────────────────────────────────┘
-                         ↓
-┌─────────────────────────────────────────────────────────┐
-│ Operator (ReconcileDevelopmentMode)                     │
-│ 1. Create PVC for code volume (web-code, 1Gi)          │
-│ 2. Copy git credentials Secret to env namespace        │
-│ 3. Add git-clone init container                        │
-│ 4. Mount PVC as code volume (not HostPath)             │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Token Lifecycle
-
-| Component             | Token Type              | TTL                     | Refresh? | Mechanism             |
-| --------------------- | ----------------------- | ----------------------- | -------- | --------------------- |
-| User tokens (web app) | GitHub App + Refresh    | 8h access / 6mo refresh | Yes      | `token-refresh.ts`    |
-| Environment tokens    | GitHub App Installation | 1 hour                  | No       | Fresh per environment |
-
-**Key insight**: 1-hour tokens are sufficient because:
-
-- Git clone completes in seconds/minutes
-- No refresh needed during deployment lifecycle
-- Fresh token generated for each new environment
-
-### Git-Clone Init Container
-
-```yaml
-initContainers:
-  - name: git-clone
-    image: alpine/git:latest
-    command:
-      - /bin/sh
-      - -c
-      - |
-        # Setup .netrc for authentication
-        cat > ~/.netrc <<EOF
-        machine github.com
-        login x-access-token
-        password $(cat /etc/git-credentials/password)
-        EOF
-        chmod 600 ~/.netrc
-
-        # Clone and checkout specific commit
-        git clone $GIT_REPO_URL /code
-        git -C /code checkout $GIT_COMMIT_SHA
-    env:
-      - name: GIT_REPO_URL
-        value: "https://github.com/owner/repo.git"
-      - name: GIT_COMMIT_SHA
-        value: "abc123..."
-    volumeMounts:
-      - name: code
-        mountPath: /code
-      - name: git-credentials
-        mountPath: /etc/git-credentials
-        readOnly: true
-```
-
-### Secret Format
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: github-credentials
-  namespace: <project-namespace>
-type: kubernetes.io/basic-auth
-stringData:
-  username: x-access-token
-  password: <github-installation-token> # 1-hour TTL
-```
-
-### Security Considerations
-
-1. **Token TTL**: 1-hour GitHub App tokens (no refresh needed during deployment)
-2. **Secret scope**: Secret only readable in its own namespace
-3. **Token scope**: Minimal GitHub permissions (`contents:read`, `contents:write` for push)
-4. **Cleanup**: Secret deleted when namespace deleted (K8s garbage collection)
-5. **Always auth**: Required even for public repos (to support push to feature branches)
+The credential helper approach solves these issues by fetching fresh tokens on-demand from the web server.
 
 ---
 
-## Future Enhancement: Git-Sync Sidecar (The Decoupled Model)
+## Historical Context (For Reference)
 
-For continuous sync scenarios (hot-reloading from remote changes), a sidecar approach may be added later.
+The original approach proposed:
+
+1. Web app creates K8s Secret with GitHub token before Environment CR
+2. Operator copies Secret from project namespace to environment namespace
+3. Git-clone init container uses Secret for authentication
+
+This worked for clone-only scenarios but failed for:
+
+- Pod restarts after 1 hour
+- Push operations in workspace mode
+
+---
+
+## Future Enhancement: Git-Sync Sidecar
+
+For continuous sync scenarios (hot-reloading from remote changes), a sidecar approach may be added later. The sidecar would use the same credential helper pattern to fetch fresh tokens.
 
 ### Workflow
 
-1.  **Injection**: The Operator injects a sidecar container into the Pod definition of the Environment.
-2.  **Credentials**: The Operator passes the GitHub App credentials specifically to the sidecar, **NOT** the main app.
-3.  **Sync Loop**: The Sidecar runs a loop: it authenticates, pulls the repo, and keeps it updated in a PVC volume.
-4.  **Shared Volume**: The Main Container mounts the same volume. It simply sees files on the disk.
+1. **Injection**: The Operator injects a sidecar container into the Pod definition
+2. **Credentials**: The sidecar uses credential helper to fetch fresh tokens
+3. **Sync Loop**: The sidecar runs a loop, pulling changes periodically
+4. **Shared Volume**: The main container mounts the same PVC volume
 
-### Pros
-
-- **Separation of Concerns**: The main app doesn't need git binaries, tokens, or network access to GitHub.
-- **Automatic "Pull Later"**: Keeps the local disk in sync with the remote repo.
-- **Resilience**: If the token expires, the sidecar refreshes it and tries again.
-
-### Cons
-
-- **Resource Overhead**: Running an extra container in every Pod increases CPU/Memory usage.
-- **Token Refresh Complexity**: Requires mechanism to update Secret when token refreshes.
-- **Not needed for initial implementation**: Init container is sufficient for preview environments.
-
-## Implementation Strategy (Current)
-
-The Operator will:
-
-1.  Create PVC for code storage (`web-code`, 1Gi).
-2.  Copy git credentials Secret from project namespace to environment namespace.
-3.  Add git-clone init container with repository URL and commit SHA from Environment CR.
-4.  Mount PVC to init container and main container as `/code`.
+This remains a future enhancement, not currently implemented.
