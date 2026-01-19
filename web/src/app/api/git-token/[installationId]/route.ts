@@ -22,7 +22,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { k8sClient } from "@/lib/k8s-client";
+import { getClusterConfig } from "@/lib/k8s-client";
 
 interface ValidationResult {
   valid: boolean;
@@ -46,12 +46,18 @@ async function validatePodRequest(
   token: string,
 ): Promise<ValidationResult> {
   try {
+    // Get Kubernetes config
+    const kc = await getClusterConfig();
+    if (!kc) {
+      return {
+        valid: false,
+        error: "Kubernetes config not available",
+      };
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { AuthenticationV1Api } = require("@kubernetes/client-node");
-    const authApi = k8sClient.makeApiClient(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      AuthenticationV1Api as any,
-    );
+    const authApi = kc.makeApiClient(AuthenticationV1Api);
 
     // Create TokenReview to validate the ServiceAccount token
     const tokenReview = {
@@ -62,7 +68,8 @@ async function validatePodRequest(
       },
     };
 
-    const response = await authApi.createTokenReview({ body: tokenReview });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await (authApi as any).createTokenReview({ body: tokenReview });
 
     // Check if token is authenticated
     if (!response.status?.authenticated) {
@@ -130,15 +137,19 @@ async function getInstallationIdForNamespace(
   namespace: string,
 ): Promise<number | null> {
   try {
+    // Get Kubernetes config
+    const kc = await getClusterConfig();
+    if (!kc) {
+      return null;
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { CustomObjectsApi } = require("@kubernetes/client-node");
-    const customApi = k8sClient.makeApiClient(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      CustomObjectsApi as any,
-    );
+    const customApi = kc.makeApiClient(CustomObjectsApi);
 
     // List Environment CRs in the namespace
-    const response = await customApi.listNamespacedCustomObject({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await (customApi as any).listNamespacedCustomObject({
       group: "catalyst.catalyst.dev",
       version: "v1alpha1",
       namespace,
@@ -186,7 +197,7 @@ async function generateInstallationToken(
   try {
     // Use @octokit/auth-app directly to get the token
     const { createAppAuth } = await import("@octokit/auth-app");
-    const { GITHUB_CONFIG } = await import("@catalyst/vcs-provider/src/providers/github/client");
+    const { GITHUB_CONFIG } = await import("@/lib/vcs-providers");
 
     const auth = createAppAuth({
       appId: GITHUB_CONFIG.APP_ID,
