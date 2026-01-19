@@ -83,6 +83,12 @@ jobs:
         run: |
           kind create cluster --name integration-test-cluster --wait 60s
 
+      - name: Install CRDs
+        run: |
+          kubectl apply -f ../operator/config/crd/bases/catalyst.catalyst.dev_environments.yaml
+          kubectl apply -f ../operator/config/crd/bases/catalyst.catalyst.dev_projects.yaml
+          echo "Environment and Project CRDs installed"
+
       - name: Export kubeconfig for integration tests
         run: |
           # Export base64 encoded kubeconfig for integration tests
@@ -173,10 +179,11 @@ jobs:
           kubectl rollout status deployment/ingress-nginx-controller -n ingress-nginx --timeout=120s
           echo "NGINX Ingress Controller installed and ready"
 
-      - name: Install Environment CRD
+      - name: Install CRDs
         run: |
           kubectl apply -f ../operator/config/crd/bases/catalyst.catalyst.dev_environments.yaml
-          echo "Environment CRD installed"
+          kubectl apply -f ../operator/config/crd/bases/catalyst.catalyst.dev_projects.yaml
+          echo "Environment and Project CRDs installed"
 
       - name: Deploy test application
         run: |
