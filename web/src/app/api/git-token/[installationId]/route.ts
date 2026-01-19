@@ -23,6 +23,64 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getClusterConfig } from "@/lib/k8s-client";
+import {
+  AuthenticationV1Api,
+  CustomObjectsApi,
+} from "@kubernetes/client-node";
+import { z } from "zod";
+
+// =============================================================================
+// Zod Schemas for Kubernetes API Responses
+// =============================================================================
+
+/**
+ * Schema for TokenReview status response
+ */
+const TokenReviewStatusSchema = z.object({
+  authenticated: z.boolean().optional(),
+  user: z
+    .object({
+      username: z.string().optional(),
+      uid: z.string().optional(),
+      groups: z.array(z.string()).optional(),
+    })
+    .optional(),
+  audiences: z.array(z.string()).optional(),
+  error: z.string().optional(),
+});
+
+/**
+ * Schema for TokenReview response
+ */
+const TokenReviewResponseSchema = z.object({
+  status: TokenReviewStatusSchema.optional(),
+});
+
+/**
+ * Schema for Environment Custom Resource metadata
+ */
+const EnvironmentMetadataSchema = z.object({
+  name: z.string().optional(),
+  namespace: z.string().optional(),
+  labels: z.record(z.string()).optional(),
+  annotations: z.record(z.string()).optional(),
+});
+
+/**
+ * Schema for Environment Custom Resource
+ */
+const EnvironmentCRSchema = z.object({
+  metadata: EnvironmentMetadataSchema.optional(),
+  spec: z.unknown().optional(),
+  status: z.unknown().optional(),
+});
+
+/**
+ * Schema for CustomObject list response
+ */
+const CustomObjectListResponseSchema = z.object({
+  items: z.array(EnvironmentCRSchema).optional(),
+});
 
 interface ValidationResult {
   valid: boolean;
@@ -55,8 +113,6 @@ async function validatePodRequest(
       };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { AuthenticationV1Api } = require("@kubernetes/client-node");
     const authApi = kc.makeApiClient(AuthenticationV1Api);
 
     // Create TokenReview to validate the ServiceAccount token
@@ -68,11 +124,19 @@ async function validatePodRequest(
       },
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response = await (authApi as any).createTokenReview({ body: tokenReview });
+    const response = await authApi.createTokenReview({ body: tokenReview });
+
+    // Validate response with Zod schema
+    const parsedResponse = TokenReviewResponseSchema.safeParse(response);
+    if (!parsedResponse.success) {
+      return {
+        valid: false,
+        error: "Invalid TokenReview response format",
+      };
+    }
 
     // Check if token is authenticated
-    if (!response.status?.authenticated) {
+    if (!parsedResponse.data.status?.authenticated) {
       return {
         valid: false,
         error: "Token not authenticated",
@@ -81,7 +145,7 @@ async function validatePodRequest(
 
     // Extract namespace from ServiceAccount username
     // Format: system:serviceaccount:<namespace>:<serviceaccount-name>
-    const username = response.status.user?.username;
+    const username = parsedResponse.data.status.user?.username;
     if (!username) {
       return {
         valid: false,
@@ -143,21 +207,24 @@ async function getInstallationIdForNamespace(
       return null;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { CustomObjectsApi } = require("@kubernetes/client-node");
     const customApi = kc.makeApiClient(CustomObjectsApi);
 
     // List Environment CRs in the namespace
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response = await (customApi as any).listNamespacedCustomObject({
+    const response = await customApi.listNamespacedCustomObject({
       group: "catalyst.catalyst.dev",
       version: "v1alpha1",
       namespace,
       plural: "environments",
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const environments = (response.items || []) as any[];
+    // Validate response with Zod schema
+    const parsedResponse = CustomObjectListResponseSchema.safeParse(response);
+    if (!parsedResponse.success) {
+      console.error("Invalid CustomObject list response format");
+      return null;
+    }
+
+    const environments = parsedResponse.data.items || [];
 
     if (environments.length === 0) {
       return null;

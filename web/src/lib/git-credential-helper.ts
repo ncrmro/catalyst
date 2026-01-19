@@ -14,7 +14,12 @@ import * as path from "path";
  * Get the git credential helper script content
  *
  * This reads the shell script from the scripts directory and returns it as a string.
- * The script will be embedded in pod init containers to configure git authentication.
+ * This is provided for reference or for use cases where the script needs to be
+ * dynamically distributed (e.g., via ConfigMap creation).
+ *
+ * For production use, the script should be included in the container image or
+ * mounted as a ConfigMap, and pods should reference it directly rather than
+ * embedding it in init commands.
  */
 export function getCredentialHelperScript(): string {
   const scriptPath = path.join(
@@ -38,10 +43,14 @@ export function getCredentialHelperScript(): string {
  * Generate init container commands for setting up git with credential helper
  *
  * This generates the shell commands needed to:
- * 1. Install the git credential helper script
+ * 1. Copy the credential helper script to the pod
  * 2. Make it executable
  * 3. Configure git to use the helper
  * 4. Optionally clone a repository
+ *
+ * Note: The credential helper script should be mounted as a ConfigMap or
+ * copied into the container image. This function assumes the script is
+ * available at a known location or can be copied.
  *
  * @param options Configuration for the init container
  * @returns Shell command string for the init container
@@ -55,28 +64,37 @@ export function generateGitCredentialHelperInitCommands(options: {
   const { installationId, repoUrl, commitSha, targetDir = "/workspace" } =
     options;
 
-  const helperScript = getCredentialHelperScript();
-
   return `
 set -e
 
 echo "=== Setting up Git Credential Helper ==="
 
-# Install credential helper script
-cat > /usr/local/bin/git-credential-catalyst <<'CATALYST_CREDENTIAL_HELPER_EOF'
-${helperScript}
-CATALYST_CREDENTIAL_HELPER_EOF
+# The credential helper script should be available in the container
+# Either pre-installed in the image or mounted as a ConfigMap
+# For now, we assume it's in the container image at /usr/local/bin/git-credential-catalyst
+# If not present, it can be copied from a mounted volume
 
-chmod +x /usr/local/bin/git-credential-catalyst
-echo "✓ Credential helper installed at /usr/local/bin/git-credential-catalyst"
+# Ensure the script is executable
+if [ -f /usr/local/bin/git-credential-catalyst ]; then
+  chmod +x /usr/local/bin/git-credential-catalyst
+  echo "✓ Credential helper found and made executable"
+else
+  echo "⚠ Warning: Credential helper not found at /usr/local/bin/git-credential-catalyst"
+  echo "   The script should be included in the container image or mounted as a ConfigMap"
+fi
 
 # Configure git to use the credential helper
 git config --global credential.helper /usr/local/bin/git-credential-catalyst
 echo "✓ Git configured to use credential helper"
 
-# Set installation ID for the helper to use
-export INSTALLATION_ID=${installationId}
-echo "✓ Installation ID set to ${installationId}"
+# The INSTALLATION_ID environment variable should be set by the pod spec
+# Verify it's present
+if [ -z "\${INSTALLATION_ID}" ]; then
+  echo "⚠ Warning: INSTALLATION_ID environment variable not set"
+  echo "   Set it in the pod spec: INSTALLATION_ID=${installationId}"
+fi
+
+echo "✓ Git credential helper setup complete"
 
 ${
   repoUrl
