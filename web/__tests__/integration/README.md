@@ -23,9 +23,7 @@ Integration tests mock the `GITHUB_PAT` environment variable because:
 
 The following integration test files mock `GITHUB_CONFIG` to provide a mock PAT:
 
-- `k8s-pull-request-pod.test.ts` - Basic PR pod functionality
-- `k8s-pull-request-pod-docker-build.test.ts` - Docker build integration
-- `webhook-database.test.ts` - Webhook processing with PR pod creation
+- `webhook-database.test.ts` - Webhook processing with preview deployments
 
 **Example Setup:**
 
@@ -71,25 +69,6 @@ When moving from static PATs to GitHub App tokens:
 
 ## Test Structure
 
-### k8s-pull-request-pod.test.ts
-
-Tests basic Kubernetes job creation and execution:
-
-- Service account creation with RBAC permissions
-- Job manifest generation and deployment
-- Pod creation and status monitoring
-- Resource cleanup
-
-### k8s-pull-request-pod-docker-build.test.ts
-
-Tests complete Docker build workflow:
-
-- Real repository cloning from GitHub
-- Docker buildx setup and configuration
-- Image building with proper build context
-- Environment variable handling
-- Error scenarios (missing Dockerfile, etc.)
-
 ### webhook-database.test.ts
 
 Tests webhook integration with database operations:
@@ -97,6 +76,7 @@ Tests webhook integration with database operations:
 - Pull request record creation/updates
 - Repository lookup and validation
 - Database transaction handling
+- Preview deployment orchestration
 
 ## Running Integration Tests
 
@@ -105,7 +85,7 @@ Tests webhook integration with database operations:
 npm run test:integration
 
 # Run specific integration test
-npm run test:integration -- k8s-pull-request-pod.test.ts
+npm run test:integration -- webhook-database.test.ts
 
 # Run with verbose output
 npm run test:integration -- --reporter=verbose

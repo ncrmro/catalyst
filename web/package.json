@@ -17,7 +17,6 @@
     "test": "vitest run -c vitest.unit.config.ts",
     "test:unit": "vitest run -c vitest.unit.config.ts __tests__/unit",
     "test:integration": "vitest run -c vitest.unit.config.ts __tests__/integration",
-    "test:integration:prpod": "vitest run -c vitest.unit.config.ts __tests__/integration/k8s-pull-request-pod-docker-build.test.ts",
     "test:components": "vitest run -c vitest.unit.config.ts __tests__/components",
     "test:watch": "vitest watch -c vitest.unit.config.ts",
     "test:coverage": "vitest run -c vitest.unit.config.ts --coverage",
