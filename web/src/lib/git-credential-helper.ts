@@ -64,23 +64,34 @@ export function generateGitCredentialHelperInitCommands(options: {
   const { installationId, repoUrl, commitSha, targetDir = "/workspace" } =
     options;
 
+  // Load the credential helper script content so we can embed it into the init commands
+  // if the script is not already present in the container image.
+  const credentialHelperScriptContent = getCredentialHelperScript().replace(
+    /\$/g,
+    "\\$",
+  );
+
   return `
 set -e
 
 echo "=== Setting up Git Credential Helper ==="
 
-# The credential helper script should be available in the container
-# Either pre-installed in the image or mounted as a ConfigMap
-# For now, we assume it's in the container image at /usr/local/bin/git-credential-catalyst
-# If not present, it can be copied from a mounted volume
+# The credential helper script should ideally be available in the container,
+# either pre-installed in the image or mounted as a ConfigMap. If it is not
+# present, we will install it from an embedded copy.
 
-# Ensure the script is executable
+# Ensure the script is present and executable
 if [ -f /usr/local/bin/git-credential-catalyst ]; then
   chmod +x /usr/local/bin/git-credential-catalyst
   echo "✓ Credential helper found and made executable"
 else
-  echo "⚠ Warning: Credential helper not found at /usr/local/bin/git-credential-catalyst"
-  echo "   The script should be included in the container image or mounted as a ConfigMap"
+  echo "⚠ Credential helper not found at /usr/local/bin/git-credential-catalyst"
+  echo "   Installing embedded credential helper script to /usr/local/bin/git-credential-catalyst"
+  cat <<'CATALYST_CREDENTIAL_HELPER_EOF' >/usr/local/bin/git-credential-catalyst
+${credentialHelperScriptContent}
+CATALYST_CREDENTIAL_HELPER_EOF
+  chmod +x /usr/local/bin/git-credential-catalyst
+  echo "✓ Embedded credential helper script installed and made executable"
 fi
 
 # Configure git to use the credential helper

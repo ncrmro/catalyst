@@ -4,7 +4,7 @@
  * Tests the helper functions for setting up git credential helpers in pods
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   generateGitCredentialHelperInitCommands,
   createInstallationIdEnvVar,

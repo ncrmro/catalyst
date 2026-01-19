@@ -16,8 +16,8 @@
 # - "store": Store credentials (no-op for us)
 # - "erase": Erase credentials (no-op for us)
 
-# Read the operation from stdin
-read operation
+# Read the operation from the first command-line argument (git passes: get, store, erase)
+operation="$1"
 
 # Only handle "get" operations
 if [ "$operation" != "get" ]; then

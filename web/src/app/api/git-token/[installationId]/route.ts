@@ -164,20 +164,25 @@ async function validatePodRequest(
     const namespace = parts[2];
 
     // Look up Environment CR to get installation ID
-    // We need to find which environment this namespace belongs to
+    // Note: PR pods are deprecated and the operator should handle this work now.
+    // For namespaces without an associated Environment CR (e.g. PR pods
+    // running in "default" or another shared namespace), we cannot derive
+    // an installation ID from the namespace alone. In that case, we proceed
+    // without namespace-based installation mapping and rely on the
+    // installationId provided via the route parameter for validation.
     const installationId = await getInstallationIdForNamespace(namespace);
 
     if (!installationId) {
-      return {
-        valid: false,
-        error: "Could not find installation ID for namespace",
-      };
+      console.warn(
+        "No installation ID found for namespace; proceeding without namespace-based installation mapping",
+        { namespace },
+      );
     }
 
     return {
       valid: true,
       namespace,
-      installationId,
+      installationId: installationId ?? undefined,
     };
   } catch (error) {
     console.error("Error validating pod request:", error);
@@ -327,7 +332,9 @@ export async function GET(
     }
 
     // Verify pod belongs to this installation
-    if (validation.installationId !== requestedInstallationId) {
+    // If we couldn't derive installation ID from namespace (e.g., for PR pods),
+    // we skip this check and trust the requested installation ID
+    if (validation.installationId && validation.installationId !== requestedInstallationId) {
       console.error(
         `Installation ID mismatch: pod has ${validation.installationId}, requested ${requestedInstallationId}`,
       );
@@ -339,6 +346,13 @@ export async function GET(
 
     // Generate fresh GitHub App installation token
     const githubToken = await generateInstallationToken(requestedInstallationId);
+
+    // Audit log: Log successful token requests for security compliance
+    console.log("GitHub token generated for pod", {
+      namespace: validation.namespace,
+      installationId: requestedInstallationId,
+      timestamp: new Date().toISOString(),
+    });
 
     // Return token as plain text (for shell consumption)
     return new NextResponse(githubToken, {

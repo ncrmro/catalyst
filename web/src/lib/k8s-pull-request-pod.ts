@@ -480,6 +480,25 @@ echo ""
                           },
                         },
                       ]),
+                  // Add CATALYST_WEB_URL when using credential helper
+                  ...(useCredentialHelper
+                    ? [
+                        {
+                          name: "CATALYST_WEB_URL",
+                          value: (() => {
+                            const webUrl =
+                              process.env.CATALYST_WEB_URL ||
+                              "http://catalyst-web.catalyst-system.svc.cluster.local:3000";
+                            if (!webUrl) {
+                              throw new Error(
+                                "CATALYST_WEB_URL must be defined when using credential helper",
+                              );
+                            }
+                            return webUrl;
+                          })(),
+                        },
+                      ]
+                    : []),
                   // Environment variables passed from webhook
                   ...(env
                     ? Object.entries(env).map(([name, value]) => ({
