@@ -410,7 +410,7 @@ export async function createPullRequestPodJob(
     // Determine git setup script based on credential helper option
     const gitSetupScript = useCredentialHelper
       ? generateGitCredentialHelperInitCommands({
-          installationId: installationId!,
+          installationId: installationId as number,
         })
       : `
 echo "=== Setting up Git Configuration ==="
@@ -432,8 +432,9 @@ echo ""
           "created-by": "catalyst-web-app",
           "pr-name": name,
           // Add installation ID label if using credential helper
-          ...(useCredentialHelper && {
-            "catalyst.dev/installation-id": installationId!.toString(),
+          ...(useCredentialHelper &&
+          installationId && {
+            "catalyst.dev/installation-id": installationId.toString(),
           }),
         },
       },
@@ -445,8 +446,9 @@ echo ""
               "created-by": "catalyst-web-app",
               "pr-name": name,
               // Add installation ID label if using credential helper
-              ...(useCredentialHelper && {
-                "catalyst.dev/installation-id": installationId!.toString(),
+              ...(useCredentialHelper &&
+              installationId && {
+                "catalyst.dev/installation-id": installationId.toString(),
               }),
             },
           },
@@ -459,11 +461,12 @@ echo ""
                 image: image,
                 env: [
                   // Conditionally add GITHUB_TOKEN from secret (legacy) or INSTALLATION_ID (new)
-                  ...(useCredentialHelper
+                  ...(useCredentialHelper &&
+                  installationId
                     ? [
                         {
                           name: "INSTALLATION_ID",
-                          value: installationId!.toString(),
+                          value: installationId.toString(),
                         },
                       ]
                     : [

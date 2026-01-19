@@ -26,9 +26,10 @@ export function getCredentialHelperScript(): string {
   try {
     return fs.readFileSync(scriptPath, "utf-8");
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("Failed to read git credential helper script:", error);
     throw new Error(
-      "Could not load git credential helper script. Ensure scripts/git-credential-catalyst.sh exists.",
+      `Could not load git credential helper script at ${scriptPath}: ${errorMessage}`,
     );
   }
 }
@@ -62,9 +63,9 @@ set -e
 echo "=== Setting up Git Credential Helper ==="
 
 # Install credential helper script
-cat > /usr/local/bin/git-credential-catalyst <<'HELPER_SCRIPT'
+cat > /usr/local/bin/git-credential-catalyst <<'CATALYST_CREDENTIAL_HELPER_EOF'
 ${helperScript}
-HELPER_SCRIPT
+CATALYST_CREDENTIAL_HELPER_EOF
 
 chmod +x /usr/local/bin/git-credential-catalyst
 echo "✓ Credential helper installed at /usr/local/bin/git-credential-catalyst"

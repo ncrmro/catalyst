@@ -46,12 +46,15 @@ if [ -z "$INSTALLATION_ID" ]; then
     exit 1
 fi
 
+# Get web server URL from environment or use default
+WEB_SERVER_URL="${CATALYST_WEB_URL:-http://catalyst-web.catalyst-system.svc.cluster.local:3000}"
+
 # Fetch fresh GitHub token from Catalyst web server
 # The web server validates our ServiceAccount token and returns a fresh
 # GitHub App installation token
 TOKEN=$(curl -sf \
   -H "Authorization: Bearer $SA_TOKEN" \
-  "http://catalyst-web.catalyst-system.svc.cluster.local:3000/api/git-token/$INSTALLATION_ID")
+  "$WEB_SERVER_URL/api/git-token/$INSTALLATION_ID")
 
 if [ $? -ne 0 ] || [ -z "$TOKEN" ]; then
     echo "Error: Failed to get git credentials from catalyst-web" >&2
