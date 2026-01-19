@@ -5,11 +5,6 @@ import {
 } from "@/actions/kubernetes";
 import { GITHUB_CONFIG } from "@/lib/vcs-providers";
 import {
-  createPullRequestPodJob,
-  cleanupPullRequestPodJob,
-  PullRequestPodResult,
-} from "@/lib/k8s-pull-request-pod";
-import {
   upsertPullRequest,
   findRepoByGitHubData,
 } from "@/actions/pull-requests-db";
@@ -420,46 +415,11 @@ async function handlePullRequestEvent(payload: {
           environment,
         );
 
-        // Create pull request pod job for buildx support
-        let podJobResult: PullRequestPodResult | null = null;
-        try {
-          const prJobName = `pr-${pull_request.number}-${repository.name}`;
-          podJobResult = await createPullRequestPodJob({
-            name: prJobName,
-            namespace: namespaceResult.success
-              ? namespaceResult.namespace?.name || "default"
-              : "default",
-            env: {
-              REPO_URL: `https://github.com/${repository.full_name}.git`,
-              PR_BRANCH: pull_request.head.ref,
-              PR_NUMBER: pull_request.number.toString(),
-              GITHUB_USER: repository.owner.login,
-              IMAGE_NAME: `${repository.name}/web`,
-              NEEDS_BUILD: "true",
-              SHALLOW_CLONE: "true",
-              MANIFEST_DOCKERFILE: "/web/Dockerfile",
-              TARGET_NAMESPACE: namespaceResult.success
-                ? namespaceResult.namespace?.name || ""
-                : "",
-            },
-          });
-          console.log(
-            `Pull request pod job created for PR ${pull_request.number}:`,
-            podJobResult,
-          );
-        } catch (podJobError) {
-          console.error(
-            `Failed to create pull request pod job for PR ${pull_request.number}:`,
-            podJobError,
-          );
-        }
-
         return NextResponse.json({
           success: true,
           message: `Pull request ${action} processed with preview deployment`,
           pr_number: pull_request.number,
           namespace: namespaceResult.namespace,
-          podJob: podJobResult,
           preview_deployment: "initiated",
         });
       } catch (error) {
@@ -533,20 +493,6 @@ async function handlePullRequestEvent(payload: {
             `Preview deployment cleanup initiated for PR ${pull_request.number} (${pods.length} pods)`,
           );
         }
-      }
-
-      // Clean up pull request pod job resources
-      try {
-        const prJobName = `pr-${pull_request.number}-${repository.name}`;
-        await cleanupPullRequestPodJob(prJobName, "default");
-        console.log(
-          `Pull request pod job cleaned up for PR ${pull_request.number}`,
-        );
-      } catch (podJobError) {
-        console.error(
-          `Failed to cleanup pull request pod job for PR ${pull_request.number}:`,
-          podJobError,
-        );
       }
 
       const deleteResult = await deleteKubernetesNamespace(
