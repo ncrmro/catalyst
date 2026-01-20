@@ -72,11 +72,11 @@ ENV NODE_ENV=production
 RUN groupadd --system --gid 1001 nodejs
 RUN useradd --system --uid 1001 --gid nodejs nextjs
 
-# Copy drizzle migrations and config
+# Install drizzle globally for migrations (avoids workspace resolution bloat)
 COPY --from=builder /app/package.json ./package.json
-# TODO this is non optimal as we shouldn't need the packages here and this really means w should rework how drizzle-orm/kit get installed, prob in the base layer
-COPY --from=builder /app/packages/ ./packages/
-RUN npm install --production=false drizzle-orm drizzle-kit
+RUN npm install -g \
+    drizzle-orm@$(node -p "require('./package.json').dependencies['drizzle-orm'].replace('^','')") \
+    drizzle-kit@$(node -p "require('./package.json').devDependencies['drizzle-kit'].replace('^','')")
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts  /app/drizzle.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle  /app/drizzle
 
