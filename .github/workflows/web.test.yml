@@ -191,11 +191,11 @@ jobs:
           docker buildx bake --load --file docker-compose.build.yml operator-production web-production
           
           # Verify images were built
-          docker images | grep -E '(controller|catalyst-web)'
+          docker images | grep -E '(ghcr.io/ncrmro/catalyst)'
           
           # Load both images into Kind cluster
-          kind load docker-image controller:latest --name preview-cluster
-          kind load docker-image catalyst-web:latest --name preview-cluster
+          kind load docker-image ghcr.io/ncrmro/catalyst/operator:latest --name preview-cluster
+          kind load docker-image ghcr.io/ncrmro/catalyst/web:latest --name preview-cluster
           
           echo "Images built and loaded into Kind cluster"
 
@@ -210,7 +210,7 @@ jobs:
           operator:
             enabled: true
             image:
-              repository: controller
+              repository: ghcr.io/ncrmro/catalyst/operator
               tag: latest
               pullPolicy: Never
           
@@ -218,7 +218,7 @@ jobs:
           web:
             enabled: true
             image:
-              repository: catalyst-web
+              repository: ghcr.io/ncrmro/catalyst/web
               tag: latest
               pullPolicy: Never
             env:
