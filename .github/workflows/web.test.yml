@@ -185,8 +185,8 @@ jobs:
 
       - name: Build operator and web images in parallel
         run: |
-          # Build both images in parallel using docker-compose
-          docker-compose -f ../docker-compose.build.yml build operator-production web-production
+          # Build both images in parallel using docker buildx bake
+          docker buildx bake --file ../docker-compose.build.yml operator-production web-production
           
           # Tag the images for Kind cluster
           docker tag docker-compose-build-operator-production:latest controller:latest
