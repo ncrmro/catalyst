@@ -40,6 +40,7 @@ const CATALYST_WEB_URL =
 
 test.describe("Git Credential Helper via Operator", () => {
   test.slow(); // K8s operations and operator reconciliation can be slow
+  test.setTimeout(300000); // 5 minutes for full operator reconciliation
 
   test.afterAll(async ({ k8s }) => {
     console.log("Cleaning up git credential helper test resources...");
