@@ -183,102 +183,73 @@ jobs:
           kubectl apply -f ../operator/config/crd/bases/
           echo "CRDs installed"
 
-      - name: Build and deploy operator
+      - name: Build operator and web images in parallel
         run: |
-          # Build operator image
-          cd ../operator
-          make docker-build IMG=controller:latest
+          # Build both images in parallel using docker buildx bake
+          docker buildx bake --load
           
-          # Load image into Kind cluster
+          # Load both images into Kind cluster
           kind load docker-image controller:latest --name preview-cluster
-          
-          # Create a kustomize overlay for e2e with imagePullPolicy: Never
-          mkdir -p config/e2e
-          cat > config/e2e/kustomization.yaml <<EOF
-          apiVersion: kustomize.config.k8s.io/v1beta1
-          kind: Kustomization
-          
-          resources:
-          - ../default
-          
-          patches:
-          - target:
-              kind: Deployment
-              name: controller-manager
-            patch: |-
-              - op: add
-                path: /spec/template/spec/containers/0/imagePullPolicy
-                value: Never
-          EOF
-          
-          # Deploy operator using kustomize with e2e overlay
-          kubectl apply -k config/e2e
-          
-          # Wait for operator deployment to be ready
-          kubectl rollout status deployment/catalyst-controller-manager -n catalyst-system --timeout=120s
-          echo "Operator deployed and ready"
-          
-          cd ../web
-
-      - name: Build and deploy web application
-        run: |
-          # Build the web application Docker image
-          docker build -t catalyst-web:latest .
-          
-          # Load image into Kind cluster
           kind load docker-image catalyst-web:latest --name preview-cluster
           
+          echo "Images built and loaded into Kind cluster"
+
+      - name: Deploy Catalyst using Helm
+        run: |
           # Get the host IP to access the postgres service from Kind cluster
-          # In Kind, we need to use the host's gateway IP
           HOST_IP=$(docker inspect preview-cluster-control-plane | jq -r '.[0].NetworkSettings.Networks["kind"].Gateway')
           
-          # Create catalyst-web deployment in catalyst-system namespace
-          cat <<EOF | kubectl apply -f -
-          apiVersion: apps/v1
-          kind: Deployment
-          metadata:
-            name: catalyst-web
-            namespace: catalyst-system
-          spec:
-            replicas: 1
-            selector:
-              matchLabels:
-                app: catalyst-web
-            template:
-              metadata:
-                labels:
-                  app: catalyst-web
-              spec:
-                containers:
-                - name: web
-                  image: catalyst-web:latest
-                  imagePullPolicy: Never
-                  ports:
-                  - containerPort: 3000
-                  env:
-                  - name: DATABASE_URL
-                    value: "postgresql://postgres:postgres@${HOST_IP}:5432/catalyst?sslmode=disable"
-                  - name: NEXTAUTH_SECRET
-                    value: "test-secret-for-e2e"
-                  - name: NEXTAUTH_URL
-                    value: "http://catalyst-web.catalyst-system.svc.cluster.local:3000"
-          ---
-          apiVersion: v1
-          kind: Service
-          metadata:
-            name: catalyst-web
-            namespace: catalyst-system
-          spec:
-            selector:
-              app: catalyst-web
-            ports:
-            - port: 3000
-              targetPort: 3000
+          # Create a Helm values file for e2e testing
+          cat > e2e-values.yaml <<EOF
+          # Operator configuration
+          operator:
+            enabled: true
+            image:
+              repository: controller
+              tag: latest
+              pullPolicy: Never
+          
+          # Web application configuration
+          web:
+            enabled: true
+            image:
+              repository: catalyst-web
+              tag: latest
+              pullPolicy: Never
+            env:
+              - name: DATABASE_URL
+                value: "postgresql://postgres:postgres@${HOST_IP}:5432/catalyst?sslmode=disable"
+              - name: NEXTAUTH_SECRET
+                value: "test-secret-for-e2e"
+              - name: NEXTAUTH_URL
+                value: "http://catalyst-web.catalyst-system.svc.cluster.local:3000"
+          
+          # Disable subcharts that are not needed for e2e
+          ingress-nginx:
+            enabled: false
+          cert-manager:
+            enabled: false
+          cloudnative-pg:
+            enabled: false
+          postgresql:
+            enabled: false
           EOF
           
-          # Wait for web deployment to be ready
-          kubectl rollout status deployment/catalyst-web -n catalyst-system --timeout=120s
-          echo "Web application deployed and ready in catalyst-system namespace"
+          # Install Catalyst chart
+          helm install catalyst ../charts/catalyst \
+            --namespace catalyst-system \
+            --create-namespace \
+            --values e2e-values.yaml \
+            --wait \
+            --timeout 5m
+          
+          echo "Catalyst deployed via Helm"
+          
+          # Verify deployments
+          kubectl get pods -n catalyst-system
+          kubectl wait --for=condition=available deployment/catalyst-controller-manager -n catalyst-system --timeout=120s
+          kubectl wait --for=condition=available deployment/catalyst-web -n catalyst-system --timeout=120s
+          echo "All Catalyst components are ready"
 
       - name: Deploy test application
         run: |
