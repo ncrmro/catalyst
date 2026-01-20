@@ -73,6 +73,10 @@ jobs:
 
       - name: Prepare Test Data
         run: |
+          # Create team namespace (Projects are stored in team namespace)
+          kubectl create namespace ci-team || true
+          kubectl label namespace ci-team catalyst.dev/team=ci-team --overwrite
+          
           # Create dummy git secret
           kubectl create secret generic github-pat-secret \
             --from-literal=token=dummy-token \
@@ -89,7 +93,7 @@ jobs:
           kind: Project
           metadata:
             name: ci-project
-            namespace: default
+            namespace: ci-team
           spec:
             sources:
               - name: catalyst
@@ -107,7 +111,7 @@ jobs:
           kind: Environment
           metadata:
             name: ci-env
-            namespace: default
+            namespace: ci-team
             # Required hierarchy labels (FR-ENV-020)
             labels:
               catalyst.dev/team: "ci-team"
