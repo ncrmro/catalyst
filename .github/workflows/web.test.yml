@@ -303,6 +303,49 @@ jobs:
           path: ./web/test-results/**/video.webm
           retention-days: 30
 
+      - name: Debug on Failure
+        if: failure()
+        run: |
+          echo "=== All Resources ==="
+          kubectl get all -A
+          
+          echo "=== Events ==="
+          kubectl get events -A --sort-by=.metadata.creationTimestamp
+          
+          echo "=== Operator Logs ==="
+          kubectl logs -n catalyst-system -l control-plane=controller-manager --tail=-1 || echo "No operator logs found"
+          
+          echo "=== All Pods in All Namespaces ==="
+          kubectl get pods -A -o wide
+          
+          echo "=== Describe All Pods ==="
+          kubectl describe pods -A
+          
+          echo "=== CRDs ==="
+          kubectl get crd
+          
+          echo "=== Projects ==="
+          kubectl get projects -A || echo "No Projects found"
+          
+          echo "=== Environments ==="
+          kubectl get environments -A || echo "No Environments found"
+          
+          echo "=== Ingress Resources ==="
+          kubectl get ingress -A
+          
+          echo "=== ConfigMaps ==="
+          kubectl get configmaps -A
+          
+          echo "=== Deployments ==="
+          kubectl get deployments -A
+          
+          echo "=== Docker Images in Kind ==="
+          docker exec preview-cluster-control-plane crictl images || echo "Could not list images"
+          
+          echo "=== Kind Cluster Info ==="
+          kind get clusters
+          kubectl cluster-info
+
   # build-container:
   #   name: Build Container Images
   #   runs-on: ubuntu-latest
