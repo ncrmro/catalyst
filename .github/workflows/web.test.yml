@@ -220,6 +220,66 @@ jobs:
           
           cd ../web
 
+      - name: Build and deploy web application
+        run: |
+          # Build the web application Docker image
+          docker build -t catalyst-web:latest .
+          
+          # Load image into Kind cluster
+          kind load docker-image catalyst-web:latest --name preview-cluster
+          
+          # Get the host IP to access the postgres service from Kind cluster
+          # In Kind, we need to use the host's gateway IP
+          HOST_IP=$(docker inspect preview-cluster-control-plane | jq -r '.[0].NetworkSettings.Networks["kind"].Gateway')
+          
+          # Create catalyst-web deployment in catalyst-system namespace
+          cat <<EOF | kubectl apply -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: catalyst-web
+            namespace: catalyst-system
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: catalyst-web
+            template:
+              metadata:
+                labels:
+                  app: catalyst-web
+              spec:
+                containers:
+                - name: web
+                  image: catalyst-web:latest
+                  imagePullPolicy: Never
+                  ports:
+                  - containerPort: 3000
+                  env:
+                  - name: DATABASE_URL
+                    value: "postgresql://postgres:postgres@${HOST_IP}:5432/catalyst?sslmode=disable"
+                  - name: NEXTAUTH_SECRET
+                    value: "test-secret-for-e2e"
+                  - name: NEXTAUTH_URL
+                    value: "http://catalyst-web.catalyst-system.svc.cluster.local:3000"
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: catalyst-web
+            namespace: catalyst-system
+          spec:
+            selector:
+              app: catalyst-web
+            ports:
+            - port: 3000
+              targetPort: 3000
+          EOF
+          
+          # Wait for web deployment to be ready
+          kubectl rollout status deployment/catalyst-web -n catalyst-system --timeout=120s
+          echo "Web application deployed and ready in catalyst-system namespace"
+
       - name: Deploy test application
         run: |
           # Deploy a lightweight nginx server as test application
