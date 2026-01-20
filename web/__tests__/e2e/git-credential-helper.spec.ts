@@ -36,7 +36,7 @@ const API_VERSION = "v1alpha1";
 // Web URL for in-cluster access - can be overridden via env var for different CI setups
 const CATALYST_WEB_URL =
   process.env.E2E_CATALYST_WEB_URL ||
-  "http://catalyst-web.default.svc.cluster.local:3000";
+  "http://catalyst-web.catalyst-system.svc.cluster.local:3000";
 
 test.describe("Git Credential Helper via Operator", () => {
   test.slow(); // K8s operations and operator reconciliation can be slow

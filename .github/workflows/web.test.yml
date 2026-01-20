@@ -209,11 +209,6 @@ jobs:
               - op: add
                 path: /spec/template/spec/containers/0/imagePullPolicy
                 value: Never
-              - op: add
-                path: /spec/template/spec/containers/0/env/-
-                value:
-                  name: CATALYST_WEB_URL
-                  value: "http://catalyst-web.default.svc.cluster.local:3000"
           EOF
           
           # Deploy operator using kustomize with e2e overlay
