@@ -79,6 +79,12 @@ func (r *EnvironmentReconciler) ensureRegistryCredentials(ctx context.Context, s
 	sa := &corev1.ServiceAccount{}
 	if err := r.Get(ctx, client.ObjectKey{Name: "default", Namespace: targetNs}, sa); err != nil {
 		// SA might not exist yet if Namespace was just created
+		// This is not an error - it will be created by the Kubernetes controller manager
+		// and we'll patch it on the next reconcile
+		if apierrors.IsNotFound(err) {
+			log.Info("Default ServiceAccount not yet created in namespace, will patch on next reconcile", "namespace", targetNs)
+			return nil
+		}
 		return err
 	}
 

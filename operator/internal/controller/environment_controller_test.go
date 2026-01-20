@@ -41,7 +41,7 @@ var _ = Describe("Environment Controller", func() {
 	Context("When reconciling a resource", func() {
 		const resourceName = "test-env"
 		const projectName = "my-project"
-		const namespace = "default"
+		const namespace = "test-team-basic-basic" // Environment CRs are stored in team namespace
 
 		ctx := context.Background()
 
@@ -100,6 +100,12 @@ var _ = Describe("Environment Controller", func() {
 			// Ignore if exists or delete/recreate
 			_ = k8sClient.Delete(ctx, project)
 			Expect(k8sClient.Create(ctx, project)).To(Succeed())
+
+			// Verify Project was created and can be fetched
+			fetchedProject := &catalystv1alpha1.Project{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, client.ObjectKey{Name: projectName, Namespace: "test-team-basic-basic"}, fetchedProject)
+			}, time.Second*5, time.Millisecond*250).Should(Succeed())
 
 			By("Creating the Environment CR")
 			resource := &catalystv1alpha1.Environment{
@@ -170,11 +176,32 @@ var _ = Describe("Environment Controller", func() {
 				Config: cfg,
 			}
 
-			// Reconcile
+			// Reconcile (might need to call twice for resources to settle)
 			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
+
+			// Call reconcile again to ensure namespace creation completes
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			// Call reconcile a third time for good measure (finalizer, then namespace creation, then resource setup)
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			// DEBUG: List all namespaces to see what got created
+			allNamespaces := &corev1.NamespaceList{}
+			Expect(k8sClient.List(ctx, allNamespaces)).To(Succeed())
+			fmt.Printf("DEBUG: All namespaces after reconcile:\n")
+			for _, ns := range allNamespaces.Items {
+				fmt.Printf("  - %s\n", ns.Name)
+			}
+			fmt.Printf("DEBUG: Looking for namespace: %s\n", GenerateEnvironmentNamespace("test-team-basic-basic", projectName, resourceName))
 
 			// 1. Verify Namespace Created using proper hierarchy-based name
 			targetNsName := GenerateEnvironmentNamespace("test-team-basic-basic", projectName, resourceName)
