@@ -183,6 +183,24 @@ jobs:
           kubectl apply -f ../operator/config/crd/bases/
           echo "CRDs installed"
 
+      - name: Build and deploy operator
+        run: |
+          # Build operator image
+          cd ../operator
+          make docker-build IMG=controller:latest
+          
+          # Load image into Kind cluster
+          kind load docker-image controller:latest --name preview-cluster
+          
+          # Deploy operator using kustomize
+          kubectl apply -k config/default
+          
+          # Wait for operator deployment to be ready
+          kubectl rollout status deployment/catalyst-controller-manager -n catalyst-system --timeout=120s
+          echo "Operator deployed and ready"
+          
+          cd ../web
+
       - name: Deploy test application
         run: |
           # Deploy a lightweight nginx server as test application
