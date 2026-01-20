@@ -187,11 +187,11 @@ jobs:
         working-directory: ./
         run: |
           # Build both images in parallel using docker buildx bake
-          docker buildx bake --file docker-compose.build.yml operator-production web-production
+          # The --load flag loads the images into docker (required for kind load)
+          docker buildx bake --load --file docker-compose.build.yml operator-production web-production
           
-          # Tag the images for Kind cluster
-          docker tag docker-compose-build-operator-production:latest controller:latest
-          docker tag docker-compose-build-web-production:latest catalyst-web:latest
+          # Verify images were built
+          docker images | grep -E '(controller|catalyst-web)'
           
           # Load both images into Kind cluster
           kind load docker-image controller:latest --name preview-cluster

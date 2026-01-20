@@ -1,5 +1,6 @@
 services:
   web-development:
+    image: catalyst-web:development
     build:
       context: ./web
       dockerfile: Dockerfile
@@ -8,6 +9,7 @@ services:
         - linux/amd64
 
   web-production:
+    image: catalyst-web:latest
     build:
       context: ./web
       dockerfile: Dockerfile
@@ -16,6 +18,7 @@ services:
         - linux/amd64
 
   operator-development:
+    image: controller:development
     build:
       context: ./operator
       dockerfile: Dockerfile
@@ -24,6 +27,7 @@ services:
         - linux/amd64
 
   operator-production:
+    image: controller:latest
     build:
       context: ./operator
       dockerfile: Dockerfile
