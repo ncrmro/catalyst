@@ -170,19 +170,6 @@ jobs:
           echo "KUBECONFIG_PRIMARY=$KUBECONFIG_PRIMARY" >> $GITHUB_ENV
           echo "Kubeconfig exported for E2E tests"
 
-      - name: Install NGINX Ingress Controller
-        run: |
-          # Install NGINX Ingress Controller for Kind
-          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
-          # Use rollout status which properly waits for pods to be ready
-          kubectl rollout status deployment/ingress-nginx-controller -n ingress-nginx --timeout=120s
-          echo "NGINX Ingress Controller installed and ready"
-
-      - name: Install CRDs
-        run: |
-          kubectl apply -f ../operator/config/crd/bases/
-          echo "CRDs installed"
-
       - name: Build operator and web images in parallel
         working-directory: ./
         run: |
@@ -198,6 +185,18 @@ jobs:
           kind load docker-image ghcr.io/ncrmro/catalyst/web:latest --name preview-cluster
           
           echo "Images built and loaded into Kind cluster"
+
+      - name: Build Helm chart dependencies
+        working-directory: ./web
+        run: |
+          echo "Adding Helm repositories..."
+          helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+          helm repo add cloudnative-pg https://cloudnative-pg.github.io/charts
+          helm repo update
+          
+          echo "Building Helm chart dependencies..."
+          helm dependency build ../charts/catalyst
+          echo "Helm chart dependencies built successfully"
 
       - name: Deploy Catalyst using Helm
         run: |
@@ -229,33 +228,44 @@ jobs:
               - name: NEXTAUTH_URL
                 value: "http://catalyst-web.catalyst-system.svc.cluster.local:3000"
           
-          # Disable subcharts - they are installed separately for e2e
+          # Enable ingress-nginx subchart for e2e
           ingress-nginx:
-            enabled: false
+            enabled: true
+            controller:
+              hostPort:
+                enabled: true
+              service:
+                type: NodePort
+              admissionWebhooks:
+                enabled: false
+          
+          # Enable cert-manager for TLS
           cert-manager:
-            enabled: false
+            enabled: true
+            installCRDs: true
+          
+          # Disable database subcharts - using external postgres for e2e
           cloudnative-pg:
             enabled: false
           postgresql:
             enabled: false
           EOF
           
-          # Install Catalyst chart
-          # Note: We skip dependency build since all subcharts are disabled
-          # and resources (ingress-nginx, CRDs) are installed separately above
+          # Install Catalyst chart with all dependencies
           helm install catalyst ../charts/catalyst \
             --namespace catalyst-system \
             --create-namespace \
             --values e2e-values.yaml \
             --wait \
-            --timeout 5m
+            --timeout 10m
           
           echo "Catalyst deployed via Helm"
           
           # Verify deployments
-          kubectl get pods -n catalyst-system
+          kubectl get pods -A
           kubectl wait --for=condition=available deployment/catalyst-controller-manager -n catalyst-system --timeout=120s
           kubectl wait --for=condition=available deployment/catalyst-web -n catalyst-system --timeout=120s
+          kubectl wait --for=condition=available deployment/ingress-nginx-controller -n ingress-nginx --timeout=120s || true
           echo "All Catalyst components are ready"
 
       - name: Deploy test application
