@@ -113,21 +113,6 @@ jobs:
       run:
         working-directory: ./web
 
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: catalyst
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -200,9 +185,6 @@ jobs:
 
       - name: Deploy Catalyst using Helm
         run: |
-          # Get the host IP to access the postgres service from Kind cluster
-          HOST_IP=$(docker inspect preview-cluster-control-plane | jq -r '.[0].NetworkSettings.Networks["kind"].Gateway')
-          
           # Create a Helm values file for e2e testing
           cat > e2e-values.yaml <<EOF
           # Operator configuration
@@ -212,7 +194,7 @@ jobs:
               repository: ghcr.io/ncrmro/catalyst/operator
               tag: latest
               pullPolicy: Never
-          
+
           # Web application configuration
           web:
             enabled: true
@@ -221,13 +203,11 @@ jobs:
               tag: latest
               pullPolicy: Never
             env:
-              - name: DATABASE_URL
-                value: "postgresql://postgres:postgres@${HOST_IP}:5432/catalyst?sslmode=disable"
               - name: NEXTAUTH_SECRET
                 value: "test-secret-for-e2e"
               - name: NEXTAUTH_URL
                 value: "http://catalyst-web.catalyst-system.svc.cluster.local:3000"
-          
+
           # Enable ingress-nginx subchart for e2e
           ingress-nginx:
             enabled: true
@@ -238,17 +218,19 @@ jobs:
                 type: NodePort
               admissionWebhooks:
                 enabled: false
-          
-          # Enable cert-manager for TLS
+
+          # Disable cert-manager for e2e (not needed)
           cert-manager:
-            enabled: true
-            installCRDs: true
-          
-          # Disable database subcharts - using external postgres for e2e
+            enabled: false
+
+          # Enable CloudNativePG operator and PostgreSQL cluster
           cloudnative-pg:
-            enabled: false
+            enabled: true
           postgresql:
-            enabled: false
+            enabled: true
+            instances: 1
+            storage:
+              size: 1Gi
           EOF
           
           # Install Catalyst chart with all dependencies
@@ -260,11 +242,19 @@ jobs:
             --timeout 10m
           
           echo "Catalyst deployed via Helm"
-          
+
+          # Wait for CloudNativePG operator to be ready
+          kubectl wait --for=condition=available deployment/catalyst-cloudnative-pg -n catalyst-system --timeout=120s
+          echo "CloudNativePG operator is ready"
+
+          # Wait for PostgreSQL cluster to be ready
+          kubectl wait --for=condition=Ready cluster/catalyst-db -n catalyst-system --timeout=300s
+          echo "PostgreSQL cluster is ready"
+
           # Verify deployments
           kubectl get pods -A
           kubectl wait --for=condition=available deployment/catalyst-controller-manager -n catalyst-system --timeout=120s
-          kubectl wait --for=condition=available deployment/catalyst-web -n catalyst-system --timeout=120s
+          kubectl wait --for=condition=available deployment/catalyst-web -n catalyst-system --timeout=300s
           kubectl wait --for=condition=available deployment/ingress-nginx-controller -n ingress-nginx --timeout=120s || true
           echo "All Catalyst components are ready"
 
@@ -334,10 +324,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - run: npm run db:migrate
-
       - name: Seed database
-        run: npm run seed
+        run: |
+          kubectl exec deployment/catalyst-web -n catalyst-system -- npm run seed
 
       - name: Run Playwright tests
         run: npm run test:e2e
