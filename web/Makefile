@@ -194,6 +194,11 @@ ci-docker: ## Run comprehensive CI tests in Docker (unit, integration, and e2e)
 e2e: ## Run e2e tests in Docker
 	$(DC) run --no-deps --no-deps e2e
 
+helm-deps: ## Build Helm chart dependencies
+	@echo "Building Helm chart dependencies..."
+	helm dependency build ../charts/catalyst
+	@echo "Helm dependencies built successfully"
+
 migration-reconcile: ## Reset drizzle folder from main branch and regenerate migrations
 	## Can be used to regenerate migrations after rebasing on a branch with migration conflicts
 	## or consolidating multiple migrations on a feature branch before merging

@@ -240,6 +240,10 @@ jobs:
             enabled: false
           EOF
           
+          # Build Helm chart dependencies
+          echo "Building Helm chart dependencies..."
+          helm dependency build ../charts/catalyst
+          
           # Install Catalyst chart
           helm install catalyst ../charts/catalyst \
             --namespace catalyst-system \
