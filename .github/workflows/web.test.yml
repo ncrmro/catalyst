@@ -370,7 +370,7 @@ jobs:
           path: ./web/test-results/**/video.webm
           retention-days: 30
 
-      - name: Debug on Failure
+      - name: Debug on Failure - Cluster State
         if: failure()
         run: |
           echo "=== All Resources ==="
@@ -378,9 +378,6 @@ jobs:
           
           echo "=== Events ==="
           kubectl get events -A --sort-by=.metadata.creationTimestamp
-          
-          echo "=== Operator Logs ==="
-          kubectl logs -n catalyst-system -l control-plane=controller-manager --tail=-1 || echo "No operator logs found"
           
           echo "=== All Pods in All Namespaces ==="
           kubectl get pods -A -o wide
@@ -412,6 +409,27 @@ jobs:
           echo "=== Kind Cluster Info ==="
           kind get clusters
           kubectl cluster-info
+
+      - name: Debug on Failure - Operator Logs
+        if: failure()
+        run: |
+          echo "=== Operator Pod Logs (Full) ==="
+          kubectl logs -n catalyst-system -l control-plane=controller-manager --tail=-1 --all-containers=true || echo "No operator logs found"
+          
+          echo "=== Operator Pod Previous Logs (if crashed) ==="
+          kubectl logs -n catalyst-system -l control-plane=controller-manager --previous --all-containers=true || echo "No previous operator logs found"
+
+      - name: Debug on Failure - Web Logs
+        if: failure()
+        run: |
+          echo "=== Web Pod Logs (Full) ==="
+          kubectl logs -n catalyst-system -l app=catalyst-web --tail=-1 --all-containers=true || echo "No web logs found"
+          
+          echo "=== Web Pod Previous Logs (if crashed) ==="
+          kubectl logs -n catalyst-system -l app=catalyst-web --previous --all-containers=true || echo "No previous web logs found"
+          
+          echo "=== Web Pod Status ==="
+          kubectl get pods -n catalyst-system -l app=catalyst-web -o yaml
 
   # build-container:
   #   name: Build Container Images
