@@ -229,7 +229,7 @@ jobs:
               - name: NEXTAUTH_URL
                 value: "http://catalyst-web.catalyst-system.svc.cluster.local:3000"
           
-          # Disable subcharts that are not needed for e2e
+          # Disable subcharts - they are installed separately for e2e
           ingress-nginx:
             enabled: false
           cert-manager:
@@ -240,17 +240,9 @@ jobs:
             enabled: false
           EOF
           
-          # Add Helm repositories for dependencies
-          echo "Adding Helm repositories..."
-          helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-          helm repo add cloudnative-pg https://cloudnative-pg.github.io/charts
-          helm repo update
-          
-          # Build Helm chart dependencies
-          echo "Building Helm chart dependencies..."
-          helm dependency build ../charts/catalyst
-          
           # Install Catalyst chart
+          # Note: We skip dependency build since all subcharts are disabled
+          # and resources (ingress-nginx, CRDs) are installed separately above
           helm install catalyst ../charts/catalyst \
             --namespace catalyst-system \
             --create-namespace \
