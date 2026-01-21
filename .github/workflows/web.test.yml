@@ -412,13 +412,13 @@ jobs:
         if: failure()
         run: |
           echo "=== Web Pod Logs (Full) ==="
-          kubectl logs -n catalyst-system -l app=catalyst-web --tail=-1 --all-containers=true || echo "No web logs found"
-          
+          kubectl logs -n catalyst-system deployment/catalyst-web --tail=-1 --all-containers=true || echo "No web logs found"
+
           echo "=== Web Pod Previous Logs (if crashed) ==="
-          kubectl logs -n catalyst-system -l app=catalyst-web --previous --all-containers=true || echo "No previous web logs found"
-          
+          kubectl logs -n catalyst-system deployment/catalyst-web --previous --all-containers=true || echo "No previous web logs found"
+
           echo "=== Web Pod Status ==="
-          kubectl get pods -n catalyst-system -l app=catalyst-web -o yaml
+          kubectl get pods -n catalyst-system -l app.kubernetes.io/component=web -o yaml
 
   # build-container:
   #   name: Build Container Images

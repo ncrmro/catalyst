@@ -77,6 +77,8 @@ COPY --from=builder /app/package.json ./package.json
 RUN npm install -g \
     drizzle-orm@$(node -p "require('./package.json').dependencies['drizzle-orm'].replace('^','')") \
     drizzle-kit@$(node -p "require('./package.json').devDependencies['drizzle-kit'].replace('^','')")
+# Add global node_modules to NODE_PATH so drizzle.config.ts can resolve imports
+ENV NODE_PATH=/usr/local/lib/node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts  /app/drizzle.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle  /app/drizzle
 

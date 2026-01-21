@@ -30,7 +30,7 @@ spec:
         - name: migrate
           image: "{{ .Values.web.image.repository }}{{ if hasPrefix "@" .Values.web.image.tag }}{{ .Values.web.image.tag }}{{ else }}:{{ .Values.web.image.tag }}{{ end }}"
           imagePullPolicy: {{ .Values.web.image.pullPolicy }}
-          command: ["npm", "run", "db:migrate"]
+          command: ["drizzle-kit", "migrate"]
           env:
             - name: DATABASE_URL
               valueFrom:
