@@ -240,6 +240,12 @@ jobs:
             enabled: false
           EOF
           
+          # Add Helm repositories for dependencies
+          echo "Adding Helm repositories..."
+          helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+          helm repo add cloudnative-pg https://cloudnative-pg.github.io/charts
+          helm repo update
+          
           # Build Helm chart dependencies
           echo "Building Helm chart dependencies..."
           helm dependency build ../charts/catalyst

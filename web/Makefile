@@ -195,6 +195,10 @@ e2e: ## Run e2e tests in Docker
 	$(DC) run --no-deps --no-deps e2e
 
 helm-deps: ## Build Helm chart dependencies
+	@echo "Adding Helm repositories..."
+	helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+	helm repo add cloudnative-pg https://cloudnative-pg.github.io/charts
+	helm repo update
 	@echo "Building Helm chart dependencies..."
 	helm dependency build ../charts/catalyst
 	@echo "Helm dependencies built successfully"
