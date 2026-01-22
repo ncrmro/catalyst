@@ -326,7 +326,7 @@ jobs:
 
       - name: Seed database
         run: |
-          kubectl exec deployment/catalyst-web -n catalyst-system -- npm run seed
+          kubectl exec deployment/catalyst-web -n catalyst-system -- node seed.cjs
 
       - name: Run Playwright tests
         run: npm run test:e2e

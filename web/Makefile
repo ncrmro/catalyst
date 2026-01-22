@@ -186,6 +186,15 @@ ci: ## Run comprehensive CI tests (unit, integration, and e2e)
 	npm run test:e2e
 	@echo "All tests completed successfully!"
 
+ci-e2e-local: ## Run full CI e2e workflow locally (k3s-vm, Helm, Playwright)
+	./scripts/ci-e2e-local.sh
+
+ci-e2e-local-skip-build: ## Run CI e2e locally, skip image build
+	./scripts/ci-e2e-local.sh --skip-build
+
+ci-e2e-local-skip-infra: ## Run CI e2e locally, skip k3s-vm startup (assumes running)
+	./scripts/ci-e2e-local.sh --skip-infra
+
 ci-docker: ## Run comprehensive CI tests in Docker (unit, integration, and e2e)
 	$(DC) run --env NODE_ENV=production --rm -it app npm run lint
 	$(DC) run --env NODE_ENV=production --rm -it app npm test

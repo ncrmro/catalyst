@@ -61,6 +61,12 @@ RUN \
   else echo "Lockfile not found." && exit 1; \
   fi
 
+# Bundle seed and migrate scripts for production (no tsx/drizzle-kit required)
+RUN npx esbuild scripts/seed.ts --bundle --platform=node --outfile=dist/seed.cjs \
+  --external:pg-native --external:better-sqlite3 --external:mysql2 --external:sqlite3
+RUN npx esbuild scripts/migrate.ts --bundle --platform=node --outfile=dist/migrate.cjs \
+  --external:pg-native
+
 # Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app
@@ -72,15 +78,17 @@ ENV NODE_ENV=production
 RUN groupadd --system --gid 1001 nodejs
 RUN useradd --system --uid 1001 --gid nodejs nextjs
 
-# Install drizzle globally for migrations (avoids workspace resolution bloat)
+# Install pino/next-logger globally for structured logging
 COPY --from=builder /app/package.json ./package.json
 RUN npm install -g \
-    drizzle-orm@$(node -p "require('./package.json').dependencies['drizzle-orm'].replace('^','')") \
-    drizzle-kit@$(node -p "require('./package.json').devDependencies['drizzle-kit'].replace('^','')")
-# Add global node_modules to NODE_PATH so drizzle.config.ts can resolve imports
+    pino@$(node -p "require('./package.json').dependencies['pino'].replace('^','')") \
+    next-logger@$(node -p "require('./package.json').dependencies['next-logger'].replace('^','')")
 ENV NODE_PATH=/usr/local/lib/node_modules
-COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts  /app/drizzle.config.ts
+
+# Copy migration files and bundled scripts
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle  /app/drizzle
+COPY --from=builder --chown=nextjs:nodejs /app/dist/migrate.cjs /app/migrate.cjs
+COPY --from=builder --chown=nextjs:nodejs /app/dist/seed.cjs /app/seed.cjs
 
 COPY --from=builder /app/public ./public
 
@@ -98,8 +106,5 @@ USER nextjs
 EXPOSE 3000
 
 ENV PORT=3000
-
-# Use the logging wrapper instead of direct server.js
-# This ensures structured JSON logging in production
 ENV HOSTNAME="0.0.0.0"
 CMD ["node", "server-with-logging-standalone.cjs"]
