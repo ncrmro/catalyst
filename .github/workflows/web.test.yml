@@ -339,6 +339,12 @@ jobs:
         run: |
           kubectl exec deployment/catalyst-web -n catalyst-system -- node seed.cjs
 
+      - name: Port-forward to web service
+        run: |
+          kubectl port-forward svc/catalyst-web -n catalyst-system 3000:3000 &
+          sleep 3
+          echo "Port-forward established to catalyst-web service"
+
       - name: Run Playwright tests
         run: npm run test:e2e
         env:
