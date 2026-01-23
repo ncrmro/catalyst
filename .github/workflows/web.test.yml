@@ -209,6 +209,10 @@ jobs:
                 value: "http://catalyst-web.catalyst-system.svc.cluster.local:3000"
               - name: GITHUB_PAT
                 value: "${{ github.token }}"
+              - name: TOKEN_ENCRYPTION_KEY
+                value: "test-encryption-key-for-e2e-32ch"
+              - name: GITHUB_DISABLE_APP_CHECKS
+                value: "true"
 
           # Enable ingress-nginx subchart for e2e
           ingress-nginx:
