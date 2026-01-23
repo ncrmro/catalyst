@@ -243,20 +243,29 @@ jobs:
           
           echo "Catalyst deployed via Helm"
 
-          # Wait for CloudNativePG operator to be ready
+      - name: Wait for CloudNativePG operator
+        run: |
           kubectl wait --for=condition=available deployment/catalyst-cloudnative-pg -n catalyst-system --timeout=120s
-          echo "CloudNativePG operator is ready"
 
-          # Wait for PostgreSQL cluster to be ready
+      - name: Wait for PostgreSQL cluster
+        run: |
           kubectl wait --for=condition=Ready cluster/catalyst-db -n catalyst-system --timeout=300s
-          echo "PostgreSQL cluster is ready"
 
-          # Verify deployments
-          kubectl get pods -A
-          kubectl wait --for=condition=available deployment/catalyst-controller-manager -n catalyst-system --timeout=120s
+      - name: Wait for Catalyst operator
+        run: |
+          kubectl wait --for=condition=available deployment/catalyst-operator -n catalyst-system --timeout=120s
+
+      - name: Wait for Catalyst web
+        run: |
           kubectl wait --for=condition=available deployment/catalyst-web -n catalyst-system --timeout=300s
-          kubectl wait --for=condition=available deployment/ingress-nginx-controller -n ingress-nginx --timeout=120s || true
-          echo "All Catalyst components are ready"
+
+      - name: Wait for ingress controller
+        run: |
+          kubectl wait --for=condition=available deployment/catalyst-ingress-nginx-controller -n catalyst-system --timeout=120s
+
+      - name: Verify all pods running
+        run: |
+          kubectl get pods -A
 
       - name: Deploy test application
         run: |
