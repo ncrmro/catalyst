@@ -69,7 +69,7 @@ export async function setup() {
                 { stdio: "inherit" },
               );
               console.log("CRDs are established and ready.");
-            } catch (waitError) {
+            } catch (_waitError) {
               console.warn(
                 "Warning: Timed out waiting for CRDs to be established, but proceeding anyway.",
               );
