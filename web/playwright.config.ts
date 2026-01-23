@@ -57,6 +57,7 @@ export default defineConfig({
     // KUBECONFIG_PRIMARY is passed through for K8s integration tests
     command: `GITHUB_DISABLE_APP_CHECKS=true GITHUB_REPOS_MODE=mocked ${process.env.KUBECONFIG_PRIMARY ? `KUBECONFIG_PRIMARY=${process.env.KUBECONFIG_PRIMARY}` : ""} node_modules/.bin/next dev --port ${webPort} --turbopack`,
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    // In CI, we port-forward to the K8s web service, so reuse that server
+    reuseExistingServer: true,
   },
 });
