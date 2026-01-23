@@ -152,6 +152,10 @@ web:
       value: "test-secret-for-e2e"
     - name: NEXTAUTH_URL
       value: "http://catalyst-web.catalyst-system.svc.cluster.local:3000"
+    - name: TOKEN_ENCRYPTION_KEY
+      value: "test-encryption-key-for-e2e-32ch"
+    - name: GITHUB_DISABLE_APP_CHECKS
+      value: "true"
 
 # Enable ingress-nginx subchart for e2e
 ingress-nginx:
@@ -204,9 +208,9 @@ echo "PostgreSQL cluster is ready"
 echo ""
 echo "=== Verifying deployments ==="
 $KUBECTL get pods -A
-$KUBECTL wait --for=condition=available deployment/catalyst-controller-manager -n catalyst-system --timeout=120s
+$KUBECTL wait --for=condition=available deployment/catalyst-operator -n catalyst-system --timeout=120s
 $KUBECTL wait --for=condition=available deployment/catalyst-web -n catalyst-system --timeout=300s
-$KUBECTL wait --for=condition=available deployment/ingress-nginx-controller -n ingress-nginx --timeout=120s || true
+$KUBECTL wait --for=condition=available deployment/catalyst-ingress-nginx-controller -n catalyst-system --timeout=120s || true
 echo "All Catalyst components are ready"
 
 # ============================================================================
