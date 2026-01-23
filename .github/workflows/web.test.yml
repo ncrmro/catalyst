@@ -346,8 +346,29 @@ jobs:
       - name: Port-forward to web service
         run: |
           kubectl port-forward svc/catalyst-web -n catalyst-system 3000:3000 &
-          sleep 3
-          echo "Port-forward established to catalyst-web service"
+          PF_PID=$!
+          echo "Port-forward PID: $PF_PID"
+
+          # Wait for port-forward to be ready with retries
+          for i in {1..30}; do
+            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+              echo "Web service accessible on localhost:3000"
+              break
+            fi
+            echo "Waiting for port-forward... attempt $i/30"
+            sleep 2
+          done
+
+          # Verify connectivity
+          curl -sf http://localhost:3000/api/health || {
+            echo "ERROR: Cannot reach web service after 60 seconds"
+            echo "Checking port-forward process..."
+            ps aux | grep port-forward || true
+            echo "Checking web pod logs..."
+            kubectl logs deployment/catalyst-web -n catalyst-system --tail=50 || true
+            exit 1
+          }
+          echo "Port-forward verified and working"
 
       - name: Run Playwright tests
         run: npm run test:e2e
