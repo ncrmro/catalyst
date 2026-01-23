@@ -50,14 +50,18 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  webServer: {
-    // Note: E2E tests should never use the full MOCKED=1 flag, only specific mocked modes
-    // This allows testing against real database while mocking only GitHub API calls
-    // GITHUB_REPOS_MODE=mocked enables GitHub repository and pull request mocking
-    // KUBECONFIG_PRIMARY is passed through for K8s integration tests
-    command: `GITHUB_DISABLE_APP_CHECKS=true GITHUB_REPOS_MODE=mocked ${process.env.KUBECONFIG_PRIMARY ? `KUBECONFIG_PRIMARY=${process.env.KUBECONFIG_PRIMARY}` : ""} node_modules/.bin/next dev --port ${webPort} --turbopack`,
-    url: baseURL,
-    // In CI, we port-forward to the K8s web service, so reuse that server
-    reuseExistingServer: true,
-  },
+  // In CI, we port-forward to the K8s web service, so skip starting a dev server
+  ...(process.env.CI
+    ? {}
+    : {
+        webServer: {
+          // Note: E2E tests should never use the full MOCKED=1 flag, only specific mocked modes
+          // This allows testing against real database while mocking only GitHub API calls
+          // GITHUB_REPOS_MODE=mocked enables GitHub repository and pull request mocking
+          // KUBECONFIG_PRIMARY is passed through for K8s integration tests
+          command: `GITHUB_DISABLE_APP_CHECKS=true GITHUB_REPOS_MODE=mocked ${process.env.KUBECONFIG_PRIMARY ? `KUBECONFIG_PRIMARY=${process.env.KUBECONFIG_PRIMARY}` : ""} node_modules/.bin/next dev --port ${webPort} --turbopack`,
+          url: baseURL,
+          reuseExistingServer: true,
+        },
+      }),
 });
