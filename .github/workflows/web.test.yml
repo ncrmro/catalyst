@@ -351,7 +351,7 @@ jobs:
 
           # Wait for port-forward to be ready with retries
           for i in {1..30}; do
-            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+            if curl -sf http://localhost:3000/api/health/readiness > /dev/null 2>&1; then
               echo "Web service accessible on localhost:3000"
               break
             fi
@@ -360,7 +360,7 @@ jobs:
           done
 
           # Verify connectivity
-          curl -sf http://localhost:3000/api/health || {
+          curl -sf http://localhost:3000/api/health/readiness || {
             echo "ERROR: Cannot reach web service after 60 seconds"
             echo "Checking port-forward process..."
             ps aux | grep port-forward || true
