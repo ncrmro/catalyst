@@ -1,9 +1,15 @@
 {
   description = "Catalyst Development Environment";
 
-  inputs = { nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable"; };
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    deepwork = {
+      url = "github:Unsupervisedcom/deepwork/copilot/implement-plan-md";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
 
-  outputs = { self, nixpkgs, ... }:
+  outputs = { self, nixpkgs, deepwork, ... }:
     let
       systems =
         [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
@@ -58,6 +64,9 @@
               # CLI Agents
               claude-code
               gemini-cli
+
+              # Deepwork
+              deepwork.packages.${system}.deepwork
             ];
 
             shellHook = ''
