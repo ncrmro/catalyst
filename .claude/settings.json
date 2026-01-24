@@ -1,4 +1,20 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(bin/kubectl:*)",
+      "Read(./.deepwork/tmp/**)",
+      "Edit(./.deepwork/tmp/**)",
+      "Write(./.deepwork/tmp/**)",
+      "Bash(rm -rf .deepwork/tmp/rules/queue/*.json)",
+      "Skill(deepwork_rules)",
+      "Skill(deepwork_rules.define)",
+      "Skill(deepwork_jobs)",
+      "Skill(deepwork_jobs.define)",
+      "Skill(deepwork_jobs.review_job_spec)",
+      "Skill(deepwork_jobs.implement)",
+      "Skill(deepwork_jobs.learn)"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {
@@ -19,6 +35,37 @@
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/typecheck-on-stop.py",
             "timeout": 60
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "deepwork hook rules_check"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".deepwork/jobs/deepwork_rules/hooks/user_prompt_submit.sh"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "deepwork hook rules_check"
           }
         ]
       }

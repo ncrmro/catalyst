@@ -1,0 +1,8 @@
+version: 0.1.0
+platforms:
+- claude
+- gemini
+python:
+  manager: uv
+  version: '3.11'
+  venv_path: .venv
