@@ -1,0 +1,258 @@
+---
+name: tasks.wait_ci
+description: "Monitor GitHub Actions for the commit/PR"
+user-invocable: false
+---
+
+# tasks.wait_ci
+
+**Step 7/8** in **tasks** workflow
+
+> Execute implementation tasks from specs, PRs, or branches to completion
+
+## Prerequisites (Verify First)
+
+Before proceeding, confirm these steps are complete:
+- `/tasks.commit_task`
+
+## Instructions
+
+**Goal**: Monitor GitHub Actions for the commit/PR
+
+# Wait for CI
+
+## Objective
+
+Monitor GitHub Actions for the pushed commit and wait for CI to complete, capturing the results.
+
+## Task
+
+Poll GitHub Actions to track the CI workflow status until it completes (success or failure).
+
+### Process
+
+1. **Read commit info**
+   - Load `tasks/commit_info.json` from the previous step
+   - Get commit SHA and branch name
+
+2. **Find the CI workflow run**
+
+   ```bash
+   # List recent workflow runs for the branch
+   gh run list --branch <branch> --limit 5
+
+   # Get the specific run for our commit
+   gh run list --commit <sha> --json databaseId,status,conclusion,name
+   ```
+
+3. **Wait for workflow to start**
+   - If no run found immediately, wait up to 60 seconds
+   - Poll every 10 seconds until run appears
+   - Timeout if no run starts within 2 minutes
+
+4. **Monitor workflow progress**
+
+   ```bash
+   # Watch the run (updates every 3 seconds)
+   gh run watch <run-id>
+
+   # Or poll manually
+   gh run view <run-id> --json status,conclusion,jobs
+   ```
+
+   - Track overall status: queued → in_progress → completed
+   - Note individual job statuses
+   - Capture timing information
+
+5. **Handle completion**
+
+   **On success**:
+   - Record successful completion
+   - Workflow complete - task is done!
+
+   **On failure**:
+   - Record failure details
+   - Identify which job(s) failed
+   - Prepare for debug_ci step
+
+6. **Report status to user**
+   - Show real-time progress updates
+   - Display final status clearly
+   - If failed, indicate next steps (debug_ci)
+
+## Output Format
+
+### tasks/ci_result.json
+
+A JSON file containing CI workflow results.
+
+**Structure**:
+
+```json
+{
+  "checked_at": "2024-01-15T11:15:00Z",
+  "commit_sha": "abc123def456",
+  "workflow": {
+    "name": "CI",
+    "run_id": 12345678,
+    "run_url": "https://github.com/owner/repo/actions/runs/12345678",
+    "status": "completed",
+    "conclusion": "success|failure|cancelled",
+    "started_at": "2024-01-15T11:00:10Z",
+    "completed_at": "2024-01-15T11:12:45Z",
+    "duration_seconds": 755
+  },
+  "jobs": [
+    {
+      "name": "build",
+      "status": "completed",
+      "conclusion": "success",
+      "duration_seconds": 120
+    },
+    {
+      "name": "test",
+      "status": "completed",
+      "conclusion": "success",
+      "duration_seconds": 450
+    },
+    {
+      "name": "e2e",
+      "status": "completed",
+      "conclusion": "failure",
+      "duration_seconds": 185,
+      "failed_step": "Run Playwright tests"
+    }
+  ],
+  "failed_jobs": [
+    {
+      "name": "e2e",
+      "failed_step": "Run Playwright tests",
+      "has_artifacts": true,
+      "artifact_names": ["playwright-report", "test-screenshots"]
+    }
+  ],
+  "overall_success": false,
+  "needs_debug": true
+}
+```
+
+**Example display - success**:
+
+```
+## CI Results
+
+**Workflow**: CI
+**Status**: ✅ Success
+**Duration**: 12m 35s
+
+| Job | Status | Duration |
+|-----|--------|----------|
+| build | ✅ Pass | 2m 0s |
+| test | ✅ Pass | 7m 30s |
+| lint | ✅ Pass | 1m 5s |
+| e2e | ✅ Pass | 2m 0s |
+
+### Summary
+All CI checks passed! Task complete.
+```
+
+**Example display - failure**:
+
+```
+## CI Results
+
+**Workflow**: CI
+**Status**: ❌ Failed
+**Duration**: 10m 15s
+
+| Job | Status | Duration |
+|-----|--------|----------|
+| build | ✅ Pass | 2m 0s |
+| test | ✅ Pass | 7m 30s |
+| lint | ✅ Pass | 1m 5s |
+| e2e | ❌ Fail | 3m 5s |
+
+### Failed Job: e2e
+**Failed Step**: Run Playwright tests
+**Artifacts Available**: playwright-report, test-screenshots
+
+### Next Steps
+Run debug_ci step to analyze the failure and download artifacts.
+```
+
+## Quality Criteria
+
+- Correct workflow run identified for the commit
+- Polling continues until workflow completes
+- All job statuses captured
+- Failed jobs and steps clearly identified
+- Artifacts noted for failed jobs
+- Duration and timing information captured
+- Clear next steps provided based on result
+- When all criteria are met, include `<promise>✓ Quality Criteria Met</promise>` in your response
+
+## Context
+
+CI validation is the final quality gate. Even if local validation passes, CI may catch issues in different environments or with integration tests. This step provides the feedback loop to know if the implementation is truly complete or needs debugging.
+
+
+### Job Context
+
+A comprehensive workflow for driving implementation tasks to completion. Takes tasks
+from multiple sources (tasks.md specs, PR descriptions, or branch context) and
+executes them one at a time through the full development cycle.
+
+The workflow:
+1. Detects or accepts explicit task source (branch, PR, or spec file)
+2. Parses and displays available tasks
+3. Selects a task (smart selection or user-specified)
+4. Implements the code changes
+5. Validates locally (tests + typecheck)
+6. Commits changes and marks task complete
+7. Monitors CI for success
+8. Debugs failures by fetching logs and E2E screenshots
+
+Key features:
+- Supports tasks.md, PR descriptions, and GitHub issues as task sources
+- One task at a time execution for careful review
+- Full CI validation with smart log extraction
+- Auto-downloads E2E failure screenshots for debugging
+- In-place task tracking (updates source directly)
+
+Target users: Developers working with spec-driven or PR-based task workflows.
+
+
+## Required Inputs
+
+
+**Files from Previous Steps** - Read these first:
+- `tasks/commit_info.json` (from `commit_task`)
+
+## Work Branch
+
+Use branch format: `deepwork/tasks-[instance]-YYYYMMDD`
+
+- If on a matching work branch: continue using it
+- If on main/master: create new branch with `git checkout -b deepwork/tasks-[instance]-$(date +%Y%m%d)`
+
+## Outputs
+
+**Required outputs**:
+- `tasks/ci_result.json`
+
+## Guardrails
+
+- Do NOT skip prerequisite verification if this step has dependencies
+- Do NOT produce partial outputs; complete all required outputs before finishing
+- Do NOT proceed without required inputs; ask the user if any are missing
+- Do NOT modify files outside the scope of this step's defined outputs
+
+## On Completion
+
+1. Verify outputs are created
+2. Inform user: "Step 7/8 complete, outputs: tasks/ci_result.json"
+3. **Continue workflow**: Use Skill tool to invoke `/tasks.debug_ci`
+
+---
+
+**Reference files**: `.deepwork/jobs/tasks/job.yml`, `.deepwork/jobs/tasks/steps/wait_ci.md`

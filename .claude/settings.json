@@ -12,7 +12,16 @@
       "Skill(deepwork_jobs.define)",
       "Skill(deepwork_jobs.review_job_spec)",
       "Skill(deepwork_jobs.implement)",
-      "Skill(deepwork_jobs.learn)"
+      "Skill(deepwork_jobs.learn)",
+      "Skill(tasks)",
+      "Skill(tasks.detect_source)",
+      "Skill(tasks.parse_tasks)",
+      "Skill(tasks.select_task)",
+      "Skill(tasks.implement_task)",
+      "Skill(tasks.validate_task)",
+      "Skill(tasks.commit_task)",
+      "Skill(tasks.wait_ci)",
+      "Skill(tasks.debug_ci)"
     ]
   },
   "hooks": {

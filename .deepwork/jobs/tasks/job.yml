@@ -1,0 +1,157 @@
+name: tasks
+version: "1.0.0"
+summary: "Execute implementation tasks from specs, PRs, or branches to completion"
+description: |
+  A comprehensive workflow for driving implementation tasks to completion. Takes tasks
+  from multiple sources (tasks.md specs, PR descriptions, or branch context) and
+  executes them one at a time through the full development cycle.
+
+  The workflow:
+  1. Detects or accepts explicit task source (branch, PR, or spec file)
+  2. Parses and displays available tasks
+  3. Selects a task (smart selection or user-specified)
+  4. Implements the code changes
+  5. Validates locally (tests + typecheck)
+  6. Commits changes and marks task complete
+  7. Monitors CI for success
+  8. Debugs failures by fetching logs and E2E screenshots
+
+  Key features:
+  - Supports tasks.md, PR descriptions, and GitHub issues as task sources
+  - One task at a time execution for careful review
+  - Full CI validation with smart log extraction
+  - Auto-downloads E2E failure screenshots for debugging
+  - In-place task tracking (updates source directly)
+
+  Target users: Developers working with spec-driven or PR-based task workflows.
+
+changelog:
+  - version: "1.0.0"
+    changes: "Initial job creation"
+
+steps:
+  - id: detect_source
+    name: "Detect Task Source"
+    description: "Auto-detect task source from current context or accept explicit input"
+    instructions_file: steps/detect_source.md
+    inputs:
+      - name: source_type
+        description: "Optional: explicit source type (branch, pr, spec). Auto-detects if not provided."
+      - name: source_ref
+        description: "Optional: PR number, spec file path, or branch name. Uses current context if not provided."
+    outputs:
+      - tasks/source_context.json
+    dependencies: []
+
+  - id: parse_tasks
+    name: "Parse Tasks"
+    description: "Extract and display tasks from the detected source"
+    instructions_file: steps/parse_tasks.md
+    exposed: true
+    inputs:
+      - file: tasks/source_context.json
+        from_step: detect_source
+    outputs:
+      - tasks/parsed_tasks.json
+    dependencies:
+      - detect_source
+
+  - id: select_task
+    name: "Select Task"
+    description: "Smart selection of next task or accept user-specified task"
+    instructions_file: steps/select_task.md
+    inputs:
+      - file: tasks/parsed_tasks.json
+        from_step: parse_tasks
+      - name: task_id
+        description: "Optional: specific task ID to work on. Uses smart selection if not provided."
+    outputs:
+      - tasks/selected_task.json
+    dependencies:
+      - parse_tasks
+
+  - id: implement_task
+    name: "Implement Task"
+    description: "Write code to complete the selected task"
+    instructions_file: steps/implement_task.md
+    inputs:
+      - file: tasks/selected_task.json
+        from_step: select_task
+    outputs:
+      - tasks/implementation_summary.md
+    dependencies:
+      - select_task
+    hooks:
+      after_agent:
+        - prompt: |
+            Verify implementation completeness:
+            1. All code changes for the task are complete
+            2. No placeholder or TODO comments left behind
+            3. Code follows project conventions (check CLAUDE.md)
+            4. Any new functions have appropriate error handling
+            If ALL criteria are met, include `<promise>✓ Quality Criteria Met</promise>`.
+
+  - id: validate_task
+    name: "Validate Task"
+    description: "Run tests and typecheck to verify implementation"
+    instructions_file: steps/validate_task.md
+    exposed: true
+    inputs:
+      - file: tasks/implementation_summary.md
+        from_step: implement_task
+    outputs:
+      - tasks/validation_result.json
+    dependencies:
+      - implement_task
+
+  - id: commit_task
+    name: "Commit Task"
+    description: "Commit changes and mark task complete in source"
+    instructions_file: steps/commit_task.md
+    inputs:
+      - file: tasks/validation_result.json
+        from_step: validate_task
+      - file: tasks/selected_task.json
+        from_step: select_task
+      - file: tasks/source_context.json
+        from_step: detect_source
+    outputs:
+      - tasks/commit_info.json
+    dependencies:
+      - detect_source
+      - select_task
+      - validate_task
+
+  - id: wait_ci
+    name: "Wait for CI"
+    description: "Monitor GitHub Actions for the commit/PR"
+    instructions_file: steps/wait_ci.md
+    inputs:
+      - file: tasks/commit_info.json
+        from_step: commit_task
+    outputs:
+      - tasks/ci_result.json
+    dependencies:
+      - commit_task
+
+  - id: debug_ci
+    name: "Debug CI Failures"
+    description: "Fetch failed step logs and E2E screenshots for debugging"
+    instructions_file: steps/debug_ci.md
+    exposed: true
+    inputs:
+      - file: tasks/ci_result.json
+        from_step: wait_ci
+    outputs:
+      - tasks/debug_report.md
+    dependencies:
+      - wait_ci
+    hooks:
+      after_agent:
+        - prompt: |
+            Verify debug analysis is actionable:
+            1. Root cause of failure is identified
+            2. Specific fix recommendations are provided
+            3. If E2E failure, screenshots were analyzed
+            4. Next steps are clear and actionable
+            If ALL criteria are met, include `<promise>✓ Quality Criteria Met</promise>`.
