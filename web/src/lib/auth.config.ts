@@ -7,17 +7,23 @@ import GitHub from "next-auth/providers/github";
 import { NextAuthConfig } from "next-auth";
 import { GITHUB_CONFIG } from "@/lib/vcs-providers";
 
-const providers: Provider[] = [
-  GitHub({
-    clientId: GITHUB_CONFIG.APP_CLIENT_ID,
-    clientSecret: GITHUB_CONFIG.APP_CLIENT_SECRET,
-    authorization: {
-      params: {
-        scope: "read:user user:email read:org repo",
+const providers: Provider[] = [];
+
+// Only add GitHub provider if credentials are configured
+// This allows running in CI/test mode without GitHub App
+if (GITHUB_CONFIG.APP_CLIENT_ID && GITHUB_CONFIG.APP_CLIENT_SECRET) {
+  providers.push(
+    GitHub({
+      clientId: GITHUB_CONFIG.APP_CLIENT_ID,
+      clientSecret: GITHUB_CONFIG.APP_CLIENT_SECRET,
+      authorization: {
+        params: {
+          scope: "read:user user:email read:org repo",
+        },
       },
-    },
-  }),
-];
+    }),
+  );
+}
 
 /**
  * Custom cookie names for development only.

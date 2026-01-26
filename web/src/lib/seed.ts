@@ -10,7 +10,7 @@ import {
 } from "@/db";
 import type { InferSelectModel } from "drizzle-orm";
 import { eq, and } from "drizzle-orm";
-import { TestInfo } from "@playwright/test";
+import type { TestInfo } from "@playwright/test";
 import { getMockProjects, getMockReposData } from "@/mocks/github";
 import { generateSlug } from "@/lib/slug";
 import { seedSelfDeploy } from "@/lib/seed-self-deploy";
