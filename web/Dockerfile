@@ -1,6 +1,6 @@
 # syntax=docker.io/docker/dockerfile:1
 
-FROM node:22 AS base
+FROM node:22-slim AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -61,6 +61,12 @@ RUN \
   else echo "Lockfile not found." && exit 1; \
   fi
 
+# Bundle seed and migrate scripts for production (no tsx/drizzle-kit required)
+RUN npx esbuild scripts/seed.ts --bundle --platform=node --outfile=dist/seed.cjs \
+  --external:pg-native --external:better-sqlite3 --external:mysql2 --external:sqlite3
+RUN npx esbuild scripts/migrate.ts --bundle --platform=node --outfile=dist/migrate.cjs \
+  --external:pg-native
+
 # Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app
@@ -72,13 +78,10 @@ ENV NODE_ENV=production
 RUN groupadd --system --gid 1001 nodejs
 RUN useradd --system --uid 1001 --gid nodejs nextjs
 
-# Copy drizzle migrations and config
-COPY --from=builder /app/package.json ./package.json
-# TODO this is non optimal as we shouldn't need the packages here and this really means w should rework how drizzle-orm/kit get installed, prob in the base layer
-COPY --from=builder /app/packages/ ./packages/
-RUN npm install --production=false drizzle-orm drizzle-kit
-COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts  /app/drizzle.config.ts
+# Copy migration files and bundled scripts
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle  /app/drizzle
+COPY --from=builder --chown=nextjs:nodejs /app/dist/migrate.cjs /app/migrate.cjs
+COPY --from=builder --chown=nextjs:nodejs /app/dist/seed.cjs /app/seed.cjs
 
 COPY --from=builder /app/public ./public
 
@@ -87,17 +90,10 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy the server wrapper for structured logging
-COPY --from=builder --chown=nextjs:nodejs /app/server-with-logging-standalone.cjs ./server-with-logging-standalone.cjs
-COPY --from=builder --chown=nextjs:nodejs /app/next-logger.config.cjs ./next-logger.config.cjs
-
 USER nextjs
 
 EXPOSE 3000
 
 ENV PORT=3000
-
-# Use the logging wrapper instead of direct server.js
-# This ensures structured JSON logging in production
 ENV HOSTNAME="0.0.0.0"
-CMD ["node", "server-with-logging-standalone.cjs"]
+CMD ["node", "server.js"]
