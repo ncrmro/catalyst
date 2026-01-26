@@ -1,5 +1,4 @@
 import { Page, TestInfo } from "@playwright/test";
-import { seedUser } from "@/lib/seed";
 
 /**
  * Generate unique user credentials for E2E tests based on worker index and timestamp
@@ -20,7 +19,8 @@ export function generateUserCredentials(
 /**
  * Perform a development credentials login via NextAuth and attach auth cookies to the provided page.
  * Requires NODE_ENV=development and the Credentials provider enabled (id: "password").
- * This will automatically create a user and team if they don't exist.
+ * This will automatically create a user, team, and seed projects if they don't exist.
+ * Project seeding happens server-side in the credentials provider.
  *
  * @returns The password used for login
  */
@@ -36,36 +36,20 @@ export async function loginWithDevPassword(
   await page.getByRole("button", { name: "Sign in with Password" }).click();
   await page.waitForURL("**/projects");
 
-  // Return the password so it can be used for seeding
+  // Return the password so it can be used for reference
   return password;
 }
 
 /**
- * For E2E tests - seed projects for the authenticated user
- */
-export async function seedProjectsForE2EUser(
-  password: string,
-  testInfo?: TestInfo,
-) {
-  return seedUser({
-    password,
-    testInfo,
-    createProjects: true,
-  });
-}
-
-/**
  * Login and seed projects for E2E testing
- * This is a convenience function that combines login and seeding
+ * Seeding now happens server-side during login via the credentials provider,
+ * so this function just performs the login.
  */
 export async function loginAndSeedForE2E(
   page: Page,
   testInfo: TestInfo,
   role: "user" | "admin" = "user",
 ) {
-  // First login the user and get the password used
-  const password = await loginWithDevPassword(page, testInfo, role);
-
-  // Then seed projects for this user using the database directly
-  await seedProjectsForE2EUser(password, testInfo);
+  // Login the user - seeding happens server-side in the credentials provider
+  await loginWithDevPassword(page, testInfo, role);
 }
