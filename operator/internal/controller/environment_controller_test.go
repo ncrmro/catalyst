@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -26,6 +27,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,7 +41,7 @@ var _ = Describe("Environment Controller", func() {
 	Context("When reconciling a resource", func() {
 		const resourceName = "test-env"
 		const projectName = "my-project"
-		const namespace = "default"
+		const namespace = "test-team" // Environment CRs are stored in team namespace
 
 		ctx := context.Background()
 
@@ -49,7 +51,19 @@ var _ = Describe("Environment Controller", func() {
 		}
 
 		BeforeEach(func() {
-			By("Creating the Git Secret")
+			By("Creating the team namespace (idempotent)")
+			teamNs := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: namespace,
+				},
+			}
+			// Only create if it doesn't exist (idempotent)
+			err := k8sClient.Get(ctx, types.NamespacedName{Name: namespace}, &corev1.Namespace{})
+			if errors.IsNotFound(err) {
+				Expect(k8sClient.Create(ctx, teamNs)).To(Succeed())
+			}
+
+			By("Creating the Git Secret in team namespace")
 			gitSecret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "github-pat-secret",
@@ -87,6 +101,12 @@ var _ = Describe("Environment Controller", func() {
 			_ = k8sClient.Delete(ctx, project)
 			Expect(k8sClient.Create(ctx, project)).To(Succeed())
 
+			// Verify Project was created and can be fetched
+			fetchedProject := &catalystv1alpha1.Project{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, client.ObjectKey{Name: projectName, Namespace: namespace}, fetchedProject)
+			}, time.Second*5, time.Millisecond*250).Should(Succeed())
+
 			By("Creating the Environment CR")
 			resource := &catalystv1alpha1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -94,7 +114,7 @@ var _ = Describe("Environment Controller", func() {
 					Namespace: namespace,
 					// Add required hierarchy labels (FR-ENV-020)
 					Labels: map[string]string{
-						"catalyst.dev/team":        "test-team",
+						"catalyst.dev/team":        namespace,
 						"catalyst.dev/project":     projectName,
 						"catalyst.dev/environment": resourceName,
 					},
@@ -131,9 +151,22 @@ var _ = Describe("Environment Controller", func() {
 			}
 
 			// Cleanup Namespace using proper hierarchy-based name generation
-			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
+			targetNsName := GenerateEnvironmentNamespace(namespace, projectName, resourceName)
 			ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}}
 			_ = k8sClient.Delete(ctx, ns)
+
+			// Cleanup Project from team namespace
+			project := &catalystv1alpha1.Project{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      projectName,
+					Namespace: namespace,
+				},
+			}
+			_ = k8sClient.Delete(ctx, project)
+
+			// Cleanup team namespace
+			teamNs := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+			_ = k8sClient.Delete(ctx, teamNs)
 		})
 
 		It("should successfully create a Namespace, Quotas, Policies and Workspace Pod", func() {
@@ -143,14 +176,35 @@ var _ = Describe("Environment Controller", func() {
 				Config: cfg,
 			}
 
-			// Reconcile
+			// Reconcile (might need to call twice for resources to settle)
 			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
 
+			// Call reconcile again to ensure namespace creation completes
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			// Call reconcile a third time for good measure (finalizer, then namespace creation, then resource setup)
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			// DEBUG: List all namespaces to see what got created
+			allNamespaces := &corev1.NamespaceList{}
+			Expect(k8sClient.List(ctx, allNamespaces)).To(Succeed())
+			fmt.Printf("DEBUG: All namespaces after reconcile:\n")
+			for _, ns := range allNamespaces.Items {
+				fmt.Printf("  - %s\n", ns.Name)
+			}
+			fmt.Printf("DEBUG: Looking for namespace: %s\n", GenerateEnvironmentNamespace(namespace, projectName, resourceName))
+
 			// 1. Verify Namespace Created using proper hierarchy-based name
-			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
+			targetNsName := GenerateEnvironmentNamespace(namespace, projectName, resourceName)
 			ns := &corev1.Namespace{}
 			Eventually(func() error {
 				return k8sClient.Get(ctx, types.NamespacedName{Name: targetNsName}, ns)
@@ -244,7 +298,7 @@ var _ = Describe("Environment Controller", func() {
 	Context("When reconciling a Helm environment", func() {
 		const resourceName = "helm-env-test"
 		const projectName = "helm-project"
-		const namespace = "default"
+		const namespace = "test-team-helm" // Unique team namespace for this context
 
 		ctx := context.Background()
 
@@ -254,7 +308,33 @@ var _ = Describe("Environment Controller", func() {
 		}
 
 		BeforeEach(func() {
-			By("Creating the Git Secret")
+			By("Waiting for team namespace to be fully deleted if terminating")
+			Eventually(func() bool {
+				ns := &corev1.Namespace{}
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: namespace}, ns)
+				if errors.IsNotFound(err) {
+					return true // Namespace doesn't exist, we can proceed
+				}
+				if err != nil {
+					return false // Error getting namespace
+				}
+				// Namespace exists but might be terminating
+				return ns.Status.Phase != corev1.NamespaceTerminating
+			}, time.Second*30, time.Millisecond*500).Should(BeTrue())
+
+			By("Creating the team namespace (idempotent)")
+			teamNs := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: namespace,
+				},
+			}
+			// Only create if it doesn't exist (idempotent)
+			err := k8sClient.Get(ctx, types.NamespacedName{Name: namespace}, &corev1.Namespace{})
+			if errors.IsNotFound(err) {
+				Expect(k8sClient.Create(ctx, teamNs)).To(Succeed())
+			}
+
+			By("Creating the Git Secret in team namespace")
 			gitSecret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "github-pat-secret",
@@ -299,7 +379,7 @@ var _ = Describe("Environment Controller", func() {
 					Name:      resourceName,
 					Namespace: namespace,
 					Labels: map[string]string{
-						"catalyst.dev/team":        "test-team",
+						"catalyst.dev/team":        namespace,
 						"catalyst.dev/project":     projectName,
 						"catalyst.dev/environment": resourceName,
 					},
@@ -327,8 +407,12 @@ var _ = Describe("Environment Controller", func() {
 				_ = k8sClient.Update(ctx, resource)
 				_ = k8sClient.Delete(ctx, resource)
 			}
-			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
+			targetNsName := GenerateEnvironmentNamespace(namespace, projectName, resourceName)
 			_ = k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
+
+			// NOTE: Don't delete team namespace - envtest doesn't fully support namespace
+			// termination, causing subsequent tests to fail waiting for namespace deletion.
+			// The namespace is reused across tests in this context.
 		})
 
 		It("should successfully deploy the Helm chart", func() {
@@ -345,7 +429,7 @@ var _ = Describe("Environment Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// 1. Verify Namespace Created
-			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
+			targetNsName := GenerateEnvironmentNamespace(namespace, projectName, resourceName)
 			ns := &corev1.Namespace{}
 			Eventually(func() error {
 				return k8sClient.Get(ctx, types.NamespacedName{Name: targetNsName}, ns)
@@ -412,7 +496,7 @@ var _ = Describe("Environment Controller", func() {
 					Name:      "invalid-path-env",
 					Namespace: namespace,
 					Labels: map[string]string{
-						"catalyst.dev/team":        "test-team",
+						"catalyst.dev/team":        namespace,
 						"catalyst.dev/project":     "invalid-path-project",
 						"catalyst.dev/environment": "invalid-path-env",
 					},
@@ -445,7 +529,7 @@ var _ = Describe("Environment Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// Create ServiceAccount to proceed past waiting state
-			targetNsName := GenerateEnvironmentNamespace("test-team", "invalid-path-project", "invalid-path-env")
+			targetNsName := GenerateEnvironmentNamespace(namespace, "invalid-path-project", "invalid-path-env")
 			sa := &corev1.ServiceAccount{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "default",
@@ -506,7 +590,7 @@ var _ = Describe("Environment Controller", func() {
 					Name:      "missing-ref-env",
 					Namespace: namespace,
 					Labels: map[string]string{
-						"catalyst.dev/team":        "test-team",
+						"catalyst.dev/team":        namespace,
 						"catalyst.dev/project":     "missing-ref-project",
 						"catalyst.dev/environment": "missing-ref-env",
 					},
@@ -539,7 +623,7 @@ var _ = Describe("Environment Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// Create ServiceAccount to proceed past waiting state
-			targetNsName := GenerateEnvironmentNamespace("test-team", "missing-ref-project", "missing-ref-env")
+			targetNsName := GenerateEnvironmentNamespace(namespace, "missing-ref-project", "missing-ref-env")
 			sa := &corev1.ServiceAccount{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "default",
@@ -593,7 +677,7 @@ var _ = Describe("Environment Controller", func() {
 					Name:      "no-template-env",
 					Namespace: namespace,
 					Labels: map[string]string{
-						"catalyst.dev/team":        "test-team",
+						"catalyst.dev/team":        namespace,
 						"catalyst.dev/project":     "no-template-project",
 						"catalyst.dev/environment": "no-template-env",
 					},
@@ -627,7 +711,7 @@ var _ = Describe("Environment Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			// Create ServiceAccount to proceed past waiting state
-			targetNsName := GenerateEnvironmentNamespace("test-team", "no-template-project", "no-template-env")
+			targetNsName := GenerateEnvironmentNamespace(namespace, "no-template-project", "no-template-env")
 			sa := &corev1.ServiceAccount{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "default",
@@ -659,7 +743,7 @@ var _ = Describe("Environment Controller", func() {
 	Context("When reconciling a Zero-Config environment", func() {
 		const resourceName = "zero-config-test"
 		const projectName = "zero-config-project"
-		const namespace = "default"
+		const namespace = "test-team-build" // Unique team namespace for this context
 
 		ctx := context.Background()
 
@@ -669,7 +753,19 @@ var _ = Describe("Environment Controller", func() {
 		}
 
 		BeforeEach(func() {
-			By("Creating the Git Secret")
+			By("Creating the team namespace (idempotent)")
+			teamNs := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: namespace,
+				},
+			}
+			// Only create if it doesn't exist (idempotent)
+			err := k8sClient.Get(ctx, types.NamespacedName{Name: namespace}, &corev1.Namespace{})
+			if errors.IsNotFound(err) {
+				Expect(k8sClient.Create(ctx, teamNs)).To(Succeed())
+			}
+
+			By("Creating the Git Secret in team namespace")
 			gitSecret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "github-pat-secret",
@@ -682,7 +778,7 @@ var _ = Describe("Environment Controller", func() {
 			_ = k8sClient.Delete(ctx, gitSecret)
 			Expect(k8sClient.Create(ctx, gitSecret)).To(Succeed())
 
-			By("Creating the Registry Secret")
+			By("Creating the Registry Secret in team namespace")
 			registrySecret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "registry-credentials",
@@ -734,7 +830,7 @@ var _ = Describe("Environment Controller", func() {
 					Name:      resourceName,
 					Namespace: namespace,
 					Labels: map[string]string{
-						"catalyst.dev/team":        "test-team",
+						"catalyst.dev/team":        namespace,
 						"catalyst.dev/project":     projectName,
 						"catalyst.dev/environment": resourceName,
 					},
@@ -762,8 +858,11 @@ var _ = Describe("Environment Controller", func() {
 				_ = k8sClient.Update(ctx, resource)
 				_ = k8sClient.Delete(ctx, resource)
 			}
-			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
+			targetNsName := GenerateEnvironmentNamespace(namespace, projectName, resourceName)
 			_ = k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
+
+			// Cleanup team namespace
+			_ = k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}})
 		})
 
 		It("should create a Build Job with init containers", func() {
@@ -779,7 +878,7 @@ var _ = Describe("Environment Controller", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
+			targetNsName := GenerateEnvironmentNamespace(namespace, projectName, resourceName)
 
 			// Simulate Controller Manager: Create default ServiceAccount
 			sa := &corev1.ServiceAccount{
@@ -854,7 +953,7 @@ var _ = Describe("Environment Controller", func() {
 	Context("When reconciling a Docker Compose environment", func() {
 		const resourceName = "compose-test"
 		const projectName = "compose-project"
-		const namespace = "default"
+		const namespace = "test-team-compose" // Unique team namespace for this context
 
 		ctx := context.Background()
 
@@ -864,7 +963,19 @@ var _ = Describe("Environment Controller", func() {
 		}
 
 		BeforeEach(func() {
-			By("Creating the Git Secret")
+			By("Creating the team namespace (idempotent)")
+			teamNs := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: namespace,
+				},
+			}
+			// Only create if it doesn't exist (idempotent)
+			err := k8sClient.Get(ctx, types.NamespacedName{Name: namespace}, &corev1.Namespace{})
+			if errors.IsNotFound(err) {
+				Expect(k8sClient.Create(ctx, teamNs)).To(Succeed())
+			}
+
+			By("Creating the Git Secret in team namespace")
 			gitSecret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "github-pat-secret",
@@ -908,7 +1019,7 @@ var _ = Describe("Environment Controller", func() {
 					Name:      resourceName,
 					Namespace: namespace,
 					Labels: map[string]string{
-						"catalyst.dev/team":        "test-team",
+						"catalyst.dev/team":        namespace,
 						"catalyst.dev/project":     projectName,
 						"catalyst.dev/environment": resourceName,
 					},
@@ -936,8 +1047,11 @@ var _ = Describe("Environment Controller", func() {
 				_ = k8sClient.Update(ctx, resource)
 				_ = k8sClient.Delete(ctx, resource)
 			}
-			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
+			targetNsName := GenerateEnvironmentNamespace(namespace, projectName, resourceName)
 			_ = k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: targetNsName}})
+
+			// Cleanup team namespace
+			_ = k8sClient.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}})
 		})
 
 		It("should successfully translate Compose to K8s resources", func() {
@@ -953,7 +1067,7 @@ var _ = Describe("Environment Controller", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			targetNsName := GenerateEnvironmentNamespace("test-team", projectName, resourceName)
+			targetNsName := GenerateEnvironmentNamespace(namespace, projectName, resourceName)
 
 			// Simulate Controller Manager: Create default ServiceAccount
 			sa := &corev1.ServiceAccount{
