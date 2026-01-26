@@ -53,14 +53,17 @@ export async function seedProjectsForE2EUser(password: string) {
     data: { password, createProjects: true },
   });
 
+  let result;
   if (!response.ok()) {
-    console.warn(
-      `Seed API returned ${response.status()}: ${await response.text()}`,
-    );
+    const text = await response.text();
+    console.warn(`Seed API returned ${response.status()}: ${text}`);
+    result = { success: false, message: text };
+  } else {
+    result = await response.json();
   }
 
   await apiContext.dispose();
-  return response.json();
+  return result;
 }
 
 /**
