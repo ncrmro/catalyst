@@ -6,6 +6,7 @@ import authConfig from "@/lib/auth.config";
 import Credentials from "next-auth/providers/credentials";
 import { createSessionHelpers } from "@tetrastack/backend/auth";
 import { refreshTokenIfNeeded } from "@/lib/vcs-providers";
+import { seedUser } from "@/lib/seed";
 
 declare module "next-auth" {
   interface Session {
@@ -136,6 +137,14 @@ authConfig.providers.push(
         image: userObject.image,
         admin: isAdmin,
       });
+
+      // Seed projects for the new user (for E2E tests running in CI)
+      // This happens server-side where database access works
+      await seedUser({
+        email: userObject.email,
+        createProjects: true,
+      });
+
       // Convert integer ID to string for NextAuth compatibility
       // Next auth expects id to be a string (UUID) but I stubbornly used an integer
       return newUser;

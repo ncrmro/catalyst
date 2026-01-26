@@ -123,23 +123,36 @@ const buildGitHubConfig = () => {
 // This will throw on module load if required variables are missing
 export const GITHUB_CONFIG = buildGitHubConfig();
 
+// Check if GitHub App credentials are available
+const hasGitHubAppCredentials = !!(
+  GITHUB_CONFIG.APP_ID && GITHUB_CONFIG.APP_PRIVATE_KEY
+);
+
 // Create GitHub App instance singleton
 // During build phase, use stub values to prevent initialization errors
+// When DISABLE_APP_CHECKS is true and credentials are missing, use null
 const githubApp = isNextJsBuild
   ? new App({
       appId: "stub-app-id",
       privateKey: `-----BEGIN RSA PRIVATE KEY-----STUB-----END RSA PRIVATE KEY-----`,
     })
-  : new App({
-      appId: GITHUB_CONFIG.APP_ID,
-      privateKey: GITHUB_CONFIG.APP_PRIVATE_KEY,
-    });
+  : hasGitHubAppCredentials
+    ? new App({
+        appId: GITHUB_CONFIG.APP_ID,
+        privateKey: GITHUB_CONFIG.APP_PRIVATE_KEY,
+      })
+    : null;
 
 /**
  * Get all installations for the GitHub App
  * This requires the app to be authenticated as the GitHub App itself
  */
 export async function getAllInstallations() {
+  if (!githubApp) {
+    throw new Error(
+      "GitHub App is not configured. Set GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY.",
+    );
+  }
   try {
     // Use the app's octokit instance for app-level operations
     const { data: installations } = await githubApp.octokit.request(
@@ -157,6 +170,11 @@ export async function getAllInstallations() {
  * This is useful for operations on specific installations
  */
 export async function getInstallationOctokit(installationId: number) {
+  if (!githubApp) {
+    throw new Error(
+      "GitHub App is not configured. Set GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY.",
+    );
+  }
   try {
     return await githubApp.getInstallationOctokit(installationId);
   } catch (error) {
