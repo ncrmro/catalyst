@@ -206,7 +206,7 @@ jobs:
               - name: NEXTAUTH_SECRET
                 value: "test-secret-for-e2e"
               - name: NEXTAUTH_URL
-                value: "http://catalyst-web.catalyst-system.svc.cluster.local:3000"
+                value: "http://localhost:3000"
               - name: AUTH_TRUST_HOST
                 value: "true"
               - name: GITHUB_PAT
