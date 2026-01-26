@@ -1,5 +1,4 @@
-import { Page, TestInfo } from "@playwright/test";
-import { seedUser } from "@/lib/seed";
+import { Page, TestInfo, request } from "@playwright/test";
 
 /**
  * Generate unique user credentials for E2E tests based on worker index and timestamp
@@ -41,17 +40,27 @@ export async function loginWithDevPassword(
 }
 
 /**
- * For E2E tests - seed projects for the authenticated user
+ * For E2E tests - seed projects for the authenticated user via API
+ * This calls the /api/e2e/seed endpoint which runs inside the app container
+ * and has direct database access
  */
-export async function seedProjectsForE2EUser(
-  password: string,
-  testInfo?: TestInfo,
-) {
-  return seedUser({
-    password,
-    testInfo,
-    createProjects: true,
+export async function seedProjectsForE2EUser(password: string) {
+  const baseURL =
+    process.env.PLAYWRIGHT_TEST_BASE_URL || "http://localhost:3000";
+  const apiContext = await request.newContext({ baseURL });
+
+  const response = await apiContext.post("/api/e2e/seed", {
+    data: { password, createProjects: true },
   });
+
+  if (!response.ok()) {
+    console.warn(
+      `Seed API returned ${response.status()}: ${await response.text()}`,
+    );
+  }
+
+  await apiContext.dispose();
+  return response.json();
 }
 
 /**
@@ -66,6 +75,6 @@ export async function loginAndSeedForE2E(
   // First login the user and get the password used
   const password = await loginWithDevPassword(page, testInfo, role);
 
-  // Then seed projects for this user using the database directly
-  await seedProjectsForE2EUser(password, testInfo);
+  // Then seed projects for this user via API endpoint
+  await seedProjectsForE2EUser(password);
 }

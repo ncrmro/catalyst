@@ -215,6 +215,8 @@ jobs:
                 value: "test-encryption-key-for-e2e-32ch"
               - name: GITHUB_DISABLE_APP_CHECKS
                 value: "true"
+              - name: E2E_TESTING
+                value: "true"
 
           # Enable ingress-nginx subchart for e2e
           ingress-nginx:
@@ -340,10 +342,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Seed database
-        run: |
-          kubectl exec deployment/catalyst-web -n catalyst-system -- node seed.cjs
 
       - name: Port-forward to web service
         run: |
