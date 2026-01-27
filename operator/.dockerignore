@@ -9,3 +9,6 @@
 # Re-include Go module files
 !go.mod
 !go.sum
+
+# Re-include embedded scripts for git credential helper
+!internal/controller/scripts/*.sh
