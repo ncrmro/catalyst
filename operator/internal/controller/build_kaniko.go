@@ -187,6 +187,12 @@ func (r *EnvironmentReconciler) reconcileSingleBuild(ctx context.Context, env *c
 	err := r.Get(ctx, client.ObjectKey{Name: jobName, Namespace: namespace}, job)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
+			// Validate githubInstallationId is set before creating Job
+			// For private repos, this is required for the credential helper to work
+			if project.Spec.GitHubInstallationId == "" {
+				return "", fmt.Errorf("project.spec.githubInstallationId is required for builds but is not set")
+			}
+
 			// Create Job
 			log.Info("Creating Build Job", "job", jobName, "image", imageTag, "installationId", project.Spec.GitHubInstallationId)
 			job = desiredBuildJob(jobName, namespace, imageTag, sourceConfig.RepositoryURL, commitSha, project.Spec.GitHubInstallationId, build, hasRegistrySecret)

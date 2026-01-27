@@ -163,6 +163,9 @@ test.describe.skip("Git Credential Helper via Operator", () => {
           sources: [
             {
               name: "main",
+              // TODO: Replace with hermetic test fixture (local git server) to avoid
+              // external dependency on GitHub availability and rate limits.
+              // See: https://github.com/ncrmro/catalyst/pull/424#discussion_r1234567890
               repositoryUrl: "https://github.com/ncrmro/catalyst.git",
               branch: "main",
             },

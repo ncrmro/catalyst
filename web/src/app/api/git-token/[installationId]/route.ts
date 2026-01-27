@@ -79,10 +79,41 @@ const CustomObjectListResponseSchema = z.object({
   items: z.array(EnvironmentCRSchema).optional(),
 });
 
+/**
+ * Schema for Namespace metadata
+ */
+const NamespaceMetadataSchema = z.object({
+  name: z.string().optional(),
+  labels: z.record(z.string(), z.string()).optional(),
+  annotations: z.record(z.string(), z.string()).optional(),
+});
+
+/**
+ * Schema for Namespace
+ */
+const NamespaceSchema = z.object({
+  metadata: NamespaceMetadataSchema.optional(),
+});
+
+/**
+ * Schema for Project CR spec
+ */
+const ProjectSpecSchema = z.object({
+  githubInstallationId: z.string().optional(),
+});
+
+/**
+ * Schema for Project Custom Resource
+ */
+const ProjectCRSchema = z.object({
+  metadata: EnvironmentMetadataSchema.optional(),
+  spec: ProjectSpecSchema.optional(),
+});
+
 interface ValidationResult {
   valid: boolean;
   namespace?: string;
-  installationId?: number;
+  installationId?: string;
   error?: string;
 }
 
@@ -162,26 +193,24 @@ async function validatePodRequest(token: string): Promise<ValidationResult> {
 
     const namespace = parts[2];
 
-    // Look up Environment CR to get installation ID
-    // Note: PR pods are deprecated and the operator should handle this work now.
-    // For namespaces without an associated Environment CR (e.g. PR pods
-    // running in "default" or another shared namespace), we cannot derive
-    // an installation ID from the namespace alone. In that case, we proceed
-    // without namespace-based installation mapping and rely on the
-    // installationId provided via the route parameter for validation.
+    // Look up Project CR via namespace labels to get installation ID
+    // The installation ID binding must be deterministic: if we cannot derive
+    // an installation ID for the caller namespace, we fail the request rather
+    // than falling back to the route parameter.
     const installationId = await getInstallationIdForNamespace(namespace);
 
     if (!installationId) {
-      console.warn(
-        "No installation ID found for namespace; proceeding without namespace-based installation mapping",
-        { namespace },
-      );
+      return {
+        valid: false,
+        error:
+          "No GitHub installation ID is associated with the caller namespace",
+      };
     }
 
     return {
       valid: true,
       namespace,
-      installationId: installationId ?? undefined,
+      installationId,
     };
   } catch (error) {
     console.error("Error validating pod request:", error);
@@ -195,15 +224,16 @@ async function validatePodRequest(token: string): Promise<ValidationResult> {
 /**
  * Get installation ID for a given namespace
  *
- * This looks up the Environment CR in the namespace and extracts the
- * installation ID from its labels or metadata.
+ * This looks up the namespace labels to find the team/project, then fetches
+ * the Project CR and extracts the githubInstallationId from its spec.
+ * This provides deterministic validation of the installation binding.
  *
  * @param namespace Kubernetes namespace
  * @returns Installation ID or null if not found
  */
 async function getInstallationIdForNamespace(
   namespace: string,
-): Promise<number | null> {
+): Promise<string | null> {
   try {
     // Get Kubernetes config
     const kc = await getClusterConfig();
@@ -211,53 +241,61 @@ async function getInstallationIdForNamespace(
       return null;
     }
 
+    const coreApi = kc.makeApiClient(
+      (await import("@kubernetes/client-node")).CoreV1Api,
+    );
     const customApi = kc.makeApiClient(CustomObjectsApi);
 
-    // List Environment CRs in the namespace
-    const response = await customApi.listNamespacedCustomObject({
-      group: "catalyst.catalyst.dev",
-      version: "v1alpha1",
-      namespace,
-      plural: "environments",
-    });
-
-    // Validate response with Zod schema
-    const parsedResponse = CustomObjectListResponseSchema.safeParse(response);
-    if (!parsedResponse.success) {
-      console.error("Invalid CustomObject list response format");
+    // Get namespace to read labels
+    const nsResponse = await coreApi.readNamespace({ name: namespace });
+    const parsedNamespace = NamespaceSchema.safeParse(nsResponse);
+    if (!parsedNamespace.success) {
+      console.error("Invalid Namespace response format");
       return null;
     }
 
-    const environments = parsedResponse.data.items || [];
+    // Extract team and project from namespace labels
+    const teamLabel = parsedNamespace.data.metadata?.labels?.["catalyst.dev/team"];
+    const projectLabel = parsedNamespace.data.metadata?.labels?.["catalyst.dev/project"];
 
-    if (environments.length === 0) {
+    if (!teamLabel || !projectLabel) {
+      console.warn(
+        "Namespace missing required hierarchy labels (catalyst.dev/team, catalyst.dev/project)",
+        { namespace },
+      );
       return null;
     }
 
-    // Get the first environment (there should only be one per namespace)
-    const env = environments[0];
+    // Fetch Project CR from team namespace
+    try {
+      const projectResponse = await customApi.getNamespacedCustomObject({
+        group: "catalyst.catalyst.dev",
+        version: "v1alpha1",
+        namespace: teamLabel,
+        plural: "projects",
+        name: projectLabel,
+      });
 
-    // Check for installation-id label
-    const installationIdLabel =
-      env.metadata?.labels?.["catalyst.dev/installation-id"];
-    if (installationIdLabel) {
-      const parsedLabelId = parseInt(installationIdLabel, 10);
-      if (!Number.isNaN(parsedLabelId)) {
-        return parsedLabelId;
+      const parsedProject = ProjectCRSchema.safeParse(projectResponse);
+      if (!parsedProject.success) {
+        console.error("Invalid Project CR response format");
+        return null;
       }
-    }
 
-    // Check for installation ID in annotations (fallback)
-    const installationIdAnnotation =
-      env.metadata?.annotations?.["catalyst.dev/installation-id"];
-    if (installationIdAnnotation) {
-      const parsedAnnotationId = parseInt(installationIdAnnotation, 10);
-      if (!Number.isNaN(parsedAnnotationId)) {
-        return parsedAnnotationId;
+      const githubInstallationId = parsedProject.data.spec?.githubInstallationId;
+      if (!githubInstallationId) {
+        console.warn("Project CR missing githubInstallationId", {
+          team: teamLabel,
+          project: projectLabel,
+        });
+        return null;
       }
-    }
 
-    return null;
+      return githubInstallationId;
+    } catch (error) {
+      console.error("Error fetching Project CR:", error);
+      return null;
+    }
   } catch (error) {
     console.error("Error getting installation ID for namespace:", error);
     return null;
@@ -330,6 +368,15 @@ export async function GET(
     // Resolve params
     const { installationId: installationIdStr } = await params;
 
+    // Verify pod belongs to this installation
+    // The installation ID from the namespace must match the requested one
+    if (validation.installationId !== installationIdStr) {
+      console.error(
+        `Installation ID mismatch: pod has ${validation.installationId}, requested ${installationIdStr}`,
+      );
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     // Handle PAT mode for local development
     // When installationId is "pat", return the configured GITHUB_PAT directly
     // This is only enabled in development mode for security reasons
@@ -380,19 +427,6 @@ export async function GET(
         { error: "Invalid installation ID" },
         { status: 400 },
       );
-    }
-
-    // Verify pod belongs to this installation
-    // If we couldn't derive installation ID from namespace (e.g., for PR pods),
-    // we skip this check and trust the requested installation ID
-    if (
-      validation.installationId &&
-      validation.installationId !== requestedInstallationId
-    ) {
-      console.error(
-        `Installation ID mismatch: pod has ${validation.installationId}, requested ${requestedInstallationId}`,
-      );
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Generate fresh GitHub App installation token
