@@ -64,22 +64,6 @@ const EnvironmentMetadataSchema = z.object({
 });
 
 /**
- * Schema for Environment Custom Resource
- */
-const EnvironmentCRSchema = z.object({
-  metadata: EnvironmentMetadataSchema.optional(),
-  spec: z.unknown().optional(),
-  status: z.unknown().optional(),
-});
-
-/**
- * Schema for CustomObject list response
- */
-const CustomObjectListResponseSchema = z.object({
-  items: z.array(EnvironmentCRSchema).optional(),
-});
-
-/**
  * Schema for Namespace metadata
  */
 const NamespaceMetadataSchema = z.object({
