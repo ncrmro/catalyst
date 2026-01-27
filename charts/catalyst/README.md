@@ -146,6 +146,20 @@ metadata:
     sidecar.istio.io/inject: "true"
 ```
 
+**To enforce STRICT mTLS mode** (recommended for production), create a PeerAuthentication policy:
+```yaml
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: <your-namespace>
+spec:
+  mtls:
+    mode: STRICT
+```
+
+This ensures that only mTLS connections are accepted, rejecting any plain-text traffic. See `examples/istio-strict-mtls.yaml` for a ready-to-use example.
+
 #### PostgreSQL Cluster
 
 ```yaml
