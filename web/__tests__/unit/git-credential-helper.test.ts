@@ -32,7 +32,7 @@ describe("Git Credential Helper Library", () => {
       });
 
       expect(commands).toContain(
-        "git clone https://github.com/test/repo.git /workspace",
+        'git clone "https://github.com/test/repo.git" "/workspace"',
       );
       expect(commands).toContain("Cloning Repository");
     });
@@ -45,7 +45,7 @@ describe("Git Credential Helper Library", () => {
         targetDir: "/workspace",
       });
 
-      expect(commands).toContain("git checkout abc123");
+      expect(commands).toContain('git checkout "abc123"');
       expect(commands).toContain("Commit SHA: abc123");
     });
 

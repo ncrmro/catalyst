@@ -332,8 +332,21 @@ export async function GET(
 
     // Handle PAT mode for local development
     // When installationId is "pat", return the configured GITHUB_PAT directly
+    // This is only enabled in development mode for security reasons
     if (installationIdStr === "pat") {
       const { GITHUB_CONFIG } = await import("@/lib/vcs-providers");
+
+      // PAT mode must be explicitly enabled to prevent credential exfiltration
+      const patModeEnabled =
+        process.env.ENABLE_GIT_TOKEN_PAT_MODE === "true" ||
+        process.env.NODE_ENV === "development";
+
+      if (!patModeEnabled) {
+        console.error(
+          "PAT mode requested but not enabled (set ENABLE_GIT_TOKEN_PAT_MODE=true or NODE_ENV=development)",
+        );
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
 
       if (!GITHUB_CONFIG.PAT) {
         console.error("PAT mode requested but GITHUB_PAT is not configured");
@@ -354,6 +367,8 @@ export async function GET(
         status: 200,
         headers: {
           "Content-Type": "text/plain",
+          "Cache-Control": "no-store",
+          "Pragma": "no-cache",
         },
       });
     }
@@ -397,6 +412,8 @@ export async function GET(
       status: 200,
       headers: {
         "Content-Type": "text/plain",
+        "Cache-Control": "no-store",
+        "Pragma": "no-cache",
       },
     });
   } catch (error) {
