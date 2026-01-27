@@ -1,6 +1,6 @@
 # Catalyst Helm Chart
 
-This Helm chart deploys the Catalyst platform, including the web application and all infrastructure components (ingress-nginx, cert-manager, CloudNativePG operator, and PostgreSQL database).
+This Helm chart deploys the Catalyst platform, including the web application and all infrastructure components (ingress-nginx, cert-manager, CloudNativePG operator, PostgreSQL database, and Istio service mesh).
 
 ## Components
 
@@ -9,10 +9,13 @@ This Helm chart deploys the Catalyst platform, including the web application and
 - **cert-manager**: v1.18.2 - Certificate management for Kubernetes
 - **cloudnative-pg**: v0.23.0 - CloudNativePG operator for PostgreSQL
 - **PostgreSQL**: CloudNativePG cluster for the web database
+- **Istio**: v1.24.2 - Service mesh for mTLS, traffic management, and observability
+  - **istio-base**: Core CRDs and resources
+  - **istiod**: Control plane for service mesh management
 
 ## CRD Management
 
-This chart includes CRDs for CloudNativePG and the Catalyst operator in the `crds/` directory. Helm installs CRDs from this directory before templates, ensuring proper ordering.
+This chart includes CRDs for CloudNativePG, Istio, and the Catalyst operator in the `crds/` directory. Helm installs CRDs from this directory before templates, ensuring proper ordering.
 
 ### Updating CRDs
 
@@ -26,7 +29,7 @@ helm dependency update ./charts/catalyst
 ./charts/catalyst/scripts/update-crds.sh
 ```
 
-The script extracts CloudNativePG CRDs from the subchart and copies Catalyst operator CRDs from the operator directory.
+The script extracts CloudNativePG and Istio CRDs from the subcharts and copies Catalyst operator CRDs from the operator directory.
 
 ## Usage
 
@@ -102,6 +105,45 @@ cert-manager:
   installCRDs: true
 ```
 
+#### Istio Service Mesh
+
+The chart includes Istio service mesh with automatic mTLS enabled for secure pod-to-pod communication.
+
+```yaml
+istio-base:
+  enabled: true
+
+istiod:
+  enabled: true
+  meshConfig:
+    enableAutoMtls: true  # Automatically enables mTLS between services
+  pilot:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+```
+
+**Istio Features Enabled:**
+- **Automatic mTLS**: All service-to-service communication is encrypted by default
+- **Traffic Management**: Advanced routing, load balancing, and traffic control
+- **Observability**: Built-in metrics, logs, and tracing for all mesh traffic
+
+**To enable Istio sidecar injection for a namespace:**
+```bash
+kubectl label namespace <namespace> istio-injection=enabled
+```
+
+**To enable Istio for specific workloads**, add the following annotation to your deployment:
+```yaml
+metadata:
+  annotations:
+    sidecar.istio.io/inject: "true"
+```
+
 #### PostgreSQL Cluster
 
 ```yaml
@@ -145,6 +187,11 @@ The web application automatically connects to the PostgreSQL cluster using the s
 3. **TLS**: Configure cert-manager issuers and ingress TLS
 4. **Storage**: Configure appropriate `storageClass` for your environment
 5. **Secrets**: Pass sensitive environment variables via `web.envFrom` referencing external secrets
+6. **Istio Service Mesh**:
+   - Enable sidecar injection for namespaces with workloads: `kubectl label namespace <namespace> istio-injection=enabled`
+   - Configure PeerAuthentication policies for stricter mTLS enforcement if needed
+   - Monitor mesh traffic using Istio's built-in observability tools (Kiali, Jaeger, Grafana)
+   - Adjust `istiod.pilot.resources` based on the number of services in your mesh
 
 ## License
 

@@ -1,6 +1,29 @@
 # Default values for catalyst chart
 # This is a YAML-formatted file.
 
+# Values for Istio base subchart
+istio-base:
+  # Base is required for CRDs and core Istio resources
+  enabled: true
+
+# Values for istiod subchart (control plane)
+istiod:
+  enabled: true
+  meshConfig:
+    # Enable mTLS in STRICT mode for all workloads in the mesh
+    defaultConfig:
+      proxyMetadata: {}
+    # Enforce mTLS for all service-to-service communication
+    enableAutoMtls: true
+  pilot:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
 # Values for ingress-nginx subchart
 ingress-nginx:
   controller:
