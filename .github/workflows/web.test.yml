@@ -90,6 +90,11 @@ jobs:
           echo "KUBECONFIG_PRIMARY=$KUBECONFIG_PRIMARY" >> $GITHUB_ENV
           echo "Kubeconfig exported for integration tests"
 
+      - name: Install CRDs
+        run: |
+          kubectl apply -f ../operator/config/crd/bases/
+          echo "CRDs installed"
+
       - name: Install dependencies
         run: npm ci
 
@@ -107,21 +112,6 @@ jobs:
     defaults:
       run:
         working-directory: ./web
-
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: catalyst
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
 
     steps:
       - name: Checkout code
@@ -165,18 +155,127 @@ jobs:
           echo "KUBECONFIG_PRIMARY=$KUBECONFIG_PRIMARY" >> $GITHUB_ENV
           echo "Kubeconfig exported for E2E tests"
 
-      - name: Install NGINX Ingress Controller
+      - name: Build operator and web images in parallel
+        working-directory: ./
         run: |
-          # Install NGINX Ingress Controller for Kind
-          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
-          # Use rollout status which properly waits for pods to be ready
-          kubectl rollout status deployment/ingress-nginx-controller -n ingress-nginx --timeout=120s
-          echo "NGINX Ingress Controller installed and ready"
+          # Build both images in parallel using docker buildx bake
+          # The --load flag loads the images into docker (required for kind load)
+          docker buildx bake --load --file docker-compose.build.yml operator-production web-production
+          
+          # Verify images were built
+          docker images | grep -E '(ghcr.io/ncrmro/catalyst)'
+          
+          # Load both images into Kind cluster
+          kind load docker-image ghcr.io/ncrmro/catalyst/operator:latest --name preview-cluster
+          kind load docker-image ghcr.io/ncrmro/catalyst/web:latest --name preview-cluster
+          
+          echo "Images built and loaded into Kind cluster"
 
-      - name: Install Environment CRD
+      - name: Build Helm chart dependencies
+        working-directory: ./web
         run: |
-          kubectl apply -f ../operator/config/crd/bases/catalyst.catalyst.dev_environments.yaml
-          echo "Environment CRD installed"
+          echo "Adding Helm repositories..."
+          helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+          helm repo add cloudnative-pg https://cloudnative-pg.github.io/charts
+          helm repo update
+          
+          echo "Building Helm chart dependencies..."
+          helm dependency build ../charts/catalyst
+          echo "Helm chart dependencies built successfully"
+
+      - name: Deploy Catalyst using Helm
+        run: |
+          # Create a Helm values file for e2e testing
+          cat > e2e-values.yaml <<EOF
+          # Operator configuration
+          operator:
+            enabled: true
+            image:
+              repository: ghcr.io/ncrmro/catalyst/operator
+              tag: latest
+              pullPolicy: Never
+
+          # Web application configuration
+          web:
+            enabled: true
+            image:
+              repository: ghcr.io/ncrmro/catalyst/web
+              tag: latest
+              pullPolicy: Never
+            env:
+              - name: NEXTAUTH_SECRET
+                value: "test-secret-for-e2e"
+              - name: NEXTAUTH_URL
+                value: "http://localhost:3000"
+              - name: AUTH_TRUST_HOST
+                value: "true"
+              - name: GITHUB_PAT
+                value: "${{ github.token }}"
+              - name: TOKEN_ENCRYPTION_KEY
+                value: "test-encryption-key-for-e2e-32ch"
+              - name: GITHUB_DISABLE_APP_CHECKS
+                value: "true"
+              - name: GITHUB_REPOS_MODE
+                value: "mocked"
+
+          # Enable ingress-nginx subchart for e2e
+          ingress-nginx:
+            enabled: true
+            controller:
+              hostPort:
+                enabled: true
+              service:
+                type: NodePort
+              admissionWebhooks:
+                enabled: false
+
+          # Disable cert-manager for e2e (not needed)
+          cert-manager:
+            enabled: false
+
+          # Enable CloudNativePG operator and PostgreSQL cluster
+          cloudnative-pg:
+            enabled: true
+          postgresql:
+            enabled: true
+            instances: 1
+            storage:
+              size: 1Gi
+          EOF
+          
+          # Install Catalyst chart with all dependencies
+          helm install catalyst ../charts/catalyst \
+            --namespace catalyst-system \
+            --create-namespace \
+            --values e2e-values.yaml \
+            --wait \
+            --timeout 10m
+          
+          echo "Catalyst deployed via Helm"
+
+      - name: Wait for CloudNativePG operator
+        run: |
+          kubectl wait --for=condition=available deployment/catalyst-cloudnative-pg -n catalyst-system --timeout=120s
+
+      - name: Wait for PostgreSQL cluster
+        run: |
+          kubectl wait --for=condition=Ready cluster/catalyst-db -n catalyst-system --timeout=300s
+
+      - name: Wait for Catalyst operator
+        run: |
+          kubectl wait --for=condition=available deployment/catalyst-operator -n catalyst-system --timeout=120s
+
+      - name: Wait for Catalyst web
+        run: |
+          kubectl wait --for=condition=available deployment/catalyst-web -n catalyst-system --timeout=300s
+
+      - name: Wait for ingress controller
+        run: |
+          kubectl wait --for=condition=available deployment/catalyst-ingress-nginx-controller -n catalyst-system --timeout=120s
+
+      - name: Verify all pods running
+        run: |
+          kubectl get pods -A
 
       - name: Deploy test application
         run: |
@@ -244,10 +343,36 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - run: npm run db:migrate
-
       - name: Seed database
-        run: npm run seed
+        run: |
+          kubectl exec deployment/catalyst-web -n catalyst-system -- node seed.cjs
+
+      - name: Port-forward to web service
+        run: |
+          kubectl port-forward svc/catalyst-web -n catalyst-system 3000:3000 &
+          PF_PID=$!
+          echo "Port-forward PID: $PF_PID"
+
+          # Wait for port-forward to be ready with retries
+          for i in {1..30}; do
+            if curl -sf http://localhost:3000/api/health/readiness > /dev/null 2>&1; then
+              echo "Web service accessible on localhost:3000"
+              break
+            fi
+            echo "Waiting for port-forward... attempt $i/30"
+            sleep 2
+          done
+
+          # Verify connectivity
+          curl -sf http://localhost:3000/api/health/readiness || {
+            echo "ERROR: Cannot reach web service after 60 seconds"
+            echo "Checking port-forward process..."
+            ps aux | grep port-forward || true
+            echo "Checking web pod logs..."
+            kubectl logs deployment/catalyst-web -n catalyst-system --tail=50 || true
+            exit 1
+          }
+          echo "Port-forward verified and working"
 
       - name: Run Playwright tests
         run: npm run test:e2e
@@ -279,6 +404,67 @@ jobs:
           name: playwright-videos
           path: ./web/test-results/**/video.webm
           retention-days: 30
+
+      - name: Debug on Failure - Cluster State
+        if: failure()
+        run: |
+          echo "=== All Resources ==="
+          kubectl get all -A
+          
+          echo "=== Events ==="
+          kubectl get events -A --sort-by=.metadata.creationTimestamp
+          
+          echo "=== All Pods in All Namespaces ==="
+          kubectl get pods -A -o wide
+          
+          echo "=== Describe All Pods ==="
+          kubectl describe pods -A
+          
+          echo "=== CRDs ==="
+          kubectl get crd
+          
+          echo "=== Projects ==="
+          kubectl get projects -A || echo "No Projects found"
+          
+          echo "=== Environments ==="
+          kubectl get environments -A || echo "No Environments found"
+          
+          echo "=== Ingress Resources ==="
+          kubectl get ingress -A
+          
+          echo "=== ConfigMaps ==="
+          kubectl get configmaps -A
+          
+          echo "=== Deployments ==="
+          kubectl get deployments -A
+          
+          echo "=== Docker Images in Kind ==="
+          docker exec preview-cluster-control-plane crictl images || echo "Could not list images"
+          
+          echo "=== Kind Cluster Info ==="
+          kind get clusters
+          kubectl cluster-info
+
+      - name: Debug on Failure - Operator Logs
+        if: failure()
+        run: |
+          echo "=== Operator Pod Logs (Full) ==="
+          kubectl logs -n catalyst-system -l control-plane=controller-manager --tail=-1 --all-containers=true || echo "No operator logs found"
+          
+          echo "=== Operator Pod Previous Logs (if crashed) ==="
+          kubectl logs -n catalyst-system -l control-plane=controller-manager --previous --all-containers=true || echo "No previous operator logs found"
+
+      - name: Debug on Failure - Web Logs
+        if: failure()
+        run: |
+          echo "=== Web Pod Logs (Full) ==="
+          kubectl logs -n catalyst-system deployment/catalyst-web --tail=-1 --all-containers=true || echo "No web logs found"
+
+          echo "=== Web Pod Previous Logs (if crashed) ==="
+          kubectl logs -n catalyst-system deployment/catalyst-web --previous --all-containers=true || echo "No previous web logs found"
+
+          echo "=== Web Pod Status ==="
+          kubectl get pods -n catalyst-system -l app.kubernetes.io/component=web -o yaml
 
   # build-container:
   #   name: Build Container Images

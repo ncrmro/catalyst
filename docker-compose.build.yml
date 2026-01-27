@@ -1,31 +1,43 @@
 services:
   web-development:
+    image: ghcr.io/ncrmro/catalyst/web:development
     build:
       context: ./web
       dockerfile: Dockerfile
       target: development
       platforms:
         - linux/amd64
+      cache_from:
+        - ghcr.io/ncrmro/catalyst/web:main-cache
 
   web-production:
+    image: ghcr.io/ncrmro/catalyst/web:latest
     build:
       context: ./web
       dockerfile: Dockerfile
       target: runner
       platforms:
         - linux/amd64
+      cache_from:
+        - ghcr.io/ncrmro/catalyst/web:main-cache
 
   operator-development:
+    image: ghcr.io/ncrmro/catalyst/operator:development
     build:
       context: ./operator
       dockerfile: Dockerfile
       target: builder
       platforms:
         - linux/amd64
+      cache_from:
+        - ghcr.io/ncrmro/catalyst/operator:main-cache
 
   operator-production:
+    image: ghcr.io/ncrmro/catalyst/operator:latest
     build:
       context: ./operator
       dockerfile: Dockerfile
       platforms:
         - linux/amd64
+      cache_from:
+        - ghcr.io/ncrmro/catalyst/operator:main-cache
