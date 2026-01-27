@@ -1,18 +1,24 @@
 import { test as base } from "@playwright/test";
 import { loginAndSeedForE2E } from "../helpers";
 import {
+  getBatchV1Api,
   getClusterConfig,
   getCoreV1Api,
   getCustomObjectsApi,
   KubeConfig,
 } from "../../../src/lib/k8s-client";
-import { CoreV1Api, CustomObjectsApi } from "@kubernetes/client-node";
+import {
+  BatchV1Api,
+  CoreV1Api,
+  CustomObjectsApi,
+} from "@kubernetes/client-node";
 
 /**
  * Interface for the Kubernetes client fixture
  */
 interface K8sFixture {
   kc: KubeConfig;
+  batchApi: BatchV1Api;
   coreApi: CoreV1Api;
   customApi: CustomObjectsApi;
 }
@@ -43,16 +49,21 @@ export const test = base.extend<{
     }
 
     // Get API classes
+    const BatchV1ApiClass = await getBatchV1Api();
     const CoreV1ApiClass = await getCoreV1Api();
     const CustomObjectsApiClass = await getCustomObjectsApi();
 
     // Create API clients with the KubeConfig
-    const coreApi = kc.makeApiClient(CoreV1ApiClass);
-    const customApi = kc.makeApiClient(CustomObjectsApiClass);
+    const batchApi = kc.makeApiClient(BatchV1ApiClass) as BatchV1Api;
+    const coreApi = kc.makeApiClient(CoreV1ApiClass) as CoreV1Api;
+    const customApi = kc.makeApiClient(
+      CustomObjectsApiClass,
+    ) as CustomObjectsApi;
 
     // Create the fixture object
     const k8sFixture: K8sFixture = {
       kc,
+      batchApi,
       coreApi,
       customApi,
     };

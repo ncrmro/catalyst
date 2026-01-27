@@ -24,6 +24,9 @@
 # production
 /build
 
+# generated files
+seed.cjs
+
 # misc
 .DS_Store
 *.pem
