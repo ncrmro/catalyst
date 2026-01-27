@@ -118,7 +118,7 @@ istio-base:
 istiod:
   enabled: true
   meshConfig:
-    enableAutoMtls: true  # Automatically enables mTLS between services
+    enableAutoMtls: true  # Automatically enables mTLS when both sides support it (PERMISSIVE mode)
   pilot:
     resources:
       requests:
@@ -130,9 +130,11 @@ istiod:
 ```
 
 **Istio Features Enabled:**
-- **Automatic mTLS**: All service-to-service communication is encrypted by default
+- **Automatic mTLS (PERMISSIVE mode)**: Service-to-service communication automatically upgrades to mTLS when both sides support it, while still allowing plain-text connections for compatibility
 - **Traffic Management**: Advanced routing, load balancing, and traffic control
 - **Observability**: Built-in metrics, logs, and tracing for all mesh traffic
+
+**Note**: By default, Istio is configured in PERMISSIVE mode, which allows both mTLS and plain-text traffic. For production deployments, consider enforcing STRICT mTLS mode (see below).
 
 **To enable Istio sidecar injection for a namespace:**
 ```bash

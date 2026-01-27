@@ -16,10 +16,9 @@ istiod:
     # Configure Istio to use the same namespace as the chart installation
     istioNamespace: catalyst-system
   meshConfig:
-    # Enable mTLS in STRICT mode for all workloads in the mesh
-    defaultConfig:
-      proxyMetadata: {}
-    # Enforce mTLS for all service-to-service communication
+    # Enable automatic mTLS (PERMISSIVE mode by default)
+    # This allows both mTLS and plain-text traffic, automatically upgrading to mTLS when both sides support it
+    # For STRICT mode enforcement, create a PeerAuthentication policy (see examples/istio-strict-mtls.yaml)
     enableAutoMtls: true
   pilot:
     resources:

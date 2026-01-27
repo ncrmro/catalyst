@@ -6,7 +6,7 @@
 # Apply to a specific namespace:
 #   kubectl apply -f istio-strict-mtls.yaml -n <your-namespace>
 #
-# Apply cluster-wide (in istio-system namespace):
+# Apply cluster-wide (in the root namespace where istiod is installed):
 #   kubectl apply -f istio-strict-mtls.yaml -n catalyst-system
 
 apiVersion: security.istio.io/v1beta1
