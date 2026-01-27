@@ -34,18 +34,6 @@ vi.mock("@/models/preview-environments", () => ({
     .mockResolvedValue({ success: true }),
 }));
 
-// Mock Kubernetes operations (not needed for database integration tests)
-vi.mock("@/actions/kubernetes", () => ({
-  createKubernetesNamespace: vi.fn().mockResolvedValue({
-    success: true,
-    namespace: { name: "test-namespace", created: true },
-  }),
-  deleteKubernetesNamespace: vi.fn().mockResolvedValue({
-    success: true,
-    namespaceName: "test-namespace",
-  }),
-}));
-
 /**
  * Integration test for GitHub webhook database operations
  *

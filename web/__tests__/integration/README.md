@@ -5,7 +5,6 @@ This directory contains integration tests that verify the functionality of compl
 ## Prerequisites
 
 - **Kubernetes Configuration**: Tests require `KUBECONFIG_PRIMARY` environment variable pointing to a valid kubeconfig file
-- **Docker Support**: Tests that build Docker images require buildx and registry access
 - **Extended Timeouts**: Integration tests may take several minutes to complete
 
 ## GitHub PAT Mocking
@@ -16,7 +15,7 @@ Integration tests mock the `GITHUB_PAT` environment variable because:
 
 1. **CI Environment**: GitHub Actions and other CI systems don't have real PATs configured by default
 2. **Public Repository Testing**: Tests use public repos (like `ncrmro/catalyst`) that don't require authentication for cloning
-3. **Code Path Testing**: Allows testing the full PR pod creation flow without external dependencies
+3. **Code Path Testing**: Allows testing the full preview deployment flow without external dependencies
 4. **Consistency**: Ensures tests work reliably across different environments
 
 ### Implementation Details
@@ -58,14 +57,17 @@ As the system evolves to use GitHub App installation tokens, these tests should 
 3. **Validate proper scope and permission handling** for different operations
 4. **Support user-specific tokens** for multi-tenant scenarios
 
-### Migration Path
+## Preview Deployment Flow
 
-When moving from static PATs to GitHub App tokens:
+The platform uses a Kubernetes operator to manage preview environments via Custom Resources (CRDs):
 
-1. Update `createGitHubPATSecret()` to accept token parameters
-2. Modify webhook handlers to pass installation tokens
-3. Update integration tests to mock the token service layer instead of `GITHUB_CONFIG`
-4. Add tests for token refresh and error scenarios
+1. **Webhook Trigger**: GitHub webhook receives PR events (opened, synchronize, reopened, closed)
+2. **Database Update**: PR record is created/updated in the database
+3. **Preview Orchestration**: `createPreviewDeployment()` is called, which:
+   - Creates an Environment CR in the Kubernetes cluster
+   - The operator reconciles the CR and creates necessary resources (pods, services, ingress)
+   - Namespace creation and lifecycle management is handled by the operator
+4. **Status Tracking**: Deployment status is tracked in the `pullRequestPods` table
 
 ## Test Structure
 
@@ -97,12 +99,12 @@ npm run test:integration -- --reporter=verbose
 
 1. **KUBECONFIG_PRIMARY not set**: Ensure you have a valid Kubernetes configuration
 2. **Permission denied**: Check that your kubeconfig has sufficient cluster permissions
-3. **Timeout errors**: Docker builds can be slow; consider increasing test timeouts
+3. **Timeout errors**: Deployments can take time; consider increasing test timeouts
 4. **Resource conflicts**: Previous test runs may leave resources; check cleanup logic
 
 ### Debug Tips
 
-- Check pod logs: `kubectl logs -l app=catalyst-pr-job`
-- Verify service accounts: `kubectl get serviceaccounts`
-- Monitor job status: `kubectl get jobs`
-- Check secret creation: `kubectl get secrets github-pat-secret`
+- Check Environment CRs: `kubectl get environments -A`
+- View operator logs: `kubectl logs -n catalyst-system deployment/catalyst-operator`
+- Check preview deployment pods: `kubectl get pods -l app=preview-environment`
+- Monitor deployment status: `kubectl get deployments -A`

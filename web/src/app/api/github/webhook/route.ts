@@ -409,7 +409,7 @@ async function handlePullRequestEvent(payload: {
     });
   }
 
-  // Delete namespace and preview deployment when PR is closed
+  // Trigger preview deployment cleanup when PR is closed
   if (action === "closed") {
     try {
       // Clean up preview deployment pods from database
