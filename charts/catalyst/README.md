@@ -15,7 +15,9 @@ This Helm chart deploys the Catalyst platform, including the web application and
 
 ## CRD Management
 
-This chart includes CRDs for CloudNativePG, Istio, and the Catalyst operator in the `crds/` directory. Helm installs CRDs from this directory before templates, ensuring proper ordering.
+This chart includes CRDs for CloudNativePG and the Catalyst operator in the `crds/` directory. Helm installs CRDs from this directory before templates, ensuring proper ordering.
+
+**Note**: Istio CRDs are managed by the `istio-base` subchart, not in the parent chart's `crds/` directory. This allows Istio to properly manage CRD lifecycle and upgrades according to Istio's own versioning and compatibility requirements.
 
 ### Updating CRDs
 
@@ -25,11 +27,11 @@ After updating chart dependencies or modifying operator CRDs, run the update scr
 # First update Helm dependencies
 helm dependency update ./charts/catalyst
 
-# Then update CRDs
+# Then update CRDs (CloudNativePG and Catalyst operator)
 ./charts/catalyst/scripts/update-crds.sh
 ```
 
-The script extracts CloudNativePG and Istio CRDs from the subcharts and copies Catalyst operator CRDs from the operator directory.
+The script extracts CloudNativePG CRDs from the subchart and copies Catalyst operator CRDs from the operator directory. Istio CRDs are automatically managed by the istio-base subchart.
 
 ## Usage
 

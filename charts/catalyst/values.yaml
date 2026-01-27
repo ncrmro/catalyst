@@ -5,10 +5,16 @@
 istio-base:
   # Base is required for CRDs and core Istio resources
   enabled: true
+  global:
+    # Configure Istio to use the same namespace as the chart installation
+    istioNamespace: catalyst-system
 
 # Values for istiod subchart (control plane)
 istiod:
   enabled: true
+  global:
+    # Configure Istio to use the same namespace as the chart installation
+    istioNamespace: catalyst-system
   meshConfig:
     # Enable mTLS in STRICT mode for all workloads in the mesh
     defaultConfig:

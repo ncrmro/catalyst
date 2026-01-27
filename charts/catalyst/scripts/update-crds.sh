@@ -25,16 +25,8 @@ tar -xzf "$CNPG_TARBALL" cloudnative-pg/templates/crds/crds.yaml -O | \
   grep -v '^{{-' > "$CRDS_DIR/cloudnative-pg-crds.yaml"
 echo "  -> $CRDS_DIR/cloudnative-pg-crds.yaml"
 
-# Extract Istio CRDs from base subchart
-echo "Extracting Istio CRDs..."
-ISTIO_BASE_TARBALL=$(ls "$CHARTS_DIR"/base-*.tgz 2>/dev/null | head -1)
-if [[ -n "$ISTIO_BASE_TARBALL" ]]; then
-  # Extract the CRD file from Istio base chart
-  tar -xzf "$ISTIO_BASE_TARBALL" base/files/crd-all.gen.yaml -O > "$CRDS_DIR/istio-crds.yaml"
-  echo "  -> $CRDS_DIR/istio-crds.yaml"
-else
-  echo "Warning: Istio base tarball not found. Skipping Istio CRDs."
-fi
+# Note: Istio CRDs are managed by the istio-base subchart, not in the crds/ directory.
+# This allows Istio to properly manage CRD lifecycle and upgrades.
 
 # Copy Catalyst operator CRDs
 echo "Copying Catalyst operator CRDs..."
