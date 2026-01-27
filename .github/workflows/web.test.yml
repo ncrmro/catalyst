@@ -215,8 +215,6 @@ jobs:
                 value: "test-encryption-key-for-e2e-32ch"
               - name: GITHUB_DISABLE_APP_CHECKS
                 value: "true"
-              - name: MOCKED
-                value: "1"
               - name: GITHUB_REPOS_MODE
                 value: "mocked"
 
