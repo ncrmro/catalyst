@@ -19,7 +19,9 @@ package controller
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
+	"os"
 	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -34,22 +36,40 @@ import (
 )
 
 const (
-	gitSyncImage       = "registry.k8s.io/git-sync/git-sync:v4.4.0"
-	dockerfileGenImage = "alpine:3.19"
-	kanikoImage        = "gcr.io/kaniko-project/executor:v1.20.0"
-	gitSecretName      = "github-pat-secret"
-	registrySecretName = "registry-credentials"
-	registryInternal   = "registry.default.svc.cluster.local:5000"
+	gitCloneImage        = "alpine/git:2.45.2"
+	kanikoImage          = "gcr.io/kaniko-project/executor:v1.20.0"
+	registrySecretName   = "registry-credentials"
+	registryInternal     = "registry.default.svc.cluster.local:5000"
+	gitScriptsConfigMap  = "catalyst-git-scripts"
+	gitScriptsVolumeName = "git-scripts"
 )
+
+// getCatalystWebURL returns the URL for the Catalyst web service.
+// It checks the CATALYST_WEB_URL environment variable first, falling back
+// to the default in-cluster service URL in the catalyst-system namespace.
+func getCatalystWebURL() string {
+	if url := os.Getenv("CATALYST_WEB_URL"); url != "" {
+		return url
+	}
+	return "http://catalyst-web.catalyst-system.svc.cluster.local:3000"
+}
+
+// Embed the git scripts at compile time
+//
+//go:embed scripts/git-credential-catalyst.sh
+var gitCredentialHelperScript string
+
+//go:embed scripts/git-clone.sh
+var gitCloneScript string
 
 // reconcileBuilds handles the build process for all defined builds in the template.
 func (r *EnvironmentReconciler) reconcileBuilds(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, template *catalystv1alpha1.EnvironmentTemplate) (map[string]string, error) {
 	log := logf.FromContext(ctx)
 	builtImages := make(map[string]string)
 
-	// Ensure Git Secret is present in target namespace
-	if err := r.ensureGitSecret(ctx, project.Namespace, namespace); err != nil {
-		return nil, err
+	// Ensure git scripts ConfigMap exists in the namespace
+	if err := r.ensureGitScriptsConfigMap(ctx, namespace); err != nil {
+		return nil, fmt.Errorf("failed to ensure git scripts ConfigMap: %w", err)
 	}
 
 	// Iterate over builds
@@ -70,6 +90,51 @@ func (r *EnvironmentReconciler) reconcileBuilds(ctx context.Context, env *cataly
 	}
 
 	return builtImages, nil
+}
+
+// ensureGitScriptsConfigMap creates or updates the ConfigMap containing git scripts
+func (r *EnvironmentReconciler) ensureGitScriptsConfigMap(ctx context.Context, namespace string) error {
+	configMap := &corev1.ConfigMap{}
+	err := r.Get(ctx, client.ObjectKey{Name: gitScriptsConfigMap, Namespace: namespace}, configMap)
+
+	desiredData := map[string]string{
+		"git-credential-catalyst.sh": gitCredentialHelperScript,
+		"git-clone.sh":               gitCloneScript,
+	}
+
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// Create the ConfigMap
+			configMap = &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      gitScriptsConfigMap,
+					Namespace: namespace,
+					Labels: map[string]string{
+						"catalyst.dev/component": "git-scripts",
+					},
+				},
+				Data: desiredData,
+			}
+			return r.Create(ctx, configMap)
+		}
+		return err
+	}
+
+	// ConfigMap exists - check if it needs update
+	needsUpdate := false
+	for key, value := range desiredData {
+		if configMap.Data[key] != value {
+			needsUpdate = true
+			break
+		}
+	}
+
+	if needsUpdate {
+		configMap.Data = desiredData
+		return r.Update(ctx, configMap)
+	}
+
+	return nil
 }
 
 // reconcileSingleBuild manages the build job for a single artifact.
@@ -122,9 +187,15 @@ func (r *EnvironmentReconciler) reconcileSingleBuild(ctx context.Context, env *c
 	err := r.Get(ctx, client.ObjectKey{Name: jobName, Namespace: namespace}, job)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
+			// Validate githubInstallationId is set before creating Job
+			// For private repos, this is required for the credential helper to work
+			if project.Spec.GitHubInstallationId == "" {
+				return "", fmt.Errorf("project.spec.githubInstallationId is required for builds but is not set")
+			}
+
 			// Create Job
-			log.Info("Creating Build Job", "job", jobName, "image", imageTag)
-			job = desiredBuildJob(jobName, namespace, imageTag, sourceConfig.RepositoryURL, commitSha, build, hasRegistrySecret)
+			log.Info("Creating Build Job", "job", jobName, "image", imageTag, "installationId", project.Spec.GitHubInstallationId)
+			job = desiredBuildJob(jobName, namespace, imageTag, sourceConfig.RepositoryURL, commitSha, project.Spec.GitHubInstallationId, build, hasRegistrySecret)
 			if err := r.Create(ctx, job); err != nil {
 				return "", err
 			}
@@ -144,49 +215,25 @@ func (r *EnvironmentReconciler) reconcileSingleBuild(ctx context.Context, env *c
 	return "", nil // Job running
 }
 
-// ensureGitSecret copies the git secret from source namespace to target namespace
-func (r *EnvironmentReconciler) ensureGitSecret(ctx context.Context, sourceNs, targetNs string) error {
-	// Check if secret exists in target
-	targetSecret := &corev1.Secret{}
-	err := r.Get(ctx, client.ObjectKey{Name: gitSecretName, Namespace: targetNs}, targetSecret)
-	if err == nil {
-		return nil // Already exists
-	}
-	if !apierrors.IsNotFound(err) {
-		return err
-	}
-
-	// Get source secret
-	sourceSecret := &corev1.Secret{}
-	if err := r.Get(ctx, client.ObjectKey{Name: gitSecretName, Namespace: sourceNs}, sourceSecret); err != nil {
-		if apierrors.IsNotFound(err) {
-			return fmt.Errorf("git secret '%s' not found in namespace '%s' - required for build", gitSecretName, sourceNs)
-		}
-		return err
-	}
-
-	// Create copy
-	newSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      gitSecretName,
-			Namespace: targetNs,
-		},
-		Data: sourceSecret.Data,
-		Type: sourceSecret.Type,
-	}
-	return r.Create(ctx, newSecret)
-}
-
-func desiredBuildJob(name, namespace, destination, repoURL, commit string, build catalystv1alpha1.BuildSpec, hasRegistrySecret bool) *batchv1.Job {
+func desiredBuildJob(name, namespace, destination, repoURL, commit, githubInstallationId string, build catalystv1alpha1.BuildSpec, hasRegistrySecret bool) *batchv1.Job {
 	backoff := int32(0)
+	defaultMode := int32(0755) // Make scripts executable
 
 	// Volume mounts
 	workspaceVolume := corev1.VolumeMount{Name: "workspace", MountPath: "/workspace"}
-	gitSecretVolume := corev1.VolumeMount{Name: "git-secret", MountPath: "/etc/git-secret", ReadOnly: true}
+	scriptsVolume := corev1.VolumeMount{Name: gitScriptsVolumeName, MountPath: "/scripts", ReadOnly: true}
 
 	volumes := []corev1.Volume{
 		{Name: "workspace", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
-		{Name: "git-secret", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: gitSecretName}}},
+		{
+			Name: gitScriptsVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: gitScriptsConfigMap},
+					DefaultMode:          &defaultMode,
+				},
+			},
+		},
 	}
 
 	kanikoVolumeMounts := []corev1.VolumeMount{workspaceVolume}
@@ -210,10 +257,10 @@ func desiredBuildJob(name, namespace, destination, repoURL, commit string, build
 		})
 	}
 
-	// Git Sync Configuration
-	gitSyncRoot := "/workspace"
-	gitSyncDest := "source"
-	workdir := fmt.Sprintf("/workspace/%s%s", gitSyncDest, build.Path)
+	// Git clone configuration
+	gitCloneRoot := "/workspace"
+	gitCloneDest := "source"
+	workdir := fmt.Sprintf("/workspace/%s%s", gitCloneDest, build.Path)
 
 	// Default Resources
 	resources := corev1.ResourceRequirements{
@@ -236,8 +283,9 @@ func desiredBuildJob(name, namespace, destination, repoURL, commit string, build
 			Name:      name,
 			Namespace: namespace,
 			Labels: map[string]string{
-				"catalyst.dev/job-type": "build",
-				"catalyst.dev/build":    build.Name,
+				"catalyst.dev/job-type":               "build",
+				"catalyst.dev/build":                  build.Name,
+				"catalyst.dev/github-installation-id": githubInstallationId,
 			},
 		},
 		Spec: batchv1.JobSpec{
@@ -247,54 +295,25 @@ func desiredBuildJob(name, namespace, destination, repoURL, commit string, build
 					RestartPolicy: corev1.RestartPolicyNever,
 					Volumes:       volumes,
 					InitContainers: []corev1.Container{
-						// 1. Git Sync (One-Time Clone)
+						// Git Clone with Credential Helper
 						{
-							Name:  "git-sync",
-							Image: gitSyncImage,
+							Name:    "git-clone",
+							Image:   gitCloneImage,
+							Command: []string{"/scripts/git-clone.sh"},
 							Env: []corev1.EnvVar{
-								{Name: "GIT_SYNC_REPO", Value: repoURL},
-								{Name: "GIT_SYNC_REV", Value: commit},
-								{Name: "GIT_SYNC_ONE_TIME", Value: "true"},
-								{Name: "GIT_SYNC_ROOT", Value: gitSyncRoot},
-								{Name: "GIT_SYNC_DEST", Value: gitSyncDest},
-								{Name: "GIT_SYNC_USERNAME", Value: "x-access-token"},
-								{Name: "GIT_SYNC_PASSWORD_FILE", Value: "/etc/git-secret/token"},
+								{Name: "INSTALLATION_ID", Value: githubInstallationId},
+								{Name: "CATALYST_WEB_URL", Value: getCatalystWebURL()},
+								{Name: "GIT_REPO_URL", Value: repoURL},
+								{Name: "GIT_COMMIT", Value: commit},
+								{Name: "GIT_CLONE_ROOT", Value: gitCloneRoot},
+								{Name: "GIT_CLONE_DEST", Value: gitCloneDest},
 							},
-							VolumeMounts: []corev1.VolumeMount{workspaceVolume, gitSecretVolume},
+							VolumeMounts: []corev1.VolumeMount{workspaceVolume, scriptsVolume},
 							Resources:    resources,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser: ptr(int64(65533)),
-							},
 						},
-						/*
-							// TODO: Revisit Zero-Config Dockerfile generation
-							// 2. Dockerfile Generator (Zero-Config)
-							{
-								Name:    "dockerfile-gen",
-								Image:   dockerfileGenImage,
-								Command: []string{"/bin/sh", "-c"},
-								Args: []string{
-									`cd ` + workdir + ` && ` +
-										`if [ ! -f Dockerfile ]; then
-										echo "No Dockerfile found. Generating default Node.js Dockerfile..."
-										cat <<EOF > Dockerfile
-							FROM node:18-alpine AS base
-							WORKDIR /app
-							COPY package*.json ./
-							RUN npm ci
-							COPY . .
-							RUN npm run build
-							CMD ["npm", "start"]
-							EOF
-									fi`,
-								},
-								Resources:    resources,
-								VolumeMounts: []corev1.VolumeMount{workspaceVolume},
-							},
-						*/
 					},
 					Containers: []corev1.Container{
-						// 3. Kaniko Build
+						// Kaniko Build
 						{
 							Name:  "kaniko",
 							Image: kanikoImage,

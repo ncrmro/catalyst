@@ -799,6 +799,7 @@ var _ = Describe("Environment Controller", func() {
 					Namespace: namespace,
 				},
 				Spec: catalystv1alpha1.ProjectSpec{
+					GitHubInstallationId: "pat",
 					Sources: []catalystv1alpha1.SourceConfig{
 						{
 							Name:          "web",
@@ -910,7 +911,7 @@ var _ = Describe("Environment Controller", func() {
 
 			// 2. Verify Init Containers
 			Expect(job.Spec.Template.Spec.InitContainers).To(HaveLen(1))
-			Expect(job.Spec.Template.Spec.InitContainers[0].Name).To(Equal("git-sync"))
+			Expect(job.Spec.Template.Spec.InitContainers[0].Name).To(Equal("git-clone"))
 			// Expect(job.Spec.Template.Spec.InitContainers[1].Name).To(Equal("dockerfile-gen"))
 
 			// 3. Verify Env Status
@@ -995,6 +996,7 @@ var _ = Describe("Environment Controller", func() {
 					Namespace: namespace,
 				},
 				Spec: catalystv1alpha1.ProjectSpec{
+					GitHubInstallationId: "pat",
 					Sources: []catalystv1alpha1.SourceConfig{
 						{
 							Name:          "app",
