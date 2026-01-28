@@ -799,6 +799,7 @@ var _ = Describe("Environment Controller", func() {
 					Namespace: namespace,
 				},
 				Spec: catalystv1alpha1.ProjectSpec{
+					GitHubInstallationId: "pat",
 					Sources: []catalystv1alpha1.SourceConfig{
 						{
 							Name:          "web",
@@ -995,6 +996,7 @@ var _ = Describe("Environment Controller", func() {
 					Namespace: namespace,
 				},
 				Spec: catalystv1alpha1.ProjectSpec{
+					GitHubInstallationId: "pat",
 					Sources: []catalystv1alpha1.SourceConfig{
 						{
 							Name:          "app",
