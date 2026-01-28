@@ -41,17 +41,13 @@ spec:
             properties:
               githubInstallationId:
                 description: |-
-                  GitHubInstallationId is the identifier used by the credential helper for
-                  this project.
-                  
-                  In normal operation, this should be the numeric GitHub App installation ID
-                  assigned when the GitHub App is installed on a repository or organization
-                  (represented as a string). In development mode, the special literal value
-                  "pat" is also supported to indicate that a GitHub personal access token
-                  should be used instead of a GitHub App installation.
-                  
-                  This value is used by the credential helper to fetch fresh GitHub tokens
-                  for git operations.
+                  GitHubInstallationId selects the GitHub credentials used for this project.
+                  This is a string that can either be:
+                    * the numeric GitHub App installation ID (as a string) for the repository
+                      or organization, or
+                    * the special value "pat" to indicate use of a personal access token
+                        instead of an installation.
+                  Used by the credential helper to fetch fresh GitHub tokens for git operations.
                 type: string
               resources:
                 description: Resources configuration (quotas, limits)
