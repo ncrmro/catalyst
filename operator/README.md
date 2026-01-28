@@ -4,7 +4,7 @@ The `kube-operator` is the core infrastructure controller for the Catalyst platf
 
 ## Why this exists
 
-By introducing this operator, we shift from an imperative model (Web App running kubectl commands) to a declarative model (Web App creating Custom Resources). 
+By introducing this operator, we shift from an imperative model (Web App running kubectl commands) to a declarative model (Web App creating Custom Resources).
 
 **This transition greatly simplifies the web application logic.**
 
