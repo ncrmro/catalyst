@@ -35,6 +35,13 @@
 # - PR builds read from release branch caches and update PR-specific caches
 # - All cache entries use mode=max and zstd compression for optimal sharing
 #
+# IMPORTANT - Image Tagging:
+# - This action tags images with BRANCH NAME (e.g., :main), NOT :latest
+# - When builds are skipped, the release workflow uses kubectl to get the
+#   currently deployed image from the cluster (preserving the running SHA)
+# - This prevents accidental downgrades to stale registry tags
+# - If you need :latest tags, pass them via additional-tags input
+#
 # ADDITIONAL TAGS USE CASE:
 # For semantic release workflows, use additional-tags to create version tags:
 #   additional-tags: |
