@@ -50,7 +50,8 @@ START_TIME=$(date +%s)
 
 wait_for_env() {
     local env_name=$1
-    echo "Waiting for $env_name..."
+    local namespace=${2:-"ci-team"}  # Default to ci-team for CI tests
+    echo "Waiting for $env_name in namespace $namespace..."
     
     while true; do
         CURRENT_TIME=$(date +%s)
@@ -60,14 +61,14 @@ wait_for_env() {
             return 1
         fi
 
-        PHASE=$(kubectl get environment $env_name -o jsonpath='{.status.phase}' 2>/dev/null || echo "NotFound")
+        PHASE=$(kubectl get environment $env_name -n $namespace -o jsonpath='{.status.phase}' 2>/dev/null || echo "NotFound")
         
         if [ "$PHASE" == "Ready" ]; then
             echo -e "${GREEN}$env_name is Ready!${NC}"
             return 0
         elif [ "$PHASE" == "Failed" ]; then
             echo -e "${RED}$env_name Failed!${NC}"
-            kubectl get environment $env_name -o yaml
+            kubectl get environment $env_name -n $namespace -o yaml
             return 1
         else
             echo -ne "Status: $PHASE (${ELAPSED_TIME}s/${TIMEOUT}s)\r"
@@ -82,4 +83,4 @@ for env in "${ENV_NAMES[@]}"; do
 done
 
 echo -e "${GREEN}=== Validation Complete: All Environments Ready ===${NC}"
-kubectl get environments
+kubectl get environments -A

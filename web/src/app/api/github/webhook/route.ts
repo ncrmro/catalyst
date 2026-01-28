@@ -467,8 +467,7 @@ async function handlePullRequestEvent(payload: {
         success: true,
         message: `Pull request ${action} processed but cleanup had errors`,
         pr_number: pull_request.number,
-        cleanup_error:
-          error instanceof Error ? error.message : "Unknown error",
+        cleanup_error: error instanceof Error ? error.message : "Unknown error",
       });
     }
   }
