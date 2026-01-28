@@ -77,12 +77,12 @@ echo "Repository: ${repoUrl}"
 ${commitSha ? `echo "Commit SHA: ${commitSha}"` : ""}
 echo "Target: ${targetDir}"
 
-git clone ${repoUrl} ${targetDir}
+git clone "${repoUrl}" "${targetDir}"
 ${
   commitSha
     ? `
-cd ${targetDir}
-git checkout ${commitSha}
+cd "${targetDir}"
+git checkout "${commitSha}"
 echo "✓ Checked out commit ${commitSha}"
 `
     : ""
@@ -126,7 +126,7 @@ export function createGitCredentialHelperInitContainer(options: {
     commitSha,
     targetDir = "/workspace",
     volumeMountName = "code",
-    image = "alpine/git:latest",
+    image = "alpine/git:2.45.2",
   } = options;
 
   const commands = generateGitCredentialHelperInitCommands({

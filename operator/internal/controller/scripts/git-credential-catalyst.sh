@@ -50,11 +50,14 @@ fi
 WEB_URL="${CATALYST_WEB_URL:-http://catalyst-web.catalyst-system.svc.cluster.local:3000}"
 
 # Fetch fresh GitHub token from Catalyst web server
+set +e
 TOKEN=$(curl -sf \
     -H "Authorization: Bearer $SA_TOKEN" \
     "$WEB_URL/api/git-token/$INSTALLATION_ID")
+curl_status=$?
+set -e
 
-if [ $? -ne 0 ] || [ -z "$TOKEN" ]; then
+if [ $curl_status -ne 0 ] || [ -z "$TOKEN" ]; then
     echo "Error: Failed to get git credentials from catalyst-web" >&2
     exit 1
 fi

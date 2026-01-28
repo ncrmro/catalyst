@@ -25,10 +25,13 @@ import (
 // ProjectSpec defines the desired state of Project
 // Spec referenced from operator/spec.md
 type ProjectSpec struct {
-	// GitHubInstallationId is the GitHub App installation ID for this project.
-	// This is the numeric ID assigned when the GitHub App is installed on a
-	// repository or organization. Used by the credential helper to fetch
-	// fresh GitHub tokens for git operations.
+	// GitHubInstallationId selects the GitHub credentials used for this project.
+	// This is a string that can either be:
+	//   * the numeric GitHub App installation ID (as a string) for the repository
+	//     or organization, or
+	//   * the special value "pat" to indicate use of a personal access token
+	//       instead of an installation.
+	// Used by the credential helper to fetch fresh GitHub tokens for git operations.
 	// +optional
 	GitHubInstallationId string `json:"githubInstallationId,omitempty"`
 
