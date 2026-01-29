@@ -4,17 +4,42 @@ import type { EnvironmentCR } from "@/types/crd";
 test.describe("Deployment Environment E2E", () => {
   test.slow(); // This test involves Kubernetes operations which can be slow in CI
 
-  test("should create environment via kubectl and verify deployment", async ({
+  let testEnvironmentName: string | null = null;
+
+  // Cleanup hook to ensure test resources are always removed
+  test.afterEach(async ({ k8s }) => {
+    if (testEnvironmentName) {
+      try {
+        await k8s.customApi.deleteNamespacedCustomObject({
+          group: "catalyst.catalyst.dev",
+          version: "v1alpha1",
+          namespace: "default",
+          plural: "environments",
+          name: testEnvironmentName,
+        });
+        console.log(`✓ Cleaned up test environment: ${testEnvironmentName}`);
+      } catch (error) {
+        console.warn(`Failed to clean up environment: ${error}`);
+      }
+      testEnvironmentName = null;
+    }
+  });
+
+  test("should create environment via Kubernetes API and verify deployment", async ({
     page,
     k8s,
   }) => {
     // Generate a unique environment name for this test
     const timestamp = Date.now();
     const environmentName = `e2e-test-${timestamp}`;
+    testEnvironmentName = environmentName; // Track for cleanup
     
     console.log(`Creating test environment: ${environmentName}`);
 
-    // Create an Environment CR directly using kubectl (simulating what the UI would create)
+    // Create an Environment CR directly using the Kubernetes API
+    // Note: This test assumes a Project CR named "test-project" exists in the default namespace
+    // (as set up by the CI environment). If the operator is not running, the environment
+    // will not reach Ready state, but the test will still verify CR creation.
     const environmentManifest = {
       apiVersion: "catalyst.catalyst.dev/v1alpha1",
       kind: "Environment",
@@ -61,6 +86,9 @@ test.describe("Deployment Environment E2E", () => {
 
     console.log("⏳ Polling for environment to become Ready...");
 
+    // Helper function for non-page-dependent delays
+    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
     while (attempts < maxAttempts && !environmentReady) {
       try {
         // Get the specific environment
@@ -91,7 +119,8 @@ test.describe("Deployment Environment E2E", () => {
           }
         }
       } catch (error: any) {
-        if (error?.message?.includes("not found")) {
+        // Check for 404 status code instead of string matching for robustness
+        if (error?.statusCode === 404 || error?.response?.statusCode === 404) {
           console.log(
             `  Environment CR not found yet (attempt ${attempts + 1}/${maxAttempts})`,
           );
@@ -101,7 +130,7 @@ test.describe("Deployment Environment E2E", () => {
       }
 
       attempts++;
-      await page.waitForTimeout(5000); // Wait 5 seconds between checks
+      await sleep(5000); // Wait 5 seconds between checks
     }
 
     if (!environmentReady || !environment) {
@@ -144,20 +173,7 @@ test.describe("Deployment Environment E2E", () => {
       }
     }
 
-    // Clean up: delete the test environment
-    try {
-      await k8s.customApi.deleteNamespacedCustomObject({
-        group: "catalyst.catalyst.dev",
-        version: "v1alpha1",
-        namespace: "default",
-        plural: "environments",
-        name: environmentName,
-      });
-      console.log(`✓ Cleaned up test environment: ${environmentName}`);
-    } catch (error) {
-      console.warn(`Failed to clean up environment: ${error}`);
-    }
-
+    // Cleanup is handled by afterEach hook
     console.log("✓ Test completed successfully");
   });
 });
