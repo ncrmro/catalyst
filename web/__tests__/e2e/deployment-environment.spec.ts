@@ -45,7 +45,14 @@ async function ensureCRDsInstalled(k8s: any): Promise<void> {
   console.log("✓ All required CRDs are installed");
 }
 
-test.describe("Deployment Environment E2E", () => {
+/**
+ * E2E test for creating deployment environments through the UI.
+ * 
+ * This test uses test.describe.serial() to ensure it doesn't run in parallel
+ * with other Kubernetes-heavy tests (like git-credential-helper) to avoid
+ * resource conflicts and flaky behavior in CI.
+ */
+test.describe.serial("Deployment Environment E2E", () => {
   test.slow(); // This test involves Kubernetes operations which can be slow in CI
   test.setTimeout(180000); // 3 minutes timeout for the full test
 
