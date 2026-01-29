@@ -18,6 +18,7 @@ spec:
         {{- include "catalyst.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: web
     spec:
+      serviceAccountName: {{ include "catalyst.fullname" . }}-web
       {{- with .Values.web.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
