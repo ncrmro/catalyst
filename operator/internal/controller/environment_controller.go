@@ -283,7 +283,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	switch deploymentMode {
 	case "development":
-		return r.reconcileDevelopmentModeWithStatus(ctx, env, targetNamespace, isLocal, ingressPort, envTemplate)
+		return r.reconcileDevelopmentModeWithStatus(ctx, env, project, targetNamespace, isLocal, ingressPort, envTemplate)
 
 	case "production":
 		return r.reconcileProductionModeWithStatus(ctx, env, targetNamespace, isLocal, ingressPort, envTemplate)
@@ -436,7 +436,7 @@ func (r *EnvironmentReconciler) reconcileHelmModeWithStatus(ctx context.Context,
 }
 
 // reconcileDevelopmentModeWithStatus handles development mode deployment with status updates
-func (r *EnvironmentReconciler) reconcileDevelopmentModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, _ bool, _ string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
+func (r *EnvironmentReconciler) reconcileDevelopmentModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, _ bool, _ string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
 	// Wait for default service account
@@ -460,7 +460,7 @@ func (r *EnvironmentReconciler) reconcileDevelopmentModeWithStatus(ctx context.C
 	}
 
 	// Run development mode reconciliation
-	ready, err := r.ReconcileDevelopmentMode(ctx, env, namespace, template)
+	ready, err := r.ReconcileDevelopmentMode(ctx, env, project, namespace, template)
 	if err != nil {
 		env.Status.Phase = "Failed"
 		_ = r.Status().Update(ctx, env)

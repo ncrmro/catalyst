@@ -36,14 +36,36 @@ import (
 const (
 	nodeImage           = "node:22"
 	postgresImage       = "postgres:16"
+	gitCloneImageDev    = "alpine/git:2.45.2"
 	hostCodePath        = "/code"
 	webWorkDir          = "/code/web"
 	nodeModulesPath     = "/code/web/node_modules"
 	nextCachePath       = "/code/web/.next"
+	codeStorage         = "5Gi"
 	nodeModulesStorage  = "2Gi"
 	nextCacheStorage    = "1Gi"
 	postgresDataStorage = "1Gi"
 )
+
+// desiredCodePVC creates a PVC for the application code
+func desiredCodePVC(namespace string) *corev1.PersistentVolumeClaim {
+	return &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "web-code",
+			Namespace: namespace,
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes: []corev1.PersistentVolumeAccessMode{
+				corev1.ReadWriteOnce,
+			},
+			Resources: corev1.VolumeResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceStorage: resource.MustParse(codeStorage),
+				},
+			},
+		},
+	}
+}
 
 // desiredNodeModulesPVC creates a PVC for node_modules
 func desiredNodeModulesPVC(namespace string) *corev1.PersistentVolumeClaim {
@@ -192,10 +214,9 @@ func desiredPostgresService(namespace string) *corev1.Service {
 }
 
 // desiredDevelopmentDeployment creates the web app deployment for development mode
-// with init containers for npm install and db:migrate, and hot-reload
-func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, namespace string) *appsv1.Deployment {
+// with init containers for git clone, npm install and db:migrate, and hot-reload
+func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string) *appsv1.Deployment {
 	replicas := int32(1)
-	hostPathType := corev1.HostPathDirectory
 
 	// Build DATABASE_URL based on namespace
 	databaseURL := fmt.Sprintf("postgres://postgres:postgres@postgres.%s.svc.cluster.local:5432/catalyst", namespace)
@@ -214,7 +235,45 @@ func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, namespace s
 		envVars = append(envVars, corev1.EnvVar{Name: "SEED_SELF_DEPLOY", Value: "true"})
 	}
 
-	// Volume mounts for init containers
+	// Determine repository URL and commit to clone
+	var repoURL, commit string
+	githubInstallationId := project.Spec.GitHubInstallationId
+
+	// Get from project sources
+	if len(project.Spec.Sources) > 0 {
+		repoURL = project.Spec.Sources[0].RepositoryURL
+	}
+
+	// Override with environment-specific commit if provided
+	if len(env.Spec.Sources) > 0 {
+		if env.Spec.Sources[0].CommitSha != "" {
+			commit = env.Spec.Sources[0].CommitSha
+		} else if env.Spec.Sources[0].Branch != "" {
+			commit = env.Spec.Sources[0].Branch
+		}
+	}
+
+	// Default to main branch if no commit specified
+	if commit == "" {
+		if len(project.Spec.Sources) > 0 {
+			commit = project.Spec.Sources[0].Branch
+		}
+		if commit == "" {
+			commit = "main"
+		}
+	}
+
+	// Git clone configuration
+	gitCloneRoot := "/code"
+	gitCloneDest := "."
+
+	// Volume mounts for git clone init container
+	gitCloneVolumeMounts := []corev1.VolumeMount{
+		{Name: "code", MountPath: gitCloneRoot},
+		{Name: gitScriptsVolumeName, MountPath: "/scripts", ReadOnly: true},
+	}
+
+	// Volume mounts for npm install and db migrate init containers
 	initVolumeMounts := []corev1.VolumeMount{
 		{Name: "code", MountPath: hostCodePath},
 		{Name: "node-modules", MountPath: nodeModulesPath},
@@ -225,6 +284,120 @@ func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, namespace s
 		{Name: "code", MountPath: hostCodePath},
 		{Name: "node-modules", MountPath: nodeModulesPath},
 		{Name: "next-cache", MountPath: nextCachePath},
+	}
+
+	// Build init containers list
+	initContainers := []corev1.Container{}
+
+	// Add git-clone init container if we have a repo URL
+	if repoURL != "" {
+		initContainers = append(initContainers, corev1.Container{
+			Name:    "git-clone",
+			Image:   gitCloneImageDev,
+			Command: []string{"/scripts/git-clone.sh"},
+			Env: []corev1.EnvVar{
+				{Name: "INSTALLATION_ID", Value: githubInstallationId},
+				{Name: "CATALYST_WEB_URL", Value: getCatalystWebURL()},
+				{Name: "GIT_REPO_URL", Value: repoURL},
+				{Name: "GIT_COMMIT", Value: commit},
+				{Name: "GIT_CLONE_ROOT", Value: gitCloneRoot},
+				{Name: "GIT_CLONE_DEST", Value: gitCloneDest},
+			},
+			VolumeMounts: gitCloneVolumeMounts,
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("100m"),
+					corev1.ResourceMemory: resource.MustParse("256Mi"),
+				},
+				Limits: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("500m"),
+					corev1.ResourceMemory: resource.MustParse("512Mi"),
+				},
+			},
+		})
+	}
+
+	// Add npm install init container
+	initContainers = append(initContainers, corev1.Container{
+		Name:         "npm-install",
+		Image:        nodeImage,
+		WorkingDir:   webWorkDir,
+		Command:      []string{"npm", "install"},
+		VolumeMounts: initVolumeMounts,
+		Resources: corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("100m"),
+				corev1.ResourceMemory: resource.MustParse("256Mi"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("1000m"),
+				corev1.ResourceMemory: resource.MustParse("1Gi"),
+			},
+		},
+	})
+
+	// Add db migrate init container
+	initContainers = append(initContainers, corev1.Container{
+		Name:         "db-migrate",
+		Image:        nodeImage,
+		WorkingDir:   webWorkDir,
+		Command:      []string{"/bin/sh", "-c", "npm run db:migrate && npm run seed"},
+		VolumeMounts: initVolumeMounts,
+		Env: []corev1.EnvVar{
+			{Name: "DATABASE_URL", Value: databaseURL},
+		},
+		Resources: corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("100m"),
+				corev1.ResourceMemory: resource.MustParse("256Mi"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("500m"),
+				corev1.ResourceMemory: resource.MustParse("512Mi"),
+			},
+		},
+	})
+
+	// Prepare volumes - always use PVC for code
+	defaultMode := int32(0755) // Make scripts executable
+	volumes := []corev1.Volume{
+		{
+			Name: "code",
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: "web-code",
+				},
+			},
+		},
+		{
+			Name: "node-modules",
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: "web-node-modules",
+				},
+			},
+		},
+		{
+			Name: "next-cache",
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: "web-next-cache",
+				},
+			},
+		},
+	}
+
+	// Add git scripts ConfigMap volume if we're cloning
+	if repoURL != "" {
+		volumes = append(volumes, corev1.Volume{
+			Name: gitScriptsVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: gitScriptsConfigMap},
+					DefaultMode:          &defaultMode,
+				},
+			},
+		})
 	}
 
 	return &appsv1.Deployment{
@@ -245,46 +418,7 @@ func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, namespace s
 					Labels: map[string]string{"app": "web"},
 				},
 				Spec: corev1.PodSpec{
-					// Init containers: npm install, then db:migrate + seed
-					InitContainers: []corev1.Container{
-						{
-							Name:         "npm-install",
-							Image:        nodeImage,
-							WorkingDir:   webWorkDir,
-							Command:      []string{"npm", "install"},
-							VolumeMounts: initVolumeMounts,
-							Resources: corev1.ResourceRequirements{
-								Requests: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("100m"),
-									corev1.ResourceMemory: resource.MustParse("256Mi"),
-								},
-								Limits: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("1000m"),
-									corev1.ResourceMemory: resource.MustParse("1Gi"),
-								},
-							},
-						},
-						{
-							Name:         "db-migrate",
-							Image:        nodeImage,
-							WorkingDir:   webWorkDir,
-							Command:      []string{"/bin/sh", "-c", "npm run db:migrate && npm run seed"},
-							VolumeMounts: initVolumeMounts,
-							Env: []corev1.EnvVar{
-								{Name: "DATABASE_URL", Value: databaseURL},
-							},
-							Resources: corev1.ResourceRequirements{
-								Requests: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("100m"),
-									corev1.ResourceMemory: resource.MustParse("256Mi"),
-								},
-								Limits: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("500m"),
-									corev1.ResourceMemory: resource.MustParse("512Mi"),
-								},
-							},
-						},
-					},
+					InitContainers: initContainers,
 					Containers: []corev1.Container{
 						{
 							Name:         "web",
@@ -327,33 +461,7 @@ func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, namespace s
 							},
 						},
 					},
-					Volumes: []corev1.Volume{
-						{
-							Name: "code",
-							VolumeSource: corev1.VolumeSource{
-								HostPath: &corev1.HostPathVolumeSource{
-									Path: hostCodePath,
-									Type: &hostPathType,
-								},
-							},
-						},
-						{
-							Name: "node-modules",
-							VolumeSource: corev1.VolumeSource{
-								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-									ClaimName: "web-node-modules",
-								},
-							},
-						},
-						{
-							Name: "next-cache",
-							VolumeSource: corev1.VolumeSource{
-								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-									ClaimName: "web-next-cache",
-								},
-							},
-						},
-					},
+					Volumes: volumes,
 				},
 			},
 		},
@@ -380,11 +488,23 @@ func desiredDevelopmentService(namespace string) *corev1.Service {
 }
 
 // ReconcileDevelopmentMode handles the reconciliation for development deployment mode.
-// It creates PVCs, PostgreSQL, and a hot-reload web deployment based on base.json pattern.
-func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, template *catalystv1alpha1.EnvironmentTemplate) (bool, error) {
+// It creates PVCs, PostgreSQL, and a hot-reload web deployment with git clone init container.
+func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, template *catalystv1alpha1.EnvironmentTemplate) (bool, error) {
 	log := logf.FromContext(ctx)
 
+	// 0. Ensure git scripts ConfigMap if we need to clone (has sources)
+	if len(project.Spec.Sources) > 0 {
+		if err := r.ensureGitScriptsConfigMap(ctx, namespace); err != nil {
+			return false, fmt.Errorf("failed to ensure git scripts ConfigMap: %w", err)
+		}
+	}
+
 	// 1. Create PVCs (idempotent)
+	codePVC := desiredCodePVC(namespace)
+	if err := r.Create(ctx, codePVC); err != nil && !isAlreadyExists(err) {
+		return false, err
+	}
+
 	nodeModulesPVC := desiredNodeModulesPVC(namespace)
 	if err := r.Create(ctx, nodeModulesPVC); err != nil && !isAlreadyExists(err) {
 		return false, err
@@ -422,7 +542,7 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 	}
 
 	// 4. Create web deployment and service
-	webDeployment := desiredDevelopmentDeployment(env, namespace)
+	webDeployment := desiredDevelopmentDeployment(env, project, namespace)
 	if err := r.Create(ctx, webDeployment); err != nil && !isAlreadyExists(err) {
 		return false, err
 	}
