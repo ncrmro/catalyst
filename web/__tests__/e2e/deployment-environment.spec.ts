@@ -2,38 +2,91 @@ import { test, expect } from "./fixtures/k8s-fixture";
 import { ProjectsPage } from "./page-objects/projects-page";
 import type { EnvironmentCR } from "@/types/crd";
 
+/**
+ * Ensure required CRDs are installed in the cluster
+ * This should be called before any tests that interact with Kubernetes
+ */
+async function ensureCRDsInstalled(k8s: any): Promise<void> {
+  const requiredCRDs = [
+    "environments.catalyst.catalyst.dev",
+    "projects.catalyst.catalyst.dev"
+  ];
+
+  console.log("Checking required CRDs...");
+  
+  for (const crdName of requiredCRDs) {
+    try {
+      // Use customApi to list CRDs indirectly by trying to list the resource
+      // If the CRD exists, the plural resource will be available
+      const group = crdName.split(".").slice(1).join(".");
+      const plural = crdName.split(".")[0];
+      
+      await k8s.customApi.listClusterCustomObject({
+        group,
+        version: "v1alpha1",
+        plural,
+      });
+      
+      console.log(`✓ CRD ${crdName} is installed and accessible`);
+    } catch (error: any) {
+      if (error?.statusCode === 404 || error?.response?.statusCode === 404) {
+        throw new Error(
+          `CRD ${crdName} is not installed or not accessible. ` +
+          `Please ensure the operator CRDs are installed:\n` +
+          `  kubectl apply -f operator/config/crd/bases/catalyst.catalyst.dev_environments.yaml\n` +
+          `  kubectl apply -f operator/config/crd/bases/catalyst.catalyst.dev_projects.yaml`
+        );
+      }
+      // Other errors might just mean there are no resources yet, which is fine
+      console.log(`✓ CRD ${crdName} is installed (no resources yet)`);
+    }
+  }
+  
+  console.log("✓ All required CRDs are installed");
+}
+
 test.describe("Deployment Environment E2E", () => {
   test.slow(); // This test involves Kubernetes operations which can be slow in CI
+  test.setTimeout(180000); // 3 minutes timeout for the full test
 
   let createdEnvironmentName: string | null = null;
+  let createdEnvironmentNamespace: string | null = null;
 
   // Cleanup hook to ensure test resources are always removed
   test.afterEach(async ({ k8s }) => {
-    if (createdEnvironmentName) {
+    if (createdEnvironmentName && createdEnvironmentNamespace) {
       try {
-        // Try to find and delete the environment by name
-        const environments = await k8s.customApi.listNamespacedCustomObject({
+        await k8s.customApi.deleteNamespacedCustomObject({
           group: "catalyst.catalyst.dev",
           version: "v1alpha1",
-          namespace: "default",
+          namespace: createdEnvironmentNamespace,
           plural: "environments",
+          name: createdEnvironmentName,
         });
-        
-        const envList = environments.items as EnvironmentCR[];
-        const envToDelete = envList.find(env => 
-          env.metadata.name === createdEnvironmentName || 
-          env.metadata.name.startsWith('dev-')
-        );
-
-        if (envToDelete) {
-          await k8s.customApi.deleteNamespacedCustomObject({
-            group: "catalyst.catalyst.dev",
-            version: "v1alpha1",
-            namespace: "default",
-            plural: "environments",
-            name: envToDelete.metadata.name,
-          });
-          console.log(`✓ Cleaned up test environment: ${envToDelete.metadata.name}`);
+        console.log(`✓ Cleaned up test environment: ${createdEnvironmentName} from namespace: ${createdEnvironmentNamespace}`);
+      } catch (error) {
+        console.warn(`Failed to clean up environment: ${error}`);
+      }
+      createdEnvironmentName = null;
+      createdEnvironmentNamespace = null;
+    } else if (createdEnvironmentName) {
+      // Fallback: search all namespaces for the environment
+      try {
+        const namespaces = await k8s.coreApi.listNamespace();
+        for (const ns of namespaces.items) {
+          try {
+            await k8s.customApi.deleteNamespacedCustomObject({
+              group: "catalyst.catalyst.dev",
+              version: "v1alpha1",
+              namespace: ns.metadata?.name || "",
+              plural: "environments",
+              name: createdEnvironmentName,
+            });
+            console.log(`✓ Cleaned up test environment: ${createdEnvironmentName} from namespace: ${ns.metadata?.name}`);
+            break;
+          } catch (error) {
+            // Not in this namespace, continue
+          }
         }
       } catch (error) {
         console.warn(`Failed to clean up environment: ${error}`);
@@ -46,6 +99,9 @@ test.describe("Deployment Environment E2E", () => {
     page,
     k8s,
   }) => {
+    // First, ensure all required CRDs are installed
+    await ensureCRDsInstalled(k8s);
+    
     // Create projects page instance
     const projectsPage = new ProjectsPage(page);
 
@@ -122,7 +178,7 @@ test.describe("Deployment Environment E2E", () => {
     }
     const environmentName = environmentNameMatch[0];
     createdEnvironmentName = environmentName;
-
+    
     console.log(`✓ Success message appeared: ${successText}`);
     console.log(`✓ Created environment: ${environmentName}`);
 
@@ -133,39 +189,63 @@ test.describe("Deployment Environment E2E", () => {
 
     console.log("✓ Switched to Status tab");
 
-    // Note: The UI shows environments from the "default" namespace, but environments are created
-    // in team/project namespaces. This is a known issue. For now, we'll query Kubernetes directly
-    // to verify the environment was created and track its status.
+    // Reload the page to fetch environments from Kubernetes with the corrected namespace query
+    await page.reload({ waitUntil: "networkidle" });
+    console.log("✓ Page reloaded");
 
-    // Find the environment in Kubernetes (it could be in any namespace)
-    let environment: EnvironmentCR | null = null;
+    // Wait for Platform Configuration heading to ensure page is fully loaded
+    await expect(
+      page.getByRole("heading", { name: "Platform Configuration" }),
+    ).toBeVisible();
+
+    // Make sure we're still on the Development Environments Status tab after reload
+    const statusTabsAfterReload = page.getByRole("tab", { name: "Status" });
+    const devEnvironmentStatusTabAfterReload = statusTabsAfterReload.nth(1);
+    await devEnvironmentStatusTabAfterReload.click();
+
+    console.log("✓ Navigated back to Status tab after reload");
+
+    // The environment should now be visible in the UI since we fixed the namespace query
+    // The link text format is "{environmentName}{type}{status}", e.g. "dev-rustic-bear-94developmentPending"
+    const environmentLinks = page
+      .locator('a[href*="/projects/"][href*="/env/"]')
+      .filter({ hasText: new RegExp(`${environmentName}`) });
+
+    await expect(environmentLinks.first()).toBeVisible({ timeout: 30000 });
+    console.log(`✓ Environment ${environmentName} is visible in the UI`);
+
+    // Find the environment in Kubernetes to get its namespace for polling
+    let environmentNamespace: string | null = null;
     const namespaces = await k8s.coreApi.listNamespace();
     
     for (const ns of namespaces.items) {
       try {
-        const response = await k8s.customApi.getNamespacedCustomObject({
+        await k8s.customApi.getNamespacedCustomObject({
           group: "catalyst.catalyst.dev",
           version: "v1alpha1",
           namespace: ns.metadata?.name || "",
           plural: "environments",
           name: environmentName,
         });
-        environment = response as EnvironmentCR;
-        console.log(`✓ Found environment in namespace: ${ns.metadata?.name}`);
+        environmentNamespace = ns.metadata?.name || null;
+        createdEnvironmentNamespace = environmentNamespace; // Track for cleanup
+        console.log(`✓ Found environment in namespace: ${environmentNamespace}`);
         break;
       } catch (error) {
         // Environment not in this namespace, continue searching
       }
     }
 
-    if (!environment) {
+    if (!environmentNamespace) {
       throw new Error(`Environment ${environmentName} not found in any namespace`);
     }
 
     // Poll the Environment CR until it reaches Ready state or times out
-    const maxAttempts = 60; // 5 minutes with 5-second intervals
+    // Note: In test environments without the operator running, the environment will stay in Unknown status
+    const maxAttempts = 6; // 30 seconds (shorter timeout since operator may not be running)
     let attempts = 0;
     let environmentReady = false;
+    let environment: EnvironmentCR | null = null;
 
     console.log("⏳ Polling for environment to become Ready...");
 
@@ -174,11 +254,11 @@ test.describe("Deployment Environment E2E", () => {
 
     while (attempts < maxAttempts && !environmentReady) {
       try {
-        // Get the specific environment
+        // Get the specific environment from its namespace
         const response = await k8s.customApi.getNamespacedCustomObject({
           group: "catalyst.catalyst.dev",
           version: "v1alpha1",
-          namespace: "default",
+          namespace: environmentNamespace,
           plural: "environments",
           name: environmentName,
         });
