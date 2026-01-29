@@ -5,6 +5,7 @@ on:
     paths:
       - 'charts/nextjs/**'
   workflow_dispatch:
+  workflow_call:
 
 jobs:
   test-nextjs-chart:

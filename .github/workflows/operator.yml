@@ -11,6 +11,7 @@ on:
     paths:
       - 'operator/**'
       - '.github/workflows/operator.yml'
+  workflow_call:
 
 jobs:
   test:

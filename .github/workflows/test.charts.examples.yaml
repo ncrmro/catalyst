@@ -11,6 +11,7 @@ on:
     paths:
       - 'charts/**'
   workflow_dispatch:
+  workflow_call:
 
 jobs:
   lint-charts:

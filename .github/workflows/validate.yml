@@ -1,0 +1,129 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      operator_changed: ${{ steps.changed-files-yaml.outputs.operator_any_changed }}
+      web_changed: ${{ steps.changed-files-yaml.outputs.web_any_changed }}
+      charts_changed: ${{ steps.changed-files-yaml.outputs.charts_any_changed }}
+      dockerfiles_changed: ${{ steps.changed-files-yaml.outputs.dockerfiles_any_changed }}
+      boilerplates_changed: ${{ steps.changed-files-yaml.outputs.boilerplates_any_changed }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for accurate change detection
+
+      - name: Get all changed files
+        id: changed-files-yaml
+        uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62 # v47
+        with:
+          files_yaml: |
+            operator:
+              - operator/**
+              - .github/workflows/operator.yml
+              - .github/workflows/test.operator.integration.yml
+            web:
+              - web/**
+              - .github/workflows/web.test.yml
+            charts:
+              - charts/**
+              - .github/workflows/test.charts.*.yml
+              - .github/workflows/test.charts.*.yaml
+            dockerfiles:
+              - dockerfiles/**
+              - .github/workflows/dockerfiles.release.yaml
+            boilerplates:
+              - boilerplate/**
+              - .github/workflows/test.boilerplates.*.yml
+
+      - name: Show changed components
+        run: |
+          echo "Operator changed: ${{ steps.changed-files-yaml.outputs.operator_any_changed }}"
+          echo "Web changed: ${{ steps.changed-files-yaml.outputs.web_any_changed }}"
+          echo "Charts changed: ${{ steps.changed-files-yaml.outputs.charts_any_changed }}"
+          echo "Dockerfiles changed: ${{ steps.changed-files-yaml.outputs.dockerfiles_any_changed }}"
+          echo "Boilerplates changed: ${{ steps.changed-files-yaml.outputs.boilerplates_any_changed }}"
+
+  operator-tests:
+    name: Operator Tests
+    needs: detect-changes
+    if: needs.detect-changes.outputs.operator_changed == 'true'
+    uses: ./.github/workflows/operator.yml
+
+  operator-integration-tests:
+    name: Operator Integration Tests
+    needs: detect-changes
+    if: needs.detect-changes.outputs.operator_changed == 'true'
+    uses: ./.github/workflows/test.operator.integration.yml
+
+  web-tests:
+    name: Web Tests
+    needs: detect-changes
+    if: needs.detect-changes.outputs.web_changed == 'true'
+    uses: ./.github/workflows/web.test.yml
+
+  charts-examples-tests:
+    name: Charts Examples Tests
+    needs: detect-changes
+    if: needs.detect-changes.outputs.charts_changed == 'true'
+    uses: ./.github/workflows/test.charts.examples.yaml
+
+  charts-nextjs-tests:
+    name: Charts NextJS Tests
+    needs: detect-changes
+    if: needs.detect-changes.outputs.charts_changed == 'true'
+    uses: ./.github/workflows/test.charts.nextjs.yml
+
+  # Summary job that will pass even if individual test jobs are skipped
+  validate-summary:
+    name: Validation Summary
+    runs-on: ubuntu-latest
+    needs:
+      - detect-changes
+      - operator-tests
+      - operator-integration-tests
+      - web-tests
+      - charts-examples-tests
+      - charts-nextjs-tests
+    if: always()
+    steps:
+      - name: Check validation results
+        run: |
+          echo "=== Validation Summary ==="
+          echo "Operator changed: ${{ needs.detect-changes.outputs.operator_changed }}"
+          echo "Operator tests: ${{ needs.operator-tests.result }}"
+          echo "Operator integration tests: ${{ needs.operator-integration-tests.result }}"
+          echo ""
+          echo "Web changed: ${{ needs.detect-changes.outputs.web_changed }}"
+          echo "Web tests: ${{ needs.web-tests.result }}"
+          echo ""
+          echo "Charts changed: ${{ needs.detect-changes.outputs.charts_changed }}"
+          echo "Charts examples tests: ${{ needs.charts-examples-tests.result }}"
+          echo "Charts NextJS tests: ${{ needs.charts-nextjs-tests.result }}"
+          echo ""
+          
+          # Check if any required job failed (not skipped or cancelled)
+          if [[ "${{ needs.operator-tests.result }}" == "failure" ]] || \
+             [[ "${{ needs.operator-integration-tests.result }}" == "failure" ]] || \
+             [[ "${{ needs.web-tests.result }}" == "failure" ]] || \
+             [[ "${{ needs.charts-examples-tests.result }}" == "failure" ]] || \
+             [[ "${{ needs.charts-nextjs-tests.result }}" == "failure" ]]; then
+            echo "❌ Validation failed - one or more test jobs failed"
+            exit 1
+          fi
+          
+          echo "✅ Validation passed - all required tests succeeded or were skipped"
