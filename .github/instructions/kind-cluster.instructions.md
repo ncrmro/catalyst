@@ -19,9 +19,6 @@ The cluster comes pre-configured with:
 
 1. **Environment CRD**: `environments.catalyst.catalyst.dev` Custom Resource Definition is installed
 2. **NGINX Ingress Controller**: Running in `ingress-nginx` namespace
-3. **Test Environment CR**: An example Environment custom resource named `ci-test-env` in the default namespace
-4. **Test Application**: `ci-test-app` deployment running in default namespace
-5. **Ingress Configuration**: Pre-configured with hostname-based routing (e.g., `test-project-ci-test-env.localhost`)
 
 ## Cluster Access Verification
 
@@ -80,7 +77,7 @@ When testing Kubernetes integration features:
 3. **Check existing resources first**: Use `kubectl get all -A` to see what's already deployed
 4. **Use the Environment CRD**: Test with the pre-installed `environments.catalyst.catalyst.dev` CRD
 
-## Example: Testing Environment Creation
+## Example: Working with Environment CRs
 
 ```bash
 # View the existing Environment CRD
@@ -89,11 +86,22 @@ kubectl get crd environments.catalyst.catalyst.dev
 # Check existing Environment resources
 kubectl get environments -A
 
-# Describe the test environment
-kubectl describe environment ci-test-env -n default
+# Create a test environment
+cat <<EOF | kubectl apply -f -
+apiVersion: catalyst.catalyst.dev/v1alpha1
+kind: Environment
+metadata:
+  name: my-test-env
+  namespace: default
+spec:
+  projectRef:
+    name: test-project
+  type: development
+  deploymentMode: development
+EOF
 
 # View the environment status
-kubectl get environment ci-test-env -n default -o yaml
+kubectl get environment my-test-env -n default -o yaml
 ```
 
 ## Common Tasks
@@ -110,7 +118,7 @@ kubectl logs -n ingress-nginx deployment/ingress-nginx-controller
 kubectl get environments -A
 
 # Get details about a specific environment
-kubectl get environment ci-test-env -n default -o yaml
+kubectl get environment my-test-env -n default -o yaml
 ```
 
 ### Test Resource Creation
