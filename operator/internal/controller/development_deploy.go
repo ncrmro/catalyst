@@ -492,8 +492,8 @@ func desiredDevelopmentService(namespace string) *corev1.Service {
 func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, template *catalystv1alpha1.EnvironmentTemplate) (bool, error) {
 	log := logf.FromContext(ctx)
 
-	// 0. Ensure git scripts ConfigMap if we need to clone (has sources)
-	if len(project.Spec.Sources) > 0 {
+	// 0. Ensure git scripts ConfigMap if we have a repository URL to clone
+	if len(project.Spec.Sources) > 0 && project.Spec.Sources[0].RepositoryURL != "" {
 		if err := r.ensureGitScriptsConfigMap(ctx, namespace); err != nil {
 			return false, fmt.Errorf("failed to ensure git scripts ConfigMap: %w", err)
 		}
