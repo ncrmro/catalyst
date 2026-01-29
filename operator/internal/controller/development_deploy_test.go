@@ -11,9 +11,9 @@ import (
 	catalystv1alpha1 "github.com/ncrmro/catalyst/operator/api/v1alpha1"
 )
 
-func TestDesiredCodePVC(t *testing.T) {
+func TestDesiredWorkspacePVC(t *testing.T) {
 	namespace := "test-namespace"
-	pvc := desiredCodePVC(namespace)
+	pvc := desiredWorkspacePVC(namespace)
 
 	// Verify metadata
 	assert.Equal(t, "workspace", pvc.Name)
@@ -101,18 +101,18 @@ func TestDesiredDevelopmentDeployment_WithGitClone(t *testing.T) {
 	assert.Equal(t, "/code", envMap["GIT_CLONE_ROOT"])
 	assert.Equal(t, ".", envMap["GIT_CLONE_DEST"])
 
-	// Verify volumes - should have code PVC, not hostPath
-	var codeVolume *corev1.Volume
+	// Verify volumes - should have workspace PVC, not hostPath
+	var workspaceVolume *corev1.Volume
 	for i := range deployment.Spec.Template.Spec.Volumes {
-		if deployment.Spec.Template.Spec.Volumes[i].Name == "code" {
-			codeVolume = &deployment.Spec.Template.Spec.Volumes[i]
+		if deployment.Spec.Template.Spec.Volumes[i].Name == "workspace" {
+			workspaceVolume = &deployment.Spec.Template.Spec.Volumes[i]
 			break
 		}
 	}
-	assert.NotNil(t, codeVolume, "Should have code volume")
-	assert.NotNil(t, codeVolume.PersistentVolumeClaim, "Code volume should use PVC")
-	assert.Nil(t, codeVolume.HostPath, "Code volume should not use hostPath")
-	assert.Equal(t, "workspace", codeVolume.PersistentVolumeClaim.ClaimName)
+	assert.NotNil(t, workspaceVolume, "Should have workspace volume")
+	assert.NotNil(t, workspaceVolume.PersistentVolumeClaim, "Workspace volume should use PVC")
+	assert.Nil(t, workspaceVolume.HostPath, "Workspace volume should not use hostPath")
+	assert.Equal(t, "workspace", workspaceVolume.PersistentVolumeClaim.ClaimName)
 
 	// Verify git scripts volume exists
 	var scriptsVolume *corev1.Volume
@@ -167,15 +167,15 @@ func TestDesiredDevelopmentDeployment_WithoutSources(t *testing.T) {
 	}
 	assert.False(t, hasGitClone, "Should not have git-clone init container when no sources configured")
 
-	// Verify code volume still uses PVC (not hostPath)
-	var codeVolume *corev1.Volume
+	// Verify workspace volume still uses PVC (not hostPath)
+	var workspaceVolume *corev1.Volume
 	for i := range deployment.Spec.Template.Spec.Volumes {
-		if deployment.Spec.Template.Spec.Volumes[i].Name == "code" {
-			codeVolume = &deployment.Spec.Template.Spec.Volumes[i]
+		if deployment.Spec.Template.Spec.Volumes[i].Name == "workspace" {
+			workspaceVolume = &deployment.Spec.Template.Spec.Volumes[i]
 			break
 		}
 	}
-	assert.NotNil(t, codeVolume, "Should have code volume")
-	assert.NotNil(t, codeVolume.PersistentVolumeClaim, "Code volume should use PVC")
-	assert.Nil(t, codeVolume.HostPath, "Code volume should not use hostPath")
+	assert.NotNil(t, workspaceVolume, "Should have workspace volume")
+	assert.NotNil(t, workspaceVolume.PersistentVolumeClaim, "Workspace volume should use PVC")
+	assert.Nil(t, workspaceVolume.HostPath, "Workspace volume should not use hostPath")
 }

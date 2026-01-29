@@ -33,22 +33,20 @@ import (
 )
 
 // Development mode constants - hardcoded templates based on .k3s-vm/manifests/base.json
+// TODO: Database configuration should not be hardcoded - each project may use a different database
+// (e.g., PostgreSQL, MySQL, MongoDB). This should be configurable via the Project or Environment CR.
 const (
 	nodeImage           = "node:22"
 	postgresImage       = "postgres:16"
 	gitCloneImageDev    = "alpine/git:2.45.2"
 	hostCodePath        = "/code"
 	webWorkDir          = "/code/web"
-	nodeModulesPath     = "/code/web/node_modules"
-	nextCachePath       = "/code/web/.next"
-	codeStorage         = "5Gi"
-	nodeModulesStorage  = "2Gi"
-	nextCacheStorage    = "1Gi"
+	workspaceStorage    = "5Gi"
 	postgresDataStorage = "1Gi"
 )
 
-// desiredCodePVC creates a PVC for the application code
-func desiredCodePVC(namespace string) *corev1.PersistentVolumeClaim {
+// desiredWorkspacePVC creates a PVC for the workspace (code + dependencies + caches)
+func desiredWorkspacePVC(namespace string) *corev1.PersistentVolumeClaim {
 	return &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "workspace",
@@ -60,47 +58,7 @@ func desiredCodePVC(namespace string) *corev1.PersistentVolumeClaim {
 			},
 			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: resource.MustParse(codeStorage),
-				},
-			},
-		},
-	}
-}
-
-// desiredNodeModulesPVC creates a PVC for node_modules
-func desiredNodeModulesPVC(namespace string) *corev1.PersistentVolumeClaim {
-	return &corev1.PersistentVolumeClaim{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "web-node-modules",
-			Namespace: namespace,
-		},
-		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes: []corev1.PersistentVolumeAccessMode{
-				corev1.ReadWriteOnce,
-			},
-			Resources: corev1.VolumeResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: resource.MustParse(nodeModulesStorage),
-				},
-			},
-		},
-	}
-}
-
-// desiredNextCachePVC creates a PVC for .next cache
-func desiredNextCachePVC(namespace string) *corev1.PersistentVolumeClaim {
-	return &corev1.PersistentVolumeClaim{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "web-next-cache",
-			Namespace: namespace,
-		},
-		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes: []corev1.PersistentVolumeAccessMode{
-				corev1.ReadWriteOnce,
-			},
-			Resources: corev1.VolumeResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceStorage: resource.MustParse(nextCacheStorage),
+					corev1.ResourceStorage: resource.MustParse(workspaceStorage),
 				},
 			},
 		},
@@ -270,21 +228,18 @@ func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, project *ca
 
 	// Volume mounts for git clone init container
 	gitCloneVolumeMounts := []corev1.VolumeMount{
-		{Name: "code", MountPath: gitCloneRoot},
+		{Name: "workspace", MountPath: gitCloneRoot},
 		{Name: gitScriptsVolumeName, MountPath: "/scripts", ReadOnly: true},
 	}
 
-	// Volume mounts for npm install and db migrate init containers
+	// Volume mounts for init containers - workspace contains everything
 	initVolumeMounts := []corev1.VolumeMount{
-		{Name: "code", MountPath: hostCodePath},
-		{Name: "node-modules", MountPath: nodeModulesPath},
+		{Name: "workspace", MountPath: hostCodePath},
 	}
 
-	// Volume mounts for main container (includes .next cache)
+	// Volume mounts for main container - workspace contains code, dependencies, and caches
 	mainVolumeMounts := []corev1.VolumeMount{
-		{Name: "code", MountPath: hostCodePath},
-		{Name: "node-modules", MountPath: nodeModulesPath},
-		{Name: "next-cache", MountPath: nextCachePath},
+		{Name: "workspace", MountPath: hostCodePath},
 	}
 
 	// Build init containers list
@@ -359,30 +314,14 @@ func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, project *ca
 		},
 	})
 
-	// Prepare volumes - always use PVC for code
+	// Prepare volumes - workspace PVC contains code, dependencies, and caches
 	defaultMode := int32(0755) // Make scripts executable
 	volumes := []corev1.Volume{
 		{
-			Name: "code",
+			Name: "workspace",
 			VolumeSource: corev1.VolumeSource{
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 					ClaimName: "workspace",
-				},
-			},
-		},
-		{
-			Name: "node-modules",
-			VolumeSource: corev1.VolumeSource{
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: "web-node-modules",
-				},
-			},
-		},
-		{
-			Name: "next-cache",
-			VolumeSource: corev1.VolumeSource{
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: "web-next-cache",
 				},
 			},
 		},
@@ -501,18 +440,8 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 	}
 
 	// 1. Create PVCs (idempotent)
-	codePVC := desiredCodePVC(namespace)
-	if err := r.Create(ctx, codePVC); err != nil && !isAlreadyExists(err) {
-		return false, err
-	}
-
-	nodeModulesPVC := desiredNodeModulesPVC(namespace)
-	if err := r.Create(ctx, nodeModulesPVC); err != nil && !isAlreadyExists(err) {
-		return false, err
-	}
-
-	nextCachePVC := desiredNextCachePVC(namespace)
-	if err := r.Create(ctx, nextCachePVC); err != nil && !isAlreadyExists(err) {
+	workspacePVC := desiredWorkspacePVC(namespace)
+	if err := r.Create(ctx, workspacePVC); err != nil && !isAlreadyExists(err) {
 		return false, err
 	}
 
