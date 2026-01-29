@@ -115,7 +115,7 @@ jobs:
           echo "Charts examples tests: ${{ needs.charts-examples-tests.result }}"
           echo "Charts NextJS tests: ${{ needs.charts-nextjs-tests.result }}"
           echo ""
-          
+
           # Check if any required job failed (not skipped or cancelled)
           if [[ "${{ needs.operator-tests.result }}" == "failure" ]] || \
              [[ "${{ needs.operator-integration-tests.result }}" == "failure" ]] || \
@@ -125,5 +125,5 @@ jobs:
             echo "❌ Validation failed - one or more test jobs failed"
             exit 1
           fi
-          
+
           echo "✅ Validation passed - all required tests succeeded or were skipped"
