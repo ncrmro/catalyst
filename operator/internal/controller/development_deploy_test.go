@@ -16,7 +16,7 @@ func TestDesiredCodePVC(t *testing.T) {
 	pvc := desiredCodePVC(namespace)
 
 	// Verify metadata
-	assert.Equal(t, "web-code", pvc.Name)
+	assert.Equal(t, "workspace", pvc.Name)
 	assert.Equal(t, namespace, pvc.Namespace)
 
 	// Verify access mode
@@ -112,7 +112,7 @@ func TestDesiredDevelopmentDeployment_WithGitClone(t *testing.T) {
 	assert.NotNil(t, codeVolume, "Should have code volume")
 	assert.NotNil(t, codeVolume.PersistentVolumeClaim, "Code volume should use PVC")
 	assert.Nil(t, codeVolume.HostPath, "Code volume should not use hostPath")
-	assert.Equal(t, "web-code", codeVolume.PersistentVolumeClaim.ClaimName)
+	assert.Equal(t, "workspace", codeVolume.PersistentVolumeClaim.ClaimName)
 
 	// Verify git scripts volume exists
 	var scriptsVolume *corev1.Volume

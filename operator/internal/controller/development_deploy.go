@@ -51,7 +51,7 @@ const (
 func desiredCodePVC(namespace string) *corev1.PersistentVolumeClaim {
 	return &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "web-code",
+			Name:      "workspace",
 			Namespace: namespace,
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
@@ -254,6 +254,7 @@ func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, project *ca
 	}
 
 	// Default to main branch if no commit specified
+	// TODO: Look up the default branch from the repository in the future
 	if commit == "" {
 		if len(project.Spec.Sources) > 0 {
 			commit = project.Spec.Sources[0].Branch
@@ -365,7 +366,7 @@ func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, project *ca
 			Name: "code",
 			VolumeSource: corev1.VolumeSource{
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: "web-code",
+					ClaimName: "workspace",
 				},
 			},
 		},
