@@ -113,3 +113,49 @@ export async function cleanupNamespace(
     }
   }
 }
+
+/**
+ * Wait for an Environment CR to reach Ready state
+ */
+export async function waitForEnvironmentReady(
+  customApi: CustomObjectsApi,
+  namespace: string,
+  environmentName: string,
+  options: { timeoutMs?: number } = {},
+): Promise<{ phase: string; url?: string }> {
+  const timeoutMs = options.timeoutMs || 540000; // 9 minutes default
+  const startTime = Date.now();
+  const pollIntervalMs = 5000; // 5 seconds
+
+  while (Date.now() - startTime < timeoutMs) {
+    const response = await customApi.getNamespacedCustomObject({
+      group: "catalyst.catalyst.dev",
+      version: "v1alpha1",
+      namespace,
+      plural: "environments",
+      name: environmentName,
+    });
+
+    const environment = response as any;
+    const phase = environment.status?.phase;
+
+    if (phase === "Ready") {
+      return {
+        phase,
+        url: environment.status?.url,
+      };
+    }
+
+    if (phase === "Failed") {
+      throw new Error(
+        `Environment ${environmentName} failed to deploy: ${JSON.stringify(environment.status, null, 2)}`,
+      );
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+
+  throw new Error(
+    `Environment ${environmentName} did not reach Ready state within ${timeoutMs}ms`,
+  );
+}
