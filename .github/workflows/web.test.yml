@@ -248,6 +248,7 @@ jobs:
             --namespace catalyst-system \
             --create-namespace \
             --values e2e-values.yaml \
+            --set operator.localPreviewRouting=true \
             --wait \
             --timeout 10m
           

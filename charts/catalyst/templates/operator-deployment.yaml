@@ -43,6 +43,11 @@ spec:
           args:
             - --leader-elect
             - --health-probe-bind-address=:8081
+          env:
+            - name: LOCAL_PREVIEW_ROUTING
+              value: {{ .Values.operator.localPreviewRouting | quote }}
+            - name: INGRESS_PORT
+              value: "8080"
           securityContext:
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false

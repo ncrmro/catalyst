@@ -48,6 +48,10 @@ operator:
 
   imagePullSecrets: []
 
+  # Preview routing configuration
+  previewDomain: ""           # Required for production, e.g. "preview.catalyst.dev"
+  localPreviewRouting: false  # When true, uses http://{namespace}.localhost:8080
+
   resources:
     limits:
       cpu: 500m
