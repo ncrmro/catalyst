@@ -64,6 +64,8 @@ operator:
   tolerations: []
   affinity: {}
 
+  logLevel: info
+
 # Web application configuration
 web:
   enabled: true
