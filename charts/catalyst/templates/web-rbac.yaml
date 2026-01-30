@@ -17,6 +17,13 @@ rules:
   - create
   - get
   - list
+# TokenReview for git-token endpoint (validate pod ServiceAccount tokens)
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
 # Catalyst CRDs - Projects and Environments
 - apiGroups:
   - catalyst.catalyst.dev
