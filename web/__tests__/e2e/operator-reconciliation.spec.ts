@@ -225,7 +225,7 @@ test.describe("Operator Reconciliation", () => {
       k8s.customApi,
       TEST_TEAM,
       TEST_ENVIRONMENT,
-      { timeoutMs: 900000 }, // 15 minutes (leave 1 minute buffer for test timeout)
+      { timeoutMs: 540000 }, // 9 minutes (leave 1 minute buffer for test timeout)
     );
 
     expect(result.phase).toBe("Ready");
