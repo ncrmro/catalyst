@@ -6,7 +6,7 @@
  */
 
 import { db } from "@/db";
-import { projects } from "@/db/schema";
+import { projects, teamsMemberships, githubUserTokens } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getProjects } from "@/models/projects";
 import { getEnvironments } from "@/models/environments";
@@ -169,6 +169,24 @@ export async function syncProjectToK8s(
         },
       },
     };
+
+    // Set githubInstallationId for git credential helper
+    // Look up installation ID from team members' GitHub tokens
+    const tokenWithInstallation = await db
+      .select({ installationId: githubUserTokens.installationId })
+      .from(githubUserTokens)
+      .innerJoin(
+        teamsMemberships,
+        eq(teamsMemberships.userId, githubUserTokens.userId),
+      )
+      .where(eq(teamsMemberships.teamId, projectWithTeam.team.id))
+      .then((rows) => rows.find((r) => r.installationId));
+
+    if (tokenWithInstallation?.installationId) {
+      spec.githubInstallationId = tokenWithInstallation.installationId;
+    } else if (process.env.ENABLE_GIT_TOKEN_PAT_MODE === "true") {
+      spec.githubInstallationId = "pat";
+    }
 
     // Try create first in team namespace with labels
     const projectLabels = {

@@ -42,8 +42,12 @@ fi
 
 # Get installation ID from environment variable (set by operator)
 if [ -z "$INSTALLATION_ID" ]; then
-    echo "Error: INSTALLATION_ID environment variable not set" >&2
-    exit 1
+    if [ "$ENABLE_PAT_FALLBACK" = "true" ]; then
+        INSTALLATION_ID="pat"
+    else
+        echo "Error: INSTALLATION_ID environment variable not set" >&2
+        exit 1
+    fi
 fi
 
 # Get web server URL from environment or use default

@@ -253,6 +253,7 @@ func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, project *ca
 			Command: []string{"/scripts/git-clone.sh"},
 			Env: []corev1.EnvVar{
 				{Name: "INSTALLATION_ID", Value: githubInstallationId},
+				{Name: "ENABLE_PAT_FALLBACK", Value: os.Getenv("ENABLE_PAT_FALLBACK")},
 				{Name: "CATALYST_WEB_URL", Value: getCatalystWebURL()},
 				{Name: "GIT_REPO_URL", Value: repoURL},
 				{Name: "GIT_COMMIT", Value: commit},
