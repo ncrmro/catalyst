@@ -332,76 +332,83 @@ jobs:
       - name: Export Kind cluster logs
         if: failure()
         run: |
-          kind export logs /tmp/kind-logs --name preview-cluster
-
-      - name: Upload Kind logs
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: kind-cluster-logs
-          path: /tmp/kind-logs/
-          retention-days: 30
+          mkdir -p /tmp/cluster-logs
+          kind export logs /tmp/cluster-logs/kind --name preview-cluster
 
       - name: Debug on Failure - Cluster State
         if: failure()
         run: |
-          echo "=== All Resources ==="
-          kubectl get all -A
-          
-          echo "=== Events ==="
-          kubectl get events -A --sort-by=.metadata.creationTimestamp
-          
-          echo "=== All Pods in All Namespaces ==="
-          kubectl get pods -A -o wide
-          
-          echo "=== Describe All Pods ==="
-          kubectl describe pods -A
-          
-          echo "=== CRDs ==="
-          kubectl get crd
-          
-          echo "=== Projects ==="
-          kubectl get projects -A || echo "No Projects found"
-          
-          echo "=== Environments ==="
-          kubectl get environments -A || echo "No Environments found"
-          
-          echo "=== Ingress Resources ==="
-          kubectl get ingress -A
-          
-          echo "=== ConfigMaps ==="
-          kubectl get configmaps -A
-          
-          echo "=== Deployments ==="
-          kubectl get deployments -A
-          
-          echo "=== Docker Images in Kind ==="
-          docker exec preview-cluster-control-plane crictl images || echo "Could not list images"
-          
-          echo "=== Kind Cluster Info ==="
-          kind get clusters
-          kubectl cluster-info
+          LOG=/tmp/cluster-logs/cluster-state.log
+
+          echo "=== All Resources ===" | tee $LOG
+          kubectl get all -A 2>&1 | tee -a $LOG
+
+          echo "=== Events ===" | tee -a $LOG
+          kubectl get events -A --sort-by=.metadata.creationTimestamp 2>&1 | tee -a $LOG
+
+          echo "=== All Pods in All Namespaces ===" | tee -a $LOG
+          kubectl get pods -A -o wide 2>&1 | tee -a $LOG
+
+          echo "=== Describe All Pods ===" | tee -a $LOG
+          kubectl describe pods -A 2>&1 | tee -a $LOG
+
+          echo "=== CRDs ===" | tee -a $LOG
+          kubectl get crd 2>&1 | tee -a $LOG
+
+          echo "=== Projects ===" | tee -a $LOG
+          kubectl get projects -A 2>&1 | tee -a $LOG || echo "No Projects found" | tee -a $LOG
+
+          echo "=== Environments ===" | tee -a $LOG
+          kubectl get environments -A -o yaml 2>&1 | tee -a $LOG || echo "No Environments found" | tee -a $LOG
+
+          echo "=== Ingress Resources ===" | tee -a $LOG
+          kubectl get ingress -A 2>&1 | tee -a $LOG
+
+          echo "=== ConfigMaps ===" | tee -a $LOG
+          kubectl get configmaps -A 2>&1 | tee -a $LOG
+
+          echo "=== Deployments ===" | tee -a $LOG
+          kubectl get deployments -A 2>&1 | tee -a $LOG
+
+          echo "=== Docker Images in Kind ===" | tee -a $LOG
+          docker exec preview-cluster-control-plane crictl images 2>&1 | tee -a $LOG || echo "Could not list images" | tee -a $LOG
+
+          echo "=== Kind Cluster Info ===" | tee -a $LOG
+          kind get clusters 2>&1 | tee -a $LOG
+          kubectl cluster-info 2>&1 | tee -a $LOG
 
       - name: Debug on Failure - Operator Logs
         if: failure()
         run: |
-          echo "=== Operator Pod Logs (Full) ==="
-          kubectl logs -n catalyst-system -l control-plane=controller-manager --tail=-1 --all-containers=true || echo "No operator logs found"
-          
-          echo "=== Operator Pod Previous Logs (if crashed) ==="
-          kubectl logs -n catalyst-system -l control-plane=controller-manager --previous --all-containers=true || echo "No previous operator logs found"
+          LOG=/tmp/cluster-logs/operator.log
+
+          echo "=== Operator Pod Logs (Full) ===" | tee $LOG
+          kubectl logs -n catalyst-system -l control-plane=controller-manager --tail=-1 --all-containers=true 2>&1 | tee -a $LOG || echo "No operator logs found" | tee -a $LOG
+
+          echo "=== Operator Pod Previous Logs (if crashed) ===" | tee -a $LOG
+          kubectl logs -n catalyst-system -l control-plane=controller-manager --previous --all-containers=true 2>&1 | tee -a $LOG || echo "No previous operator logs found" | tee -a $LOG
 
       - name: Debug on Failure - Web Logs
         if: failure()
         run: |
-          echo "=== Web Pod Logs (Full) ==="
-          kubectl logs -n catalyst-system deployment/catalyst-web --tail=-1 --all-containers=true || echo "No web logs found"
+          LOG=/tmp/cluster-logs/web.log
 
-          echo "=== Web Pod Previous Logs (if crashed) ==="
-          kubectl logs -n catalyst-system deployment/catalyst-web --previous --all-containers=true || echo "No previous web logs found"
+          echo "=== Web Pod Logs (Full) ===" | tee $LOG
+          kubectl logs -n catalyst-system deployment/catalyst-web --tail=-1 --all-containers=true 2>&1 | tee -a $LOG || echo "No web logs found" | tee -a $LOG
 
-          echo "=== Web Pod Status ==="
-          kubectl get pods -n catalyst-system -l app.kubernetes.io/component=web -o yaml
+          echo "=== Web Pod Previous Logs (if crashed) ===" | tee -a $LOG
+          kubectl logs -n catalyst-system deployment/catalyst-web --previous --all-containers=true 2>&1 | tee -a $LOG || echo "No previous web logs found" | tee -a $LOG
+
+          echo "=== Web Pod Status ===" | tee -a $LOG
+          kubectl get pods -n catalyst-system -l app.kubernetes.io/component=web -o yaml 2>&1 | tee -a $LOG
+
+      - name: Upload cluster logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cluster-logs
+          path: /tmp/cluster-logs/
+          retention-days: 30
 
   # build-container:
   #   name: Build Container Images
