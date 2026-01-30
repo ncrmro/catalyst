@@ -437,6 +437,7 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 		if err := r.ensureGitScriptsConfigMap(ctx, namespace); err != nil {
 			return false, fmt.Errorf("failed to ensure git scripts ConfigMap: %w", err)
 		}
+		log.Info("Git scripts ConfigMap ensured", "namespace", namespace)
 	}
 
 	// 1. Create PVCs (idempotent)
@@ -449,6 +450,7 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 	if err := r.Create(ctx, postgresDataPVC); err != nil && !isAlreadyExists(err) {
 		return false, err
 	}
+	log.Info("PVCs created/verified", "namespace", namespace)
 
 	// 2. Create PostgreSQL deployment and service
 	postgresDeployment := desiredPostgresDeployment(namespace)
@@ -460,6 +462,7 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 	if err := r.Create(ctx, postgresService); err != nil && !isAlreadyExists(err) {
 		return false, err
 	}
+	log.Info("PostgreSQL deployment and service created/verified", "namespace", namespace)
 
 	// 3. Wait for PostgreSQL to be ready before creating web deployment
 	postgresReady, err := r.isDeploymentReady(ctx, namespace, "postgres")
@@ -481,6 +484,7 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 	if err := r.Create(ctx, webService); err != nil && !isAlreadyExists(err) {
 		return false, err
 	}
+	log.Info("Web deployment and service created/verified", "namespace", namespace)
 
 	// 5. Check if web deployment is ready
 	webReady, err := r.isDeploymentReady(ctx, namespace, "web")
