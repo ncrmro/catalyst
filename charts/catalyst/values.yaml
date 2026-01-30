@@ -101,6 +101,9 @@ web:
       cpu: 100m
       memory: 128Mi
 
+  # Enable PAT mode for git-token endpoint (for users using GitHub PAT instead of App)
+  enableGitTokenPatMode: false
+
   env: []
 
   envFrom: []

@@ -198,6 +198,7 @@ jobs:
           # Web application configuration
           web:
             enabled: true
+            enableGitTokenPatMode: true
             image:
               repository: ghcr.io/ncrmro/catalyst/web
               tag: latest
