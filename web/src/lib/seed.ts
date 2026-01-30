@@ -241,9 +241,9 @@ export async function createTeamRepos(teamId: string, uniqueSuffix: string) {
     {
       githubId: Math.floor(Math.random() * 1000000) + 1001, // Random ID to avoid conflicts
       name: `foo-frontend-${uniqueSuffix}`,
-      fullName: `jdoe/foo-frontend-${uniqueSuffix}`,
+      fullName: `ncrmro/catalyst`,
       description: "Frontend application for the foo project",
-      url: `https://github.com/jdoe/foo-frontend-${uniqueSuffix}`,
+      url: `https://github.com/ncrmro/catalyst`,
       isPrivate: false,
       language: "TypeScript",
       stargazersCount: 42,
