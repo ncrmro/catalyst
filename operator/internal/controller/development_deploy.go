@@ -36,7 +36,7 @@ import (
 // TODO: Database configuration should not be hardcoded - each project may use a different database
 // (e.g., PostgreSQL, MySQL, MongoDB). This should be configurable via the Project or Environment CR.
 const (
-	nodeImage           = "node:22"
+	nodeImage           = "node:22-slim"
 	postgresImage       = "postgres:16"
 	gitCloneImageDev    = "alpine/git:2.45.2"
 	hostCodePath        = "/code"
@@ -490,6 +490,43 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 	webReady, err := r.isDeploymentReady(ctx, namespace, "web")
 	if err != nil {
 		return false, err
+	}
+
+	if !webReady {
+		// Log deployment status for diagnostics
+		webDeploy := &appsv1.Deployment{}
+		if getErr := r.Get(ctx, client.ObjectKey{Name: "web", Namespace: namespace}, webDeploy); getErr == nil {
+			log.Info("Web deployment not ready",
+				"namespace", namespace,
+				"replicas", webDeploy.Status.Replicas,
+				"readyReplicas", webDeploy.Status.ReadyReplicas,
+				"unavailableReplicas", webDeploy.Status.UnavailableReplicas,
+				"conditions", fmt.Sprintf("%v", webDeploy.Status.Conditions),
+			)
+		}
+		// Log pod status for init container diagnostics
+		podList := &corev1.PodList{}
+		if listErr := r.List(ctx, podList, client.InNamespace(namespace), client.MatchingLabels{"app": "web"}); listErr == nil {
+			for _, pod := range podList.Items {
+				initStatuses := make([]string, 0, len(pod.Status.InitContainerStatuses))
+				for _, s := range pod.Status.InitContainerStatuses {
+					state := "unknown"
+					if s.State.Waiting != nil {
+						state = fmt.Sprintf("waiting:%s", s.State.Waiting.Reason)
+					} else if s.State.Running != nil {
+						state = "running"
+					} else if s.State.Terminated != nil {
+						state = fmt.Sprintf("terminated:%s(exit:%d)", s.State.Terminated.Reason, s.State.Terminated.ExitCode)
+					}
+					initStatuses = append(initStatuses, fmt.Sprintf("%s=%s", s.Name, state))
+				}
+				log.Info("Web pod status",
+					"pod", pod.Name,
+					"phase", pod.Status.Phase,
+					"initContainers", fmt.Sprintf("%v", initStatuses),
+				)
+			}
+		}
 	}
 
 	return webReady, nil

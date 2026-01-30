@@ -165,10 +165,10 @@ jobs:
           # Verify images were built
           docker images | grep -E '(ghcr.io/ncrmro/catalyst)'
           
-          # Load both images into Kind cluster
+          # Load built images into Kind cluster
           kind load docker-image ghcr.io/ncrmro/catalyst/operator:latest --name preview-cluster
           kind load docker-image ghcr.io/ncrmro/catalyst/web:latest --name preview-cluster
-          
+
           echo "Images built and loaded into Kind cluster"
 
       - name: Build Helm chart dependencies
@@ -250,6 +250,7 @@ jobs:
             --create-namespace \
             --values e2e-values.yaml \
             --set operator.localPreviewRouting=true \
+            --set operator.ingressPort=8080 \
             --wait \
             --timeout 10m
           

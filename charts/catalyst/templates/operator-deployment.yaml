@@ -66,6 +66,15 @@ spec:
               port: 8081
             initialDelaySeconds: 5
             periodSeconds: 10
+          env:
+            - name: LOCAL_PREVIEW_ROUTING
+              value: {{ .Values.operator.localPreviewRouting | quote }}
+            {{- if .Values.operator.ingressPort }}
+            - name: INGRESS_PORT
+              value: {{ .Values.operator.ingressPort | quote }}
+            {{- end }}
+            - name: CATALYST_WEB_URL
+              value: "http://{{ include "catalyst.fullname" . }}-web.{{ .Release.Namespace }}.svc.cluster.local:3000"
           {{- with .Values.operator.resources }}
           resources:
             {{- toYaml . | nindent 12 }}

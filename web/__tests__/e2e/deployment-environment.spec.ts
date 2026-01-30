@@ -7,7 +7,7 @@ const API_VERSION = "v1alpha1";
 
 /**
  * E2E test for creating deployment environments through the UI.
- * 
+ *
  * This test uses test.describe.serial() to ensure it doesn't run in parallel
  * with other Kubernetes-heavy tests to avoid resource conflicts and flaky behavior in CI.
  */
@@ -28,7 +28,9 @@ test.describe.serial("Deployment Environment E2E", () => {
         plural: "environments",
         name: createdEnvironmentName,
       });
-      console.log(`✓ Cleaned up test environment: ${createdEnvironmentName} from namespace: ${createdEnvironmentNamespace}`);
+      console.log(
+        `✓ Cleaned up test environment: ${createdEnvironmentName} from namespace: ${createdEnvironmentNamespace}`,
+      );
     }
   });
 
@@ -94,7 +96,9 @@ test.describe.serial("Deployment Environment E2E", () => {
     console.log("✓ Filled branch field with 'main'");
 
     // Click Create Environment button
-    const createButton = page.getByRole("button", { name: "Create Environment" });
+    const createButton = page.getByRole("button", {
+      name: "Create Environment",
+    });
     await expect(createButton).toBeVisible();
     await createButton.click();
 
@@ -102,20 +106,22 @@ test.describe.serial("Deployment Environment E2E", () => {
 
     // Wait for success message to appear and extract the environment name
     // The message format is "Successfully created development environment: dev-xxx-yyy"
-    const successMessage = page.getByText(/Successfully created development environment:/i);
+    const successMessage = page.getByText(
+      /Successfully created development environment:/i,
+    );
     await expect(successMessage).toBeVisible({ timeout: 30000 });
-    
+
     const successText = await successMessage.textContent();
     const environmentNameMatch = successText?.match(/dev-[a-z]+-[a-z]+-\d+/);
     expect(environmentNameMatch).toBeTruthy();
-    
+
     const environmentName = environmentNameMatch![0];
     createdEnvironmentName = environmentName;
-    
+
     console.log(`✓ Success message appeared: ${successText}`);
     console.log(`✓ Created environment: ${environmentName}`);
 
-    // Switch to Status tab to see the new environment  
+    // Switch to Status tab to see the new environment
     const statusTabs = page.getByRole("tab", { name: "Status" });
     const devEnvironmentStatusTab = statusTabs.nth(1); // Second Status tab (Development Environments)
     await devEnvironmentStatusTab.click();
@@ -150,26 +156,32 @@ test.describe.serial("Deployment Environment E2E", () => {
     // Find the environment in Kubernetes to get its namespace
     const namespaces = await k8s.coreApi.listNamespace();
     let environmentNamespace: string | null = null;
-    
+
     for (const ns of namespaces.items) {
-      const response = await k8s.customApi.getNamespacedCustomObject({
-        group: API_GROUP,
-        version: API_VERSION,
-        namespace: ns.metadata?.name || "",
-        plural: "environments",
-        name: environmentName,
-      }).catch(() => null);
-      
+      const response = await k8s.customApi
+        .getNamespacedCustomObject({
+          group: API_GROUP,
+          version: API_VERSION,
+          namespace: ns.metadata?.name || "",
+          plural: "environments",
+          name: environmentName,
+        })
+        .catch(() => null);
+
       if (response) {
         environmentNamespace = ns.metadata?.name || null;
         createdEnvironmentNamespace = environmentNamespace;
-        console.log(`✓ Found environment in namespace: ${environmentNamespace}`);
+        console.log(
+          `✓ Found environment in namespace: ${environmentNamespace}`,
+        );
         break;
       }
     }
 
     expect(environmentNamespace).toBeTruthy();
-    console.log(`✓ Verified Environment CR exists in namespace: ${environmentNamespace}`);
+    console.log(
+      `✓ Verified Environment CR exists in namespace: ${environmentNamespace}`,
+    );
 
     // Wait for environment to reach Ready status
     console.log("⏳ Waiting for environment to become Ready...");
@@ -190,7 +202,9 @@ test.describe.serial("Deployment Environment E2E", () => {
     const healthUrl = new URL("/api/health/readiness", result.url!).toString();
     const response = await page.request.get(healthUrl, { timeout: 30000 });
     expect(response.ok()).toBe(true);
-    console.log(`✓ Preview URL health check returned HTTP ${response.status()}`);
+    console.log(
+      `✓ Preview URL health check returned HTTP ${response.status()}`,
+    );
 
     console.log("✓ Test completed successfully");
   });

@@ -101,7 +101,10 @@ export default async function PlatformPage({ params }: PlatformPageProps) {
     .replace(/[^a-z0-9-]/g, "-");
 
   // Generate the correct namespace for this team/project
-  const projectNamespace = generateProjectNamespace(teamName, sanitizedProjectName);
+  const projectNamespace = generateProjectNamespace(
+    teamName,
+    sanitizedProjectName,
+  );
 
   // Query environments from the project's namespace, not "default"
   const k8sEnvironments = await listEnvironmentCRs(projectNamespace);
