@@ -52,6 +52,7 @@ operator:
   previewDomain: ""           # Required for production, e.g. "preview.catalyst.dev"
   localPreviewRouting: false  # When true, uses http://{namespace}.localhost:{ingressPort}
   ingressPort: ""             # Port for local preview routing (e.g. "8080")
+  ingressNamespace: ""        # Namespace where ingress controller runs (default: "ingress-nginx")
 
   resources:
     limits:

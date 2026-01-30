@@ -251,6 +251,7 @@ jobs:
             --values e2e-values.yaml \
             --set operator.localPreviewRouting=true \
             --set operator.ingressPort=8080 \
+            --set operator.ingressNamespace=catalyst-system \
             --wait \
             --timeout 10m
           

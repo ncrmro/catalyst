@@ -200,10 +200,27 @@ test.describe.serial("Deployment Environment E2E", () => {
     console.log(`✓ Environment URL: ${result.url}`);
 
     const healthUrl = new URL("/api/health/readiness", result.url!).toString();
-    const response = await page.request.get(healthUrl, { timeout: 30000 });
-    expect(response.ok()).toBe(true);
+
+    // Retry health check with backoff (ingress propagation delay)
+    let healthResponse:
+      | Awaited<ReturnType<typeof page.request.get>>
+      | undefined;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        healthResponse = await page.request.get(healthUrl, { timeout: 10000 });
+        if (healthResponse.ok()) break;
+      } catch {
+        // socket hang up or timeout — ingress not ready yet
+      }
+      console.log(
+        `⏳ Health check attempt ${attempt + 1}/5 failed, retrying...`,
+      );
+      await page.waitForTimeout(3000);
+    }
+    expect(healthResponse).toBeDefined();
+    expect(healthResponse!.ok()).toBe(true);
     console.log(
-      `✓ Preview URL health check returned HTTP ${response.status()}`,
+      `✓ Preview URL health check returned HTTP ${healthResponse!.status()}`,
     );
 
     console.log("✓ Test completed successfully");

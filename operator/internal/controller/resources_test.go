@@ -21,7 +21,7 @@ func TestDesiredResourceQuota(t *testing.T) {
 }
 
 func TestDesiredNetworkPolicy(t *testing.T) {
-	policy := desiredNetworkPolicy("test-ns")
+	policy := desiredNetworkPolicy("test-ns", "ingress-nginx")
 
 	assert.Equal(t, "default-policy", policy.Name)
 	assert.Equal(t, "test-ns", policy.Namespace)
