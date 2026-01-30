@@ -54,32 +54,22 @@ fi
 WEB_URL="${CATALYST_WEB_URL:-http://catalyst-web.catalyst-system.svc.cluster.local:3000}"
 
 # Fetch fresh GitHub token from Catalyst web server
-# Capture HTTP status code alongside the response body
+# Use wget (available in Alpine) instead of curl
+TOKEN_URL="$WEB_URL/api/git-token/$INSTALLATION_ID"
 set +e
-RESPONSE=$(curl -s -w "\n%{http_code}" \
-    -H "Authorization: Bearer $SA_TOKEN" \
-    "$WEB_URL/api/git-token/$INSTALLATION_ID")
-curl_status=$?
+TOKEN=$(wget -q -O - --header="Authorization: Bearer $SA_TOKEN" "$TOKEN_URL" 2>/tmp/wget_err)
+wget_status=$?
 set -e
 
-# Split response body and HTTP status
-HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-TOKEN=$(echo "$RESPONSE" | sed '$d')
-
-if [ $curl_status -ne 0 ]; then
-    echo "Error: curl failed (exit $curl_status) connecting to $WEB_URL/api/git-token/$INSTALLATION_ID" >&2
-    exit 1
-fi
-
-if [ "$HTTP_CODE" != "200" ]; then
-    echo "Error: git-token endpoint returned HTTP $HTTP_CODE" >&2
-    echo "Response: $TOKEN" >&2
-    echo "URL: $WEB_URL/api/git-token/$INSTALLATION_ID" >&2
+if [ $wget_status -ne 0 ]; then
+    WGET_ERR=$(cat /tmp/wget_err 2>/dev/null)
+    echo "Error: wget failed (exit $wget_status) connecting to $TOKEN_URL" >&2
+    echo "wget error: $WGET_ERR" >&2
     exit 1
 fi
 
 if [ -z "$TOKEN" ]; then
-    echo "Error: git-token endpoint returned empty token" >&2
+    echo "Error: git-token endpoint returned empty token from $TOKEN_URL" >&2
     exit 1
 fi
 
