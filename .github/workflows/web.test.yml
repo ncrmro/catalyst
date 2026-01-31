@@ -1,11 +1,6 @@
 name: Test Web
 
 on:
-  pull_request:
-    paths:
-      - "web/**"
-      - ".github/actions/build-container-bake/**"
-      - ".github/workflows/web.test.yml"
   workflow_call:
 
 concurrency:

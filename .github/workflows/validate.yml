@@ -88,7 +88,6 @@ jobs:
     if: needs.detect-changes.outputs.charts_changed == 'true'
     uses: ./.github/workflows/test.charts.nextjs.yml
 
-  # Summary job that will pass even if individual test jobs are skipped
   validate-summary:
     name: Validation Summary
     runs-on: ubuntu-latest

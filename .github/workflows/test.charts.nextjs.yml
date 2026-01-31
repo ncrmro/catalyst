@@ -1,9 +1,6 @@
 name: Test Charts NextJS
 
 on:
-  pull_request:
-    paths:
-      - 'charts/nextjs/**'
   workflow_dispatch:
   workflow_call:
 
