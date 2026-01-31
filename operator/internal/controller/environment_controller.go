@@ -242,8 +242,9 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// Determine if we're in local mode (path-based routing) or production mode (hostname-based routing)
 	isLocal := os.Getenv("LOCAL_PREVIEW_ROUTING") == "true"
 	ingressPort := os.Getenv("INGRESS_PORT")
+	previewDomain := os.Getenv("PREVIEW_DOMAIN")
 
-	ingress := desiredIngress(env, targetNamespace, isLocal)
+	ingress := desiredIngress(env, targetNamespace, isLocal, previewDomain)
 	existingIngress := &networkingv1.Ingress{}
 	err = r.Get(ctx, client.ObjectKey{Name: "app", Namespace: targetNamespace}, existingIngress)
 
@@ -258,7 +259,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// Generate and update the URL in status
-	publicURL := generateURL(env, targetNamespace, isLocal, ingressPort)
+	publicURL := generateURL(env, targetNamespace, isLocal, ingressPort, previewDomain)
 	if env.Status.URL != publicURL {
 		env.Status.URL = publicURL
 		log.Info("Updating Environment URL", "url", publicURL)

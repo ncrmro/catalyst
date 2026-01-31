@@ -108,7 +108,7 @@ func desiredService(namespace string) *corev1.Service {
 // desiredIngress creates an Ingress resource for the environment.
 // When isLocal is true, it uses hostname-based routing with *.localhost (e.g., namespace.localhost:8080).
 // When isLocal is false, it uses hostname-based routing with TLS (production mode).
-func desiredIngress(env *catalystv1alpha1.Environment, namespace string, isLocal bool) *networkingv1.Ingress {
+func desiredIngress(env *catalystv1alpha1.Environment, namespace string, isLocal bool, previewDomain ...string) *networkingv1.Ingress {
 	if isLocal {
 		// Hostname-based routing for local development
 		// Pattern: namespace.localhost (e.g., catalyst-catalyst-dev.localhost:8080)
@@ -151,8 +151,11 @@ func desiredIngress(env *catalystv1alpha1.Environment, namespace string, isLocal
 	}
 
 	// Production mode: hostname-based routing with TLS
-	// Host format: <env-name>.preview.catalyst.dev
-	host := fmt.Sprintf("%s.preview.catalyst.dev", env.Name)
+	domain := "preview.catalyst.dev"
+	if len(previewDomain) > 0 && previewDomain[0] != "" {
+		domain = previewDomain[0]
+	}
+	host := fmt.Sprintf("%s.%s", env.Name, domain)
 	pathType := networkingv1.PathTypePrefix
 
 	return &networkingv1.Ingress{
@@ -201,7 +204,7 @@ func desiredIngress(env *catalystv1alpha1.Environment, namespace string, isLocal
 // generateURL creates the public URL for the environment based on the deployment mode.
 // When isLocal is true, it generates a hostname-based URL (e.g., http://namespace.localhost:8080/).
 // When isLocal is false, it generates a hostname-based URL with HTTPS (e.g., https://env-name.preview.catalyst.dev/).
-func generateURL(env *catalystv1alpha1.Environment, namespace string, isLocal bool, ingressPort string) string {
+func generateURL(env *catalystv1alpha1.Environment, namespace string, isLocal bool, ingressPort string, previewDomain ...string) string {
 	if isLocal {
 		// Hostname-based URL for local development
 		// Default ingress port is 8080 if not specified
@@ -212,7 +215,11 @@ func generateURL(env *catalystv1alpha1.Environment, namespace string, isLocal bo
 	}
 
 	// Production hostname-based URL with HTTPS
-	return fmt.Sprintf("https://%s.preview.catalyst.dev/", env.Name)
+	domain := "preview.catalyst.dev"
+	if len(previewDomain) > 0 && previewDomain[0] != "" {
+		domain = previewDomain[0]
+	}
+	return fmt.Sprintf("https://%s.%s/", env.Name, domain)
 }
 
 func toCoreEnvVars(vars []catalystv1alpha1.EnvVar) []corev1.EnvVar {

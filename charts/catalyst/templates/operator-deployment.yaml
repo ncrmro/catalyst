@@ -72,6 +72,10 @@ spec:
           env:
             - name: LOCAL_PREVIEW_ROUTING
               value: {{ .Values.operator.localPreviewRouting | quote }}
+            {{- if .Values.operator.previewDomain }}
+            - name: PREVIEW_DOMAIN
+              value: {{ .Values.operator.previewDomain | quote }}
+            {{- end }}
             {{- if .Values.operator.ingressPort }}
             - name: INGRESS_PORT
               value: {{ .Values.operator.ingressPort | quote }}
