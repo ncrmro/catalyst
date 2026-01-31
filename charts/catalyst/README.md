@@ -146,6 +146,28 @@ The web application automatically connects to the PostgreSQL cluster using the s
 4. **Storage**: Configure appropriate `storageClass` for your environment
 5. **Secrets**: Pass sensitive environment variables via `web.envFrom` referencing external secrets
 
+## Development Environment Init Containers
+
+When the operator creates a development environment pod, it runs three init containers in sequence before the main web container starts. All init containers share a `/code` PVC (PersistentVolumeClaim):
+
+1. **`git-clone`**: Clones the repository branch into the shared PVC. Uses a git credential helper that fetches tokens from the web server's `/api/git-token/:installationId` endpoint.
+2. **`npm-install`**: Runs `npm ci` in the cloned repository to install dependencies.
+3. **`db-migrate`**: Runs `npm run db:migrate` to apply database migrations. This requires network access to the postgres service in the same namespace — if a NetworkPolicy blocks intra-namespace traffic, this step fails with `ETIMEDOUT`.
+
+Kubernetes enforces init container ordering: each must exit successfully before the next starts.
+
+## Resource Requirements
+
+| Container  | Memory Limit | Notes                                                  |
+| ---------- | ------------ | ------------------------------------------------------ |
+| Web        | 2Gi          | `next dev --turbopack` OOMKills at 1Gi (exit code 137) |
+| PostgreSQL | 512Mi        | Standard postgres workload                             |
+
+**Namespace totals** (set via ResourceQuota):
+
+- Memory limits: 8Gi
+- CPU limits: 4
+
 ## License
 
 See the parent project license for more information.

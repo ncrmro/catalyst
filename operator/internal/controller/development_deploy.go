@@ -367,7 +367,12 @@ func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, project *ca
 							WorkingDir:   webWorkDir,
 							Command:      []string{"./node_modules/.bin/next", "dev", "--turbopack"},
 							VolumeMounts: mainVolumeMounts,
-							Env:          envVars,
+							Env: envVars,
+							// TODO: Resource limits are hardcoded. It is undetermined how
+							// users will configure these in the future (CRD field, project
+							// config, etc.).
+							// 2Gi memory limit: next dev --turbopack OOMKills at 1Gi
+							// (exit code 137, pod enters CrashLoopBackOff).
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
 									corev1.ResourceCPU:    resource.MustParse("200m"),

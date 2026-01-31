@@ -28,6 +28,7 @@ function EnvironmentRowItem({ environment, projectSlug }: EnvironmentRowProps) {
     <Link
       href={`/projects/${projectSlug}/env/${metadata.name}`}
       className="block px-4 py-3 hover:bg-surface/50 transition-colors rounded-lg"
+      data-namespace={metadata.namespace}
     >
       <div className="flex items-center gap-4">
         <div className="flex-1 min-w-0">

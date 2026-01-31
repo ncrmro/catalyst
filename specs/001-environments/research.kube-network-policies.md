@@ -220,6 +220,26 @@ Network policies require a CNI plugin that supports them:
 | Flannel     | No support (requires Calico overlay) |
 | AWS VPC CNI | Requires Calico add-on               |
 
+## Lessons Learned
+
+### K3s Flannel vs Kind kindnet NetworkPolicy Enforcement
+
+K3s ships with Flannel as its default CNI, which **silently ignores NetworkPolicies** (see [CNI Requirements](#cni-requirements) table above). This means local development on K3s will not surface NetworkPolicy misconfigurations. Kind (v0.24+) uses kindnet, which **does enforce** NetworkPolicies, making CI the first place where policy bugs appear.
+
+### Intra-Namespace Ingress Bug
+
+**Symptom**: The `db-migrate` init container gets `ETIMEDOUT` connecting to the postgres ClusterIP service within the same namespace. The pod hangs in init and eventually times out.
+
+**Root cause**: The operator's NetworkPolicy only allowed ingress from the ingress-nginx namespace. It did not include a `podSelector: {}` rule to allow intra-namespace communication. Since all pods in the namespace were isolated by the deny-all policy, the web pod's init containers could not reach the postgres service in the same namespace.
+
+**Fix**: Added an ingress rule with `podSelector: {}` (empty selector = all pods in the namespace) to allow intra-namespace pod-to-pod communication. See `operator/internal/controller/resources.go`.
+
+**Why it was missed**: The research document (lines 140-157 above) already documented the inter-pod communication pattern with `podSelector: {}`, and the implementation pattern (line 208) listed "Inter-pod communication within namespace" as a required rule. However, the operator implementation initially omitted this rule. K3s/Flannel silently ignored the missing rule, so local testing passed. The bug only surfaced in CI where Kind/kindnet enforced the policy.
+
+### Takeaway
+
+Always test NetworkPolicies on an enforcing CNI. Use Kind in CI to catch policy bugs that K3s/Flannel misses locally. When writing deny-all policies, explicitly allow intra-namespace traffic if pods need to communicate (e.g., web init containers connecting to managed services like postgres).
+
 ## References
 
 - [Network Policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/)

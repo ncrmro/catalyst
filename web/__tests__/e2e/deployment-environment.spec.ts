@@ -22,7 +22,9 @@ test.describe.serial("Deployment Environment E2E", () => {
     page,
     k8s,
   }) => {
-    // Cleanup any leftover environment from a previous run
+    // Clean up before the test, not after. Leaving resources in place after
+    // a failure lets us inspect pods, logs, and CRs for debugging. The next
+    // run cleans up stale state here so we always start from a known baseline.
     if (createdEnvironmentName && createdEnvironmentNamespace) {
       await k8s.customApi
         .deleteNamespacedCustomObject({
@@ -155,35 +157,14 @@ test.describe.serial("Deployment Environment E2E", () => {
     await expect(environmentLinks.first()).toBeVisible({ timeout: 30000 });
     console.log(`✓ Environment ${environmentName} is visible in the UI`);
 
-    // Find the environment in Kubernetes to get its namespace
-    const namespaces = await k8s.coreApi.listNamespace();
-    let environmentNamespace: string | null = null;
-
-    for (const ns of namespaces.items) {
-      const response = await k8s.customApi
-        .getNamespacedCustomObject({
-          group: API_GROUP,
-          version: API_VERSION,
-          namespace: ns.metadata?.name || "",
-          plural: "environments",
-          name: environmentName,
-        })
-        .catch(() => null);
-
-      if (response) {
-        environmentNamespace = ns.metadata?.name || null;
-        createdEnvironmentNamespace = environmentNamespace;
-        console.log(
-          `✓ Found environment in namespace: ${environmentNamespace}`,
-        );
-        break;
-      }
-    }
-
+    // Read the namespace from the data-namespace attribute on the environment link
+    // rather than iterating all cluster namespaces.
+    const environmentNamespace = await environmentLinks
+      .first()
+      .getAttribute("data-namespace");
     expect(environmentNamespace).toBeTruthy();
-    console.log(
-      `✓ Verified Environment CR exists in namespace: ${environmentNamespace}`,
-    );
+    createdEnvironmentNamespace = environmentNamespace;
+    console.log(`✓ Environment namespace from UI: ${environmentNamespace}`);
 
     // Wait for environment to reach Ready status
     console.log("⏳ Waiting for environment to become Ready...");

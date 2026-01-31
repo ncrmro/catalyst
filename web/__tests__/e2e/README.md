@@ -319,3 +319,33 @@ tests/e2e/
 ├── global-setup.ts              # Global test setup
 └── *.spec.ts                    # Test files
 ```
+
+## Local vs CI Environment
+
+### Local: K3s VM + Helm
+
+- Started via `bin/e2e-cluster up` (see project root `CLAUDE.md`)
+- Uses K3s with **Flannel** CNI
+- Flannel **does not enforce** NetworkPolicies, so policy misconfigurations are invisible locally
+- Port forwarding: K3s API on `localhost:6443`, web on NodePort 30000
+
+### CI: Kind + Helm
+
+- Configured in `.github/workflows/web.test.yml`
+- Uses Kind with **kindnet** CNI
+- kindnet **does enforce** NetworkPolicies, so policy bugs surface here first
+- Images are built and loaded into the Kind cluster before Helm install
+
+### Key Difference: NetworkPolicy Enforcement
+
+NetworkPolicy bugs only appear in CI. If a deny-all policy is missing an intra-namespace allow rule, pods in the same namespace cannot communicate. Locally on K3s/Flannel this works fine; in CI on Kind/kindnet the `db-migrate` init container fails with `ETIMEDOUT` trying to connect to the postgres service.
+
+### Common CI Failures
+
+- **OOMKill (502/503 from ingress)**: The web container was OOMKilled (exit code 137). Check memory limits — `next dev --turbopack` requires 2Gi.
+- **ETIMEDOUT in db-migrate**: NetworkPolicy is blocking intra-namespace traffic. Verify the policy includes a `podSelector: {}` ingress rule.
+- **Timeout waiting for Ready**: Slow `npm install` on CI runners, or init container sequence stalled. Check pod events and init container logs.
+
+### Deployment Environment Test
+
+The deployment-environment E2E test creates a real Environment CR. The operator must reconcile the full init container sequence (`git-clone` -> `npm-install` -> `db-migrate`) before the pod becomes Ready. This test exercises the complete Kubernetes deployment pipeline and is sensitive to NetworkPolicy, resource limits, and operator reconciliation timing.
