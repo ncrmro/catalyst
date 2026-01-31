@@ -1,6 +1,6 @@
 "use client";
 
-import type { PodInfo } from "@/lib/k8s-pods";
+import type { PodInfo } from "@/actions/kubernetes";
 import { EntityCard } from "@/components/ui/entity-card";
 
 interface PodCardProps {

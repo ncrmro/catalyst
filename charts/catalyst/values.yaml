@@ -47,6 +47,7 @@ operator:
     pullPolicy: IfNotPresent
 
   imagePullSecrets: []
+  podAnnotations: {}
 
   # Preview routing configuration
   previewDomain: ""           # Required for production, e.g. "preview.catalyst.dev"
@@ -79,6 +80,7 @@ web:
     pullPolicy: IfNotPresent
 
   imagePullSecrets: []
+  podAnnotations: {}
 
   service:
     type: ClusterIP

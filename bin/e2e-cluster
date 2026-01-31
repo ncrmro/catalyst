@@ -127,6 +127,12 @@ cmd_up() {
     info "GITHUB_PAT set from environment"
   fi
 
+  # Force pod rollout by setting a unique annotation on each deploy.
+  # Without this, reusing the ":latest" tag causes K8s to see no spec change
+  # and skip restarting pods, leaving stale images running.
+  local deploy_ts
+  deploy_ts="$(date +%s)"
+
   info "Installing/upgrading Catalyst via Helm..."
   helm upgrade --install catalyst "$PROJECT_ROOT/charts/catalyst" \
     --namespace "$NAMESPACE" \
@@ -138,6 +144,8 @@ cmd_up() {
     --set ingress-nginx.controller.hostPort.enabled=false \
     --set ingress-nginx.controller.service.type=NodePort \
     --set ingress-nginx.controller.service.nodePorts.http=30080 \
+    --set-string "web.podAnnotations.catalyst\\.dev/deploy-ts=$deploy_ts" \
+    --set-string "operator.podAnnotations.catalyst\\.dev/deploy-ts=$deploy_ts" \
     "${helm_extra_args[@]}" \
     --wait \
     --timeout 10m

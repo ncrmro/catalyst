@@ -220,6 +220,115 @@ export async function createProjectEnvironment(
 }
 
 /**
+ * Get full environment detail data for the env detail page.
+ * Resolves the correct project namespace (not "default") and fetches CR, DB record, and pods.
+ */
+export async function getEnvironmentDetail(
+  projectSlug: string,
+  envSlug: string,
+) {
+  const { getEnvironmentCR } = await import("@/lib/k8s-operator");
+  const { getEnvironmentByName } = await import("@/models/environments");
+  const { listPodsInNamespace } = await import("@/lib/k8s-pods");
+  type PodInfoType = import("@/lib/k8s-pods").PodInfo;
+
+  // Fetch project (includes auth check via team scoping)
+  const userTeamIds = await getUserTeamIds();
+  const projectsResult = await getProjects({
+    slugs: [projectSlug],
+    teamIds: userTeamIds,
+  });
+
+  if (projectsResult.length === 0) return null;
+  const project = projectsResult[0];
+
+  // Get team name for namespace generation
+  const projectWithTeam = await db.query.projects.findFirst({
+    where: eq(projects.id, project.id),
+    with: { team: true },
+  });
+
+  if (!projectWithTeam?.team) return null;
+
+  const sanitizedProjectName = sanitizeNamespaceComponent(project.name);
+  const projectNamespace = generateProjectNamespace(
+    projectWithTeam.team.name,
+    sanitizedProjectName,
+  );
+
+  // Fetch the environment CR from the correct namespace
+  const environment = await getEnvironmentCR(projectNamespace, envSlug);
+  if (!environment) return null;
+
+  // Fetch environment config from database
+  const dbEnvironment = await getEnvironmentByName(projectSlug, envSlug);
+
+  // Calculate target namespace matching operator logic
+  const targetNamespace = `${environment.spec.projectRef.name}-${environment.metadata.name}`;
+
+  // Helper to generate workspace pod name matching the operator logic
+  const commitPart =
+    environment.spec.sources?.[0]?.commitSha.substring(0, 7) || "unknown";
+  const podName = `workspace-${environment.spec.projectRef.name}-${commitPart.toLowerCase()}`;
+
+  // Fetch pods from the target namespace
+  let pods: PodInfoType[] = [];
+  try {
+    pods = await listPodsInNamespace(targetNamespace);
+  } catch (error) {
+    console.error(
+      `Failed to fetch pods for namespace ${targetNamespace}:`,
+      error,
+    );
+  }
+
+  return {
+    environment,
+    targetNamespace,
+    podName,
+    environmentId: dbEnvironment?.id,
+    environmentConfig: dbEnvironment?.config,
+    pods,
+  };
+}
+
+/**
+ * List environment CRs for a project, using the correct project namespace.
+ */
+export async function listProjectEnvironmentCRs(projectSlug: string) {
+  const { listEnvironmentCRs } = await import("@/lib/k8s-operator");
+
+  // Fetch project (includes auth check via team scoping)
+  const userTeamIds = await getUserTeamIds();
+  const projectsResult = await getProjects({
+    slugs: [projectSlug],
+    teamIds: userTeamIds,
+  });
+
+  if (projectsResult.length === 0) return [];
+  const project = projectsResult[0];
+
+  // Get team name for namespace generation
+  const projectWithTeam = await db.query.projects.findFirst({
+    where: eq(projects.id, project.id),
+    with: { team: true },
+  });
+
+  if (!projectWithTeam?.team) return [];
+
+  const sanitizedProjectName = sanitizeNamespaceComponent(project.name);
+  const projectNamespace = generateProjectNamespace(
+    projectWithTeam.team.name,
+    sanitizedProjectName,
+  );
+
+  const k8sEnvironments = await listEnvironmentCRs(projectNamespace);
+  return k8sEnvironments.filter(
+    (env) => env.spec.projectRef.name === sanitizedProjectName,
+  );
+}
+
+/**
  * Handle form submission and redirect back to the project page
  * This is the handler used by the form action in the UI
  */
