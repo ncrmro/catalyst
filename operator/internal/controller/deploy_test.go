@@ -86,7 +86,7 @@ func TestDesiredIngress_ProductionMode(t *testing.T) {
 	namespace := "my-project-test-env"
 	isLocal := false
 
-	ingress := desiredIngress(env, namespace, isLocal)
+	ingress := desiredIngress(env, namespace, isLocal, "preview.tetraship.app")
 
 	// Verify basic metadata
 	assert.Equal(t, "app", ingress.Name)
@@ -100,7 +100,7 @@ func TestDesiredIngress_ProductionMode(t *testing.T) {
 	// Verify TLS configuration
 	assert.Len(t, ingress.Spec.TLS, 1)
 	tls := ingress.Spec.TLS[0]
-	expectedHost := "test-env.preview.catalyst.dev"
+	expectedHost := "test-env.preview.tetraship.app"
 	assert.Equal(t, []string{expectedHost}, tls.Hosts)
 	assert.Equal(t, "test-env-tls", tls.SecretName)
 
@@ -152,12 +152,12 @@ func TestGenerateURL_ProductionMode(t *testing.T) {
 	namespace := "my-project-test-env"
 	isLocal := false
 
-	url := generateURL(env, namespace, isLocal, "")
-	assert.Equal(t, "https://test-env.preview.catalyst.dev/", url)
+	url := generateURL(env, namespace, isLocal, "", "preview.tetraship.app")
+	assert.Equal(t, "https://test-env.preview.tetraship.app/", url)
 
 	// Port should be ignored in production mode
-	url = generateURL(env, namespace, isLocal, "9090")
-	assert.Equal(t, "https://test-env.preview.catalyst.dev/", url)
+	url = generateURL(env, namespace, isLocal, "9090", "preview.tetraship.app")
+	assert.Equal(t, "https://test-env.preview.tetraship.app/", url)
 }
 
 func TestGetImageForDeployment_FromSpec(t *testing.T) {
