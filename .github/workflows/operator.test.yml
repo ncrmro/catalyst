@@ -1,16 +1,7 @@
 name: Operator Tests
 
 on:
-  # push:
-  #   branches: [ main ]
-  #   paths:
-  #     - 'operator/**'
-  #     - '.github/workflows/operator.yml'
-  pull_request:
-    # branches: [ main ]
-    paths:
-      - 'operator/**'
-      - '.github/workflows/operator.yml'
+  workflow_call:
 
 jobs:
   test:
