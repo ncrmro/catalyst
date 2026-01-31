@@ -6,7 +6,7 @@ import { TerminalModal } from "@/components/terminal";
 import { execCommand } from "@/actions/pod-exec";
 import { EnvironmentCR } from "@/types/crd";
 import type { EnvironmentConfig } from "@/types/environment-config";
-import type { PodInfo } from "@/lib/k8s-pods";
+import type { PodInfo } from "@/actions/kubernetes";
 
 interface EnvironmentDetailProps {
   environment: EnvironmentCR;

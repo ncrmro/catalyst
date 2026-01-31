@@ -6,6 +6,19 @@ import {
   generateNamespaceName,
   NamespaceResult,
 } from "@/lib/k8s-namespaces";
+import { listPodsInNamespace } from "@/lib/k8s-pods";
+
+export type { PodInfo } from "@/lib/k8s-pods";
+
+/**
+ * Server action to list pods in a Kubernetes namespace
+ */
+export async function getNamespacePods(
+  namespaceName: string,
+  clusterName?: string,
+) {
+  return listPodsInNamespace(namespaceName, clusterName);
+}
 
 export interface CreateNamespaceResponse {
   success: boolean;

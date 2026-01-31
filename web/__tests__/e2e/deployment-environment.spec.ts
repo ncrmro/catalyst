@@ -212,6 +212,70 @@ test.describe.serial("Deployment Environment E2E", () => {
       `✓ Preview URL health check returned HTTP ${healthResponse!.status()}`,
     );
 
-    console.log("✓ Test completed successfully");
+    console.log("✓ Test completed successfully — environment is Ready");
+
+    // ── Navigate to environment detail page via the UI link ──
+
+    // Reload platform page to pick up the Ready status in the UI
+    await page.reload();
+    await expect(
+      page.getByRole("heading", { name: "Platform Configuration" }),
+    ).toBeVisible();
+
+    // Switch to Development Environments Status tab
+    const statusTabsFinal = page.getByRole("tab", { name: "Status" });
+    await statusTabsFinal.nth(1).click();
+
+    // Click the environment link to navigate to the detail page
+    const envLink = page
+      .locator('a[href*="/projects/"][href*="/env/"]')
+      .filter({ hasText: new RegExp(environmentName) });
+    await expect(envLink.first()).toBeVisible({ timeout: 10000 });
+    await envLink.first().click();
+
+    // Wait for the environment detail page to load
+    await page.waitForURL(new RegExp(`/env/${environmentName}$`), {
+      timeout: 30000,
+    });
+    console.log("✓ Navigated to environment detail page");
+
+    // Verify the "Preview Environment" heading is visible
+    await expect(
+      page.getByRole("heading", { name: "Preview Environment" }),
+    ).toBeVisible();
+    console.log("✓ Preview Environment heading visible");
+
+    // Verify the branch name heading is displayed
+    await expect(page.getByRole("heading", { name: "main" })).toBeVisible();
+    console.log("✓ Branch name 'main' heading visible");
+
+    // Verify the preview URL is displayed on the detail page
+    const previewLink = page.getByRole("link", { name: result.url! });
+    await expect(previewLink).toBeVisible();
+    console.log(`✓ Preview URL displayed: ${result.url}`);
+
+    // Verify the namespace text is shown (target namespace contains the env name)
+    await expect(
+      page.getByText(new RegExp(`Namespace:.*${environmentName}`)),
+    ).toBeVisible();
+    console.log("✓ Target namespace displayed");
+
+    // Verify the status badge shows Ready
+    await expect(page.getByText("Ready")).toBeVisible();
+    console.log("✓ Status badge shows Ready");
+
+    // Verify the Pods & Containers section is present
+    await expect(
+      page.getByRole("heading", { name: "Pods & Containers" }),
+    ).toBeVisible();
+    console.log("✓ Pods & Containers section visible");
+
+    // Verify the "Open Preview" button/link is present
+    const openPreviewLink = page.getByRole("link", { name: "Open Preview" });
+    await expect(openPreviewLink).toBeVisible();
+    expect(await openPreviewLink.getAttribute("href")).toBe(result.url!);
+    console.log("✓ Open Preview link visible and points to correct URL");
+
+    console.log("✓ Environment detail page validation complete");
   });
 });

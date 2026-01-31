@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { fetchProjectBySlug } from "@/actions/projects";
 import { GlassCard } from "@tetrastack/react-glass-components";
-import { listEnvironmentCRs } from "@/lib/k8s-operator";
+import { listProjectEnvironmentCRs } from "@/actions/environments";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import {
@@ -13,10 +13,6 @@ import { DetectionLoading } from "./_components/detection-loading";
 import { RepositoriesCard, type Repo } from "./_components/repository-card";
 import { SourceManagerWrapper } from "./_components/source-manager-wrapper";
 import type { SourceConfig } from "@/types/crd";
-import { db } from "@/db";
-import { projects } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { generateProjectNamespace } from "@/lib/namespace-utils";
 
 interface PlatformPageProps {
   params: Promise<{
@@ -46,20 +42,6 @@ export default async function PlatformPage({ params }: PlatformPageProps) {
   if (!project) {
     notFound();
   }
-
-  // Get the team information to determine the correct namespace
-  const projectWithTeam = await db.query.projects.findFirst({
-    where: eq(projects.id, project.id),
-    with: {
-      team: true,
-    },
-  });
-
-  if (!projectWithTeam?.team) {
-    throw new Error("Project team not found");
-  }
-
-  const teamName = projectWithTeam.team.name;
 
   // Get the primary repository for detection
   const primaryRepoRelation = project.repositories.find((r) => r.isPrimary);
@@ -95,22 +77,8 @@ export default async function PlatformPage({ params }: PlatformPageProps) {
     database_id: relation.repo.id,
   }));
 
-  // Get environments from K8s using the project's namespace
-  const sanitizedProjectName = project.name
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, "-");
-
-  // Generate the correct namespace for this team/project
-  const projectNamespace = generateProjectNamespace(
-    teamName,
-    sanitizedProjectName,
-  );
-
-  // Query environments from the project's namespace, not "default"
-  const k8sEnvironments = await listEnvironmentCRs(projectNamespace);
-  const environments = k8sEnvironments.filter(
-    (env) => env.spec.projectRef.name === sanitizedProjectName,
-  );
+  // Get environments from K8s using the action (handles namespace resolution)
+  const environments = await listProjectEnvironmentCRs(slug);
 
   const deploymentEnvironments = environments.filter(
     (env) => env.spec.type === "deployment",

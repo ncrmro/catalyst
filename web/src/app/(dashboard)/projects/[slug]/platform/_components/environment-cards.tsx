@@ -22,7 +22,7 @@ interface EnvironmentRowProps {
 }
 
 function EnvironmentRowItem({ environment, projectSlug }: EnvironmentRowProps) {
-  const { metadata, spec, status } = environment;
+  const { metadata, status } = environment;
 
   return (
     <Link
@@ -33,12 +33,9 @@ function EnvironmentRowItem({ environment, projectSlug }: EnvironmentRowProps) {
       <div className="flex items-center gap-4">
         <div className="flex-1 min-w-0">
           <h3 className="font-medium text-on-surface">{metadata.name}</h3>
-          <div className="text-sm text-on-surface-variant flex gap-2">
-            <span className="capitalize">{spec.type}</span>
+          <div className="text-sm text-on-surface-variant">
             {status?.url && (
-              <span className="text-primary truncate max-w-[200px]">
-                {status.url}
-              </span>
+              <span className="text-primary truncate">{status.url}</span>
             )}
           </div>
         </div>
