@@ -69,6 +69,28 @@ func desiredDeployment(env *catalystv1alpha1.Environment, namespace string) *app
 								{ContainerPort: 3000},
 							},
 							Env: toCoreEnvVars(env.Spec.Config.EnvVars),
+							LivenessProbe: &corev1.Probe{
+								ProbeHandler: corev1.ProbeHandler{
+									HTTPGet: &corev1.HTTPGetAction{
+										Path: "/api/health/liveness",
+										Port: intstr.FromInt(3000),
+									},
+								},
+								InitialDelaySeconds: 10,
+								PeriodSeconds:       15,
+								TimeoutSeconds:      5,
+							},
+							ReadinessProbe: &corev1.Probe{
+								ProbeHandler: corev1.ProbeHandler{
+									HTTPGet: &corev1.HTTPGetAction{
+										Path: "/api/health/readiness",
+										Port: intstr.FromInt(3000),
+									},
+								},
+								InitialDelaySeconds: 5,
+								PeriodSeconds:       10,
+								TimeoutSeconds:      5,
+							},
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
 									corev1.ResourceCPU:    resource.MustParse("100m"),

@@ -114,10 +114,10 @@ web:
 
   livenessProbe:
     httpGet:
-      path: /api/health/readiness
+      path: /api/health/liveness
       port: http
     initialDelaySeconds: 10
-    periodSeconds: 10
+    periodSeconds: 15
 
   readinessProbe:
     httpGet:
