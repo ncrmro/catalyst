@@ -24,3 +24,6 @@
 
 # Scripts directory - not needed in packaged chart
 scripts/
+
+# Environment-specific value overrides - not packaged, used via -f flag
+values.production.yaml

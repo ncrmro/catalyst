@@ -237,6 +237,7 @@ jobs:
       - name: Deploy Catalyst chart
         run: |
           helm upgrade --install catalyst ./charts/catalyst \
+            --values ./charts/catalyst/values.production.yaml \
             --namespace catalyst-system \
             --create-namespace \
             --set operator.image.repository=ghcr.io/${{ github.repository }}/operator \

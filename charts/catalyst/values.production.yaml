@@ -1,0 +1,21 @@
+# Production overrides for tetraship.app
+# Usage: helm upgrade --install catalyst ./charts/catalyst -f ./charts/catalyst/values.production.yaml
+
+operator:
+  previewDomain: "preview.tetraship.app"
+
+web:
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: tetraship.app
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: tetraship-app-tls
+        hosts:
+          - tetraship.app
