@@ -386,11 +386,11 @@ func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, project *ca
 							LivenessProbe: &corev1.Probe{
 								ProbeHandler: corev1.ProbeHandler{
 									HTTPGet: &corev1.HTTPGetAction{
-										Path: "/",
+										Path: "/api/health/liveness",
 										Port: intstr.FromInt(3000),
 									},
 								},
-								InitialDelaySeconds: 5,
+								InitialDelaySeconds: 10,
 								PeriodSeconds:       15,
 								TimeoutSeconds:      5,
 							},
