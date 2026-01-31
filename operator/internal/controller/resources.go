@@ -55,6 +55,14 @@ func desiredNetworkPolicy(namespace, ingressNamespace string) *networkingv1.Netw
 						},
 					},
 				},
+				{
+					// Allow intra-namespace communication (e.g., web → postgres)
+					From: []networkingv1.NetworkPolicyPeer{
+						{
+							PodSelector: &metav1.LabelSelector{},
+						},
+					},
+				},
 			},
 			Egress: []networkingv1.NetworkPolicyEgressRule{
 				{
