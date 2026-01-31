@@ -32,10 +32,6 @@ PID_FILE = CONFIG_DIR / "vm.pid"
 DEFAULT_VM_MEMORY = 8192
 DEFAULT_VM_CORES = 4
 
-# Manifests directory
-MANIFESTS_DIR = CONFIG_DIR / "manifests"
-BASE_MANIFEST = MANIFESTS_DIR / "base.json"
-
 # NixOS configuration template for K3s VM
 NIXOS_CONFIG_TEMPLATE = '''
 {{ config, pkgs, lib, ... }}:
@@ -163,55 +159,9 @@ def get_env_var(name: str, default: int | None = None) -> int | None:
     return default
 
 
-def get_web_port() -> int | None:
-    """Get WEB_PORT from web/.env."""
-    return get_env_var("WEB_PORT")
-
-
 def get_ingress_port() -> int:
     """Get INGRESS_PORT from web/.env, defaults to 8080."""
     return get_env_var("INGRESS_PORT", 8080) or 8080
-
-def get_web_env_vars() -> list[dict]:
-    """Reads web/.env and returns list of env var dicts for Kubernetes.
-
-    Excludes KUBECONFIG and KUBECONFIG_PRIMARY since pods should use
-    in-cluster authentication via service account tokens.
-    """
-    env_file = PROJECT_ROOT / "web" / ".env"
-    if not env_file.exists():
-        return []
-
-    # Env vars to exclude - pods use in-cluster auth via service account
-    excluded_vars = {"KUBECONFIG", "KUBECONFIG_PRIMARY"}
-
-    env_vars = []
-    try:
-        content = env_file.read_text()
-        for line in content.splitlines():
-            line = line.strip()
-            if not line or line.startswith('#') or '=' not in line:
-                continue
-
-            key, value = line.split('=', 1)
-
-            # Skip excluded env vars
-            if key in excluded_vars:
-                debug(f"Excluding env var {key} (using in-cluster auth)")
-                continue
-
-            # Remove surrounding quotes if present
-            if (value.startswith('"') and value.endswith('"')) or (value.startswith("'" ) and value.endswith("'" )):
-                value = value[1:-1]
-
-            env_vars.append({"name": key, "value": value})
-
-    except Exception as e:
-        debug(f"Error parsing .env: {e}")
-        return []
-
-    return env_vars
-
 
 def get_ssh_public_key() -> str:
     """Get or generate SSH public key."""
@@ -437,123 +387,7 @@ def install_crds() -> None:
         print(f"  Warning: Failed to install CRDs: {msg}")
 
 
-def install_ingress_nginx() -> None:
-    """Install NGINX ingress controller via Helm for path-based routing."""
-    print("  Installing NGINX ingress controller...")
-
-    kubeconfig_path = str(KUBECONFIG_FILE.resolve())
-    env = os.environ.copy()
-    env["KUBECONFIG"] = kubeconfig_path
-
-    try:
-        # Check if ingress-nginx is already installed
-        result = subprocess.run(
-            ["helm", "list", "-n", "ingress-nginx", "-q"],
-            env=env,
-            capture_output=True,
-            text=True
-        )
-        if "ingress-nginx" in result.stdout:
-            info("NGINX ingress already installed")
-            return
-
-        # Add ingress-nginx repo
-        run(
-            ["helm", "repo", "add", "ingress-nginx", "https://kubernetes.github.io/ingress-nginx"],
-            env=env,
-            capture=True
-        )
-        run(["helm", "repo", "update"], env=env, capture=True)
-
-        # Install ingress-nginx with NodePort on 30080
-        run([
-            "helm", "install", "ingress-nginx", "ingress-nginx/ingress-nginx",
-            "--namespace", "ingress-nginx",
-            "--create-namespace",
-            "--set", "controller.service.type=NodePort",
-            "--set", "controller.service.nodePorts.http=30080",
-            "--set", "controller.service.nodePorts.https=30443",
-            "--wait", "--timeout=120s"
-        ], env=env, capture=True)
-
-        info("NGINX ingress installed (NodePort 30080)")
-    except subprocess.CalledProcessError as e:
-        msg = e.stderr if e.stderr else str(e)
-        print(f"  Warning: Failed to install NGINX ingress: {msg}")
-
-
-def generate_manifest_content(deploy_apps: bool = False) -> str:
-    """Generate the full Kubernetes manifest JSON with env vars injected."""
-    import json
-
-    if not BASE_MANIFEST.exists():
-        error(f"Base manifest not found: {BASE_MANIFEST}")
-
-    # Load documents from the base manifest
-    with open(BASE_MANIFEST) as f:
-        documents = json.load(f)
-
-    # Get env vars from web/.env
-    env_vars = get_web_env_vars()
-
-    # Filtered documents
-    final_documents = []
-
-    # Inject env vars into web deployment
-    for doc in documents:
-        if doc is None:
-            continue
-        
-        # Skip web and operator deployments unless deploy_apps is True
-        if not deploy_apps and doc.get("kind") == "Deployment":
-            name = doc.get("metadata", {}).get("name")
-            if name in ["web", "operator"]:
-                continue
-
-        if doc.get("kind") == "Deployment" and doc.get("metadata", {}).get("name") == "operator":
-            spec = doc.get("spec", {}).get("template", {}).get("spec", {})
-            for container in spec.get("containers", []):
-                if container.get("name") == "operator":
-                    existing_env = container.get("env", [])
-                    new_env = [
-                        {"name": "LOCAL_PREVIEW_ROUTING", "value": "true"},
-                        {"name": "INGRESS_PORT", "value": str(get_ingress_port())}
-                    ]
-                    container["env"] = existing_env + new_env
-
-        if doc.get("kind") == "Deployment" and doc.get("metadata", {}).get("name") == "web":
-            spec = doc.get("spec", {}).get("template", {}).get("spec", {})
-
-            # Inject into init containers
-            for container in spec.get("initContainers", []):
-                if container.get("name") == "db-migrate":
-                    existing_env = container.get("env", [])
-                    existing_keys = {e["name"] for e in existing_env}
-                    # Only add env vars that aren't already defined in base manifest
-                    filtered_env = [e for e in env_vars if e["name"] not in existing_keys]
-                    container["env"] = existing_env + filtered_env
-
-            # Inject into main container
-            for container in spec.get("containers", []):
-                if container.get("name") == "web":
-                    existing_env = container.get("env", [])
-                    existing_keys = {e["name"] for e in existing_env}
-                    # Only add env vars that aren't already defined in base manifest
-                    filtered_env = [e for e in env_vars if e["name"] not in existing_keys]
-                    container["env"] = existing_env + filtered_env
-        
-        final_documents.append(doc)
-
-    # Wrap in a List and dump to JSON
-    k8s_list = {
-        "apiVersion": "v1",
-        "kind": "List",
-        "items": final_documents
-    }
-    return json.dumps(k8s_list, indent=2)
-
-
-def _build_vm(memory: int, cores: int, deploy_apps: bool = False) -> None:
+def _build_vm(memory: int, cores: int) -> None:
     """Build the K3s VM using NixOS."""
     # Create config directory
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -584,14 +418,6 @@ def _build_vm(memory: int, cores: int, deploy_apps: bool = False) -> None:
     else:
         info("Host port 5432 is already in use, skipping VM PostgreSQL forwarding")
 
-    # Only forward web port in --in-cluster mode (app runs in K3s)
-    # In hybrid mode (default), the local dev server uses this port
-    if deploy_apps:
-        web_port = get_web_port()
-        if web_port:
-            info(f"Forwarding web port: {web_port} (in-cluster mode)")
-            forward_ports.append(f'{{ from = "host"; host.port = {web_port}; guest.port = 30000; }}')
-    
     forward_ports_str = "\n      ".join(forward_ports)
 
     # Write NixOS configuration
@@ -664,68 +490,15 @@ def _wait_for_vm_readiness() -> None:
         error("Timeout waiting for K3s. Check VM logs.")
     info("K3s ready")
 
-def apply_manifests(deploy_apps: bool = False) -> bool:
-    """Apply Kubernetes manifests using kubectl."""
-    if not KUBECONFIG_FILE.exists():
-        print("  Error: Kubeconfig not found. Run 'bin/k3s-vm' first.")
-        return False
-
-    manifest_content = generate_manifest_content(deploy_apps=deploy_apps)
-
-    # Write to a temp file
-    temp_manifest = CONFIG_DIR / "catalyst-manifests.json"
-    temp_manifest.write_text(manifest_content)
-
-    try:
-        env = os.environ.copy()
-        env["KUBECONFIG"] = str(KUBECONFIG_FILE)
-
-        result = run(
-            ["kubectl", "apply", "-f", str(temp_manifest)],
-            env=env,
-            capture=True
-        )
-
-        # Print applied resources
-        for line in result.stdout.strip().split("\n"):
-            if line:
-                info(line)
-
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"  Error applying manifests: {e.stderr if e.stderr else e}")
-        return False
-
-
-def cmd_update_manifests(args: argparse.Namespace) -> None:
-    """Update Kubernetes manifests on the running VM."""
-    if not is_vm_running():
-        error("VM is not running. Start it with 'bin/k3s-vm'")
-
-    print("Applying Kubernetes manifests...")
-    if apply_manifests(deploy_apps=args.in_cluster):
-        print("Manifests applied successfully.")
-    else:
-        error("Failed to apply manifests.")
-
-def _extract_kubeconfig_and_install_crds(deploy_apps: bool = False) -> None:
-    """Extract kubeconfig, install CRDs, apply manifests, and install ingress."""
+def _extract_kubeconfig_and_install_crds() -> None:
+    """Extract kubeconfig and install CRDs."""
     print("  Extracting kubeconfig...")
     if not extract_kubeconfig():
         error("Failed to extract kubeconfig")
     info(f"Kubeconfig saved to {KUBECONFIG_FILE}")
     install_crds()
 
-    print("  Applying Kubernetes manifests...")
-    if apply_manifests(deploy_apps=deploy_apps):
-        info("Manifests applied")
-    else:
-        print("  Warning: Failed to apply manifests. Run 'bin/k3s-vm apply' manually.")
-
-    # Install NGINX ingress for path-based routing
-    install_ingress_nginx()
-
-def _ensure_vm_is_running(memory: int, cores: int, deploy_apps: bool = False) -> None:
+def _ensure_vm_is_running(memory: int, cores: int) -> None:
     """Ensures the VM is built and running, and K3s is ready."""
     if is_vm_running():
         info("VM is already running.")
@@ -736,7 +509,7 @@ def _ensure_vm_is_running(memory: int, cores: int, deploy_apps: bool = False) ->
             print(f"Building K3s VM (NixOS)")
             print(f"  Memory: {memory}MB, Cores: {cores}")
             print()
-            _build_vm(memory, cores, deploy_apps=deploy_apps)
+            _build_vm(memory, cores)
             info("VM built successfully")
         else:
             info("VM already built.")
@@ -746,24 +519,18 @@ def _ensure_vm_is_running(memory: int, cores: int, deploy_apps: bool = False) ->
         info(f"VM started (PID: {get_vm_pid()})")
 
     _wait_for_vm_readiness()
-    _extract_kubeconfig_and_install_crds(deploy_apps=deploy_apps)
+    _extract_kubeconfig_and_install_crds()
 
-    ingress_port = get_ingress_port()
     print()
     print("=" * 50)
     print("K3s VM ready!")
     print()
     print(f"  SSH:        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2666 root@localhost")
     print(f"  K3s API:    https://127.0.0.1:6443")
-    print(f"  Ingress:    http://localhost:{ingress_port} (path-based routing)")
     print(f"  Kubeconfig: {KUBECONFIG_FILE}")
-    if not deploy_apps:
-        print("  Mode:       Local Dev (Web/Operator pods NOT deployed)")
-        print("              Run apps locally: cd web && npm run dev")
-    else:
-        print("  Mode:       In-Cluster (Web/Operator pods deployed)")
+    print("  Mode:       Bare cluster (CRDs installed)")
+    print("              Deploy via Helm or run apps locally: cd web && npm run dev")
     print()
-    print(f"Preview environments: http://localhost:{ingress_port}/{{namespace}}/")
     print("Try: bin/kubectl get nodes")
 
 # ============================================================================
@@ -928,20 +695,17 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  bin/k3s-vm                 Start K3s VM (Default: Hybrid mode, apps not deployed)
-  bin/k3s-vm --in-cluster    Start K3s VM and deploy web/operator to cluster
+  bin/k3s-vm                 Start bare K3s VM (cluster + CRDs only)
   bin/k3s-vm stop            Stop VM
   bin/k3s-vm status          Check VM status
   bin/k3s-vm ssh             SSH into VM
   bin/k3s-vm reset           Destroy VM
-  bin/k3s-vm apply           Update manifests without rebuilding VM
 """,
     )
-    parser.add_argument("--version", action="version", version="k3s-vm 2.1.0 (NixOS)")
+    parser.add_argument("--version", action="version", version="k3s-vm 3.0.0 (NixOS)")
     parser.add_argument("--debug", action="store_true", help="Enable debug output")
     parser.add_argument("--cpus", type=int, default=DEFAULT_VM_CORES, help=f"CPU cores (default: {DEFAULT_VM_CORES})")
     parser.add_argument("--memory", type=int, default=DEFAULT_VM_MEMORY, help=f"Memory in MB (default: {DEFAULT_VM_MEMORY})")
-    parser.add_argument("--in-cluster", action="store_true", help="Deploy web and operator to cluster (disable for local dev)")
 
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
@@ -957,10 +721,6 @@ Examples:
     # ssh
     subparsers.add_parser("ssh", help="SSH into VM")
 
-    # apply
-    apply_parser = subparsers.add_parser("apply", help="Update manifests without rebuilding VM")
-    apply_parser.add_argument("--in-cluster", action="store_true", help="Deploy web and operator to cluster")
-
     args = parser.parse_args()
 
     if args.debug:
@@ -968,14 +728,13 @@ Examples:
         debug("Debug mode enabled")
 
     if args.command is None: # No command provided, implicitly setup/start
-        _ensure_vm_is_running(args.memory, args.cpus, deploy_apps=args.in_cluster)
+        _ensure_vm_is_running(args.memory, args.cpus)
     else:
         commands = {
             "stop": cmd_stop,
             "status": cmd_status,
             "reset": cmd_reset,
             "ssh": cmd_ssh,
-            "apply": cmd_update_manifests,
         }
         commands[args.command](args)
 

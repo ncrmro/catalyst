@@ -5,7 +5,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-KUBECONFIG_PATH="$SCRIPT_DIR/../web/.kube/config"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+KUBECONFIG_PATH="$PROJECT_ROOT/web/.kube/config"
 
 # Check if kubeconfig exists
 if [[ ! -f "$KUBECONFIG_PATH" ]]; then

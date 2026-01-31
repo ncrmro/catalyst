@@ -1,0 +1,56 @@
+# Shared E2E test values for Catalyst Helm chart.
+# Used by both bin/e2e-cluster (local) and .github/workflows/web.test.yml (CI).
+#
+# GITHUB_PAT is intentionally omitted here:
+#   - CI passes it via --set "web.env[6].name=GITHUB_PAT" --set "web.env[6].value=..."
+#   - Local passes it from environment or omits it
+
+operator:
+  enabled: true
+  image:
+    repository: ghcr.io/ncrmro/catalyst/operator
+    tag: latest
+    pullPolicy: Never
+
+web:
+  enabled: true
+  enableGitTokenPatMode: true
+  image:
+    repository: ghcr.io/ncrmro/catalyst/web
+    tag: latest
+    pullPolicy: Never
+  env:
+    - name: NEXTAUTH_SECRET
+      value: "test-secret-for-e2e"
+    - name: NEXTAUTH_URL
+      value: "http://localhost:3000"
+    - name: AUTH_TRUST_HOST
+      value: "true"
+    - name: TOKEN_ENCRYPTION_KEY
+      value: "test-encryption-key-for-e2e-32ch"
+    - name: GITHUB_DISABLE_APP_CHECKS
+      value: "true"
+    - name: GITHUB_REPOS_MODE
+      value: "mocked"
+
+ingress-nginx:
+  enabled: true
+  controller:
+    hostPort:
+      enabled: true
+    service:
+      type: NodePort
+    admissionWebhooks:
+      enabled: false
+
+cert-manager:
+  enabled: false
+
+cloudnative-pg:
+  enabled: true
+
+postgresql:
+  enabled: true
+  instances: 1
+  storage:
+    size: 1Gi

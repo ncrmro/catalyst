@@ -185,76 +185,18 @@ jobs:
 
       - name: Deploy Catalyst using Helm
         run: |
-          # Create a Helm values file for e2e testing
-          cat > e2e-values.yaml <<EOF
-          # Operator configuration
-          operator:
-            enabled: true
-            image:
-              repository: ghcr.io/ncrmro/catalyst/operator
-              tag: latest
-              pullPolicy: Never
-
-          # Web application configuration
-          web:
-            enabled: true
-            enableGitTokenPatMode: true
-            image:
-              repository: ghcr.io/ncrmro/catalyst/web
-              tag: latest
-              pullPolicy: Never
-            env:
-              - name: NEXTAUTH_SECRET
-                value: "test-secret-for-e2e"
-              - name: NEXTAUTH_URL
-                value: "http://localhost:3000"
-              - name: AUTH_TRUST_HOST
-                value: "true"
-              - name: GITHUB_PAT
-                value: "${{ github.token }}"
-              - name: TOKEN_ENCRYPTION_KEY
-                value: "test-encryption-key-for-e2e-32ch"
-              - name: GITHUB_DISABLE_APP_CHECKS
-                value: "true"
-              - name: GITHUB_REPOS_MODE
-                value: "mocked"
-
-          # Enable ingress-nginx subchart for e2e
-          ingress-nginx:
-            enabled: true
-            controller:
-              hostPort:
-                enabled: true
-              service:
-                type: NodePort
-              admissionWebhooks:
-                enabled: false
-
-          # Disable cert-manager for e2e (not needed)
-          cert-manager:
-            enabled: false
-
-          # Enable CloudNativePG operator and PostgreSQL cluster
-          cloudnative-pg:
-            enabled: true
-          postgresql:
-            enabled: true
-            instances: 1
-            storage:
-              size: 1Gi
-          EOF
-          
-          # Install Catalyst chart with all dependencies
           helm install catalyst ../charts/catalyst \
             --namespace catalyst-system \
             --create-namespace \
-            --values e2e-values.yaml \
+            --values ../charts/catalyst/e2e-values.yaml \
             --set operator.localPreviewRouting=true \
             --set operator.ingressPort=8080 \
             --set operator.ingressNamespace=catalyst-system \
+            --set "web.env[6].name=GITHUB_PAT" \
+            --set "web.env[6].value=${{ github.token }}" \
             --wait \
             --timeout 10m
-          
+
           echo "Catalyst deployed via Helm"
 
       - name: Wait for CloudNativePG operator

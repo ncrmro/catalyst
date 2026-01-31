@@ -18,26 +18,28 @@ test.describe.serial("Deployment Environment E2E", () => {
   let createdEnvironmentName: string | null = null;
   let createdEnvironmentNamespace: string | null = null;
 
-  // Cleanup hook to ensure test resources are always removed
-  test.afterEach(async ({ k8s }) => {
-    if (createdEnvironmentName && createdEnvironmentNamespace) {
-      await k8s.customApi.deleteNamespacedCustomObject({
-        group: API_GROUP,
-        version: API_VERSION,
-        namespace: createdEnvironmentNamespace,
-        plural: "environments",
-        name: createdEnvironmentName,
-      });
-      console.log(
-        `✓ Cleaned up test environment: ${createdEnvironmentName} from namespace: ${createdEnvironmentNamespace}`,
-      );
-    }
-  });
-
   test("should create development environment through UI and verify deployment", async ({
     page,
     k8s,
   }) => {
+    // Cleanup any leftover environment from a previous run
+    if (createdEnvironmentName && createdEnvironmentNamespace) {
+      await k8s.customApi
+        .deleteNamespacedCustomObject({
+          group: API_GROUP,
+          version: API_VERSION,
+          namespace: createdEnvironmentNamespace,
+          plural: "environments",
+          name: createdEnvironmentName,
+        })
+        .catch(() => null);
+      console.log(
+        `✓ Cleaned up previous environment: ${createdEnvironmentName} from namespace: ${createdEnvironmentNamespace}`,
+      );
+      createdEnvironmentName = null;
+      createdEnvironmentNamespace = null;
+    }
+
     // Create projects page instance
     const projectsPage = new ProjectsPage(page);
 
@@ -201,21 +203,27 @@ test.describe.serial("Deployment Environment E2E", () => {
 
     const healthUrl = new URL("/api/health/readiness", result.url!).toString();
 
-    // Retry health check with backoff (ingress propagation delay)
+    // Retry health check with backoff (pod startup + ingress propagation delay)
+    // The Environment CR reaches Ready before the web container is serving traffic.
+    // Init containers (git-clone, npm-install, db-migrate) + Next.js dev startup
+    // can take 90+ seconds, so we allow up to ~5 minutes of retries.
     let healthResponse:
       | Awaited<ReturnType<typeof page.request.get>>
       | undefined;
-    for (let attempt = 0; attempt < 5; attempt++) {
+    const maxAttempts = 30;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         healthResponse = await page.request.get(healthUrl, { timeout: 10000 });
         if (healthResponse.ok()) break;
-      } catch {
-        // socket hang up or timeout — ingress not ready yet
+        console.log(
+          `⏳ Health check attempt ${attempt + 1}/${maxAttempts} returned HTTP ${healthResponse.status()}, retrying...`,
+        );
+      } catch (err) {
+        console.log(
+          `⏳ Health check attempt ${attempt + 1}/${maxAttempts} error: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
-      console.log(
-        `⏳ Health check attempt ${attempt + 1}/5 failed, retrying...`,
-      );
-      await page.waitForTimeout(3000);
+      await page.waitForTimeout(5000);
     }
     expect(healthResponse).toBeDefined();
     expect(healthResponse!.ok()).toBe(true);

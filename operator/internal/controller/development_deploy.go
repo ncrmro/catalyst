@@ -375,7 +375,7 @@ func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, project *ca
 								},
 								Limits: corev1.ResourceList{
 									corev1.ResourceCPU:    resource.MustParse("1000m"),
-									corev1.ResourceMemory: resource.MustParse("1Gi"),
+									corev1.ResourceMemory: resource.MustParse("2Gi"),
 								},
 							},
 							LivenessProbe: &corev1.Probe{

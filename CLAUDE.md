@@ -84,6 +84,31 @@ make ci               # Run comprehensive CI tests locally
 make ci-docker        # Run CI tests in Docker
 ```
 
+**Local K8s Cluster (from project root):**
+
+These wrappers are for local development only. In GitHub Actions, Kind is pre-configured and `helm`/`kubectl` work out of the box without wrappers.
+
+```bash
+bin/k3s-vm            # Start bare K3s VM (cluster + CRDs only)
+bin/k3s-vm stop       # Stop VM
+bin/k3s-vm reset      # Destroy and rebuild VM
+bin/kubectl get pods   # kubectl wrapper with KUBECONFIG pre-configured
+bin/helm list          # helm wrapper with KUBECONFIG + namespace (catalyst-system) pre-configured
+```
+
+**E2E Testing (from project root):**
+
+Locally uses K3s VM + Helm. In CI, Kind is used instead (see `.github/workflows/web.test.yml`).
+
+```bash
+bin/e2e-cluster up              # Start K3s VM, build images, deploy via Helm, seed
+bin/e2e-cluster up --skip-build # Deploy without rebuilding images
+bin/e2e-cluster test            # Run Playwright E2E tests
+bin/e2e-cluster down            # Helm uninstall (VM preserved)
+bin/e2e-cluster status          # Show deployment and pod status
+bin/e2e-cluster logs            # Tail pod logs
+```
+
 ## Architecture Overview
 
 ### Core Components
@@ -302,8 +327,10 @@ The application can be deployed via:
 Database migrations run automatically in Docker/Helm deployments or manually via `npm run db:migrate`.
 
 ## Active Technologies
+
 - TypeScript 5.x with Next.js 15 (App Router) + Next.js 15, NextAuth.js, Drizzle ORM, @kubernetes/client-node, Playwright (009-projects)
 - PostgreSQL with Drizzle ORM (existing database schema extends with project entities) (009-projects)
 
 ## Recent Changes
+
 - 009-projects: Added TypeScript 5.x with Next.js 15 (App Router) + Next.js 15, NextAuth.js, Drizzle ORM, @kubernetes/client-node, Playwright

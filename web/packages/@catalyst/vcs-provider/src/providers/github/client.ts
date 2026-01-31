@@ -123,39 +123,44 @@ const buildGitHubConfig = () => {
 // This will throw on module load if required variables are missing
 export const GITHUB_CONFIG = buildGitHubConfig();
 
-// Check if GitHub App credentials are available
-const hasGitHubAppCredentials = !!(
-  GITHUB_CONFIG.APP_ID && GITHUB_CONFIG.APP_PRIVATE_KEY
-);
+// Lazy-initialized GitHub App singleton.
+// Must be a function to prevent the bundler from collapsing the ternary
+// and unconditionally calling `new App()` at module load time.
+let _githubApp: App | null | undefined;
+function getGitHubApp(): App | null {
+  if (_githubApp !== undefined) return _githubApp;
 
-// Create GitHub App instance singleton
-// During build phase, use stub values to prevent initialization errors
-// When DISABLE_APP_CHECKS is true and credentials are missing, use null
-const githubApp = isNextJsBuild
-  ? new App({
+  if (isNextJsBuild) {
+    _githubApp = new App({
       appId: "stub-app-id",
       privateKey: `-----BEGIN RSA PRIVATE KEY-----STUB-----END RSA PRIVATE KEY-----`,
-    })
-  : hasGitHubAppCredentials
-    ? new App({
-        appId: GITHUB_CONFIG.APP_ID,
-        privateKey: GITHUB_CONFIG.APP_PRIVATE_KEY,
-      })
-    : null;
+    });
+  } else if (GITHUB_CONFIG.APP_ID && GITHUB_CONFIG.APP_PRIVATE_KEY) {
+    _githubApp = new App({
+      appId: GITHUB_CONFIG.APP_ID,
+      privateKey: GITHUB_CONFIG.APP_PRIVATE_KEY,
+    });
+  } else {
+    _githubApp = null;
+  }
+
+  return _githubApp;
+}
 
 /**
  * Get all installations for the GitHub App
  * This requires the app to be authenticated as the GitHub App itself
  */
 export async function getAllInstallations() {
-  if (!githubApp) {
+  const app = getGitHubApp();
+  if (!app) {
     throw new Error(
       "GitHub App is not configured. Set GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY.",
     );
   }
   try {
     // Use the app's octokit instance for app-level operations
-    const { data: installations } = await githubApp.octokit.request(
+    const { data: installations } = await app.octokit.request(
       "GET /app/installations",
     );
     return installations;
@@ -170,13 +175,14 @@ export async function getAllInstallations() {
  * This is useful for operations on specific installations
  */
 export async function getInstallationOctokit(installationId: number) {
-  if (!githubApp) {
+  const app = getGitHubApp();
+  if (!app) {
     throw new Error(
       "GitHub App is not configured. Set GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY.",
     );
   }
   try {
-    return await githubApp.getInstallationOctokit(installationId);
+    return await app.getInstallationOctokit(installationId);
   } catch (error) {
     console.error(
       `Failed to get Octokit for installation ${installationId}:`,
