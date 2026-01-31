@@ -68,6 +68,7 @@ export interface EnvironmentTemplate {
 
 export interface ProjectCRSpec {
   sources: SourceConfig[];
+  githubInstallationId?: string;
   templates?: Record<string, EnvironmentTemplate>;
   resources?: {
     defaultQuota?: {

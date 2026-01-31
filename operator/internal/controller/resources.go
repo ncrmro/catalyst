@@ -31,7 +31,7 @@ func desiredResourceQuota(namespace string) *corev1.ResourceQuota {
 	}
 }
 
-func desiredNetworkPolicy(namespace string) *networkingv1.NetworkPolicy {
+func desiredNetworkPolicy(namespace, ingressNamespace string) *networkingv1.NetworkPolicy {
 	// Default Deny All + specific allow rules
 	return &networkingv1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
@@ -50,8 +50,16 @@ func desiredNetworkPolicy(namespace string) *networkingv1.NetworkPolicy {
 					From: []networkingv1.NetworkPolicyPeer{
 						{
 							NamespaceSelector: &metav1.LabelSelector{
-								MatchLabels: map[string]string{"name": "ingress-nginx"},
+								MatchLabels: map[string]string{"kubernetes.io/metadata.name": ingressNamespace},
 							},
+						},
+					},
+				},
+				{
+					// Allow intra-namespace communication (e.g., web → postgres)
+					From: []networkingv1.NetworkPolicyPeer{
+						{
+							PodSelector: &metav1.LabelSelector{},
 						},
 					},
 				},

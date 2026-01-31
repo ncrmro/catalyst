@@ -213,12 +213,17 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// 2. Manage ResourceQuota & NetworkPolicy
+	ingressNamespace := os.Getenv("INGRESS_NAMESPACE")
+	if ingressNamespace == "" {
+		ingressNamespace = "ingress-nginx"
+	}
+
 	quota := desiredResourceQuota(targetNamespace)
 	if err := r.Create(ctx, quota); err != nil && !apierrors.IsAlreadyExists(err) {
 		return ctrl.Result{}, err
 	}
 
-	policy := desiredNetworkPolicy(targetNamespace)
+	policy := desiredNetworkPolicy(targetNamespace, ingressNamespace)
 	if err := r.Create(ctx, policy); err != nil && !apierrors.IsAlreadyExists(err) {
 		return ctrl.Result{}, err
 	}

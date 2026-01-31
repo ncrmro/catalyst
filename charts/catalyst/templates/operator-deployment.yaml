@@ -66,6 +66,23 @@ spec:
               port: 8081
             initialDelaySeconds: 5
             periodSeconds: 10
+          env:
+            - name: LOCAL_PREVIEW_ROUTING
+              value: {{ .Values.operator.localPreviewRouting | quote }}
+            {{- if .Values.operator.ingressPort }}
+            - name: INGRESS_PORT
+              value: {{ .Values.operator.ingressPort | quote }}
+            {{- end }}
+            {{- if .Values.operator.ingressNamespace }}
+            - name: INGRESS_NAMESPACE
+              value: {{ .Values.operator.ingressNamespace | quote }}
+            {{- end }}
+            - name: CATALYST_WEB_URL
+              value: "http://{{ include "catalyst.fullname" . }}-web.{{ .Release.Namespace }}.svc.cluster.local:3000"
+            {{- if .Values.web.enableGitTokenPatMode }}
+            - name: ENABLE_PAT_FALLBACK
+              value: "true"
+            {{- end }}
           {{- with .Values.operator.resources }}
           resources:
             {{- toYaml . | nindent 12 }}

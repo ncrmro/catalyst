@@ -48,6 +48,12 @@ operator:
 
   imagePullSecrets: []
 
+  # Preview routing configuration
+  previewDomain: ""           # Required for production, e.g. "preview.catalyst.dev"
+  localPreviewRouting: false  # When true, uses http://{namespace}.localhost:{ingressPort}
+  ingressPort: ""             # Port for local preview routing (e.g. "8080")
+  ingressNamespace: ""        # Namespace where ingress controller runs (default: "ingress-nginx")
+
   resources:
     limits:
       cpu: 500m
@@ -96,6 +102,9 @@ web:
     requests:
       cpu: 100m
       memory: 128Mi
+
+  # Enable PAT mode for git-token endpoint (for users using GitHub PAT instead of App)
+  enableGitTokenPatMode: false
 
   env: []
 

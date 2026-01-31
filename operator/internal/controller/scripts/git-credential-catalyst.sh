@@ -42,23 +42,34 @@ fi
 
 # Get installation ID from environment variable (set by operator)
 if [ -z "$INSTALLATION_ID" ]; then
-    echo "Error: INSTALLATION_ID environment variable not set" >&2
-    exit 1
+    if [ "$ENABLE_PAT_FALLBACK" = "true" ]; then
+        INSTALLATION_ID="pat"
+    else
+        echo "Error: INSTALLATION_ID environment variable not set" >&2
+        exit 1
+    fi
 fi
 
 # Get web server URL from environment or use default
 WEB_URL="${CATALYST_WEB_URL:-http://catalyst-web.catalyst-system.svc.cluster.local:3000}"
 
 # Fetch fresh GitHub token from Catalyst web server
+# Use wget (available in Alpine) instead of curl
+TOKEN_URL="$WEB_URL/api/git-token/$INSTALLATION_ID"
 set +e
-TOKEN=$(curl -sf \
-    -H "Authorization: Bearer $SA_TOKEN" \
-    "$WEB_URL/api/git-token/$INSTALLATION_ID")
-curl_status=$?
+TOKEN=$(wget -q -O - --header="Authorization: Bearer $SA_TOKEN" "$TOKEN_URL" 2>/tmp/wget_err)
+wget_status=$?
 set -e
 
-if [ $curl_status -ne 0 ] || [ -z "$TOKEN" ]; then
-    echo "Error: Failed to get git credentials from catalyst-web" >&2
+if [ $wget_status -ne 0 ]; then
+    WGET_ERR=$(cat /tmp/wget_err 2>/dev/null)
+    echo "Error: wget failed (exit $wget_status) connecting to $TOKEN_URL" >&2
+    echo "wget error: $WGET_ERR" >&2
+    exit 1
+fi
+
+if [ -z "$TOKEN" ]; then
+    echo "Error: git-token endpoint returned empty token from $TOKEN_URL" >&2
     exit 1
 fi
 

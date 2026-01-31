@@ -124,3 +124,45 @@ Instead of writing exhaustive edge case tests, document them as code comments:
 - ❌ Using integration tests when unit tests suffice
 - ❌ Testing generated kubebuilder code
 - ❌ Using `t.Skip()` to get CI to pass
+
+## NetworkPolicy Configuration
+
+The operator creates the following NetworkPolicy rules for each environment namespace (see `internal/controller/resources.go`):
+
+1. **Default deny-all**: Isolates all pods in the namespace (both ingress and egress)
+2. **Allow ingress from ingress controller**: Permits traffic from the `ingress-nginx` namespace
+3. **Allow intra-namespace ingress**: `podSelector: {}` permits pod-to-pod communication within the namespace (required for web init containers to reach postgres)
+4. **Allow DNS egress**: Permits UDP/TCP port 53 to `kube-system` for name resolution
+5. **Allow registry egress**: Permits HTTPS (port 443) for pulling container images
+
+### Why intra-namespace is required
+
+Development environment pods include init containers (`git-clone`, `npm-install`, `db-migrate`) that run before the main web container. The `db-migrate` init container must connect to the postgres ClusterIP service in the same namespace. Without the intra-namespace ingress rule, the deny-all policy blocks this connection, causing `ETIMEDOUT` failures.
+
+### CNI enforcement caveat
+
+K3s uses Flannel by default, which **does not enforce** NetworkPolicies. Kind (used in CI) uses kindnet, which **does enforce** them. This means NetworkPolicy bugs are invisible during local development but surface in CI. Always verify policy changes pass CI before merging.
+
+## Resource Limits
+
+- `next dev --turbopack` requires **2Gi memory**. At 1Gi, the process is OOMKilled (exit code 137) and the pod enters CrashLoopBackOff. The ingress returns 502/503 while the pod restarts.
+- Memory limit is set in `internal/controller/development_deploy.go`.
+- PostgreSQL containers use 512Mi memory limit.
+
+## Reconciliation Flow
+
+The operator polls every 5 seconds and reconciles each Environment CR through this sequence:
+
+1. **Create namespace** (if not exists)
+2. **ResourceQuota** — applies CPU/memory/storage limits to the namespace
+3. **NetworkPolicy** — applies deny-all + allow rules (see above)
+4. **Postgres deployment** — creates postgres Deployment + Service
+5. **Wait for postgres ready** — polls until postgres pod has `ReadyReplicas > 0`
+6. **Web deployment** — creates web Deployment with init containers:
+   - `git-clone`: clones the repo branch into the shared PVC
+   - `npm-install`: runs `npm ci` in the cloned repo
+   - `db-migrate`: runs `npm run db:migrate` (requires postgres to be reachable)
+7. **Wait for web ready** — polls until web pod has `ReadyReplicas > 0`
+8. **Set phase=Ready** — updates the Environment CR status
+
+Each init container must complete before the next starts. If `db-migrate` cannot reach postgres (e.g., due to a NetworkPolicy misconfiguration), the pod hangs in init and eventually times out.

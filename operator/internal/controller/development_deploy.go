@@ -36,7 +36,7 @@ import (
 // TODO: Database configuration should not be hardcoded - each project may use a different database
 // (e.g., PostgreSQL, MySQL, MongoDB). This should be configurable via the Project or Environment CR.
 const (
-	nodeImage           = "node:22"
+	nodeImage           = "node:22-slim"
 	postgresImage       = "postgres:16"
 	gitCloneImageDev    = "alpine/git:2.45.2"
 	hostCodePath        = "/code"
@@ -253,6 +253,7 @@ func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, project *ca
 			Command: []string{"/scripts/git-clone.sh"},
 			Env: []corev1.EnvVar{
 				{Name: "INSTALLATION_ID", Value: githubInstallationId},
+				{Name: "ENABLE_PAT_FALLBACK", Value: os.Getenv("ENABLE_PAT_FALLBACK")},
 				{Name: "CATALYST_WEB_URL", Value: getCatalystWebURL()},
 				{Name: "GIT_REPO_URL", Value: repoURL},
 				{Name: "GIT_COMMIT", Value: commit},
@@ -366,7 +367,12 @@ func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, project *ca
 							WorkingDir:   webWorkDir,
 							Command:      []string{"./node_modules/.bin/next", "dev", "--turbopack"},
 							VolumeMounts: mainVolumeMounts,
-							Env:          envVars,
+							Env: envVars,
+							// TODO: Resource limits are hardcoded. It is undetermined how
+							// users will configure these in the future (CRD field, project
+							// config, etc.).
+							// 2Gi memory limit: next dev --turbopack OOMKills at 1Gi
+							// (exit code 137, pod enters CrashLoopBackOff).
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
 									corev1.ResourceCPU:    resource.MustParse("200m"),
@@ -374,7 +380,7 @@ func desiredDevelopmentDeployment(env *catalystv1alpha1.Environment, project *ca
 								},
 								Limits: corev1.ResourceList{
 									corev1.ResourceCPU:    resource.MustParse("1000m"),
-									corev1.ResourceMemory: resource.MustParse("1Gi"),
+									corev1.ResourceMemory: resource.MustParse("2Gi"),
 								},
 							},
 							LivenessProbe: &corev1.Probe{
@@ -437,6 +443,7 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 		if err := r.ensureGitScriptsConfigMap(ctx, namespace); err != nil {
 			return false, fmt.Errorf("failed to ensure git scripts ConfigMap: %w", err)
 		}
+		log.Info("Git scripts ConfigMap ensured", "namespace", namespace)
 	}
 
 	// 1. Create PVCs (idempotent)
@@ -449,6 +456,7 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 	if err := r.Create(ctx, postgresDataPVC); err != nil && !isAlreadyExists(err) {
 		return false, err
 	}
+	log.Info("PVCs created/verified", "namespace", namespace)
 
 	// 2. Create PostgreSQL deployment and service
 	postgresDeployment := desiredPostgresDeployment(namespace)
@@ -460,6 +468,7 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 	if err := r.Create(ctx, postgresService); err != nil && !isAlreadyExists(err) {
 		return false, err
 	}
+	log.Info("PostgreSQL deployment and service created/verified", "namespace", namespace)
 
 	// 3. Wait for PostgreSQL to be ready before creating web deployment
 	postgresReady, err := r.isDeploymentReady(ctx, namespace, "postgres")
@@ -481,11 +490,49 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 	if err := r.Create(ctx, webService); err != nil && !isAlreadyExists(err) {
 		return false, err
 	}
+	log.Info("Web deployment and service created/verified", "namespace", namespace)
 
 	// 5. Check if web deployment is ready
 	webReady, err := r.isDeploymentReady(ctx, namespace, "web")
 	if err != nil {
 		return false, err
+	}
+
+	if !webReady {
+		// Log deployment status for diagnostics
+		webDeploy := &appsv1.Deployment{}
+		if getErr := r.Get(ctx, client.ObjectKey{Name: "web", Namespace: namespace}, webDeploy); getErr == nil {
+			log.Info("Web deployment not ready",
+				"namespace", namespace,
+				"replicas", webDeploy.Status.Replicas,
+				"readyReplicas", webDeploy.Status.ReadyReplicas,
+				"unavailableReplicas", webDeploy.Status.UnavailableReplicas,
+				"conditions", fmt.Sprintf("%v", webDeploy.Status.Conditions),
+			)
+		}
+		// Log pod status for init container diagnostics
+		podList := &corev1.PodList{}
+		if listErr := r.List(ctx, podList, client.InNamespace(namespace), client.MatchingLabels{"app": "web"}); listErr == nil {
+			for _, pod := range podList.Items {
+				initStatuses := make([]string, 0, len(pod.Status.InitContainerStatuses))
+				for _, s := range pod.Status.InitContainerStatuses {
+					state := "unknown"
+					if s.State.Waiting != nil {
+						state = fmt.Sprintf("waiting:%s", s.State.Waiting.Reason)
+					} else if s.State.Running != nil {
+						state = "running"
+					} else if s.State.Terminated != nil {
+						state = fmt.Sprintf("terminated:%s(exit:%d)", s.State.Terminated.Reason, s.State.Terminated.ExitCode)
+					}
+					initStatuses = append(initStatuses, fmt.Sprintf("%s=%s", s.Name, state))
+				}
+				log.Info("Web pod status",
+					"pod", pod.Name,
+					"phase", pod.Status.Phase,
+					"initContainers", fmt.Sprintf("%v", initStatuses),
+				)
+			}
+		}
 	}
 
 	return webReady, nil

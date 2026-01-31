@@ -18,6 +18,7 @@ spec:
         {{- include "catalyst.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: web
     spec:
+      serviceAccountName: {{ include "catalyst.fullname" . }}-web
       {{- with .Values.web.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -53,6 +54,10 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.postgresql.name }}-app
                   key: uri
+            {{- end }}
+            {{- if .Values.web.enableGitTokenPatMode }}
+            - name: ENABLE_GIT_TOKEN_PAT_MODE
+              value: "true"
             {{- end }}
             {{- with .Values.web.env }}
             {{- toYaml . | nindent 12 }}

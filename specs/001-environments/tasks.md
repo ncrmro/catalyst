@@ -579,12 +579,12 @@ This delivers the core value proposition: automatic preview deployments with pub
 - [ ] T148 [US1] Implement "Zero-Config" build logic (Kaniko) with init containers to clone source (`SourceRef`), generate Dockerfile if missing, and build
 - [ ] T149 [US6] Implement `docker-compose` parser and Kubernetes translation logic (`FR-ENV-012`)
 
-### Step 2: Local Validation (Extended Test)
+### Step 2: Automated E2E Validation
 
-- [ ] T150 [US6] Create `make validate` script (or `bin/validate-envs`) for local environment testing
-- [ ] T151 [US6] Validate Catalyst (Helm) environment in local K3s using `make validate`
-- [ ] T152 [US6] Validate Rails (Compose) environment in local K3s using `make validate`
-- [ ] T153 [US1] Validate Next.js (Zero-Config) environment in local K3s using `make validate`
+- [x] T150 [US6] Create E2E test for environment creation and validation (replaced `bin/validate-envs` with `deployment-environment.spec.ts`)
+- [ ] T151 [US6] Validate Catalyst (Helm) environment using E2E tests
+- [ ] T152 [US6] Validate Rails (Compose) environment using E2E tests
+- [ ] T153 [US1] Validate Next.js (Zero-Config) environment using E2E tests
 
 ### Step 3: UI Manual Validation
 

@@ -179,6 +179,8 @@ As a power user, I want to configure deployments using standard tools (Docker Co
   - Authentication MUST be required for all repositories (public and private) to support push operations to feature branches.
   - The `installation-id` MUST be passed to the pod via environment variable or label.
   - See [research.git-credential-helper.md](./research.git-credential-helper.md) for architecture details.
+- **FR-ENV-024**: Environment NetworkPolicy MUST allow intra-namespace pod communication to support init container to managed service flows (e.g., `db-migrate` init container connecting to postgres). Without this rule, deny-all policies block traffic between pods in the same namespace, causing init containers to fail with `ETIMEDOUT`. See [research.kube-network-policies.md](./research.kube-network-policies.md#lessons-learned) for background.
+- **FR-ENV-025**: E2E tests for environments MUST clean up stale resources **before** the test run, not after. This ensures that on test failure all Kubernetes resources (pods, CRs, namespaces) and database records remain in place for post-mortem inspection (`kubectl get pods`, `kubectl logs`, Drizzle Studio). The pre-test cleanup guarantees a known starting state regardless of whether the previous run passed, failed, or was interrupted.
 
 ### Key Entities
 

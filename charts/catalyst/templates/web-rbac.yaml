@@ -1,0 +1,55 @@
+{{- if .Values.web.enabled }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "catalyst.fullname" . }}-web
+  labels:
+    {{- include "catalyst.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+rules:
+# Namespace management for project/environment namespaces
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - create
+  - get
+  - list
+# TokenReview for git-token endpoint (validate pod ServiceAccount tokens)
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+# Catalyst CRDs - Projects and Environments
+- apiGroups:
+  - catalyst.catalyst.dev
+  resources:
+  - environments
+  - projects
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "catalyst.fullname" . }}-web
+  labels:
+    {{- include "catalyst.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "catalyst.fullname" . }}-web
+subjects:
+- kind: ServiceAccount
+  name: {{ include "catalyst.fullname" . }}-web
+  namespace: {{ .Release.Namespace }}
+{{- end }}

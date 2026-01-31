@@ -126,9 +126,9 @@ async function createFirstProject(
       .values({
         githubId: Math.floor(Math.random() * 1000000) + 1001,
         name: `first-project-${uniqueSuffix}`,
-        fullName: `user/first-project-${uniqueSuffix}`,
+        fullName: `ncrmro/catalyst`,
         description: "First project created from empty state",
-        url: `https://github.com/user/first-project-${uniqueSuffix}`,
+        url: `https://github.com/ncrmro/catalyst`,
         isPrivate: false,
         language: "TypeScript",
         stargazersCount: 0,

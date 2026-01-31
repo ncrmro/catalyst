@@ -194,6 +194,15 @@ ci-docker: ## Run comprehensive CI tests in Docker (unit, integration, and e2e)
 e2e: ## Run e2e tests in Docker
 	$(DC) run --no-deps --no-deps e2e
 
+e2e-cluster: ## Start E2E cluster (Kind + Helm, mirrors CI)
+	../bin/e2e-cluster up
+
+e2e-cluster-test: ## Run E2E tests against the E2E cluster
+	../bin/e2e-cluster test
+
+e2e-cluster-down: ## Tear down E2E cluster
+	../bin/e2e-cluster down
+
 migration-reconcile: ## Reset drizzle folder from main branch and regenerate migrations
 	## Can be used to regenerate migrations after rebasing on a branch with migration conflicts
 	## or consolidating multiple migrations on a feature branch before merging
