@@ -180,9 +180,7 @@ export async function createProjectEnvironment(
             branch: branch,
           },
         ],
-        config: {
-          envVars: [],
-        },
+        config: {},
       },
       environmentLabels,
     );

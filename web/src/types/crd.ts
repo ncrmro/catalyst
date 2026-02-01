@@ -114,9 +114,6 @@ export interface VolumeSpec {
 
 // EnvironmentConfig uses K8s-native types (FR-ENV-026)
 export interface EnvironmentConfig {
-  // Legacy fields (backward compatibility)
-  envVars?: Array<{ name: string; value: string }>;
-
   // Curated corev1.Container fields
   image?: string;
   command?: string[];
