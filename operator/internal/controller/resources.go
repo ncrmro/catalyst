@@ -12,6 +12,12 @@ import (
 // Goals:
 // - Apply ResourceQuota (CPU/Mem limits)
 // - Apply NetworkPolicy (Isolation rules)
+//
+// NOTE: FR-ENV-029 calls for reading quota from Project.Resources.DefaultQuota,
+// but the current QuotaSpec only has CPU and Memory (not requests vs limits, pods).
+// For now, hardcoded defaults remain. Full implementation requires enhancing QuotaSpec
+// to support: requestsCPU, limitsCPU, requestsMemory, limitsMemory, pods.
+// TODO(FR-ENV-029): Update QuotaSpec and implement quota reading from Project CR.
 
 func desiredResourceQuota(namespace string) *corev1.ResourceQuota {
 	return &corev1.ResourceQuota{

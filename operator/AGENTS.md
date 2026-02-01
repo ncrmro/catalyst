@@ -212,18 +212,40 @@ K3s uses Flannel by default, which **does not enforce** NetworkPolicies. Kind (u
 
 ## Reconciliation Flow
 
-The operator polls every 5 seconds and reconciles each Environment CR through this sequence:
+The operator reconciles each Environment CR through this sequence:
 
-1. **Create namespace** (if not exists)
-2. **ResourceQuota** — applies CPU/memory/storage limits to the namespace
-3. **NetworkPolicy** — applies deny-all + allow rules (see above)
-4. **Postgres deployment** — creates postgres Deployment + Service
-5. **Wait for postgres ready** — polls until postgres pod has `ReadyReplicas > 0`
-6. **Web deployment** — creates web Deployment with init containers:
-   - `git-clone`: clones the repo branch into the shared PVC
-   - `npm-install`: runs `npm ci` in the cloned repo
-   - `db-migrate`: runs `npm run db:migrate` (requires postgres to be reachable)
-7. **Wait for web ready** — polls until web pod has `ReadyReplicas > 0`
-8. **Set phase=Ready** — updates the Environment CR status
+### Development Mode (config-driven)
 
-Each init container must complete before the next starts. If `db-migrate` cannot reach postgres (e.g., due to a NetworkPolicy misconfiguration), the pod hangs in init and eventually times out.
+1. **Get Project CR** — fetches template config for the environment type (development/deployment)
+2. **Resolve config** — merges Project template config + Environment config overrides
+3. **Validate config** — ensures required fields present (image, ports)
+4. **Create namespace** (if not exists)
+5. **ResourceQuota** — applies CPU/memory/storage limits to the namespace
+6. **NetworkPolicy** — applies deny-all + allow rules
+7. **Ensure git scripts ConfigMap** — if repository URL present
+8. **Create volumes** — from `config.volumes[]` (e.g., code PVC, data PVC)
+9. **Create managed services** — from `config.services[]` (e.g., postgres StatefulSet + Service)
+10. **Wait for services ready** — polls until each service has `ReadyReplicas > 0`
+11. **Create web deployment** — with init containers from `config.initContainers[]`:
+    - Operator prepends `git-clone` if repository URL present
+    - User-defined init containers follow (e.g., npm-install, db-migrate)
+12. **Wait for web ready** — polls until web deployment has `ReadyReplicas > 0`
+13. **Set phase=Ready** — updates the Environment CR status
+
+### Production Mode (config-driven)
+
+1. **Get Project CR** — fetches template config
+2. **Resolve config** — merges template + overrides
+3. **Validate config** — ensures image, ports present
+4. **Create/update deployment** — from resolved config (image, command, ports, probes, resources)
+5. **Create service** — from config ports
+6. **Wait for ready** — polls deployment
+7. **Set phase=Ready**
+
+### Key Points
+
+- **No hardcoded values** — all configuration comes from CRD
+- **Config validation fails fast** — if required fields missing, reconciliation stops with error
+- **Managed services are explicit** — defined in `config.services[]`, not automatic
+- **Init containers are explicit** — defined in `config.initContainers[]`
+- **Git-clone is operator-managed** — prepended to init containers if repo URL present
