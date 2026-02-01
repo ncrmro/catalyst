@@ -57,6 +57,67 @@ This project uses **Nix** to manage the development environment dependencies (Go
 - **Spec-Driven**: Include relevant sections of the specification (`spec.md`) as comments in the code files. This ensures the code documents _why_ it exists and _what_ it is fulfilling.
 - **Testing**: See TDD section below.
 
+## K8s-Native Types Paradigm (FR-ENV-026)
+
+**Core Design Principle**: CRD configuration fields MUST use **curated subsets of Kubernetes-native types** rather than custom abstractions.
+
+### Why Kubernetes-Native Types?
+
+Anyone who knows how to write a `Deployment`, `StatefulSet`, or `PersistentVolumeClaim` manifest already knows how to configure a Catalyst environment. By reusing native K8s types, we get:
+
+- **User Familiarity**: No new schema to learn
+- **Schema Validation**: Free validation from existing K8s types
+- **Documentation**: Official K8s docs apply
+- **IDE Support**: Existing tooling understands the types
+
+### What is a "Curated Subset"?
+
+We don't embed the full `corev1.Container` type (which has 30+ fields including `stdin`, `tty`, `lifecycle` that aren't relevant for environment configuration). Instead, we pick the ~10 fields people actually use:
+
+| CRD Field        | K8s Type                      | From                              |
+| ---------------- | ----------------------------- | --------------------------------- |
+| `image`          | `string`                      | `corev1.Container.Image`          |
+| `command`        | `[]string`                    | `corev1.Container.Command`        |
+| `args`           | `[]string`                    | `corev1.Container.Args`           |
+| `workingDir`     | `string`                      | `corev1.Container.WorkingDir`     |
+| `ports`          | `[]corev1.ContainerPort`      | `corev1.Container.Ports`          |
+| `env`            | `[]corev1.EnvVar`             | `corev1.Container.Env`            |
+| `resources`      | `corev1.ResourceRequirements` | `corev1.Container.Resources`      |
+| `livenessProbe`  | `*corev1.Probe`               | `corev1.Container.LivenessProbe`  |
+| `readinessProbe` | `*corev1.Probe`               | `corev1.Container.ReadinessProbe` |
+| `startupProbe`   | `*corev1.Probe`               | `corev1.Container.StartupProbe`   |
+| `volumeMounts`   | `[]corev1.VolumeMount`        | `corev1.Container.VolumeMounts`   |
+
+### Example: What NOT to Do
+
+❌ **Custom abstraction** (requires learning a new schema):
+```go
+type ProbeConfig struct {
+    Path          string `json:"path"`
+    Port          int    `json:"port"`
+    PeriodSeconds int    `json:"periodSeconds"`
+}
+```
+
+✅ **K8s-native type** (users already know this):
+```go
+type EnvironmentConfig struct {
+    LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
+}
+```
+
+### When Adding New Config Fields
+
+1. **Always check if a K8s type exists first**
+2. **Use the native type if it exists**
+3. **Only create custom types when absolutely necessary**
+4. **Document why the custom type is needed**
+
+### References
+
+- **Spec**: `specs/001-environments/spec.md` (FR-ENV-026 through FR-ENV-032)
+- **Plan**: `specs/001-environments/plan.full-config.md`
+
 ## Test-Driven Development (TDD) - REQUIRED
 
 **CRITICAL: All code changes MUST follow TDD and pass CI before pushing.**

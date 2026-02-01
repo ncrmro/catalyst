@@ -65,7 +65,7 @@ type EnvironmentTemplate struct {
 	// +optional
 	SourceRef string `json:"sourceRef,omitempty"`
 
-	// Type of deployment (helm, manifest, kustomize)
+	// Type of deployment (helm, manifest, kustomize, docker-compose)
 	Type string `json:"type"`
 
 	// Path to the deployment definition (e.g. chart path) relative to SourceRef root.
@@ -82,6 +82,14 @@ type EnvironmentTemplate struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
 	Values runtime.RawExtension `json:"values,omitempty"`
+
+	// Config provides template-level defaults for managed deployments (FR-ENV-027, FR-ENV-029).
+	// Uses K8s-native types (see EnvironmentConfig in environment_types.go).
+	// Environment CR config overrides these values.
+	// For Helm deployments, this field is typically empty (chart handles everything).
+	// For Managed deployments, this provides the container/probe/resource configuration.
+	// +optional
+	Config *EnvironmentConfig `json:"config,omitempty"`
 }
 
 type BuildSpec struct {

@@ -51,6 +51,16 @@ sequenceDiagram
 
 > Note: The API group is `catalyst.catalyst.dev` (group: `catalyst`, domain: `catalyst.dev` per kubebuilder convention).
 
+### Design Paradigm: K8s-Native Types (FR-ENV-026)
+
+CRD configuration fields use **curated subsets of Kubernetes-native types** (`corev1.Probe`, `corev1.ResourceRequirements`, `corev1.ContainerPort`, etc.) rather than custom abstractions. This ensures:
+
+- Users familiar with writing Deployment manifests can intuitively configure environments
+- Schema validation, documentation, and IDE support from existing K8s types
+- No new schema to learn — if you know `kubectl`, you know Catalyst
+
+See `AGENTS.md` for detailed explanation and examples.
+
 ### 1. Project (`projects.catalyst.catalyst.dev`)
 
 Defines the configuration for a deployable application.
