@@ -425,7 +425,7 @@ func (r *EnvironmentReconciler) mergeHelmValues(template *catalystv1alpha1.Envir
 
 	// Environment variables: deep merge into any existing "env" map from the template,
 	// with environment-specific values overriding template defaults for the same keys.
-	if len(env.Spec.Config.EnvVars) > 0 {
+	if len(env.Spec.Config.Env) > 0 {
 		mergedEnv := make(map[string]interface{})
 
 		// Preserve existing template-provided env values, if any.
@@ -443,7 +443,8 @@ func (r *EnvironmentReconciler) mergeHelmValues(template *catalystv1alpha1.Envir
 		}
 
 		// Overlay environment-specific variables (these win on key conflicts).
-		for _, envVar := range env.Spec.Config.EnvVars {
+		for _, envVar := range env.Spec.Config.Env {
+			// Only simple string values supported in Helm values
 			mergedEnv[envVar.Name] = envVar.Value
 		}
 

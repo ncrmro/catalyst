@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -32,11 +33,27 @@ import (
 func (r *EnvironmentReconciler) ReconcileProductionMode(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, template *catalystv1alpha1.EnvironmentTemplate) (bool, error) {
 	log := logf.FromContext(ctx)
 
-	// 1. Create/update deployment using config
-	deployment, err := desiredDeploymentFromConfig(ctx, r.Client, env, namespace)
+	// 0. Get and validate configuration (required - no fallbacks)
+	templateConfig, err := getTemplateConfig(ctx, r.Client, env)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to get template config: %w", err)
 	}
+
+	// Resolve config (merge template + environment overrides)
+	config := resolveConfig(&env.Spec.Config, templateConfig)
+
+	// Validate that required fields are present
+	if err := validateConfig(&config); err != nil {
+		return false, fmt.Errorf("invalid configuration: %w", err)
+	}
+
+	log.Info("Using resolved config",
+		"image", config.Image,
+		"ports", len(config.Ports),
+	)
+
+	// 1. Create/update deployment using config
+	deployment := desiredDeploymentFromConfig(namespace, &config)
 
 	existingDeployment := &appsv1.Deployment{}
 	getErr := r.Get(ctx, client.ObjectKey{Name: "app", Namespace: namespace}, existingDeployment)
@@ -66,10 +83,7 @@ func (r *EnvironmentReconciler) ReconcileProductionMode(ctx context.Context, env
 	}
 
 	// 2. Create service (idempotent)
-	service, err := desiredServiceFromConfig(ctx, r.Client, env, namespace)
-	if err != nil {
-		return false, err
-	}
+	service := desiredServiceFromConfig(namespace, &config)
 	if err := r.Create(ctx, service); err != nil && !apierrors.IsAlreadyExists(err) {
 		return false, err
 	}

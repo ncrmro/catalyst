@@ -51,11 +51,6 @@ func resolveConfig(envConfig *catalystv1alpha1.EnvironmentConfig, tmplConfig *ca
 
 	// Override with environment-specific values (non-zero/non-nil only)
 
-	// Legacy fields
-	if len(envConfig.EnvVars) > 0 {
-		result.EnvVars = envConfig.EnvVars
-	}
-
 	// Container fields
 	if envConfig.Image != "" {
 		result.Image = envConfig.Image
@@ -127,12 +122,6 @@ func deepCopyConfig(cfg *catalystv1alpha1.EnvironmentConfig) *catalystv1alpha1.E
 		Command:    copyStrings(cfg.Command),
 		Args:       copyStrings(cfg.Args),
 		WorkingDir: cfg.WorkingDir,
-	}
-
-	// Copy EnvVars (legacy)
-	if len(cfg.EnvVars) > 0 {
-		result.EnvVars = make([]catalystv1alpha1.EnvVar, len(cfg.EnvVars))
-		copy(result.EnvVars, cfg.EnvVars)
 	}
 
 	// Copy Ports

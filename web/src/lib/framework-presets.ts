@@ -127,19 +127,8 @@ export const NEXTJS_PRESET: FrameworkPreset = {
       volumes: [],
     };
 
-    // Init containers
+    // Init containers (operator handles git-clone, only define app-level containers)
     const initContainers: InitContainerSpec[] = [
-      {
-        name: "git-clone",
-        image: "alpine/git:2.45.2",
-        command: [
-          "sh",
-          "-c",
-          "git clone --depth 1 --branch ${GIT_BRANCH} ${GIT_REPO_URL} /code || true",
-        ],
-        workingDir: "/",
-        volumeMounts: [{ name: "code", mountPath: "/code" }],
-      },
       {
         name: "npm-install",
         image: "node:22-slim",
@@ -159,8 +148,7 @@ export const NEXTJS_PRESET: FrameworkPreset = {
         env: [
           {
             name: "DATABASE_URL",
-            value:
-              "postgresql://postgres:postgres@postgres.${NAMESPACE}.svc.cluster.local:5432/catalyst",
+            value: "postgresql://postgres:postgres@postgres:5432/catalyst",
           },
         ],
         volumeMounts: [{ name: "code", mountPath: "/code" }],

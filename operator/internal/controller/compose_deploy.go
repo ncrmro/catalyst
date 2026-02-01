@@ -193,8 +193,8 @@ func (r *EnvironmentReconciler) desiredComposeDeployment(namespace, name, image 
 		}
 	}
 
-	// Add environment-level overrides
-	envVars = append(envVars, toCoreEnvVars(env.Spec.Config.EnvVars)...)
+	// Add environment-level overrides from K8s-native Env field
+	envVars = append(envVars, env.Spec.Config.Env...)
 
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{

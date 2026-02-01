@@ -300,14 +300,6 @@ func desiredDevelopmentDeploymentFromConfig(env *catalystv1alpha1.Environment, p
 	// Build environment variables from config
 	envVars := config.Env
 
-	// Add any legacy env vars (backward compat during transition)
-	for _, legacyVar := range config.EnvVars {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  legacyVar.Name,
-			Value: legacyVar.Value,
-		})
-	}
-
 	// Check if SEED_SELF_DEPLOY should be injected (from operator env)
 	if seedSelfDeploy := os.Getenv("SEED_SELF_DEPLOY"); seedSelfDeploy == "true" {
 		envVars = append(envVars, corev1.EnvVar{Name: "SEED_SELF_DEPLOY", Value: "true"})
@@ -498,16 +490,6 @@ func desiredDevelopmentServiceFromConfig(namespace string, config *catalystv1alp
 		})
 	}
 
-	// If no ports in config, default to port 80 -> 3000 for backward compat
-	if len(servicePorts) == 0 {
-		servicePorts = []corev1.ServicePort{
-			{
-				Port:       80,
-				TargetPort: intstr.FromInt(3000),
-			},
-		}
-	}
-
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "web",
@@ -523,13 +505,4 @@ func desiredDevelopmentServiceFromConfig(namespace string, config *catalystv1alp
 // int32Ptr returns a pointer to an int32
 func int32Ptr(i int32) *int32 {
 	return &i
-}
-
-// toCoreEnvVars converts legacy EnvVar to K8s EnvVar (for backward compatibility)
-func toCoreEnvVars(vars []catalystv1alpha1.EnvVar) []corev1.EnvVar {
-	res := []corev1.EnvVar{}
-	for _, v := range vars {
-		res = append(res, corev1.EnvVar{Name: v.Name, Value: v.Value})
-	}
-	return res
 }

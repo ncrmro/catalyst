@@ -74,19 +74,14 @@ type EnvironmentSource struct {
 // custom abstractions. See specs/001-environments/spec.md.
 //
 // Curated fields from corev1.Container:
-//   image, command, args, workingDir, ports, env, resources,
-//   livenessProbe, readinessProbe, startupProbe, volumeMounts
+//
+//	image, command, args, workingDir, ports, env, resources,
+//	livenessProbe, readinessProbe, startupProbe, volumeMounts
 //
 // NOT included (irrelevant for environment config):
-//   lifecycle, securityContext, stdin, tty, terminationMessagePath, etc.
+//
+//	lifecycle, securityContext, stdin, tty, terminationMessagePath, etc.
 type EnvironmentConfig struct {
-	// --- Legacy fields (backward compatibility) ---
-
-	// EnvVars to inject into the deployment (simple key-value pairs)
-	// Deprecated: use Env[] for K8s-native environment variable support
-	// +optional
-	EnvVars []EnvVar `json:"envVars,omitempty"`
-
 	// --- Curated corev1.Container fields (FR-ENV-026) ---
 
 	// Image is the container image to deploy (e.g., "node:22-slim")
@@ -112,7 +107,6 @@ type EnvironmentConfig struct {
 	Ports []corev1.ContainerPort `json:"ports,omitempty"`
 
 	// Env are environment variables using K8s-native EnvVar (supports valueFrom/secretKeyRef)
-	// This supplements the simpler EnvVars field above for backwards compatibility.
 	// +optional
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
@@ -239,11 +233,6 @@ type VolumeSpec struct {
 	// PersistentVolumeClaim spec (mirrors corev1.PersistentVolumeClaimSpec)
 	// +optional
 	PersistentVolumeClaim *corev1.PersistentVolumeClaimSpec `json:"persistentVolumeClaim,omitempty"`
-}
-
-type EnvVar struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
 }
 
 // EnvironmentStatus defines the observed state of Environment.

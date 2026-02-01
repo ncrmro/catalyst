@@ -2,7 +2,6 @@
 package controller
 
 import (
-	"context"
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -10,7 +9,6 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	catalystv1alpha1 "github.com/ncrmro/catalyst/operator/api/v1alpha1"
 )
@@ -21,34 +19,12 @@ import (
 // - Create Ingress with TLS
 
 // desiredDeploymentFromConfig creates a deployment from resolved config
-func desiredDeploymentFromConfig(ctx context.Context, k8sClient client.Client, env *catalystv1alpha1.Environment, namespace string) (*appsv1.Deployment, error) {
-	// Get template config from Project CR
-	templateConfig, err := getTemplateConfig(ctx, k8sClient, env)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get template config: %w", err)
-	}
-
-	// Resolve config (merge template + environment overrides)
-	config := resolveConfig(&env.Spec.Config, templateConfig)
-
-	// Validate that required fields are present
-	if err := validateConfig(&config); err != nil {
-		return nil, fmt.Errorf("invalid configuration: %w", err)
-	}
-
+func desiredDeploymentFromConfig(namespace string, config *catalystv1alpha1.EnvironmentConfig) *appsv1.Deployment {
 	name := "app" // Standard name within the isolated namespace
 	replicas := int32(1)
 
 	// Build environment variables from config
 	envVars := config.Env
-
-	// Add legacy env vars for backward compat
-	for _, legacyVar := range config.EnvVars {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  legacyVar.Name,
-			Value: legacyVar.Value,
-		})
-	}
 
 	// Build main container from config
 	container := corev1.Container{
@@ -113,20 +89,11 @@ func desiredDeploymentFromConfig(ctx context.Context, k8sClient client.Client, e
 				},
 			},
 		},
-	}, nil
+	}
 }
 
 // desiredServiceFromConfig creates a service from resolved config
-func desiredServiceFromConfig(ctx context.Context, k8sClient client.Client, env *catalystv1alpha1.Environment, namespace string) (*corev1.Service, error) {
-	// Get template config from Project CR
-	templateConfig, err := getTemplateConfig(ctx, k8sClient, env)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get template config: %w", err)
-	}
-
-	// Resolve config (merge template + environment overrides)
-	config := resolveConfig(&env.Spec.Config, templateConfig)
-
+func desiredServiceFromConfig(namespace string, config *catalystv1alpha1.EnvironmentConfig) *corev1.Service {
 	// Build service ports from config ports
 	servicePorts := []corev1.ServicePort{}
 	for _, containerPort := range config.Ports {
@@ -151,7 +118,7 @@ func desiredServiceFromConfig(ctx context.Context, k8sClient client.Client, env 
 			Selector: map[string]string{"app": "app"},
 			Ports:    servicePorts,
 		},
-	}, nil
+	}
 }
 
 // desiredIngress creates an Ingress resource for the environment.

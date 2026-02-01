@@ -203,9 +203,8 @@ spec:
                             type: string
                           type: array
                         env:
-                          description: |-
-                            Env are environment variables using K8s-native EnvVar (supports valueFrom/secretKeyRef)
-                            This supplements the simpler EnvVars field above for backwards compatibility.
+                          description: Env are environment variables using K8s-native
+                            EnvVar (supports valueFrom/secretKeyRef)
                           items:
                             description: EnvVar represents an environment variable
                               present in a Container.
@@ -360,21 +359,6 @@ spec:
                                 type: object
                             required:
                             - name
-                            type: object
-                          type: array
-                        envVars:
-                          description: |-
-                            EnvVars to inject into the deployment (simple key-value pairs)
-                            Deprecated: use Env[] for K8s-native environment variable support
-                          items:
-                            properties:
-                              name:
-                                type: string
-                              value:
-                                type: string
-                            required:
-                            - name
-                            - value
                             type: object
                           type: array
                         image:
