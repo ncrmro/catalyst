@@ -292,7 +292,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return r.reconcileDevelopmentModeWithStatus(ctx, env, project, targetNamespace, isLocal, ingressPort, envTemplate)
 
 	case "production":
-		return r.reconcileProductionModeWithStatus(ctx, env, targetNamespace, isLocal, ingressPort, envTemplate)
+		return r.reconcileProductionModeWithStatus(ctx, env, project, targetNamespace, isLocal, ingressPort, envTemplate)
 
 	case "helm":
 		return r.reconcileHelmModeWithStatus(ctx, env, project, targetNamespace, isLocal, ingressPort, envTemplate)
@@ -488,7 +488,7 @@ func (r *EnvironmentReconciler) reconcileDevelopmentModeWithStatus(ctx context.C
 }
 
 // reconcileProductionModeWithStatus handles production mode deployment with status updates
-func (r *EnvironmentReconciler) reconcileProductionModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, _ string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
+func (r *EnvironmentReconciler) reconcileProductionModeWithStatus(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, isLocal bool, _ string, template *catalystv1alpha1.EnvironmentTemplate) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
 	// Wait for default service account
@@ -512,7 +512,7 @@ func (r *EnvironmentReconciler) reconcileProductionModeWithStatus(ctx context.Co
 	}
 
 	// Run production mode reconciliation
-	ready, err := r.ReconcileProductionMode(ctx, env, namespace, isLocal, template)
+	ready, err := r.ReconcileProductionMode(ctx, env, project, namespace, isLocal, template)
 	if err != nil {
 		env.Status.Phase = "Failed"
 		_ = r.Status().Update(ctx, env)

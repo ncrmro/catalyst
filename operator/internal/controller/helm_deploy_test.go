@@ -25,6 +25,7 @@ import (
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	catalystv1alpha1 "github.com/ncrmro/catalyst/operator/api/v1alpha1"
@@ -44,7 +45,7 @@ var _ = Describe("mergeHelmValues", func() {
 		env := &catalystv1alpha1.Environment{
 			Spec: catalystv1alpha1.EnvironmentSpec{
 				Config: catalystv1alpha1.EnvironmentConfig{
-					EnvVars: []catalystv1alpha1.EnvVar{
+					Env: []corev1.EnvVar{
 						{Name: "KEY1", Value: "value1"},
 						{Name: "KEY2", Value: "value2"},
 					},
@@ -74,7 +75,7 @@ var _ = Describe("mergeHelmValues", func() {
 		env := &catalystv1alpha1.Environment{
 			Spec: catalystv1alpha1.EnvironmentSpec{
 				Config: catalystv1alpha1.EnvironmentConfig{
-					EnvVars: []catalystv1alpha1.EnvVar{
+					Env: []corev1.EnvVar{
 						{Name: "OVERRIDE_VAR", Value: "env_value"},
 						{Name: "NEW_VAR", Value: "new_value"},
 					},

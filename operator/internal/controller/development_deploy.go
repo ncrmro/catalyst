@@ -41,7 +41,7 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 	log := logf.FromContext(ctx)
 
 	// 0. Get and validate configuration (required - no fallbacks)
-	templateConfig, err := getTemplateConfig(ctx, r.Client, env)
+	templateConfig, err := getTemplateConfig(project, env)
 	if err != nil {
 		return false, fmt.Errorf("failed to get template config: %w", err)
 	}

@@ -63,7 +63,7 @@ assert.Equal(t, namespace, deployment.Namespace)
 assert.Len(t, deployment.Spec.Template.Spec.Containers, 1)
 container := deployment.Spec.Template.Spec.Containers[0]
 
-assert.Equal(t, "web", container.Name)
+assert.Equal(t, "app", container.Name)
 assert.Equal(t, "node:22-slim", container.Image)
 assert.Equal(t, []string{"npm", "run", "dev"}, container.Command)
 assert.Equal(t, []string{"--turbopack"}, container.Args)
@@ -172,7 +172,7 @@ corev1.ResourceMemory: resource.MustParse("256Mi"),
 },
 },
 },
-Storage: &catalystv1alpha1.PersistentVolumeClaimSpec{
+Storage: &corev1.PersistentVolumeClaimSpec{
 AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 Resources: corev1.VolumeResourceRequirements{
 Requests: corev1.ResourceList{
@@ -211,7 +211,7 @@ assert.Equal(t, "100m", container.Resources.Requests.Cpu().String())
 // Verify volume claim template
 assert.Len(t, statefulSet.Spec.VolumeClaimTemplates, 1)
 pvc := statefulSet.Spec.VolumeClaimTemplates[0]
-assert.Equal(t, "data", pvc.Name)
+assert.Equal(t, "postgres-data", pvc.Name)
 assert.Equal(t, "1Gi", pvc.Spec.Resources.Requests.Storage().String())
 }
 

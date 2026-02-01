@@ -17,11 +17,9 @@ limitations under the License.
 package controller
 
 import (
-	"context"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	catalystv1alpha1 "github.com/ncrmro/catalyst/operator/api/v1alpha1"
 )
@@ -237,19 +235,9 @@ func copyStrings(s []string) []string {
 	return result
 }
 
-// getTemplateConfig fetches the template config from a Project CR for a given environment type.
-// Returns the template config or an error if the project or template doesn't exist.
-func getTemplateConfig(ctx context.Context, k8sClient client.Client, env *catalystv1alpha1.Environment) (*catalystv1alpha1.EnvironmentConfig, error) {
-	// Get the Project CR
-	project := &catalystv1alpha1.Project{}
-	projectKey := client.ObjectKey{
-		Namespace: env.Namespace,
-		Name:      env.Spec.ProjectRef.Name,
-	}
-	if err := k8sClient.Get(ctx, projectKey, project); err != nil {
-		return nil, fmt.Errorf("failed to get project %s: %w", env.Spec.ProjectRef.Name, err)
-	}
-
+// getTemplateConfig extracts the template config from a Project CR for a given environment type.
+// Returns the template config or an error if the template doesn't exist.
+func getTemplateConfig(project *catalystv1alpha1.Project, env *catalystv1alpha1.Environment) (*catalystv1alpha1.EnvironmentConfig, error) {
 	// Get the template for this environment type
 	templateKey := env.Spec.Type // "development" or "deployment"
 	if project.Spec.Templates == nil {

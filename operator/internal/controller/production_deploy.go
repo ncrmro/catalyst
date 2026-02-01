@@ -30,11 +30,11 @@ import (
 
 // ReconcileProductionMode handles the reconciliation for production deployment mode.
 // It deploys using resolved config from Project template and Environment overrides.
-func (r *EnvironmentReconciler) ReconcileProductionMode(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, template *catalystv1alpha1.EnvironmentTemplate) (bool, error) {
+func (r *EnvironmentReconciler) ReconcileProductionMode(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, isLocal bool, template *catalystv1alpha1.EnvironmentTemplate) (bool, error) {
 	log := logf.FromContext(ctx)
 
 	// 0. Get and validate configuration (required - no fallbacks)
-	templateConfig, err := getTemplateConfig(ctx, r.Client, env)
+	templateConfig, err := getTemplateConfig(project, env)
 	if err != nil {
 		return false, fmt.Errorf("failed to get template config: %w", err)
 	}
