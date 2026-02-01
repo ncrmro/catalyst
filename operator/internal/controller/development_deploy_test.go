@@ -93,12 +93,18 @@ env := &catalystv1alpha1.Environment{
 Spec: catalystv1alpha1.EnvironmentSpec{
 ProjectRef: catalystv1alpha1.ProjectReference{Name: "test-project"},
 Sources: []catalystv1alpha1.EnvironmentSource{
-{Name: "primary", RepoURL: "https://github.com/test/repo", Branch: "main"},
+{Name: "primary", CommitSha: "abc123", Branch: "main"},
 },
 },
 }
 
-project := &catalystv1alpha1.Project{}
+project := &catalystv1alpha1.Project{
+Spec: catalystv1alpha1.ProjectSpec{
+Sources: []catalystv1alpha1.SourceConfig{
+{Name: "primary", RepositoryURL: "https://github.com/test/repo", Branch: "main"},
+},
+},
+}
 
 config := &catalystv1alpha1.EnvironmentConfig{
 Image: "node:22-slim",

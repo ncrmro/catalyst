@@ -39,7 +39,7 @@ export const successfulDeployment = {
           },
         ],
         config: {
-          envVars: [
+          env: [
             { name: "NODE_ENV", value: "development" },
             {
               name: "NEXT_PUBLIC_API_URL",
@@ -215,7 +215,7 @@ export const productionEnvironment = {
           },
         ],
         config: {
-          envVars: [
+          env: [
             { name: "NODE_ENV", value: "production" },
             { name: "NEXT_PUBLIC_API_URL", value: "https://api.catalyst.dev" },
             { name: "LOG_LEVEL", value: "error" },

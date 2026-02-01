@@ -154,7 +154,7 @@ export const environmentCRFactory = EnvironmentCRFactory.define(
           },
         ],
         config: {
-          envVars: [
+          env: [
             {
               name: "NODE_ENV",
               value: envType === "deployment" ? "production" : "development",

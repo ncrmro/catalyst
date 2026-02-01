@@ -347,10 +347,10 @@ func desiredDevelopmentDeploymentFromConfig(env *catalystv1alpha1.Environment, p
 		}
 
 		// Git clone image - configurable via environment variable
-		// TODO: Use SHA256 digest (e.g., alpine/git@sha256:...) for reproducibility
+		// Pinned by SHA256 digest for reproducibility (alpine/git:2.45.2)
 		gitCloneImage := os.Getenv("GIT_CLONE_IMAGE")
 		if gitCloneImage == "" {
-			gitCloneImage = "alpine/git:2.45.2"
+			gitCloneImage = "alpine/git@sha256:16ad8e788e1d3b0c30f18da8dde5c0ace3b187445a62d8af893b003ca1e70592"
 		}
 
 		gitCloneContainer := corev1.Container{

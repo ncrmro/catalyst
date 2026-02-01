@@ -90,6 +90,8 @@ spec:
             - name: ENABLE_PAT_FALLBACK
               value: "true"
             {{- end }}
+            - name: GIT_CLONE_IMAGE
+              value: {{ .Values.operator.gitCloneImage | quote }}
           {{- with .Values.operator.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
