@@ -17,7 +17,12 @@ limitations under the License.
 package controller
 
 import (
+	"context"
+	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	catalystv1alpha1 "github.com/ncrmro/catalyst/operator/api/v1alpha1"
 )
 
@@ -241,4 +246,55 @@ func copyStrings(s []string) []string {
 	result := make([]string, len(s))
 	copy(result, s)
 	return result
+}
+
+// getTemplateConfig fetches the template config from a Project CR for a given environment type.
+// Returns the template config or an error if the project or template doesn't exist.
+func getTemplateConfig(ctx context.Context, k8sClient client.Client, env *catalystv1alpha1.Environment) (*catalystv1alpha1.EnvironmentConfig, error) {
+	// Get the Project CR
+	project := &catalystv1alpha1.Project{}
+	projectKey := client.ObjectKey{
+		Namespace: env.Namespace,
+		Name:      env.Spec.ProjectRef.Name,
+	}
+	if err := k8sClient.Get(ctx, projectKey, project); err != nil {
+		return nil, fmt.Errorf("failed to get project %s: %w", env.Spec.ProjectRef.Name, err)
+	}
+
+	// Get the template for this environment type
+	templateKey := env.Spec.Type // "development" or "deployment"
+	if project.Spec.Templates == nil {
+		return nil, fmt.Errorf("project %s has no templates defined", env.Spec.ProjectRef.Name)
+	}
+
+	template, exists := project.Spec.Templates[templateKey]
+	if !exists {
+		return nil, fmt.Errorf("project %s has no template for type %s", env.Spec.ProjectRef.Name, templateKey)
+	}
+
+	// Return the template config (may be nil if template doesn't have config)
+	return template.Config, nil
+}
+
+// validateConfig ensures all required config fields are present.
+// Returns an error if any required field is missing.
+func validateConfig(config *catalystv1alpha1.EnvironmentConfig) error {
+	if config == nil {
+		return fmt.Errorf("config is required but not provided")
+	}
+
+	if config.Image == "" {
+		return fmt.Errorf("config.image is required")
+	}
+
+	if len(config.Ports) == 0 {
+		return fmt.Errorf("config.ports is required (at least one port must be defined)")
+	}
+
+	// Command is optional (image may have ENTRYPOINT)
+	// WorkingDir is optional (image may have WORKDIR)
+	// Resources are optional (but recommended)
+	// Probes are optional (but recommended for production)
+
+	return nil
 }
