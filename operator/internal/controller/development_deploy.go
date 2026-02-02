@@ -33,7 +33,7 @@ import (
 )
 
 // gitScriptsConfigMapName is the name of the ConfigMap containing git scripts
-const gitScriptsConfigMapName = "git-scripts"
+const gitScriptsConfigMapName = "catalyst-git-scripts"
 
 // ReconcileDevelopmentMode handles the reconciliation for development deployment mode.
 // It creates PVCs, managed services, and a web deployment based on the resolved config from the Project template and Environment overrides.
