@@ -134,6 +134,16 @@ export const NEXTJS_PRESET: FrameworkPreset = {
         image: "node:22-slim",
         command: ["npm", "ci"],
         workingDir,
+        resources: {
+          requests: {
+            cpu: "100m",
+            memory: "256Mi",
+          },
+          limits: {
+            cpu: "500m",
+            memory: "1Gi",
+          },
+        },
         volumeMounts: [{ name: "code", mountPath: "/code" }],
       },
     ];
@@ -151,6 +161,16 @@ export const NEXTJS_PRESET: FrameworkPreset = {
             value: "postgresql://postgres:postgres@postgres:5432/catalyst",
           },
         ],
+        resources: {
+          requests: {
+            cpu: "50m",
+            memory: "128Mi",
+          },
+          limits: {
+            cpu: "200m",
+            memory: "512Mi",
+          },
+        },
         volumeMounts: [{ name: "code", mountPath: "/code" }],
       });
     }
@@ -264,6 +284,16 @@ export const GENERIC_NODE_PRESET: FrameworkPreset = {
           image: "node:22-slim",
           command: ["npm", "ci"],
           workingDir,
+          resources: {
+            requests: {
+              cpu: "100m",
+              memory: "256Mi",
+            },
+            limits: {
+              cpu: "500m",
+              memory: "1Gi",
+            },
+          },
           volumeMounts: [{ name: "code", mountPath: "/app" }],
         },
       ],
@@ -333,6 +363,16 @@ export const PYTHON_PRESET: FrameworkPreset = {
           image: "python:3.12-slim",
           command: ["pip", "install", "-r", "requirements.txt"],
           workingDir,
+          resources: {
+            requests: {
+              cpu: "100m",
+              memory: "256Mi",
+            },
+            limits: {
+              cpu: "500m",
+              memory: "512Mi",
+            },
+          },
           volumeMounts: [{ name: "code", mountPath: "/app" }],
         },
       ],
@@ -402,6 +442,16 @@ export const GO_PRESET: FrameworkPreset = {
           image: "golang:1.22",
           command: ["go", "mod", "download"],
           workingDir,
+          resources: {
+            requests: {
+              cpu: "100m",
+              memory: "256Mi",
+            },
+            limits: {
+              cpu: "500m",
+              memory: "1Gi",
+            },
+          },
           volumeMounts: [{ name: "code", mountPath: "/app" }],
         },
       ],
