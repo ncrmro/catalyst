@@ -46,6 +46,12 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 		return false, fmt.Errorf("failed to get template config: %w", err)
 	}
 
+	// Debug logging for config resolution
+	log.Info("Template config resolution",
+		"templateConfigNil", templateConfig == nil,
+		"envConfigImage", env.Spec.Config.Image,
+	)
+
 	// Resolve config (merge template + environment overrides)
 	config := resolveConfig(&env.Spec.Config, templateConfig)
 
