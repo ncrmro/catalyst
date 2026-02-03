@@ -1,6 +1,11 @@
 # Production overrides for tetraship.app
 # Usage: helm upgrade --install catalyst ./charts/catalyst -f ./charts/catalyst/values.production.yaml
 
+ingress-nginx:
+  controller:
+    extraArgs:
+      default-ssl-certificate: "catalyst-system/wildcard-preview-tetraship-app-tls"
+
 operator:
   previewDomain: "preview.tetraship.app"
 

@@ -25,3 +25,4 @@ result
 .playwright-mcp
 .direnv
 .eslintcache
+charts/catalyst/certs.yaml

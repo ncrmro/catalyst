@@ -142,9 +142,46 @@ The web application automatically connects to the PostgreSQL cluster using the s
 
 1. **High Availability**: Set `postgresql.instances: 3` and `web.replicaCount: 2+`
 2. **Ingress**: Enable `web.ingress.enabled: true` with proper host configuration
-3. **TLS**: Configure cert-manager issuers and ingress TLS
+3. **TLS**: Configure cert-manager issuers and ingress TLS (see section below)
 4. **Storage**: Configure appropriate `storageClass` for your environment
 5. **Secrets**: Pass sensitive environment variables via `web.envFrom` referencing external secrets
+
+## Production Certificate Setup
+
+For production and preview environments (e.g., `*.preview.tetraship.app`), we use a wildcard certificate managed by cert-manager using the Cloudflare DNS-01 challenge.
+
+### Cloudflare Permissions
+You need a Cloudflare API Token with the following permissions for the target zone:
+- **Zone / Zone / Read**
+- **Zone / DNS / Edit**
+
+### Manual Setup Steps
+
+1. **Create the Cloudflare Secret**:
+   ```bash
+   kubectl create secret generic cloudflare-api-token-secret \
+     --from-literal=api-token=<YOUR_CLOUDFLARE_API_TOKEN> \
+     -n catalyst-system
+   ```
+
+2. **Apply Certificate Manifests**:
+   The certificate configuration is excluded from the Helm chart (via `.helmignore`) because it is specific to the managed Tetraship environment (`*.preview.tetraship.app`). Open-source users should configure their own `ClusterIssuer` and `Certificate` resources according to their DNS provider and domain.
+
+   For the managed environment:
+   ```bash
+   kubectl apply -f charts/catalyst/certs.yaml
+   ```
+   *Note: This file contains the `ClusterIssuer` and wildcard `Certificate` resources.*
+
+3. **Configure Ingress Controller**:
+   Ensure `values.production.yaml` sets the default SSL certificate for the ingress controller:
+
+   ```yaml
+   ingress-nginx:
+     controller:
+       extraArgs:
+         default-ssl-certificate: "catalyst-system/wildcard-preview-tetraship-app-tls"
+   ```
 
 ## Development Environment Init Containers
 

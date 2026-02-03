@@ -178,18 +178,9 @@ func desiredIngress(env *catalystv1alpha1.Environment, namespace string, isLocal
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "web",
 			Namespace: namespace,
-			Annotations: map[string]string{
-				"cert-manager.io/cluster-issuer": "letsencrypt-prod",
-			},
 		},
 		Spec: networkingv1.IngressSpec{
 			IngressClassName: ptr("nginx"),
-			TLS: []networkingv1.IngressTLS{
-				{
-					Hosts:      []string{host},
-					SecretName: fmt.Sprintf("%s-tls", env.Name),
-				},
-			},
 			Rules: []networkingv1.IngressRule{
 				{
 					Host: host,

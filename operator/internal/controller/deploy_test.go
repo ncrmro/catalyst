@@ -93,19 +93,11 @@ func TestDesiredIngress_ProductionMode(t *testing.T) {
 	assert.Equal(t, namespace, ingress.Namespace)
 	assert.Equal(t, "nginx", *ingress.Spec.IngressClassName)
 
-	// Verify cert-manager annotation for production
-	assert.Equal(t, "letsencrypt-prod", ingress.Annotations["cert-manager.io/cluster-issuer"])
-	assert.NotContains(t, ingress.Annotations, "nginx.ingress.kubernetes.io/rewrite-target")
+	assert.Empty(t, ingress.Annotations)
+	assert.Empty(t, ingress.Spec.TLS)
 
-	// Verify TLS configuration
-	assert.Len(t, ingress.Spec.TLS, 1)
-	tls := ingress.Spec.TLS[0]
-	expectedHost := "test-env.preview.tetraship.app"
-	assert.Equal(t, []string{expectedHost}, tls.Hosts)
-	assert.Equal(t, "test-env-tls", tls.SecretName)
-
-	// Verify hostname-based routing rules
 	assert.Len(t, ingress.Spec.Rules, 1)
+
 	rule := ingress.Spec.Rules[0]
 	assert.Equal(t, expectedHost, rule.Host)
 

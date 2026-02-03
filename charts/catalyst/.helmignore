@@ -27,3 +27,5 @@ scripts/
 
 # Environment-specific value overrides - not packaged, used via -f flag
 values.production.yaml
+certs/
+certs.yaml
