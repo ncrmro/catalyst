@@ -149,10 +149,6 @@ cmd_up() {
     "${helm_extra_args[@]}" \
     --wait \
     --timeout 10m
-  
-  # Ensure the namespace has the label required by NetworkPolicies
-  kubectl label namespace "$NAMESPACE" kubernetes.io/metadata.name="$NAMESPACE" --overwrite
-  
   ok "Catalyst deployed via Helm"
 
   # 6. Wait for services

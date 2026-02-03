@@ -197,9 +197,6 @@ jobs:
             --wait \
             --timeout 10m
 
-          # Ensure the namespace has the label required by NetworkPolicies
-          kubectl label namespace catalyst-system kubernetes.io/metadata.name=catalyst-system --overwrite
-
           echo "Catalyst deployed via Helm"
 
       - name: Wait for CloudNativePG operator
