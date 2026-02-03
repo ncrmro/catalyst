@@ -240,7 +240,7 @@ var _ = Describe("Environment Controller", func() {
 			// 2a. Verify Ingress Created
 			ingress := &networkingv1.Ingress{}
 			Eventually(func() error {
-				return k8sClient.Get(ctx, types.NamespacedName{Name: "app", Namespace: targetNsName}, ingress)
+				return k8sClient.Get(ctx, types.NamespacedName{Name: "web", Namespace: targetNsName}, ingress)
 			}, time.Second*10, time.Millisecond*250).Should(Succeed())
 
 			// Verify ingress has correct configuration (local mode by default in tests)

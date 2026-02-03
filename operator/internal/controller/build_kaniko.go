@@ -154,15 +154,19 @@ func (r *EnvironmentReconciler) reconcileSingleBuild(ctx context.Context, env *c
 	}
 
 	// Determine Commit/Branch
-	var commitSha string
+	var commit string
 	for _, s := range env.Spec.Sources {
 		if s.Name == build.SourceRef {
-			commitSha = s.CommitSha
+			if s.CommitSha != "" && s.CommitSha != "HEAD" {
+				commit = s.CommitSha
+			} else if s.Branch != "" {
+				commit = s.Branch
+			}
 			break
 		}
 	}
-	if commitSha == "" {
-		commitSha = "latest" // Should not happen in real usage
+	if commit == "" {
+		commit = "latest" // Fallback
 	}
 
 	// Check if registry secret exists (for pushing)
@@ -173,13 +177,24 @@ func (r *EnvironmentReconciler) reconcileSingleBuild(ctx context.Context, env *c
 	}
 
 	// Image Tag
+	// Sanitize commit for use as Docker tag (no slashes, colons, or other invalid chars)
+	sanitizedCommit := strings.ReplaceAll(commit, "/", "-")
+	sanitizedCommit = strings.ReplaceAll(sanitizedCommit, ":", "-")
+	sanitizedCommit = strings.ReplaceAll(sanitizedCommit, " ", "-")
+	
 	imageName := fmt.Sprintf("%s/%s-%s", project.Name, build.Name, env.Name)
-	imageTag := fmt.Sprintf("%s/%s:%s", registryInternal, imageName, commitSha)
+	imageTag := fmt.Sprintf("%s/%s:%s", registryInternal, imageName, sanitizedCommit)
 
 	// Job Name
-	jobName := fmt.Sprintf("build-%s-%s", build.Name, commitSha[:7])
+	// Use first 7 chars if it looks like a SHA, otherwise use sanitized branch name
+	commitPart := commit
+	if len(commitPart) > 7 {
+		commitPart = commitPart[:7]
+	}
+	jobName := fmt.Sprintf("build-%s-%s", build.Name, commitPart)
 	// Sanitize job name
 	jobName = strings.ReplaceAll(jobName, "/", "-")
+	jobName = strings.ReplaceAll(jobName, ".", "-")
 	jobName = strings.ToLower(jobName)
 
 	// Check if Job exists
@@ -195,7 +210,7 @@ func (r *EnvironmentReconciler) reconcileSingleBuild(ctx context.Context, env *c
 
 			// Create Job
 			log.Info("Creating Build Job", "job", jobName, "image", imageTag, "installationId", project.Spec.GitHubInstallationId)
-			job = desiredBuildJob(jobName, namespace, imageTag, sourceConfig.RepositoryURL, commitSha, project.Spec.GitHubInstallationId, build, hasRegistrySecret)
+			job = desiredBuildJob(jobName, namespace, imageTag, sourceConfig.RepositoryURL, commit, project.Spec.GitHubInstallationId, build, hasRegistrySecret)
 			if err := r.Create(ctx, job); err != nil {
 				return "", err
 			}

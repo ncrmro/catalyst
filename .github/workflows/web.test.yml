@@ -308,6 +308,11 @@ jobs:
 
           echo "=== Ingress Resources ===" | tee -a $LOG
           kubectl get ingress -A 2>&1 | tee -a $LOG
+          kubectl describe ingress -A 2>&1 | tee -a $LOG
+
+          echo "=== NetworkPolicies ===" | tee -a $LOG
+          kubectl get networkpolicies -A 2>&1 | tee -a $LOG
+          kubectl describe networkpolicies -A 2>&1 | tee -a $LOG
 
           echo "=== ConfigMaps ===" | tee -a $LOG
           kubectl get configmaps -A 2>&1 | tee -a $LOG

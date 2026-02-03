@@ -865,9 +865,7 @@ export async function createPreviewDeployment(
           prNumber,
         },
       ],
-      config: {
-        envVars: [], // Add any default env vars
-      },
+      config: {},
     },
     environmentLabels,
   );

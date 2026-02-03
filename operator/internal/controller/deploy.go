@@ -7,7 +7,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -19,29 +18,53 @@ import (
 // - Deploy Application (Helm/Manifest)
 // - Create Ingress with TLS
 
-// getImageForDeployment returns the container image to deploy.
-// Priority: spec.config.image > fallback to cluster registry with commit SHA.
-func getImageForDeployment(env *catalystv1alpha1.Environment) string {
-	// If image is explicitly set in config, use it
-	if env.Spec.Config.Image != "" {
-		return env.Spec.Config.Image
-	}
-
-	// Fallback to cluster registry for development/workspace modes
-	projectName := env.Spec.ProjectRef.Name
-	commitSha := "latest"
-	sources := env.Spec.Sources
-	if len(sources) > 0 {
-		commitSha = sources[0].CommitSha
-	}
-	return fmt.Sprintf("%s/%s:%s", registryHost, projectName, commitSha)
-}
-
-func desiredDeployment(env *catalystv1alpha1.Environment, namespace string) *appsv1.Deployment {
-	imageTag := getImageForDeployment(env)
-	name := "app" // Standard name within the isolated namespace
-
+// desiredDeploymentFromConfig creates a deployment from resolved config
+func desiredDeploymentFromConfig(namespace string, config *catalystv1alpha1.EnvironmentConfig) *appsv1.Deployment {
+	name := "web" // Standard name within the isolated namespace
 	replicas := int32(1)
+
+	// Build environment variables from config
+	envVars := config.Env
+
+	// Build main container from config
+	container := corev1.Container{
+		Name:         name,
+		Image:        config.Image,
+		Command:      config.Command,
+		Args:         config.Args,
+		WorkingDir:   config.WorkingDir,
+		Ports:        config.Ports,
+		Env:          envVars,
+		VolumeMounts: config.VolumeMounts,
+	}
+
+	if config.Resources != nil {
+		container.Resources = *config.Resources
+	}
+	if config.LivenessProbe != nil {
+		container.LivenessProbe = config.LivenessProbe
+	}
+	if config.ReadinessProbe != nil {
+		container.ReadinessProbe = config.ReadinessProbe
+	}
+	if config.StartupProbe != nil {
+		container.StartupProbe = config.StartupProbe
+	}
+
+	// Build volumes
+	volumes := []corev1.Volume{}
+	for _, volSpec := range config.Volumes {
+		if volSpec.PersistentVolumeClaim != nil {
+			volumes = append(volumes, corev1.Volume{
+				Name: volSpec.Name,
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: volSpec.Name,
+					},
+				},
+			})
+		}
+	}
 
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -61,46 +84,39 @@ func desiredDeployment(env *catalystv1alpha1.Environment, namespace string) *app
 					Labels: map[string]string{"app": name},
 				},
 				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name:  name,
-							Image: imageTag,
-							Ports: []corev1.ContainerPort{
-								{ContainerPort: 3000},
-							},
-							Env: toCoreEnvVars(env.Spec.Config.EnvVars),
-							Resources: corev1.ResourceRequirements{
-								Requests: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("100m"),
-									corev1.ResourceMemory: resource.MustParse("128Mi"),
-								},
-								Limits: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("500m"),
-									corev1.ResourceMemory: resource.MustParse("512Mi"),
-								},
-							},
-						},
-					},
+					Containers: []corev1.Container{container},
+					Volumes:    volumes,
 				},
 			},
 		},
 	}
 }
 
-func desiredService(namespace string) *corev1.Service {
+// desiredServiceFromConfig creates a service from resolved config
+func desiredServiceFromConfig(namespace string, config *catalystv1alpha1.EnvironmentConfig) *corev1.Service {
+	// Build service ports from config ports
+	servicePorts := []corev1.ServicePort{}
+	for _, containerPort := range config.Ports {
+		servicePorts = append(servicePorts, corev1.ServicePort{
+			Port:       80, // Service listens on 80
+			TargetPort: intstr.FromInt(int(containerPort.ContainerPort)),
+			Protocol:   containerPort.Protocol,
+		})
+	}
+
+	// If no ports in config, use first port only
+	if len(servicePorts) > 1 {
+		servicePorts = servicePorts[:1] // Only use the first port
+	}
+
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app",
+			Name:      "web",
 			Namespace: namespace,
 		},
 		Spec: corev1.ServiceSpec{
-			Selector: map[string]string{"app": "app"},
-			Ports: []corev1.ServicePort{
-				{
-					Port:       80,
-					TargetPort: intstr.FromInt(3000),
-				},
-			},
+			Selector: map[string]string{"app": "web"},
+			Ports:    servicePorts,
 		},
 	}
 }
@@ -118,7 +134,7 @@ func desiredIngress(env *catalystv1alpha1.Environment, namespace string, isLocal
 
 		return &networkingv1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "app",
+				Name:      "web",
 				Namespace: namespace,
 			},
 			Spec: networkingv1.IngressSpec{
@@ -134,7 +150,7 @@ func desiredIngress(env *catalystv1alpha1.Environment, namespace string, isLocal
 										PathType: &pathType,
 										Backend: networkingv1.IngressBackend{
 											Service: &networkingv1.IngressServiceBackend{
-												Name: "app",
+												Name: "web",
 												Port: networkingv1.ServiceBackendPort{
 													Number: 80,
 												},
@@ -160,7 +176,7 @@ func desiredIngress(env *catalystv1alpha1.Environment, namespace string, isLocal
 
 	return &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app",
+			Name:      "web",
 			Namespace: namespace,
 			Annotations: map[string]string{
 				"cert-manager.io/cluster-issuer": "letsencrypt-prod",
@@ -185,7 +201,7 @@ func desiredIngress(env *catalystv1alpha1.Environment, namespace string, isLocal
 									PathType: &pathType,
 									Backend: networkingv1.IngressBackend{
 										Service: &networkingv1.IngressServiceBackend{
-											Name: "app",
+											Name: "web",
 											Port: networkingv1.ServiceBackendPort{
 												Number: 80,
 											},
@@ -220,12 +236,4 @@ func generateURL(env *catalystv1alpha1.Environment, namespace string, isLocal bo
 		domain = previewDomain[0]
 	}
 	return fmt.Sprintf("https://%s.%s/", env.Name, domain)
-}
-
-func toCoreEnvVars(vars []catalystv1alpha1.EnvVar) []corev1.EnvVar {
-	res := []corev1.EnvVar{}
-	for _, v := range vars {
-		res = append(res, corev1.EnvVar{Name: v.Name, Value: v.Value})
-	}
-	return res
 }

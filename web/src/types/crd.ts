@@ -13,6 +13,130 @@ export interface EnvironmentSource {
   prNumber?: number;
 }
 
+// K8s-native types (mirrors Kubernetes API types)
+
+export interface ContainerPort {
+  name?: string;
+  containerPort: number;
+  protocol?: "TCP" | "UDP" | "SCTP";
+}
+
+export interface EnvVar {
+  name: string;
+  value?: string;
+  valueFrom?: {
+    secretKeyRef?: {
+      name: string;
+      key: string;
+    };
+    configMapKeyRef?: {
+      name: string;
+      key: string;
+    };
+  };
+}
+
+export interface ResourceRequirements {
+  requests?: Record<string, string>;
+  limits?: Record<string, string>;
+}
+
+export interface HTTPGetAction {
+  path: string;
+  port: number | string; // IntOrString - can be port number or named port
+  scheme?: string;
+}
+
+export interface TCPSocketAction {
+  port: number | string; // IntOrString - can be port number or named port
+}
+
+export interface ExecAction {
+  command: string[];
+}
+
+export interface Probe {
+  httpGet?: HTTPGetAction;
+  tcpSocket?: TCPSocketAction;
+  exec?: ExecAction;
+  initialDelaySeconds?: number;
+  periodSeconds?: number;
+  timeoutSeconds?: number;
+  failureThreshold?: number;
+  successThreshold?: number;
+}
+
+export interface VolumeMount {
+  name: string;
+  mountPath: string;
+  subPath?: string;
+  readOnly?: boolean;
+}
+
+export interface InitContainerSpec {
+  name: string;
+  image?: string;
+  command?: string[];
+  args?: string[];
+  workingDir?: string;
+  env?: EnvVar[];
+  resources?: ResourceRequirements;
+  volumeMounts?: VolumeMount[];
+}
+
+export interface ManagedServiceContainer {
+  image: string;
+  ports?: ContainerPort[];
+  env?: EnvVar[];
+  resources?: ResourceRequirements;
+}
+
+export interface PersistentVolumeClaimSpec {
+  resources: {
+    requests: {
+      storage: string;
+    };
+  };
+  accessModes?: string[];
+}
+
+export interface ManagedServiceSpec {
+  name: string;
+  container: ManagedServiceContainer;
+  storage?: PersistentVolumeClaimSpec;
+  database?: string;
+}
+
+export interface VolumeSpec {
+  name: string;
+  persistentVolumeClaim?: PersistentVolumeClaimSpec;
+}
+
+// EnvironmentConfig uses K8s-native types (FR-ENV-026)
+export interface EnvironmentConfig {
+  // Curated corev1.Container fields
+  image?: string;
+  command?: string[];
+  args?: string[];
+  workingDir?: string;
+  ports?: ContainerPort[];
+  env?: EnvVar[];
+  resources?: ResourceRequirements;
+  livenessProbe?: Probe;
+  readinessProbe?: Probe;
+  startupProbe?: Probe;
+  volumeMounts?: VolumeMount[];
+
+  // Init containers (FR-ENV-031)
+  initContainers?: InitContainerSpec[];
+
+  // Managed services (FR-ENV-028)
+  services?: ManagedServiceSpec[];
+
+  // Volumes (FR-ENV-032)
+  volumes?: VolumeSpec[];
+}
+
 export interface EnvironmentCRSpec {
   projectRef: {
     name: string;
@@ -21,9 +145,7 @@ export interface EnvironmentCRSpec {
   // DeploymentMode: "production" | "development" | "workspace" (default)
   deploymentMode?: DeploymentMode;
   sources?: EnvironmentSource[];
-  config?: {
-    envVars?: Array<{ name: string; value: string }>;
-  };
+  config?: EnvironmentConfig;
 }
 
 export interface EnvironmentCR {
@@ -52,10 +174,7 @@ export interface BuildSpec {
   sourceRef: string;
   path?: string;
   dockerfile?: string;
-  resources?: {
-    limits?: { cpu?: string; memory?: string };
-    requests?: { cpu?: string; memory?: string };
-  };
+  resources?: ResourceRequirements;
 }
 
 export interface EnvironmentTemplate {
@@ -64,6 +183,8 @@ export interface EnvironmentTemplate {
   path: string;
   builds?: BuildSpec[];
   values?: Record<string, unknown>;
+  // Config provides template-level defaults for managed deployments (FR-ENV-027, FR-ENV-029)
+  config?: EnvironmentConfig;
 }
 
 export interface ProjectCRSpec {

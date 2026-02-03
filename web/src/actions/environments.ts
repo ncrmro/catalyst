@@ -16,6 +16,7 @@ import {
 import { ensureProjectNamespace } from "@catalyst/kubernetes-client";
 import { getClusterConfig } from "@/lib/k8s-client";
 import type { EnvironmentType } from "@/types/crd";
+import { resolvePreset } from "@/lib/framework-presets";
 
 /**
  * Server actions for creating and managing project environments
@@ -176,13 +177,16 @@ export async function createProjectEnvironment(
         sources: [
           {
             name: "primary",
-            commitSha: "HEAD", // TODO: Get actual commit SHA
+            commitSha: "", // Use empty string to let operator use branch
             branch: branch,
           },
         ],
-        config: {
-          envVars: [],
-        },
+        config: resolvePreset("nextjs", {
+          workingDir: "/code/web",
+          enablePostgres: true,
+          codeStorageSize: "5Gi",
+          dataStorageSize: "1Gi",
+        }),
       },
       environmentLabels,
     );

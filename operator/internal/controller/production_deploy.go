@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -28,22 +29,42 @@ import (
 )
 
 // ReconcileProductionMode handles the reconciliation for production deployment mode.
-// It deploys a pre-built container image using the existing desiredDeployment/desiredService patterns.
-func (r *EnvironmentReconciler) ReconcileProductionMode(ctx context.Context, env *catalystv1alpha1.Environment, namespace string, isLocal bool, template *catalystv1alpha1.EnvironmentTemplate) (bool, error) {
+// It deploys using resolved config from Project template and Environment overrides.
+func (r *EnvironmentReconciler) ReconcileProductionMode(ctx context.Context, env *catalystv1alpha1.Environment, project *catalystv1alpha1.Project, namespace string, isLocal bool, template *catalystv1alpha1.EnvironmentTemplate) (bool, error) {
 	log := logf.FromContext(ctx)
 
-	// 1. Create/update deployment using pre-built image from registry
-	deployment := desiredDeployment(env, namespace)
-	existingDeployment := &appsv1.Deployment{}
-	err := r.Get(ctx, client.ObjectKey{Name: "app", Namespace: namespace}, existingDeployment)
+	// 0. Get and validate configuration (required - no fallbacks)
+	templateConfig, err := getTemplateConfig(project, env)
+	if err != nil {
+		return false, fmt.Errorf("failed to get template config: %w", err)
+	}
 
-	if err != nil && apierrors.IsNotFound(err) {
+	// Resolve config (merge template + environment overrides)
+	config := resolveConfig(&env.Spec.Config, templateConfig)
+
+	// Validate that required fields are present
+	if err := validateConfig(&config); err != nil {
+		return false, fmt.Errorf("invalid configuration: %w", err)
+	}
+
+	log.Info("Using resolved config",
+		"image", config.Image,
+		"ports", len(config.Ports),
+	)
+
+	// 1. Create/update deployment using config
+	deployment := desiredDeploymentFromConfig(namespace, &config)
+
+	existingDeployment := &appsv1.Deployment{}
+	getErr := r.Get(ctx, client.ObjectKey{Name: "web", Namespace: namespace}, existingDeployment)
+
+	if getErr != nil && apierrors.IsNotFound(getErr) {
 		log.Info("Creating Production Deployment", "namespace", namespace, "image", deployment.Spec.Template.Spec.Containers[0].Image)
 		if err := r.Create(ctx, deployment); err != nil {
 			return false, err
 		}
-	} else if err != nil {
-		return false, err
+	} else if getErr != nil {
+		return false, getErr
 	} else {
 		// Deployment exists, check if image needs update
 		currentImage := ""
@@ -54,8 +75,7 @@ func (r *EnvironmentReconciler) ReconcileProductionMode(ctx context.Context, env
 
 		if currentImage != desiredImage {
 			log.Info("Updating Production Deployment image", "from", currentImage, "to", desiredImage)
-			existingDeployment.Spec.Template.Spec.Containers[0].Image = desiredImage
-			existingDeployment.Spec.Template.Spec.Containers[0].Env = toCoreEnvVars(env.Spec.Config.EnvVars)
+			existingDeployment.Spec = deployment.Spec
 			if err := r.Update(ctx, existingDeployment); err != nil {
 				return false, err
 			}
@@ -63,13 +83,13 @@ func (r *EnvironmentReconciler) ReconcileProductionMode(ctx context.Context, env
 	}
 
 	// 2. Create service (idempotent)
-	service := desiredService(namespace)
+	service := desiredServiceFromConfig(namespace, &config)
 	if err := r.Create(ctx, service); err != nil && !apierrors.IsAlreadyExists(err) {
 		return false, err
 	}
 
 	// 3. Check if deployment is ready
-	ready, err := r.isDeploymentReady(ctx, namespace, "app")
+	ready, err := r.isDeploymentReady(ctx, namespace, "web")
 	if err != nil {
 		return false, err
 	}

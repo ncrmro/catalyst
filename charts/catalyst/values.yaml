@@ -69,6 +69,10 @@ operator:
 
   logLevel: info
 
+  # Git clone image used for development mode init containers
+  # Pinned by SHA256 digest for reproducibility (alpine/git:2.45.2)
+  gitCloneImage: "alpine/git@sha256:16ad8e788e1d3b0c30f18da8dde5c0ace3b187445a62d8af893b003ca1e70592"
+
 # Web application configuration
 web:
   enabled: true

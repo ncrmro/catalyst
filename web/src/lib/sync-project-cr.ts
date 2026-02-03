@@ -23,6 +23,7 @@ import type {
   EnvironmentTemplate,
 } from "@/types/crd";
 import type { EnvironmentConfig } from "@/types/environment-config";
+import { resolvePreset } from "./framework-presets";
 
 /**
  * Convert environment config method to deployment type
@@ -128,7 +129,7 @@ export async function syncProjectToK8s(
       return { success: false, error: "Project has no repositories" };
     }
 
-    // 3. Build templates from detected configs
+    // 3. Build templates with explicit K8s-native configs using presets
     const environments = await getEnvironments({ projectIds: [projectId] });
     const templates: Record<string, EnvironmentTemplate> = {};
 
@@ -144,6 +145,36 @@ export async function syncProjectToK8s(
       if (!templates[templateKey]) {
         templates[templateKey] = environmentConfigToTemplate(env.config);
       }
+    }
+
+    // If no development template exists, create default using nextjs preset
+    if (!templates.development) {
+      templates.development = {
+        sourceRef: "primary",
+        type: "manifest",
+        path: "./",
+        config: resolvePreset("nextjs", {
+          workingDir: "/code/web",
+          enablePostgres: true,
+          codeStorageSize: "5Gi",
+          dataStorageSize: "1Gi",
+        }),
+      };
+    }
+
+    // If no deployment template exists, create default using nextjs preset with production settings
+    if (!templates.deployment) {
+      templates.deployment = {
+        sourceRef: "primary",
+        type: "manifest",
+        path: "./",
+        config: resolvePreset("nextjs", {
+          workingDir: "/code/web",
+          enablePostgres: true,
+          codeStorageSize: "5Gi",
+          dataStorageSize: "1Gi",
+        }),
+      };
     }
 
     // 4. Ensure team namespace exists

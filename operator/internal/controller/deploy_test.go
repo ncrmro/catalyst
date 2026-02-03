@@ -36,7 +36,7 @@ func TestDesiredIngress_LocalMode(t *testing.T) {
 	ingress := desiredIngress(env, namespace, isLocal)
 
 	// Verify basic metadata
-	assert.Equal(t, "app", ingress.Name)
+	assert.Equal(t, "web", ingress.Name)
 	assert.Equal(t, namespace, ingress.Namespace)
 	assert.Equal(t, "nginx", *ingress.Spec.IngressClassName)
 
@@ -60,7 +60,7 @@ func TestDesiredIngress_LocalMode(t *testing.T) {
 	assert.Equal(t, networkingv1.PathTypePrefix, *path.PathType)
 
 	// Verify backend
-	assert.Equal(t, "app", path.Backend.Service.Name)
+	assert.Equal(t, "web", path.Backend.Service.Name)
 	assert.Equal(t, int32(80), path.Backend.Service.Port.Number)
 }
 
@@ -89,7 +89,7 @@ func TestDesiredIngress_ProductionMode(t *testing.T) {
 	ingress := desiredIngress(env, namespace, isLocal, "preview.tetraship.app")
 
 	// Verify basic metadata
-	assert.Equal(t, "app", ingress.Name)
+	assert.Equal(t, "web", ingress.Name)
 	assert.Equal(t, namespace, ingress.Namespace)
 	assert.Equal(t, "nginx", *ingress.Spec.IngressClassName)
 
@@ -117,7 +117,7 @@ func TestDesiredIngress_ProductionMode(t *testing.T) {
 	assert.Equal(t, networkingv1.PathTypePrefix, *path.PathType)
 
 	// Verify backend
-	assert.Equal(t, "app", path.Backend.Service.Name)
+	assert.Equal(t, "web", path.Backend.Service.Name)
 	assert.Equal(t, int32(80), path.Backend.Service.Port.Number)
 }
 
@@ -158,85 +158,4 @@ func TestGenerateURL_ProductionMode(t *testing.T) {
 	// Port should be ignored in production mode
 	url = generateURL(env, namespace, isLocal, "9090", "preview.tetraship.app")
 	assert.Equal(t, "https://test-env.preview.tetraship.app/", url)
-}
-
-func TestGetImageForDeployment_FromSpec(t *testing.T) {
-	// When image is explicitly set in config, it should be used
-	env := &catalystv1alpha1.Environment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-env",
-			Namespace: "default",
-		},
-		Spec: catalystv1alpha1.EnvironmentSpec{
-			ProjectRef:     catalystv1alpha1.ProjectReference{Name: "catalyst"},
-			Type:           "deployment",
-			DeploymentMode: "production",
-			Sources: []catalystv1alpha1.EnvironmentSource{
-				{
-					CommitSha: "abc1234",
-					Branch:    "main",
-				},
-			},
-			Config: catalystv1alpha1.EnvironmentConfig{
-				Image: "ghcr.io/ncrmro/catalyst:latest",
-			},
-		},
-	}
-
-	image := getImageForDeployment(env)
-	// Should use the image from spec.config.image
-	assert.Equal(t, "ghcr.io/ncrmro/catalyst:latest", image)
-}
-
-func TestGetImageForDeployment_FallbackToClusterRegistry(t *testing.T) {
-	// When image is not set in config, fallback to cluster registry
-	env := &catalystv1alpha1.Environment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-env",
-			Namespace: "default",
-		},
-		Spec: catalystv1alpha1.EnvironmentSpec{
-			ProjectRef:     catalystv1alpha1.ProjectReference{Name: "catalyst"},
-			Type:           "development",
-			DeploymentMode: "workspace",
-			Sources: []catalystv1alpha1.EnvironmentSource{
-				{
-					CommitSha: "abc1234",
-					Branch:    "main",
-				},
-			},
-			// No image in config - should fallback to cluster registry
-		},
-	}
-
-	image := getImageForDeployment(env)
-	// Should use cluster registry with commit SHA
-	assert.Equal(t, "registry.default.svc.cluster.local:5000/catalyst:abc1234", image)
-}
-
-func TestGetImageForDeployment_CustomImage(t *testing.T) {
-	// Test with a completely custom image (e.g., Docker Hub)
-	env := &catalystv1alpha1.Environment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-env",
-			Namespace: "default",
-		},
-		Spec: catalystv1alpha1.EnvironmentSpec{
-			ProjectRef: catalystv1alpha1.ProjectReference{Name: "my-project"},
-			Type:       "deployment",
-			Sources: []catalystv1alpha1.EnvironmentSource{
-				{
-					CommitSha: "def5678",
-					Branch:    "feature",
-				},
-			},
-			Config: catalystv1alpha1.EnvironmentConfig{
-				Image: "nginx:alpine",
-			},
-		},
-	}
-
-	image := getImageForDeployment(env)
-	// Should use the custom image from config
-	assert.Equal(t, "nginx:alpine", image)
 }
