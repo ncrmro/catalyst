@@ -185,7 +185,7 @@ jobs:
 
       - name: Deploy Catalyst using Helm
         run: |
-          helm install catalyst ../charts/catalyst \
+          helm upgrade --install catalyst ../charts/catalyst \
             --namespace catalyst-system \
             --create-namespace \
             --values ../charts/catalyst/e2e-values.yaml \
