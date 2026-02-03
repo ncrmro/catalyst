@@ -92,12 +92,14 @@ test.describe.serial("Deployment Environment E2E", () => {
     console.log("✓ Clicked New tab in Development Environments card");
 
     // Fill in the branch field
+    // Use current git branch (from GITHUB_REF_NAME in CI, or fallback to 'main' for local dev)
+    const testBranch = process.env.GITHUB_REF_NAME || "main";
     const branchInput = page.getByLabel("Branch");
     await expect(branchInput).toBeVisible();
     await branchInput.clear();
-    await branchInput.fill("main");
+    await branchInput.fill(testBranch);
 
-    console.log("✓ Filled branch field with 'main'");
+    console.log(`✓ Filled branch field with '${testBranch}'`);
 
     // Click Create Environment button
     const createButton = page.getByRole("button", {
