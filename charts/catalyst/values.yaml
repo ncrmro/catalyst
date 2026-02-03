@@ -9,13 +9,6 @@ ingress-nginx:
     ingressClassResource:
       default: true
 
-# Namespace configuration
-# When enabled, the chart will create/manage the namespace and apply labels.
-# This is useful for ensuring labels required by NetworkPolicies (like kubernetes.io/metadata.name) are present.
-namespace:
-  create: false
-  labels: {}
-
 # Values for cert-manager subchart
 cert-manager:
   installCRDs: true

@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"os"
@@ -27,10 +28,12 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
@@ -204,6 +207,33 @@ func main() {
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
+	}
+
+	// Ensure the current namespace has the kubernetes.io/metadata.name label
+	// This is required for NetworkPolicies to correctly select the operator/ingress namespace
+	// when allowing ingress traffic.
+	if namespace := os.Getenv("POD_NAMESPACE"); namespace != "" {
+		ctx := context.Background()
+		// Use APIReader to bypass cache (which isn't started yet)
+		reader := mgr.GetAPIReader()
+		writer := mgr.GetClient()
+		ns := &corev1.Namespace{}
+		if err := reader.Get(ctx, client.ObjectKey{Name: namespace}, ns); err != nil {
+			setupLog.Error(err, "unable to get current namespace", "namespace", namespace)
+			// Don't exit, just log error. It might not be critical if already labeled or permission issue
+		} else {
+			if ns.Labels == nil {
+				ns.Labels = make(map[string]string)
+			}
+			if ns.Labels["kubernetes.io/metadata.name"] != namespace {
+				ns.Labels["kubernetes.io/metadata.name"] = namespace
+				if err := writer.Update(ctx, ns); err != nil {
+					setupLog.Error(err, "unable to label current namespace", "namespace", namespace)
+				} else {
+					setupLog.Info("labeled current namespace", "namespace", namespace)
+				}
+			}
+		}
 	}
 
 	setupLog.Info("starting manager")

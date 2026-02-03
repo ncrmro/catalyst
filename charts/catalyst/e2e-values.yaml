@@ -5,10 +5,6 @@
 #   - CI passes it via --set "web.env[6].name=GITHUB_PAT" --set "web.env[6].value=..."
 #   - Local passes it from environment or omits it
 
-# Enable namespace management to ensure NetworkPolicies work correctly
-namespace:
-  create: true
-
 operator:
   enabled: true
   image:
