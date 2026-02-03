@@ -92,8 +92,9 @@ test.describe.serial("Deployment Environment E2E", () => {
     console.log("✓ Clicked New tab in Development Environments card");
 
     // Fill in the branch field
-    // Use current git branch (from GITHUB_REF_NAME in CI, or fallback to 'main' for local dev)
-    const testBranch = process.env.GITHUB_REF_NAME || "main";
+    // Use current git branch (from GITHUB_HEAD_REF for PRs, GITHUB_REF_NAME for others, or fallback to 'main')
+    const testBranch =
+      process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || "main";
     const branchInput = page.getByLabel("Branch");
     await expect(branchInput).toBeVisible();
     await branchInput.clear();
@@ -248,8 +249,12 @@ test.describe.serial("Deployment Environment E2E", () => {
     console.log("✓ Preview Environment heading visible");
 
     // Verify the branch name heading is displayed
-    await expect(page.getByRole("heading", { name: "main" })).toBeVisible();
-    console.log("✓ Branch name 'main' heading visible");
+    const expectedBranch =
+      process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || "main";
+    await expect(
+      page.getByRole("heading", { name: expectedBranch }),
+    ).toBeVisible();
+    console.log(`✓ Branch name '${expectedBranch}' heading visible`);
 
     // Verify the preview URL is displayed on the detail page
     const previewLink = page.getByRole("link", { name: result.url! });

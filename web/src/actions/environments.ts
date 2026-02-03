@@ -177,7 +177,7 @@ export async function createProjectEnvironment(
         sources: [
           {
             name: "primary",
-            commitSha: "HEAD", // TODO: Get actual commit SHA
+            commitSha: "", // Use empty string to let operator use branch
             branch: branch,
           },
         ],

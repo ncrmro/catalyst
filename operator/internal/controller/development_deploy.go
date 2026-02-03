@@ -322,10 +322,11 @@ func desiredDevelopmentDeploymentFromConfig(env *catalystv1alpha1.Environment, p
 
 	// Override with environment-specific commit if provided
 	if len(env.Spec.Sources) > 0 {
-		if env.Spec.Sources[0].CommitSha != "" {
-			commit = env.Spec.Sources[0].CommitSha
-		} else if env.Spec.Sources[0].Branch != "" {
-			commit = env.Spec.Sources[0].Branch
+		s := env.Spec.Sources[0]
+		if s.CommitSha != "" && s.CommitSha != "HEAD" {
+			commit = s.CommitSha
+		} else if s.Branch != "" {
+			commit = s.Branch
 		}
 	}
 
