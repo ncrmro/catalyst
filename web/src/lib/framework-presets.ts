@@ -173,6 +173,12 @@ export const NEXTJS_PRESET: FrameworkPreset = {
         },
         volumeMounts: [{ name: "code", mountPath: "/code" }],
       });
+
+      // Inject DATABASE_URL into the main container
+      config.env?.push({
+        name: "DATABASE_URL",
+        value: "postgresql://postgres:postgres@postgres:5432/catalyst",
+      });
     }
 
     config.initContainers = initContainers;
@@ -244,8 +250,11 @@ export const GENERIC_NODE_PRESET: FrameworkPreset = {
   displayName: "Node.js (Generic)",
   description: "Generic Node.js application with npm start",
   resolve: (options = {}) => {
-    const { workingDir = "/app", port = 3000, codeStorageSize = "5Gi" } =
-      options;
+    const {
+      workingDir = "/app",
+      port = 3000,
+      codeStorageSize = "5Gi",
+    } = options;
 
     return {
       image: "node:22-slim",
@@ -323,8 +332,11 @@ export const PYTHON_PRESET: FrameworkPreset = {
   displayName: "Python",
   description: "Python application with gunicorn",
   resolve: (options = {}) => {
-    const { workingDir = "/app", port = 8000, codeStorageSize = "5Gi" } =
-      options;
+    const {
+      workingDir = "/app",
+      port = 8000,
+      codeStorageSize = "5Gi",
+    } = options;
 
     return {
       image: "python:3.12-slim",
@@ -402,8 +414,11 @@ export const GO_PRESET: FrameworkPreset = {
   displayName: "Go",
   description: "Go application with go run",
   resolve: (options = {}) => {
-    const { workingDir = "/app", port = 8080, codeStorageSize = "5Gi" } =
-      options;
+    const {
+      workingDir = "/app",
+      port = 8080,
+      codeStorageSize = "5Gi",
+    } = options;
 
     return {
       image: "golang:1.22",
