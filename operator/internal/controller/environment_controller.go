@@ -247,7 +247,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	ingress := desiredIngress(env, targetNamespace, isLocal, previewDomain)
 	existingIngress := &networkingv1.Ingress{}
-	err = r.Get(ctx, client.ObjectKey{Name: "app", Namespace: targetNamespace}, existingIngress)
+	err = r.Get(ctx, client.ObjectKey{Name: "web", Namespace: targetNamespace}, existingIngress)
 
 	if err != nil && apierrors.IsNotFound(err) {
 		// Ingress doesn't exist, create it

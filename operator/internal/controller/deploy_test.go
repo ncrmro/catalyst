@@ -36,7 +36,7 @@ func TestDesiredIngress_LocalMode(t *testing.T) {
 	ingress := desiredIngress(env, namespace, isLocal)
 
 	// Verify basic metadata
-	assert.Equal(t, "app", ingress.Name)
+	assert.Equal(t, "web", ingress.Name)
 	assert.Equal(t, namespace, ingress.Namespace)
 	assert.Equal(t, "nginx", *ingress.Spec.IngressClassName)
 
@@ -60,7 +60,7 @@ func TestDesiredIngress_LocalMode(t *testing.T) {
 	assert.Equal(t, networkingv1.PathTypePrefix, *path.PathType)
 
 	// Verify backend
-	assert.Equal(t, "app", path.Backend.Service.Name)
+	assert.Equal(t, "web", path.Backend.Service.Name)
 	assert.Equal(t, int32(80), path.Backend.Service.Port.Number)
 }
 
@@ -89,7 +89,7 @@ func TestDesiredIngress_ProductionMode(t *testing.T) {
 	ingress := desiredIngress(env, namespace, isLocal, "preview.tetraship.app")
 
 	// Verify basic metadata
-	assert.Equal(t, "app", ingress.Name)
+	assert.Equal(t, "web", ingress.Name)
 	assert.Equal(t, namespace, ingress.Namespace)
 	assert.Equal(t, "nginx", *ingress.Spec.IngressClassName)
 
@@ -117,7 +117,7 @@ func TestDesiredIngress_ProductionMode(t *testing.T) {
 	assert.Equal(t, networkingv1.PathTypePrefix, *path.PathType)
 
 	// Verify backend
-	assert.Equal(t, "app", path.Backend.Service.Name)
+	assert.Equal(t, "web", path.Backend.Service.Name)
 	assert.Equal(t, int32(80), path.Backend.Service.Port.Number)
 }
 

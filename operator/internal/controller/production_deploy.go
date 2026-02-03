@@ -56,7 +56,7 @@ func (r *EnvironmentReconciler) ReconcileProductionMode(ctx context.Context, env
 	deployment := desiredDeploymentFromConfig(namespace, &config)
 
 	existingDeployment := &appsv1.Deployment{}
-	getErr := r.Get(ctx, client.ObjectKey{Name: "app", Namespace: namespace}, existingDeployment)
+	getErr := r.Get(ctx, client.ObjectKey{Name: "web", Namespace: namespace}, existingDeployment)
 
 	if getErr != nil && apierrors.IsNotFound(getErr) {
 		log.Info("Creating Production Deployment", "namespace", namespace, "image", deployment.Spec.Template.Spec.Containers[0].Image)
@@ -89,7 +89,7 @@ func (r *EnvironmentReconciler) ReconcileProductionMode(ctx context.Context, env
 	}
 
 	// 3. Check if deployment is ready
-	ready, err := r.isDeploymentReady(ctx, namespace, "app")
+	ready, err := r.isDeploymentReady(ctx, namespace, "web")
 	if err != nil {
 		return false, err
 	}

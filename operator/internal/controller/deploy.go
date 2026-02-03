@@ -20,7 +20,7 @@ import (
 
 // desiredDeploymentFromConfig creates a deployment from resolved config
 func desiredDeploymentFromConfig(namespace string, config *catalystv1alpha1.EnvironmentConfig) *appsv1.Deployment {
-	name := "app" // Standard name within the isolated namespace
+	name := "web" // Standard name within the isolated namespace
 	replicas := int32(1)
 
 	// Build environment variables from config
@@ -111,11 +111,11 @@ func desiredServiceFromConfig(namespace string, config *catalystv1alpha1.Environ
 
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app",
+			Name:      "web",
 			Namespace: namespace,
 		},
 		Spec: corev1.ServiceSpec{
-			Selector: map[string]string{"app": "app"},
+			Selector: map[string]string{"app": "web"},
 			Ports:    servicePorts,
 		},
 	}
@@ -134,7 +134,7 @@ func desiredIngress(env *catalystv1alpha1.Environment, namespace string, isLocal
 
 		return &networkingv1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "app",
+				Name:      "web",
 				Namespace: namespace,
 			},
 			Spec: networkingv1.IngressSpec{
@@ -150,7 +150,7 @@ func desiredIngress(env *catalystv1alpha1.Environment, namespace string, isLocal
 										PathType: &pathType,
 										Backend: networkingv1.IngressBackend{
 											Service: &networkingv1.IngressServiceBackend{
-												Name: "app",
+												Name: "web",
 												Port: networkingv1.ServiceBackendPort{
 													Number: 80,
 												},
@@ -176,7 +176,7 @@ func desiredIngress(env *catalystv1alpha1.Environment, namespace string, isLocal
 
 	return &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app",
+			Name:      "web",
 			Namespace: namespace,
 			Annotations: map[string]string{
 				"cert-manager.io/cluster-issuer": "letsencrypt-prod",
@@ -201,7 +201,7 @@ func desiredIngress(env *catalystv1alpha1.Environment, namespace string, isLocal
 									PathType: &pathType,
 									Backend: networkingv1.IngressBackend{
 										Service: &networkingv1.IngressServiceBackend{
-											Name: "app",
+											Name: "web",
 											Port: networkingv1.ServiceBackendPort{
 												Number: 80,
 											},
