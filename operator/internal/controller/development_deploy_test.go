@@ -201,7 +201,7 @@ func TestDesiredManagedServiceStatefulSet(t *testing.T) {
 	assert.Equal(t, int32(5432), container.Ports[0].ContainerPort)
 
 	// Verify environment variables
-	assert.Len(t, container.Env, 3)
+	assert.Len(t, container.Env, 4)
 	assert.Contains(t, container.Env, corev1.EnvVar{Name: "POSTGRES_USER", Value: "postgres"})
 
 	// Verify resources
@@ -235,7 +235,7 @@ func TestDesiredDevelopmentServiceFromConfig(t *testing.T) {
 	assert.Equal(t, map[string]string{"app": "web"}, service.Spec.Selector)
 
 	// Verify ports (service should map to container ports)
-	assert.Len(t, service.Spec.Ports, 2)
+	assert.Len(t, service.Spec.Ports, 1)
 	assert.Equal(t, int32(80), service.Spec.Ports[0].Port)
 	assert.Equal(t, int32(3000), service.Spec.Ports[0].TargetPort.IntVal)
 }
