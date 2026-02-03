@@ -177,8 +177,13 @@ func (r *EnvironmentReconciler) reconcileSingleBuild(ctx context.Context, env *c
 	}
 
 	// Image Tag
+	// Sanitize commit for use as Docker tag (no slashes, colons, or other invalid chars)
+	sanitizedCommit := strings.ReplaceAll(commit, "/", "-")
+	sanitizedCommit = strings.ReplaceAll(sanitizedCommit, ":", "-")
+	sanitizedCommit = strings.ReplaceAll(sanitizedCommit, " ", "-")
+	
 	imageName := fmt.Sprintf("%s/%s-%s", project.Name, build.Name, env.Name)
-	imageTag := fmt.Sprintf("%s/%s:%s", registryInternal, imageName, commit)
+	imageTag := fmt.Sprintf("%s/%s:%s", registryInternal, imageName, sanitizedCommit)
 
 	// Job Name
 	// Use first 7 chars if it looks like a SHA, otherwise use sanitized branch name

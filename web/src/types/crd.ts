@@ -43,12 +43,12 @@ export interface ResourceRequirements {
 
 export interface HTTPGetAction {
   path: string;
-  port: number;
+  port: number | string; // IntOrString - can be port number or named port
   scheme?: string;
 }
 
 export interface TCPSocketAction {
-  port: number;
+  port: number | string; // IntOrString - can be port number or named port
 }
 
 export interface ExecAction {

@@ -226,10 +226,31 @@ func desiredManagedServiceStatefulSet(namespace string, svcSpec catalystv1alpha1
 
 	// Add volume mount if storage is defined
 	if svcSpec.Storage != nil {
+		// Use correct mount path for known services
+		mountPath := "/var/lib/" + svcSpec.Name
+		if svcSpec.Name == "postgres" || svcSpec.Name == "postgresql" {
+			mountPath = "/var/lib/postgresql/data"
+			
+			// Ensure PGDATA env var is set to match mount path
+			hasPGDATA := false
+			for _, env := range container.Env {
+				if env.Name == "PGDATA" {
+					hasPGDATA = true
+					break
+				}
+			}
+			if !hasPGDATA {
+				container.Env = append(container.Env, corev1.EnvVar{
+					Name:  "PGDATA",
+					Value: mountPath,
+				})
+			}
+		}
+		
 		container.VolumeMounts = []corev1.VolumeMount{
 			{
 				Name:      svcSpec.Name + "-data",
-				MountPath: "/var/lib/" + svcSpec.Name, // Standard path for service data
+				MountPath: mountPath,
 			},
 		}
 	}
@@ -494,13 +515,14 @@ func desiredDevelopmentDeploymentFromConfig(env *catalystv1alpha1.Environment, p
 
 // desiredDevelopmentServiceFromConfig creates the web app service from resolved config
 func desiredDevelopmentServiceFromConfig(namespace string, config *catalystv1alpha1.EnvironmentConfig) *corev1.Service {
-	// Build service ports from config ports
+	// Expose only the first container port (matching desiredServiceFromConfig in deploy.go)
+	// Multiple ports with Port=80 would create duplicates
 	servicePorts := []corev1.ServicePort{}
-	for _, containerPort := range config.Ports {
+	if len(config.Ports) > 0 {
 		servicePorts = append(servicePorts, corev1.ServicePort{
 			Port:       80, // Service listens on 80
-			TargetPort: intstr.FromInt(int(containerPort.ContainerPort)),
-			Protocol:   containerPort.Protocol,
+			TargetPort: intstr.FromInt(int(config.Ports[0].ContainerPort)),
+			Protocol:   config.Ports[0].Protocol,
 		})
 	}
 

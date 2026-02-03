@@ -158,7 +158,12 @@ export const NEXTJS_PRESET: FrameworkPreset = {
         env: [
           {
             name: "DATABASE_URL",
-            value: "postgresql://postgres:postgres@postgres:5432/catalyst",
+            valueFrom: {
+              secretKeyRef: {
+                name: "postgres-credentials",
+                key: "database-url",
+              },
+            },
           },
         ],
         resources: {
@@ -174,10 +179,15 @@ export const NEXTJS_PRESET: FrameworkPreset = {
         volumeMounts: [{ name: "code", mountPath: "/code" }],
       });
 
-      // Inject DATABASE_URL into the main container
+      // Inject DATABASE_URL into the main container via secret reference
       config.env?.push({
         name: "DATABASE_URL",
-        value: "postgresql://postgres:postgres@postgres:5432/catalyst",
+        valueFrom: {
+          secretKeyRef: {
+            name: "postgres-credentials",
+            key: "database-url",
+          },
+        },
       });
     }
 
@@ -193,8 +203,24 @@ export const NEXTJS_PRESET: FrameworkPreset = {
           ports: [{ containerPort: 5432 }],
           env: [
             { name: "POSTGRES_DB", value: "catalyst" },
-            { name: "POSTGRES_USER", value: "postgres" },
-            { name: "POSTGRES_PASSWORD", value: "postgres" },
+            {
+              name: "POSTGRES_USER",
+              valueFrom: {
+                secretKeyRef: {
+                  name: "postgres-credentials",
+                  key: "username",
+                },
+              },
+            },
+            {
+              name: "POSTGRES_PASSWORD",
+              valueFrom: {
+                secretKeyRef: {
+                  name: "postgres-credentials",
+                  key: "password",
+                },
+              },
+            },
           ],
           resources: {
             requests: {

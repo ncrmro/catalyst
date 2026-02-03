@@ -66,8 +66,25 @@ func resolveConfig(envConfig *catalystv1alpha1.EnvironmentConfig, tmplConfig *ca
 		result.Ports = envConfig.Ports
 	}
 	if len(envConfig.Env) > 0 {
-		// Append environment-specific env vars to template env vars
-		result.Env = append(result.Env, envConfig.Env...)
+		// Merge env vars by name (environment config wins for duplicates)
+		envMap := make(map[string]corev1.EnvVar)
+		
+		// Add template env vars first
+		for _, env := range result.Env {
+			envMap[env.Name] = env
+		}
+		
+		// Override with environment-specific env vars
+		for _, env := range envConfig.Env {
+			envMap[env.Name] = env
+		}
+		
+		// Convert map back to slice
+		mergedEnv := make([]corev1.EnvVar, 0, len(envMap))
+		for _, env := range envMap {
+			mergedEnv = append(mergedEnv, env)
+		}
+		result.Env = mergedEnv
 	}
 	if envConfig.Resources != nil {
 		result.Resources = envConfig.Resources
