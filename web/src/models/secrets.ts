@@ -10,7 +10,7 @@
 import { db } from "@/db";
 import { secrets } from "@/db/schema";
 import { and, eq, isNull, or } from "drizzle-orm";
-import { encrypt, decrypt } from "@tetrastack/backend/utils/security";
+import { encrypt, decrypt } from "@tetrastack/backend/utils";
 import type { ResolvedSecret, SecretScope } from "@/types/secrets";
 import { logger } from "@/lib/logging";
 
