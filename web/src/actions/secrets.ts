@@ -109,7 +109,7 @@ export async function createSecret(
   if (!validationResult.success) {
     return {
       success: false,
-      error: validationResult.error.errors[0]?.message || "Invalid input",
+      error: validationResult.error.issues[0]?.message || "Invalid input",
     };
   }
 
@@ -185,7 +185,7 @@ export async function updateSecret(
   if (!validationResult.success) {
     return {
       success: false,
-      error: validationResult.error.errors[0]?.message || "Invalid input",
+      error: validationResult.error.issues[0]?.message || "Invalid input",
     };
   }
 

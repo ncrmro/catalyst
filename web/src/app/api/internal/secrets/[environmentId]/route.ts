@@ -29,7 +29,6 @@ import { db } from "@/db";
 import { projectEnvironments, projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { resolveSecretsForEnvironment } from "@/models/secrets";
-import { logger } from "@/lib/logging";
 
 // =============================================================================
 // Zod Schemas for Kubernetes API Responses
@@ -68,7 +67,7 @@ async function validateOperatorToken(token: string): Promise<boolean> {
     // Get Kubernetes config
     const kc = await getClusterConfig();
     if (!kc) {
-      logger.error("Kubernetes config not available for TokenReview");
+      console.error("Kubernetes config not available for TokenReview");
       return false;
     }
 
@@ -88,7 +87,7 @@ async function validateOperatorToken(token: string): Promise<boolean> {
     // Validate response with Zod schema
     const parsedResponse = TokenReviewResponseSchema.safeParse(response);
     if (!parsedResponse.success) {
-      logger.error("Invalid TokenReview response format", {
+      console.error("Invalid TokenReview response format", {
         error: parsedResponse.error,
       });
       return false;
@@ -96,19 +95,19 @@ async function validateOperatorToken(token: string): Promise<boolean> {
 
     // Check if token is authenticated
     if (!parsedResponse.data.status?.authenticated) {
-      logger.warn("TokenReview authentication failed", {
+      console.warn("TokenReview authentication failed", {
         error: parsedResponse.data.status?.error,
       });
       return false;
     }
 
-    logger.info("Operator token validated successfully", {
+    console.log("Operator token validated successfully", {
       username: parsedResponse.data.status.user?.username,
     });
 
     return true;
   } catch (error) {
-    logger.error("TokenReview validation failed", {
+    console.error("TokenReview validation failed", {
       error: error instanceof Error ? error.message : String(error),
     });
     return false;
@@ -154,7 +153,7 @@ export async function GET(
     // 1. Authenticate operator using K8s TokenReview
     const token = extractBearerToken(request);
     if (!token) {
-      logger.warn("Missing authorization token for secrets request", {
+      console.warn("Missing authorization token for secrets request", {
         environmentId,
       });
       return NextResponse.json(
@@ -165,7 +164,7 @@ export async function GET(
 
     const isValid = await validateOperatorToken(token);
     if (!isValid) {
-      logger.warn("Invalid operator token for secrets request", {
+      console.warn("Invalid operator token for secrets request", {
         environmentId,
       });
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -184,7 +183,7 @@ export async function GET(
       .limit(1);
 
     if (!environment.length) {
-      logger.warn("Environment not found for secrets request", {
+      console.warn("Environment not found for secrets request", {
         environmentId,
       });
       return NextResponse.json(
@@ -196,7 +195,7 @@ export async function GET(
     const { teamId, projectId } = environment[0];
 
     // 3. Resolve secrets with precedence
-    logger.info("Resolving secrets for environment", {
+    console.log("Resolving secrets for environment", {
       environmentId,
       teamId,
       projectId,
@@ -214,7 +213,7 @@ export async function GET(
       secretsObject[name] = secret.value;
     }
 
-    logger.info("Successfully resolved secrets for environment", {
+    console.log("Successfully resolved secrets for environment", {
       environmentId,
       teamId,
       projectId,
@@ -225,7 +224,7 @@ export async function GET(
       secrets: secretsObject,
     });
   } catch (error) {
-    logger.error("Failed to resolve secrets for environment", {
+    console.error("Failed to resolve secrets for environment", {
       environmentId,
       error: error instanceof Error ? error.message : String(error),
     });

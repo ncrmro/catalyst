@@ -12,7 +12,6 @@ import { secrets } from "@/db/schema";
 import { and, eq, isNull, or } from "drizzle-orm";
 import { encrypt, decrypt } from "@tetrastack/backend/utils";
 import type { ResolvedSecret, SecretScope } from "@/types/secrets";
-import { logger } from "@/lib/logging";
 
 /**
  * Encrypt a secret value
@@ -124,7 +123,7 @@ export async function resolveSecretsForEnvironment(
           description: secret.description,
         });
       } catch (error) {
-        logger.error("Failed to decrypt team secret", {
+        console.error("Failed to decrypt team secret", {
           secretName: secret.name,
           teamId,
           error: error instanceof Error ? error.message : String(error),
@@ -147,7 +146,7 @@ export async function resolveSecretsForEnvironment(
           description: secret.description,
         });
       } catch (error) {
-        logger.error("Failed to decrypt project secret", {
+        console.error("Failed to decrypt project secret", {
           secretName: secret.name,
           teamId,
           projectId,
@@ -171,7 +170,7 @@ export async function resolveSecretsForEnvironment(
           description: secret.description,
         });
       } catch (error) {
-        logger.error("Failed to decrypt environment secret", {
+        console.error("Failed to decrypt environment secret", {
           secretName: secret.name,
           teamId,
           projectId,
@@ -181,7 +180,7 @@ export async function resolveSecretsForEnvironment(
       }
     }
 
-    logger.info("Resolved secrets for environment", {
+    console.log("Resolved secrets for environment", {
       teamId,
       projectId,
       environmentId,
@@ -193,7 +192,7 @@ export async function resolveSecretsForEnvironment(
 
     return resolved;
   } catch (error) {
-    logger.error("Failed to resolve secrets for environment", {
+    console.error("Failed to resolve secrets for environment", {
       teamId,
       projectId,
       environmentId,
@@ -262,7 +261,7 @@ export async function createSecret(
 
   const [created] = await db.insert(secrets).values(secretData).returning();
 
-  logger.info("secret-created", {
+  console.log("secret-created", {
     secretName: name,
     scope: scope.level,
     teamId: scope.teamId,
@@ -335,7 +334,7 @@ export async function updateSecret(
     throw new Error("Secret not found");
   }
 
-  logger.info("secret-updated", {
+  console.log("secret-updated", {
     secretName: name,
     scope: scope.level,
     teamId: scope.teamId,
@@ -382,7 +381,7 @@ export async function deleteSecret(
     throw new Error("Secret not found");
   }
 
-  logger.info("secret-deleted", {
+  console.log("secret-deleted", {
     secretName: name,
     scope: scope.level,
     teamId: scope.teamId,

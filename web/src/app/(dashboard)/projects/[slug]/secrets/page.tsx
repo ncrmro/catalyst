@@ -18,7 +18,12 @@ import {
   updateSecret,
   deleteSecret as deleteSecretAction,
 } from "@/actions/secrets";
-import type { MaskedSecret, SecretScope } from "@/types/secrets";
+import type {
+  MaskedSecret,
+  SecretScope,
+  CreateSecretInput,
+  UpdateSecretInput,
+} from "@/types/secrets";
 
 export default function ProjectSecretsPage() {
   const params = useParams();
@@ -88,12 +93,16 @@ export default function ProjectSecretsPage() {
     setIsLoading(false);
   };
 
-  const handleCreate = async (data: {
-    name: string;
-    value: string;
-    description?: string;
-  }) => {
+  const handleCreate = async (
+    data: CreateSecretInput | UpdateSecretInput,
+  ) => {
     if (!teamId || !projectId) return;
+
+    // Type guard to ensure this is CreateSecretInput
+    if (!("name" in data) || !("value" in data)) {
+      setError("Invalid secret data");
+      return;
+    }
 
     setIsSubmitting(true);
     setError(null);
@@ -104,7 +113,7 @@ export default function ProjectSecretsPage() {
       projectId,
     };
 
-    const result = await createSecret(scope, data);
+    const result = await createSecret(scope, data as CreateSecretInput);
 
     if (result.success) {
       setShowForm(false);
@@ -116,10 +125,9 @@ export default function ProjectSecretsPage() {
     setIsSubmitting(false);
   };
 
-  const handleUpdate = async (data: {
-    value?: string;
-    description?: string;
-  }) => {
+  const handleUpdate = async (
+    data: CreateSecretInput | UpdateSecretInput,
+  ) => {
     if (!teamId || !projectId || !editingSecret) return;
 
     setIsSubmitting(true);
@@ -131,7 +139,11 @@ export default function ProjectSecretsPage() {
       projectId,
     };
 
-    const result = await updateSecret(scope, editingSecret, data);
+    const result = await updateSecret(
+      scope,
+      editingSecret,
+      data as UpdateSecretInput,
+    );
 
     if (result.success) {
       setEditingSecret(null);
