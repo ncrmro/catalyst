@@ -7,7 +7,7 @@
  * Secrets are inherited by all environments in the project.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { SecretList } from "@/components/secrets/secret-list";
 import { SecretForm } from "@/components/secrets/secret-form";
@@ -64,13 +64,7 @@ export default function ProjectSecretsPage() {
     fetchProjectData();
   }, [projectSlug]);
 
-  useEffect(() => {
-    if (teamId && projectId) {
-      loadSecrets();
-    }
-  }, [teamId, projectId]);
-
-  const loadSecrets = async () => {
+  const loadSecrets = useCallback(async () => {
     if (!teamId || !projectId) return;
 
     setIsLoading(true);
@@ -91,11 +85,15 @@ export default function ProjectSecretsPage() {
     }
 
     setIsLoading(false);
-  };
+  }, [teamId, projectId]);
 
-  const handleCreate = async (
-    data: CreateSecretInput | UpdateSecretInput,
-  ) => {
+  useEffect(() => {
+    if (teamId && projectId) {
+      loadSecrets();
+    }
+  }, [teamId, projectId, loadSecrets]);
+
+  const handleCreate = async (data: CreateSecretInput | UpdateSecretInput) => {
     if (!teamId || !projectId) return;
 
     // Type guard to ensure this is CreateSecretInput
@@ -125,9 +123,7 @@ export default function ProjectSecretsPage() {
     setIsSubmitting(false);
   };
 
-  const handleUpdate = async (
-    data: CreateSecretInput | UpdateSecretInput,
-  ) => {
+  const handleUpdate = async (data: CreateSecretInput | UpdateSecretInput) => {
     if (!teamId || !projectId || !editingSecret) return;
 
     setIsSubmitting(true);
@@ -218,9 +214,7 @@ export default function ProjectSecretsPage() {
             About Project Secrets
           </h3>
           <ul className="text-sm text-on-surface-variant space-y-1 list-disc list-inside">
-            <li>
-              Secrets are encrypted at rest using AES-256-GCM encryption
-            </li>
+            <li>Secrets are encrypted at rest using AES-256-GCM encryption</li>
             <li>
               Project secrets are inherited by all environments in this project
             </li>

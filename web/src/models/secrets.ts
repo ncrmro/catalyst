@@ -222,7 +222,10 @@ export async function getSecretsForScope(scope: SecretScope) {
     conditions.push(eq(secrets.environmentId, scope.environmentId));
   }
 
-  return db.select().from(secrets).where(and(...conditions));
+  return db
+    .select()
+    .from(secrets)
+    .where(and(...conditions));
 }
 
 /**

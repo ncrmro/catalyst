@@ -144,7 +144,11 @@ export async function createSecret(
     );
 
     // Return decrypted value for confirmation (per FR-ENV-036)
-    const value = decryptSecret(created.encryptedValue, created.iv, created.authTag);
+    const value = decryptSecret(
+      created.encryptedValue,
+      created.iv,
+      created.authTag,
+    );
 
     return {
       success: true,
@@ -158,8 +162,7 @@ export async function createSecret(
     console.error("Failed to create secret:", error);
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to create secret",
+      error: error instanceof Error ? error.message : "Failed to create secret",
     };
   }
 }
@@ -222,8 +225,7 @@ export async function updateSecret(
     console.error("Failed to update secret:", error);
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to update secret",
+      error: error instanceof Error ? error.message : "Failed to update secret",
     };
   }
 }
@@ -269,8 +271,7 @@ export async function deleteSecret(
     console.error("Failed to delete secret:", error);
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to delete secret",
+      error: error instanceof Error ? error.message : "Failed to delete secret",
     };
   }
 }

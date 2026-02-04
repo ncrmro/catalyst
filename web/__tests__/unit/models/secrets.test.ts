@@ -49,12 +49,12 @@ describe("secret encryption", () => {
       expect(result1.encryptedData).not.toBe(result2.encryptedData);
 
       // But both decrypt to same value
-      expect(decryptSecret(result1.encryptedData, result1.iv, result1.authTag)).toBe(
-        plaintext,
-      );
-      expect(decryptSecret(result2.encryptedData, result2.iv, result2.authTag)).toBe(
-        plaintext,
-      );
+      expect(
+        decryptSecret(result1.encryptedData, result1.iv, result1.authTag),
+      ).toBe(plaintext);
+      expect(
+        decryptSecret(result2.encryptedData, result2.iv, result2.authTag),
+      ).toBe(plaintext);
     });
 
     it("should handle multi-line secrets (private keys)", () => {
@@ -107,7 +107,7 @@ MIIEowIBAAKCAQEA...
 
     it("should fail with incorrect IV", () => {
       const plaintext = "my-secret-value";
-      const { encryptedData, iv, authTag } = encryptSecret(plaintext);
+      const { encryptedData, authTag } = encryptSecret(plaintext);
 
       // Use different IV
       const wrongIv = encryptSecret("other").iv;

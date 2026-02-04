@@ -125,9 +125,7 @@ export function SecretForm({
             nameError ? "border-error" : "border-outline"
           } rounded-lg text-on-surface placeholder-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed font-mono`}
         />
-        {nameError && (
-          <p className="mt-1 text-sm text-error">{nameError}</p>
-        )}
+        {nameError && <p className="mt-1 text-sm text-error">{nameError}</p>}
         <p className="mt-1 text-xs text-on-surface-variant">
           Uppercase letters, numbers, and underscores only. Must start with a
           letter or underscore.
@@ -161,9 +159,7 @@ export function SecretForm({
             valueError ? "border-error" : "border-outline"
           } rounded-lg text-on-surface placeholder-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed font-mono text-sm`}
         />
-        {valueError && (
-          <p className="mt-1 text-sm text-error">{valueError}</p>
-        )}
+        {valueError && <p className="mt-1 text-sm text-error">{valueError}</p>}
         <p className="mt-1 text-xs text-on-surface-variant">
           {mode === "edit"
             ? "Leave empty to keep the existing value"

@@ -7,7 +7,6 @@
  * Shows secret name, source (team/project/environment), and actions.
  */
 
-import { useState } from "react";
 import type { MaskedSecret } from "@/types/secrets";
 
 interface SecretListProps {
