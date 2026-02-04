@@ -9,9 +9,9 @@ import { z } from "zod";
 /**
  * Secret name validation regex
  * Must follow Kubernetes environment variable naming conventions:
- * - Alphanumeric characters and underscores only
+ * - Uppercase letters, numbers, and underscores only
  * - Must start with a letter or underscore
- * - Case-sensitive
+ * - Case-sensitive (uppercase only per convention)
  * - Max length: 253 characters
  */
 export const SECRET_NAME_REGEX = /^[A-Z_][A-Z0-9_]*$/;

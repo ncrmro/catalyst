@@ -32,18 +32,23 @@ export default function ProjectSecretsPage() {
   const [deletingSecret, setDeletingSecret] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Note: In a real implementation, we'd need to fetch the teamId and projectId
-  // For this MVP, we'll use a placeholder that would be populated from the project data
+  // TODO(T187): Fetch project data to get teamId and projectId from database
+  // This requires implementing a helper to look up project by slug
+  // For MVP, this page structure is in place but needs the data fetching logic
   const [teamId, setTeamId] = useState<string | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
 
   useEffect(() => {
-    // TODO: Fetch project data to get teamId and projectId
-    // For now, this is a placeholder
+    // TODO(T187): Replace with actual project data fetching
+    // Example: const project = await getProjectBySlug(projectSlug);
+    // setTeamId(project.teamId);
+    // setProjectId(project.id);
     const fetchProjectData = async () => {
       try {
-        // This would normally fetch the project by slug and extract IDs
-        // For MVP, showing the UI structure
+        // Placeholder - needs implementation
+        console.warn(
+          "Project data fetching not yet implemented - secrets page needs project ID lookup",
+        );
         setTeamId("placeholder-team-id");
         setProjectId("placeholder-project-id");
       } catch (err) {
