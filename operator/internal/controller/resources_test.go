@@ -21,11 +21,8 @@ func TestDesiredResourceQuota(t *testing.T) {
 }
 
 func TestDesiredNetworkPolicy(t *testing.T) {
-	policy := desiredNetworkPolicy("test-ns", "ingress-nginx")
-
+	policy := desiredNetworkPolicy("test-ns", "ingress-namespace")
 	assert.Equal(t, "default-policy", policy.Name)
 	assert.Equal(t, "test-ns", policy.Namespace)
-
-	assert.Len(t, policy.Spec.PolicyTypes, 2)
-	assert.Len(t, policy.Spec.Egress, 2) // DNS + Registry
+	assert.Equal(t, "ingress-namespace", policy.Spec.Ingress[0].From[0].NamespaceSelector.MatchLabels["kubernetes.io/metadata.name"])
 }

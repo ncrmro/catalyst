@@ -216,6 +216,10 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// 2. Manage ResourceQuota & NetworkPolicy
 	ingressNamespace := os.Getenv("INGRESS_NAMESPACE")
 	if ingressNamespace == "" {
+		// Fallback to POD_NAMESPACE (where the operator and usually ingress-nginx are)
+		ingressNamespace = os.Getenv("POD_NAMESPACE")
+	}
+	if ingressNamespace == "" {
 		ingressNamespace = "ingress-nginx"
 	}
 

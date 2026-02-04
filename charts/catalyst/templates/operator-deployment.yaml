@@ -84,10 +84,8 @@ spec:
             - name: INGRESS_PORT
               value: {{ .Values.operator.ingressPort | quote }}
             {{- end }}
-            {{- if .Values.operator.ingressNamespace }}
             - name: INGRESS_NAMESPACE
-              value: {{ .Values.operator.ingressNamespace | quote }}
-            {{- end }}
+              value: {{ .Values.operator.ingressNamespace | default .Release.Namespace | quote }}
             - name: CATALYST_WEB_URL
               value: "http://{{ include "catalyst.fullname" . }}-web.{{ .Release.Namespace }}.svc.cluster.local:3000"
             {{- if .Values.web.enableGitTokenPatMode }}
