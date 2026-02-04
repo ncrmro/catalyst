@@ -188,6 +188,7 @@ As a power user, I want to configure deployments using standard tools (Docker Co
 - **FR-ENV-030**: The web application MUST support framework presets that resolve to explicit Kubernetes-native configuration values before writing to the CRD. Presets include: `nextjs`, `generic-node`, `python`, `go`, `static`, `custom`. Each preset resolves to concrete values for all CRD config fields (image, command, ports, probes, resources, env, init containers, storage). The operator MUST NOT understand preset names — it only operates on the resolved K8s-native config values in the CRD.
 - **FR-ENV-031**: The Environment CRD MUST support configurable init containers using `corev1.Container` specs (curated subset: image, command, args, workingDir, env, resources, volumeMounts). Init containers handle setup tasks like package installation and database migration. The operator MUST NOT hardcode any package manager or migration commands — these are specified as the init container's `command` and `args` fields. Init containers MUST specify `resources` (CPU/memory requests and limits) when the namespace has a `ResourceQuota`, as Kubernetes requires resource specifications for all containers (including init containers) in quota-constrained namespaces.
 - **FR-ENV-032**: The Environment CRD MUST support configurable storage via `corev1.PersistentVolumeClaimSpec` for development mode volumes (code storage, managed service data). The operator MUST read storage size and access modes from the CRD instead of hardcoding values.
+- **FR-ENV-033**: The Platform MUST support **wildcard TLS certificates** for preview environments to minimize Let's Encrypt rate limits and resource overhead. In managed environments, the Ingress Controller is configured with a `default-ssl-certificate` pointing to a wildcard secret (e.g., `*.preview.tetraship.app`) issued via cert-manager and Cloudflare DNS-01 challenge. Operator-managed Ingresses MUST NOT request individual certificates when a wildcard default is available.
 
 ### Key Entities
 
@@ -340,10 +341,12 @@ All generated namespaces and resources are tagged with:
 
 Development environments receive real public URLs through proxy infrastructure:
 
-- Cloudflare Tunnels (or similar) route traffic to environment namespaces
-- TLS termination handled at the proxy layer
-- DNS automatically configured for each environment
-- Agents inside the environment can fetch their own public URL to test with Playwright
+- **Public Access**: Traffic is routed through NGINX Ingress with TLS termination.
+- **Wildcard TLS**: Managed environments use a single wildcard certificate (e.g., `*.preview.tetraship.app`) for all preview environments. This is implemented via a `ClusterIssuer` using the Cloudflare DNS-01 challenge and configured as the `default-ssl-certificate` on the Ingress Controller.
+- **Optimization**: By using a default wildcard certificate, the Operator can create lightweight Ingress resources without individual `Certificate` objects or ACME challenge overhead.
+- **Local Access**: Hostname-based routing using `*.localhost` (see FR-ENV-002).
+- **DNS**: Automatically configured for each environment via the wildcard record.
+- **Discovery**: Agents inside the environment can fetch their own public URL to test with Playwright.
 
 **[FR-ENV-002] Local Development URL Testing**:
 For local development where public DNS is not available or desired, the system supports hostname-based routing using `*.localhost` (e.g., `http://namespace-name.localhost:8080/`). Modern browsers automatically resolve `*.localhost` to `127.0.0.1`, enabling hostname-based routing without DNS configuration or hosts file modifications. This approach maintains parity with production routing patterns while working fully offline.
