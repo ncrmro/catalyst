@@ -190,6 +190,22 @@ As a power user, I want to configure deployments using standard tools (Docker Co
 - **FR-ENV-032**: The Environment CRD MUST support configurable storage via `corev1.PersistentVolumeClaimSpec` for development mode volumes (code storage, managed service data). The operator MUST read storage size and access modes from the CRD instead of hardcoding values.
 - **FR-ENV-033**: The Platform MUST support **wildcard TLS certificates** for preview environments to minimize Let's Encrypt rate limits and resource overhead. In managed environments, the Ingress Controller is configured with a `default-ssl-certificate` pointing to a wildcard secret (e.g., `*.preview.tetraship.app`) issued via cert-manager and Cloudflare DNS-01 challenge. Operator-managed Ingresses MUST NOT request individual certificates when a wildcard default is available.
 
+- **FR-ENV-034**: The System MUST support storing encrypted secrets at three hierarchical levels: **Team Secrets** (shared across all projects in a team, lowest precedence), **Project Secrets** (shared across all environments in a project, medium precedence), and **Environment Secrets** (specific to a single environment, highest precedence). Secrets MUST be encrypted using AES-256-GCM before storage in the database. Each secret MUST store: `encryptedValue`, `iv` (initialization vector), and `authTag` (authentication tag).
+
+- **FR-ENV-035**: When deploying an environment, the System MUST resolve secrets using the following precedence rules: (1) **Environment secrets** override project and team secrets (highest priority), (2) **Project secrets** override team secrets, (3) **Team secrets** provide default values (lowest priority). If a secret key exists at multiple levels, the highest-precedence value MUST be used. Secret resolution MUST occur at deployment time, not at secret creation time.
+
+- **FR-ENV-036**: All secret values MUST be encrypted at rest using AES-256-GCM from `@tetrastack/backend/utils/security.ts`. The System MUST use the `TOKEN_ENCRYPTION_KEY` environment variable for encryption/decryption operations. Secrets MUST be decrypted only when: (1) Resolving values for environment deployment (operator API call), (2) Returning to user immediately after creation (for confirmation).
+
+- **FR-ENV-037**: When deploying an environment, the System MUST: (1) Provide an internal API endpoint (`/api/internal/secrets/{environmentId}`) that returns resolved secrets for an environment, (2) Authenticate operator requests using Kubernetes TokenReview API, (3) Create a Kubernetes Secret named `catalyst-secrets` in the environment namespace containing all resolved key-value pairs, (4) Inject secret references into environment pods via `env[].valueFrom.secretKeyRef`.
+
+- **FR-ENV-038**: The System MUST enforce access control for secret operations: **Team secrets** - only team owners and admins can create, update, or delete; **Project secrets** - team owners, admins, and project members can manage; **Environment secrets** - team owners, admins, and project members can manage. The System MUST NOT expose decrypted secret values via API responses except during initial creation.
+
+- **FR-ENV-039**: Secret names MUST follow Kubernetes environment variable naming conventions: alphanumeric characters and underscores only (`[A-Z0-9_]+`), must start with a letter or underscore, maximum length: 253 characters, case-sensitive. The System MUST validate secret names at creation time and reject invalid names with a clear error message.
+
+- **FR-ENV-040**: When a team or project secret is updated, the System SHOULD mark affected environments as "outdated" (future enhancement). For MVP, secret updates MUST update the database and will be picked up on next environment deployment. Environment-specific secret updates MUST only affect that single environment.
+
+- **FR-ENV-041**: The System MUST log all secret management operations with structured logging using `src/lib/logging.ts`: `secret-created` (secret name, scope, creator user ID, timestamp), `secret-updated` (secret name, scope, updater user ID, timestamp), `secret-deleted` (secret name, scope, deleter user ID, timestamp). Logs MUST NOT contain decrypted secret values.
+
 ### Key Entities
 
 - **Project**: Represents a code repository and its deployment configuration (Templates).
