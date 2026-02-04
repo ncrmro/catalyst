@@ -672,6 +672,100 @@ This delivers the core value proposition: automatic preview deployments with pub
 
 ---
 
+## Phase 19: Secret Management for Preview Environments (FR-ENV-034 through FR-ENV-041) - Priority: P1
+
+**Purpose**: Enable project-level secrets to be injected into preview environments so they don't crash with missing GitHub env vars.
+
+**Success Criteria**: E2E test creates GitHub secrets at project level, deploys preview environment, and verifies no "Missing required GitHub environment variables" error when visiting the URL.
+
+**Design**: Single polymorphic `secrets` table with composite primary key (team_id, project_id, environment_id, name).
+
+### Database Schema & Core Logic
+
+- [ ] T186 Create migration `web/drizzle/0021_add_secret_management.sql` with `secrets` table using composite primary key (team_id, project_id, environment_id, name)
+- [ ] T187 Add `secrets` table definition to `web/src/db/schema.ts` with hierarchical foreign keys (team_id NOT NULL, project_id/environment_id nullable) and composite PK
+- [ ] T188 Add Drizzle relations in `web/src/db/schema.ts` for creator relationship
+- [ ] T189 Run migration: `npm run db:migrate`
+- [ ] T190 Create `web/src/types/secrets.ts` with types: `SecretScope`, `Secret`, `ResolvedSecret`, `CreateSecretInput`
+- [ ] T191 Create `web/src/schemas/secrets.ts` with `SECRET_NAME_REGEX = /^[A-Z_][A-Z0-9_]*$/` and validation schemas
+- [ ] T192 Create `web/src/models/secrets.ts` with `encryptSecret()` and `decryptSecret()` helpers
+- [ ] T193 Implement `resolveSecretsForEnvironment(teamId, projectId, environmentId)` in `web/src/models/secrets.ts` that:
+  - Queries WHERE `team_id=? AND ((project_id=? AND environment_id IS NULL) OR environment_id=?)`
+  - Applies precedence: environment > project
+  - Returns `Map<string, ResolvedSecret>`
+- [ ] T194 Create unit test `web/src/models/secrets.test.ts` verifying precedence and encryption roundtrip
+
+### Server Actions - Unified API
+
+- [ ] T195 Create `web/src/actions/secrets.ts` with unified `listSecrets(scope: SecretScope)` action that queries by teamId + projectId/environmentId
+- [ ] T196 Add `createSecret(scope: SecretScope, data: CreateSecretInput)` action with authorization (team owners/admins for team, + members for project/env)
+- [ ] T197 Add `updateSecret(scope: SecretScope, name: string, data: UpdateSecretInput)` action (identifies record by composite key)
+- [ ] T198 Add `deleteSecret(scope: SecretScope, name: string)` action (identifies record by composite key)
+- [ ] T199 Add structured logging (`secret-created`, `secret-updated`, `secret-deleted`) to all actions (never log decrypted values)
+- [ ] T200 Create integration test `web/__tests__/integration/secrets.test.ts` for CRUD operations and precedence verification
+
+### UI Components
+
+- [ ] T201 Create `web/src/components/secrets/secret-list.tsx` table component showing secrets with masked values (●●●●●●●●), source indicator (team/project/env), and Edit/Delete actions
+- [ ] T202 Create `web/src/components/secrets/secret-form.tsx` with name (uppercase validation), value (password input), description fields
+- [ ] T203 Create `web/src/components/secrets/delete-secret-dialog.tsx` confirmation dialog
+- [ ] T204 Create project secrets page `web/src/app/(dashboard)/projects/[slug]/secrets/page.tsx` using components
+- [ ] T205 Add "Secrets" tab to project settings navigation
+
+### Operator API Endpoint
+
+- [ ] T206 Create `web/src/app/api/internal/secrets/[environmentId]/route.ts` with GET handler
+- [ ] T207 Implement Kubernetes TokenReview authentication in route to validate operator service account token
+- [ ] T208 Implement secret resolution in route:
+  - Look up environment to get teamId, projectId, environmentId
+  - Call `resolveSecretsForEnvironment(teamId, projectId, environmentId)`
+  - Return `{ secrets: { KEY: "value", ... } }` as flat JSON
+- [ ] T209 Add error handling (404 if environment not found, 401 if token invalid, 500 for resolution errors) and logging
+
+### Operator Integration
+
+- [ ] T210 [Operator] Add HTTP client to `operator/internal/controller/environment_controller.go` for calling web API `/api/internal/secrets/{environmentId}`
+- [ ] T211 [Operator] Implement `fetchEnvironmentSecrets(ctx, environmentId, webAPIURL, saToken)` function that:
+  - Makes GET request with `Authorization: Bearer {saToken}`
+  - Parses JSON response `{ secrets: { ... } }`
+  - Returns `map[string]string` of resolved secrets
+- [ ] T212 [Operator] Implement `syncCatalystSecrets(ctx, namespace, secrets)` function that:
+  - Creates or updates Kubernetes Secret named `catalyst-secrets`
+  - Populates `.data` with base64-encoded secret values
+- [ ] T213 [Operator] Update pod spec generation in `desiredDeployment()` to inject env vars:
+  - For each key in resolved secrets, add `env[].valueFrom.secretKeyRef` pointing to `catalyst-secrets`
+- [ ] T214 [Operator] Add reconciliation logic in `Reconcile()`:
+  - Fetch secrets from web API after Environment CR is created
+  - Sync K8s Secret before creating Deployment
+  - Log errors if secret fetch/sync fails (don't block deployment, just log warning)
+- [ ] T215 [Operator] Add error handling and structured logging for secret operations
+
+### E2E Test - Complete Workflow
+
+- [ ] T216 Create `web/__tests__/e2e/preview-environment-with-secrets.spec.ts` test that:
+  1. Creates project via UI (or uses existing seeded project)
+  2. Navigates to project secrets page `/projects/{slug}/secrets`
+  3. Creates GitHub secrets using SecretForm:
+     - `GITHUB_APP_ID`
+     - `GITHUB_APP_PRIVATE_KEY`
+     - `GITHUB_APP_CLIENT_ID`
+     - `GITHUB_APP_CLIENT_SECRET`
+     - `GITHUB_WEBHOOK_SECRET`
+  4. Triggers preview environment deployment (opens PR or uses deployment UI)
+  5. Waits for Environment CR status to be "Ready"
+  6. Visits preview environment public URL
+  7. Verifies page loads without "Missing required GitHub environment variables" error (checks for 200 status, no error in logs)
+  8. Verifies K8s Secret `catalyst-secrets` exists: `kubectl get secret catalyst-secrets -n {namespace}`
+  9. Verifies pod has env vars: `kubectl exec {pod} -- env | grep GITHUB_APP_ID`
+
+**Checkpoint**: Preview environments work with GitHub secrets injected from project-level configuration. E2E test validates end-to-end workflow with no errors.
+
+**Total Tasks**: 31 tasks (database → models → actions → UI → operator → E2E)
+
+**Estimated Time**: 1-2 days for complete implementation
+
+---
+
 ## Child Spec Reference
 
 Operator implementation tasks are tracked separately:

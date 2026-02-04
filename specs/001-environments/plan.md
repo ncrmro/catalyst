@@ -525,32 +525,60 @@ Implement a GitHub-style three-tier secret management system with precedence-bas
 
 ### Database Schema
 
-Three parallel tables following the same encrypted storage pattern:
+**Single polymorphic table** with hierarchical foreign keys. Team ID is always set, project/environment IDs are nullable based on scope level.
 
 ```typescript
-// Common pattern for all three tables
-{
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-  [scope]Id: text("..._id").references(...).onDelete("cascade"), // teamId/projectId/environmentId
-  name: text("name").notNull(),                    // e.g., "GITHUB_APP_ID"
-  description: text("description"),
-  encryptedValue: text("encrypted_value").notNull(),
-  iv: text("iv").notNull(),                        // Initialization vector
-  authTag: text("auth_tag").notNull(),             // GCM authentication tag
-  createdBy: text("created_by").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-}
+export const secrets = pgTable(
+  "secrets",
+  {
+    // Hierarchical foreign keys (team_id always present)
+    teamId: text("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    projectId: text("project_id").references(() => projects.id, {
+      onDelete: "cascade",
+    }),
+    environmentId: text("environment_id").references(
+      () => projectEnvironments.id,
+      { onDelete: "cascade" },
+    ),
+    name: text("name").notNull(), // e.g., "GITHUB_APP_ID"
 
-// Unique constraint: one secret name per scope
-uniqueIndex("team_secrets_team_id_name_unique").on(teamId, name)
+    // Secret data
+    description: text("description"),
+    encryptedValue: text("encrypted_value").notNull(),
+    iv: text("iv").notNull(), // Initialization vector
+    authTag: text("auth_tag").notNull(), // GCM authentication tag
+
+    // Metadata
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    // Composite primary key = natural uniqueness constraint
+    primaryKey({
+      columns: [table.teamId, table.projectId, table.environmentId, table.name],
+    }),
+  ],
+);
 ```
 
-**Tables**:
+**Scope Patterns** (team_id always present):
 
-- `team_secrets` - Team-level secrets
-- `project_secrets` - Project-level secrets
-- `environment_secrets` - Environment-level secrets
+- **Team-level**: `{ teamId: "abc", projectId: null, environmentId: null, name: "API_KEY" }`
+- **Project-level**: `{ teamId: "abc", projectId: "xyz", environmentId: null, name: "API_KEY" }`
+- **Environment-level**: `{ teamId: "abc", projectId: "xyz", environmentId: "123", name: "API_KEY" }`
+
+**Benefits**:
+
+- Single table = simpler migrations and queries
+- Composite primary key = no separate ID needed, natural uniqueness
+- Always filter by team first (for permissions) → composite PK index is optimal for queries
+- Proper foreign key constraints with cascading deletes
+- No redundant indexes needed (composite PK serves as both uniqueness constraint and query index)
 
 ### Encryption Strategy
 
