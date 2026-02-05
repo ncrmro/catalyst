@@ -274,11 +274,11 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 ### Task 6: Add Configuration
 **File**: `operator/config/manager/manager.yaml` or environment variables
 
-Add the web API URL configuration:
+Add the web API URL configuration (use https:// for production):
 ```yaml
 env:
   - name: WEB_API_URL
-    value: "http://web-service.catalyst-system.svc.cluster.local:3000"
+    value: "https://web-service.catalyst-system.svc.cluster.local:3000"
 ```
 
 Or use a config file/ConfigMap.
@@ -336,7 +336,7 @@ log.Error(err, "Secret operation failed",
 ```yaml
 env:
   - name: WEB_API_URL
-    value: "http://catalyst-web.catalyst-system.svc.cluster.local:3000"
+    value: "https://catalyst-web.catalyst-system.svc.cluster.local:3000"
   - name: WEB_API_TIMEOUT
     value: "30s"
   - name: SECRETS_SYNC_ENABLED
