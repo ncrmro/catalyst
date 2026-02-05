@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { db } from "@/db";
-import { teams, projects, users } from "@/db/schema";
+import { teams, projects, users, teamsMemberships } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { userFactory, teamFactory } from "../../factories";
 import {
@@ -17,7 +17,7 @@ import {
 // Mock auth
 vi.mock("@/auth", () => ({
   auth: vi.fn().mockResolvedValue({
-    user: { id: "test-user-id" },
+    user: { id: "placeholder-id" },
   }),
 }));
 
@@ -25,6 +25,7 @@ describe("Secrets Actions Integration", () => {
   let testUserId: string;
   let testTeamId: string;
   let testProjectId: string;
+  let testMembershipId: string;
 
   beforeAll(async () => {
     process.env.TOKEN_ENCRYPTION_KEY =
@@ -45,6 +46,17 @@ describe("Secrets Actions Integration", () => {
     });
     testTeamId = testTeam.id;
 
+    // Create membership to authorize user
+    const [membership] = await db
+      .insert(teamsMemberships)
+      .values({
+        teamId: testTeamId,
+        userId: testUserId,
+        role: "owner",
+      })
+      .returning();
+    testMembershipId = membership.id;
+
     const [project] = await db
       .insert(projects)
       .values({
@@ -60,6 +72,11 @@ describe("Secrets Actions Integration", () => {
   });
 
   afterAll(async () => {
+    if (testMembershipId) {
+      await db
+        .delete(teamsMemberships)
+        .where(eq(teamsMemberships.id, testMembershipId));
+    }
     await db.delete(projects).where(eq(projects.id, testProjectId));
     await db.delete(teams).where(eq(teams.id, testTeamId));
     await db.delete(users).where(eq(users.id, testUserId));
