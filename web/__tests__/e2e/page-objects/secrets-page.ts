@@ -28,7 +28,7 @@ export class SecretsPage extends BasePage {
     this.nameInput = page.getByLabel("Secret Name");
     this.valueInput = page.getByLabel("Secret Value");
     this.descriptionInput = page.getByLabel("Description (Optional)");
-    this.saveButton = page.getByRole("button", { name: "Save Secret" });
+    this.saveButton = page.getByRole("button", { name: "Create Secret" });
     this.cancelButton = page.getByRole("button", { name: "Cancel" });
     this.errorAlert = page.locator(".bg-error-container");
   }
