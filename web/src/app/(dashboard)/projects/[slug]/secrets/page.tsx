@@ -44,16 +44,19 @@ export default function ProjectSecretsPage() {
   useEffect(() => {
     const fetchProjectData = async () => {
       try {
+        console.log(`Fetching project data for slug: ${projectSlug}`);
         const project = await fetchProjectBySlug(projectSlug);
         if (project) {
+          console.log(`Successfully fetched project: ${project.id} for team: ${project.teamId}`);
           setTeamId(project.teamId);
           setProjectId(project.id);
         } else {
+          console.warn(`Project not found for slug: ${projectSlug}`);
           setError("Project not found");
         }
       } catch (err) {
         console.error("Failed to fetch project data:", err);
-        setError("Failed to load project data");
+        setError(`Failed to load project data: ${err instanceof Error ? err.message : String(err)}`);
       }
     };
 
