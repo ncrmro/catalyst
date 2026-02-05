@@ -98,7 +98,7 @@ func TestDesiredIngress_ProductionMode(t *testing.T) {
 
 	assert.Len(t, ingress.Spec.Rules, 1)
 
-	expectedHost := "my-project-test-env.preview.tetraship.app"
+	expectedHost := "test-env.preview.tetraship.app"
 	rule := ingress.Spec.Rules[0]
 	assert.Equal(t, expectedHost, rule.Host)
 

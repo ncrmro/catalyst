@@ -291,18 +291,6 @@ ls /tmp/cluster-logs/kind/preview-cluster-control-plane/containers/ | grep "<par
 cat /tmp/cluster-logs/kind/preview-cluster-control-plane/containers/<specific-container-log>
 ```
 
-### Common E2E Failure Patterns
-
-| Symptom                                     | Likely Cause                                        | Where to Look                                         |
-| ------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------- |
-| `Init:0/3` stuck, no events                 | ResourceQuota — init containers missing `resources` | cluster-state.log for "failed quota"                  |
-| `Init:0/3` with FailedMount                 | ConfigMap/Secret name mismatch                      | cluster-state.log for "FailedMount"                   |
-| `Init:0/3` with PodInitializing for minutes | Init container hanging (git-clone, npm-install)     | Container logs for the stuck init container           |
-| `CrashLoopBackOff`                          | App crash or probe failure                          | App container log + cluster-state.log for "Unhealthy" |
-| `Startup probe failed: 404`                 | Health endpoint doesn't exist                       | App container log, verify route exists in code        |
-| `Startup probe failed: 503`                 | App dependency not ready (DB)                       | App container log + postgres container log            |
-| Pod never scheduled                         | Resource limits exceed node capacity                | cluster-state.log for "FailedScheduling"              |
-
 ### Context Management Rules
 
 - **NEVER** read full operator.log (it repeats reconciliation every 5s for ~10 min)
