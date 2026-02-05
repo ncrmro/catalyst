@@ -36,14 +36,15 @@ export class SecretsPage extends BasePage {
   async goto(projectSlug: string) {
     await this.page.goto(`/projects/${projectSlug}/secrets`);
     await expect(this.pageHeading).toBeVisible();
-    // Wait for "Loading..." to disappear if present
-    await expect(this.page.getByText("Loading")).not.toBeVisible();
   }
 
   /**
    * Add a new secret if it doesn't already exist
    */
   async addSecretIfMissing(name: string, value: string, description?: string) {
+    // Wait for "Loading..." to disappear if present
+    await expect(this.page.getByText("Loading")).not.toBeVisible({ timeout: 30000 });
+
     // Check if secret already exists in the table (targeting body rows)
     const secretRow = this.secretList
       .locator("tbody tr")

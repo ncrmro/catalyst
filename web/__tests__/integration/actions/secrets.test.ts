@@ -4,22 +4,21 @@
 
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { db } from "@/db";
-import {
-  teams,
-  projects,
-  users,
-} from "@/db/schema";
+import { teams, projects, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { userFactory, teamFactory } from "../../factories";
-import { createSecret, listSecrets, updateSecret, deleteSecret } from "@/actions/secrets";
+import {
+  createSecret,
+  listSecrets,
+  updateSecret,
+  deleteSecret,
+} from "@/actions/secrets";
 
 // Mock auth
-const mockSession = {
-  user: { id: "test-user-id" },
-};
-
 vi.mock("@/auth", () => ({
-  auth: vi.fn().mockResolvedValue(mockSession),
+  auth: vi.fn().mockResolvedValue({
+    user: { id: "test-user-id" },
+  }),
 }));
 
 describe("Secrets Actions Integration", () => {
@@ -28,23 +27,35 @@ describe("Secrets Actions Integration", () => {
   let testProjectId: string;
 
   beforeAll(async () => {
-    process.env.TOKEN_ENCRYPTION_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    process.env.TOKEN_ENCRYPTION_KEY =
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
     const testUser = await userFactory.create({ name: "Action Test User" });
     testUserId = testUser.id;
-    mockSession.user.id = testUserId;
 
-    const testTeam = await teamFactory.create({ ownerId: testUserId, name: "Action Test Team" });
+    // Update the mock implementation with the real user ID
+    const { auth } = await import("@/auth");
+    (auth as any).mockResolvedValue({
+      user: { id: testUserId },
+    });
+
+    const testTeam = await teamFactory.create({
+      ownerId: testUserId,
+      name: "Action Test Team",
+    });
     testTeamId = testTeam.id;
 
-    const [project] = await db.insert(projects).values({
-      name: "Action Project",
-      slug: "action-project",
-      fullName: "test/action-project",
-      ownerLogin: "test",
-      ownerType: "User",
-      teamId: testTeamId,
-    }).returning();
+    const [project] = await db
+      .insert(projects)
+      .values({
+        name: "Action Project",
+        slug: "action-project",
+        fullName: "test/action-project",
+        ownerLogin: "test",
+        ownerType: "User",
+        teamId: testTeamId,
+      })
+      .returning();
     testProjectId = project.id;
   });
 
@@ -55,8 +66,12 @@ describe("Secrets Actions Integration", () => {
   });
 
   it("should create and list secrets", async () => {
-    const scope = { level: "project" as const, teamId: testTeamId, projectId: testProjectId };
-    
+    const scope = {
+      level: "project" as const,
+      teamId: testTeamId,
+      projectId: testProjectId,
+    };
+
     const createResult = await createSecret(scope, {
       name: "ACTION_KEY",
       value: "action-val",
@@ -72,15 +87,19 @@ describe("Secrets Actions Integration", () => {
     const listResult = await listSecrets(scope);
     expect(listResult.success).toBe(true);
     if (listResult.success) {
-      const secret = listResult.data.find(s => s.name === "ACTION_KEY");
+      const secret = listResult.data.find((s) => s.name === "ACTION_KEY");
       expect(secret).toBeDefined();
       expect(secret?.source).toBe("project");
     }
   });
 
   it("should update a secret", async () => {
-    const scope = { level: "project" as const, teamId: testTeamId, projectId: testProjectId };
-    
+    const scope = {
+      level: "project" as const,
+      teamId: testTeamId,
+      projectId: testProjectId,
+    };
+
     const updateResult = await updateSecret(scope, "ACTION_KEY", {
       value: "updated-val",
       description: "Updated description",
@@ -90,20 +109,24 @@ describe("Secrets Actions Integration", () => {
 
     const listResult = await listSecrets(scope);
     if (listResult.success) {
-      const secret = listResult.data.find(s => s.name === "ACTION_KEY");
+      const secret = listResult.data.find((s) => s.name === "ACTION_KEY");
       expect(secret?.description).toBe("Updated description");
     }
   });
 
   it("should delete a secret", async () => {
-    const scope = { level: "project" as const, teamId: testTeamId, projectId: testProjectId };
-    
+    const scope = {
+      level: "project" as const,
+      teamId: testTeamId,
+      projectId: testProjectId,
+    };
+
     const deleteResult = await deleteSecret(scope, "ACTION_KEY");
     expect(deleteResult.success).toBe(true);
 
     const listResult = await listSecrets(scope);
     if (listResult.success) {
-      const secret = listResult.data.find(s => s.name === "ACTION_KEY");
+      const secret = listResult.data.find((s) => s.name === "ACTION_KEY");
       expect(secret).toBeUndefined();
     }
   });
