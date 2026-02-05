@@ -59,7 +59,8 @@ test.describe.serial("Deployment Environment E2E", () => {
     await projectsPage.verifyProjectDetailsPageLoaded();
 
     const currentUrl = page.url();
-    const projectSlug = currentUrl.split("/").pop() || "";
+    const urlParts = currentUrl.split("/");
+    const projectSlug = urlParts[urlParts.indexOf("projects") + 1] || "";
     console.log(`✓ Navigated to project details page for: ${projectSlug}`);
 
     // --- SECRET SETUP STEP ---

@@ -20,3 +20,7 @@ WHERE "environment_id" IS NULL AND "project_id" IS NOT NULL;
 -- Environment-level secrets: unique on all four columns (no NULLs at this level)
 CREATE UNIQUE INDEX "secrets_environment_level_unique" ON "secrets" ("team_id", "project_id", "environment_id", "name") 
 WHERE "project_id" IS NOT NULL AND "environment_id" IS NOT NULL;
+
+-- Manual fix for NOT NULL constraints
+ALTER TABLE "secrets" ALTER COLUMN "project_id" DROP NOT NULL;
+ALTER TABLE "secrets" ALTER COLUMN "environment_id" DROP NOT NULL;
