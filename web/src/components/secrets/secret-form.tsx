@@ -199,6 +199,7 @@ export function SecretForm({
         <button
           type="submit"
           disabled={isSubmitting}
+          data-testid="secret-form-submit"
           className="px-4 py-2 bg-primary text-on-primary rounded-lg hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmitting

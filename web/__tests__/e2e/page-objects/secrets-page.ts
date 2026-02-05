@@ -28,7 +28,7 @@ export class SecretsPage extends BasePage {
     this.nameInput = page.getByLabel("Secret Name");
     this.valueInput = page.getByLabel("Secret Value");
     this.descriptionInput = page.getByLabel("Description (Optional)");
-    this.saveButton = page.getByRole("button", { name: "Create Secret" });
+    this.saveButton = page.getByTestId("secret-form-submit");
     this.cancelButton = page.getByRole("button", { name: "Cancel" });
     this.errorAlert = page.locator(".bg-error-container");
   }
@@ -43,7 +43,9 @@ export class SecretsPage extends BasePage {
    */
   async addSecretIfMissing(name: string, value: string, description?: string) {
     // Wait for "Loading..." to disappear if present
-    await expect(this.page.getByText("Loading")).not.toBeVisible({ timeout: 30000 });
+    await expect(this.page.getByText("Loading")).not.toBeVisible({
+      timeout: 30000,
+    });
 
     // Check if secret already exists in the table (targeting body rows)
     const secretRow = this.secretList
