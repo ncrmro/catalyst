@@ -26,3 +26,5 @@ result
 .direnv
 .eslintcache
 charts/catalyst/certs.yaml
+.gemini/tmp
+.k3s-vm/*.pid
