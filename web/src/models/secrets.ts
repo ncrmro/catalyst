@@ -84,10 +84,16 @@ export async function resolveSecretsForEnvironment(
 
     // Add environment-level secrets if environmentId provided
     if (environmentId) {
+      if (!projectId) {
+        throw new Error(
+          "resolveSecretsForEnvironment: projectId is required when environmentId is provided",
+        );
+      }
+      
       conditions.push(
         and(
           eq(secrets.teamId, teamId),
-          eq(secrets.projectId, projectId!),
+          eq(secrets.projectId, projectId),
           eq(secrets.environmentId, environmentId),
         ),
       );

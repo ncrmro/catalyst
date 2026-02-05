@@ -472,6 +472,11 @@ export const githubUserTokensRelations = relations(
 export const secrets = pgTable(
   "secrets",
   {
+    // Primary key
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    
     // Hierarchical foreign keys (team_id always present)
     teamId: text("team_id")
       .notNull()
@@ -499,10 +504,8 @@ export const secrets = pgTable(
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },
   (table) => [
-    // Composite primary key = natural uniqueness constraint
-    primaryKey({
-      columns: [table.teamId, table.projectId, table.environmentId, table.name],
-    }),
+    // Unique constraint to ensure secret name uniqueness at each scope level
+    unique().on(table.teamId, table.projectId, table.environmentId, table.name),
   ],
 );
 

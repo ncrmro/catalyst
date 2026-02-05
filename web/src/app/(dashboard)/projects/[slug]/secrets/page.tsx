@@ -12,6 +12,7 @@ import { useParams } from "next/navigation";
 import { SecretList } from "@/components/secrets/secret-list";
 import { SecretForm } from "@/components/secrets/secret-form";
 import { DeleteSecretDialog } from "@/components/secrets/delete-secret-dialog";
+import { fetchProjectBySlug } from "@/actions/projects";
 import {
   listSecrets,
   createSecret,
@@ -37,27 +38,22 @@ export default function ProjectSecretsPage() {
   const [deletingSecret, setDeletingSecret] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // TODO(T187): Fetch project data to get teamId and projectId from database
-  // This requires implementing a helper to look up project by slug
-  // For MVP, this page structure is in place but needs the data fetching logic
   const [teamId, setTeamId] = useState<string | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
 
   useEffect(() => {
-    // TODO(T187): Replace with actual project data fetching
-    // Example: const project = await getProjectBySlug(projectSlug);
-    // setTeamId(project.teamId);
-    // setProjectId(project.id);
     const fetchProjectData = async () => {
       try {
-        // Placeholder - needs implementation
-        console.warn(
-          "Project data fetching not yet implemented - secrets page needs project ID lookup",
-        );
-        setTeamId("placeholder-team-id");
-        setProjectId("placeholder-project-id");
+        const project = await fetchProjectBySlug(projectSlug);
+        if (project) {
+          setTeamId(project.teamId);
+          setProjectId(project.id);
+        } else {
+          setError("Project not found");
+        }
       } catch (err) {
         console.error("Failed to fetch project data:", err);
+        setError("Failed to load project data");
       }
     };
 
