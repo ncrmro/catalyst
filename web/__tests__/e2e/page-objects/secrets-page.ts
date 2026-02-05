@@ -18,7 +18,10 @@ export class SecretsPage extends BasePage {
 
   constructor(page: Page) {
     super(page);
-    this.pageHeading = page.getByRole("heading", { name: "Project Secrets" });
+    this.pageHeading = page.getByRole("heading", {
+      name: "Project Secrets",
+      level: 1,
+    });
     this.addSecretButton = page.getByRole("button", { name: "+ Add Secret" });
     this.secretList = page.locator("table");
     this.secretForm = page.locator("form");
@@ -39,8 +42,10 @@ export class SecretsPage extends BasePage {
    * Add a new secret if it doesn't already exist
    */
   async addSecretIfMissing(name: string, value: string, description?: string) {
-    // Check if secret already exists in the table
-    const secretRow = this.page.locator("tr").filter({ hasText: name });
+    // Check if secret already exists in the table (targeting body rows)
+    const secretRow = this.secretList
+      .locator("tbody tr")
+      .filter({ hasText: name });
     if (await secretRow.isVisible()) {
       console.log(`✓ Secret '${name}' already exists, skipping creation`);
       return;
@@ -60,7 +65,9 @@ export class SecretsPage extends BasePage {
 
     // Wait for form to disappear and secret to appear in list
     await expect(this.secretForm).not.toBeVisible();
-    await expect(this.page.locator("tr").filter({ hasText: name })).toBeVisible();
+    await expect(
+      this.secretList.locator("tbody tr").filter({ hasText: name }),
+    ).toBeVisible();
     console.log(`✓ Secret '${name}' added successfully`);
   }
 }
