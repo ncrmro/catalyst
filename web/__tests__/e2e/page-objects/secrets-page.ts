@@ -36,6 +36,8 @@ export class SecretsPage extends BasePage {
   async goto(projectSlug: string) {
     await this.page.goto(`/projects/${projectSlug}/secrets`);
     await expect(this.pageHeading).toBeVisible();
+    // Wait for "Loading..." to disappear if present
+    await expect(this.page.getByText("Loading")).not.toBeVisible();
   }
 
   /**
