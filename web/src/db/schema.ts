@@ -503,10 +503,8 @@ export const secrets = pgTable(
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },
-  (table) => [
-    // Unique constraint to ensure secret name uniqueness at each scope level
-    unique().on(table.teamId, table.projectId, table.environmentId, table.name),
-  ],
+  // Note: Unique constraints with NULL handling are defined in migration 0023
+  // to properly enforce uniqueness at each scope level (team/project/environment)
 );
 
 export const secretsRelations = relations(secrets, ({ one }) => ({
