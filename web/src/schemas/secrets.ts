@@ -58,6 +58,12 @@ export const secretScopeSchema = z.discriminatedUnion("level", [
     projectId: z.string().uuid(),
   }),
   z.object({
+    level: z.literal("template"),
+    teamId: z.string().uuid(),
+    projectId: z.string().uuid(),
+    environmentType: z.enum(["deployment", "development"]),
+  }),
+  z.object({
     level: z.literal("environment"),
     teamId: z.string().uuid(),
     projectId: z.string().uuid(),

@@ -169,6 +169,13 @@
       "when": 1770328434593,
       "tag": "0023_complex_lionheart",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1770381964184,
+      "tag": "0024_template_secrets",
+      "breakpoints": true
     }
   ]
 }

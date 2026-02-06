@@ -40,26 +40,29 @@ export function decryptSecret(
 }
 
 /**
- * Resolve secrets for an environment with precedence (Environment > Project > Team)
+ * Resolve secrets for an environment with precedence (Environment > Template > Project > Team)
  *
  * @param teamId - Team ID
  * @param projectId - Project ID (optional for team-level resolution)
+ * @param environmentType - Environment type ('deployment' | 'development') for template-level resolution
  * @param environmentId - Environment ID (optional for project-level resolution)
  * @returns Map of secret names to resolved values with source information
  */
 export async function resolveSecretsForEnvironment(
   teamId: string,
   projectId?: string | null,
+  environmentType?: "deployment" | "development" | null,
   environmentId?: string | null,
 ): Promise<Map<string, ResolvedSecret>> {
   const resolved = new Map<string, ResolvedSecret>();
 
   try {
-    // Fetch secrets in order of precedence (team → project → environment)
+    // Fetch secrets in order of precedence (team → project → template → environment)
     // Query pattern: WHERE team_id = ? AND (
-    //   (project_id IS NULL AND environment_id IS NULL) OR     -- Team secrets
-    //   (project_id = ? AND environment_id IS NULL) OR         -- Project secrets
-    //   (environment_id = ?)                                    -- Environment secrets
+    //   (project_id IS NULL AND environment_id IS NULL) OR                         -- Team secrets
+    //   (project_id = ? AND environment_id IS NULL AND environment_type IS NULL) OR -- Project secrets
+    //   (project_id = ? AND environment_type = ? AND environment_id IS NULL) OR    -- Template secrets
+    //   (environment_id = ?)                                                       -- Environment secrets
     // )
 
     const conditions = [
@@ -78,8 +81,21 @@ export async function resolveSecretsForEnvironment(
           eq(secrets.teamId, teamId),
           eq(secrets.projectId, projectId),
           isNull(secrets.environmentId),
+          isNull(secrets.environmentType),
         ),
       );
+
+      // Add template-level secrets if environmentType provided
+      if (environmentType) {
+        conditions.push(
+          and(
+            eq(secrets.teamId, teamId),
+            eq(secrets.projectId, projectId),
+            eq(secrets.environmentType, environmentType),
+            isNull(secrets.environmentId),
+          ),
+        );
+      }
     }
 
     // Add environment-level secrets if environmentId provided
@@ -110,11 +126,14 @@ export async function resolveSecretsForEnvironment(
       (s) => !s.projectId && !s.environmentId,
     );
     const projectSecrets = allSecrets.filter(
-      (s) => s.projectId && !s.environmentId,
+      (s) => s.projectId && !s.environmentId && !s.environmentType,
+    );
+    const templateSecrets = allSecrets.filter(
+      (s) => s.projectId && s.environmentType && !s.environmentId,
     );
     const envSecrets = allSecrets.filter((s) => s.environmentId);
 
-    // Apply in precedence order: team → project → environment
+    // Apply in precedence order: team → project → template → environment
     for (const secret of teamSecrets) {
       try {
         const value = decryptSecret(
@@ -161,6 +180,31 @@ export async function resolveSecretsForEnvironment(
       }
     }
 
+    for (const secret of templateSecrets) {
+      try {
+        const value = decryptSecret(
+          secret.encryptedValue,
+          secret.iv,
+          secret.authTag,
+        );
+        // Override project/team secret if exists
+        resolved.set(secret.name, {
+          name: secret.name,
+          value,
+          source: "template",
+          description: secret.description,
+        });
+      } catch (error) {
+        console.error("Failed to decrypt template secret", {
+          secretName: secret.name,
+          teamId,
+          projectId,
+          environmentType,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
     for (const secret of envSecrets) {
       try {
         const value = decryptSecret(
@@ -168,7 +212,7 @@ export async function resolveSecretsForEnvironment(
           secret.iv,
           secret.authTag,
         );
-        // Override project and team secrets if exists
+        // Override project/template/team secrets if exists
         resolved.set(secret.name, {
           name: secret.name,
           value,
@@ -189,10 +233,12 @@ export async function resolveSecretsForEnvironment(
     console.log("Resolved secrets for environment", {
       teamId,
       projectId,
+      environmentType,
       environmentId,
       totalSecrets: resolved.size,
       teamCount: teamSecrets.length,
       projectCount: projectSecrets.length,
+      templateCount: templateSecrets.length,
       environmentCount: envSecrets.length,
     });
 
@@ -201,6 +247,7 @@ export async function resolveSecretsForEnvironment(
     console.error("Failed to resolve secrets for environment", {
       teamId,
       projectId,
+      environmentType,
       environmentId,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -211,7 +258,7 @@ export async function resolveSecretsForEnvironment(
 /**
  * Get secrets for a specific scope
  *
- * @param scope - Secret scope (team, project, or environment)
+ * @param scope - Secret scope (team, project, template, or environment)
  * @returns Array of secrets (with encrypted values)
  */
 export async function getSecretsForScope(scope: SecretScope) {
@@ -222,6 +269,11 @@ export async function getSecretsForScope(scope: SecretScope) {
     conditions.push(isNull(secrets.environmentId));
   } else if (scope.level === "project") {
     conditions.push(eq(secrets.projectId, scope.projectId));
+    conditions.push(isNull(secrets.environmentId));
+    conditions.push(isNull(secrets.environmentType));
+  } else if (scope.level === "template") {
+    conditions.push(eq(secrets.projectId, scope.projectId));
+    conditions.push(eq(secrets.environmentType, scope.environmentType));
     conditions.push(isNull(secrets.environmentId));
   } else if (scope.level === "environment") {
     conditions.push(eq(secrets.projectId, scope.projectId));
@@ -256,9 +308,12 @@ export async function createSecret(
   const secretData = {
     teamId: scope.teamId,
     projectId:
-      scope.level === "project" || scope.level === "environment"
+      scope.level === "project" ||
+      scope.level === "template" ||
+      scope.level === "environment"
         ? scope.projectId
         : null,
+    environmentType: scope.level === "template" ? scope.environmentType : null,
     environmentId: scope.level === "environment" ? scope.environmentId : null,
     name,
     encryptedValue: encryptedData,
@@ -275,6 +330,8 @@ export async function createSecret(
     scope: scope.level,
     teamId: scope.teamId,
     projectId: "projectId" in scope ? scope.projectId : undefined,
+    environmentType:
+      "environmentType" in scope ? scope.environmentType : undefined,
     environmentId: "environmentId" in scope ? scope.environmentId : undefined,
     createdBy,
   });
@@ -328,6 +385,11 @@ export async function updateSecret(
   } else if (scope.level === "project") {
     conditions.push(eq(secrets.projectId, scope.projectId));
     conditions.push(isNull(secrets.environmentId));
+    conditions.push(isNull(secrets.environmentType));
+  } else if (scope.level === "template") {
+    conditions.push(eq(secrets.projectId, scope.projectId));
+    conditions.push(eq(secrets.environmentType, scope.environmentType));
+    conditions.push(isNull(secrets.environmentId));
   } else if (scope.level === "environment") {
     conditions.push(eq(secrets.projectId, scope.projectId));
     conditions.push(eq(secrets.environmentId, scope.environmentId));
@@ -348,6 +410,8 @@ export async function updateSecret(
     scope: scope.level,
     teamId: scope.teamId,
     projectId: "projectId" in scope ? scope.projectId : undefined,
+    environmentType:
+      "environmentType" in scope ? scope.environmentType : undefined,
     environmentId: "environmentId" in scope ? scope.environmentId : undefined,
     updatedBy,
     valueChanged: value !== undefined,
@@ -376,6 +440,11 @@ export async function deleteSecret(
   } else if (scope.level === "project") {
     conditions.push(eq(secrets.projectId, scope.projectId));
     conditions.push(isNull(secrets.environmentId));
+    conditions.push(isNull(secrets.environmentType));
+  } else if (scope.level === "template") {
+    conditions.push(eq(secrets.projectId, scope.projectId));
+    conditions.push(eq(secrets.environmentType, scope.environmentType));
+    conditions.push(isNull(secrets.environmentId));
   } else if (scope.level === "environment") {
     conditions.push(eq(secrets.projectId, scope.projectId));
     conditions.push(eq(secrets.environmentId, scope.environmentId));
@@ -395,6 +464,8 @@ export async function deleteSecret(
     scope: scope.level,
     teamId: scope.teamId,
     projectId: "projectId" in scope ? scope.projectId : undefined,
+    environmentType:
+      "environmentType" in scope ? scope.environmentType : undefined,
     environmentId: "environmentId" in scope ? scope.environmentId : undefined,
     deletedBy,
   });

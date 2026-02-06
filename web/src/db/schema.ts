@@ -10,7 +10,7 @@ import {
   jsonb,
   index,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import type { AdapterAccountType } from "@auth/core/adapters";
 import type { ReportData } from "@/types/reports";
 import type { EnvironmentConfig } from "@/types/environment-config";
@@ -488,6 +488,7 @@ export const secrets = pgTable(
       () => projectEnvironments.id,
       { onDelete: "cascade" },
     ),
+    environmentType: text("environment_type"), // 'deployment' | 'development' | null
     name: text("name").notNull(), // e.g., "GITHUB_APP_ID"
 
     // Secret data (encrypted at rest)
@@ -503,8 +504,26 @@ export const secrets = pgTable(
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
   },
-  // Note: Unique constraints with NULL handling are defined in migration 0023
-  // to properly enforce uniqueness at each scope level (team/project/environment)
+  (table) => {
+    return {
+      secretsTeamLevelUnique: uniqueIndex("secrets_team_level_unique")
+        .on(table.teamId, table.name)
+        .where(sql`project_id IS NULL AND environment_id IS NULL`),
+      secretsProjectLevelUnique: uniqueIndex("secrets_project_level_unique")
+        .on(table.teamId, table.projectId, table.name)
+        .where(
+          sql`environment_id IS NULL AND project_id IS NOT NULL AND environment_type IS NULL`,
+        ),
+      secretsTemplateLevelUnique: uniqueIndex("secrets_template_level_unique")
+        .on(table.teamId, table.projectId, table.environmentType, table.name)
+        .where(sql`environment_type IS NOT NULL AND environment_id IS NULL`),
+      secretsEnvironmentLevelUnique: uniqueIndex(
+        "secrets_environment_level_unique",
+      )
+        .on(table.teamId, table.projectId, table.environmentId, table.name)
+        .where(sql`project_id IS NOT NULL AND environment_id IS NOT NULL`),
+    };
+  },
 );
 
 export const secretsRelations = relations(secrets, ({ one }) => ({

@@ -9,10 +9,12 @@ import {
 } from "@/components/ui/entity-card";
 import type { EnvironmentCR } from "@/types/crd";
 import { CreateDevEnvironment } from "./create-dev-environment";
+import { EnvironmentSecretsTab } from "./environment-secrets-tab";
 
 const ENVIRONMENT_TABS: EntityCardTab[] = [
   { value: "status", label: "Status" },
   { value: "config", label: "Config" },
+  { value: "secrets", label: "Secrets" },
   { value: "new", label: "New" },
 ];
 
@@ -69,6 +71,8 @@ function EnvironmentRowItem({ environment, projectSlug }: EnvironmentRowProps) {
 export interface DeploymentEnvironmentsCardProps {
   environments: EnvironmentCR[];
   projectSlug: string;
+  teamId: string;
+  projectId: string;
   /** Config tab content - passed from server component with Suspense boundary */
   configContent: ReactNode;
 }
@@ -76,6 +80,8 @@ export interface DeploymentEnvironmentsCardProps {
 export function DeploymentEnvironmentsCard({
   environments,
   projectSlug,
+  teamId,
+  projectId,
   configContent,
 }: DeploymentEnvironmentsCardProps) {
   const [activeTab, setActiveTab] = useState("status");
@@ -119,6 +125,15 @@ export function DeploymentEnvironmentsCard({
       </div>
     ),
     config: configContent,
+    secrets: (
+      <EnvironmentSecretsTab
+        environments={environments}
+        projectSlug={projectSlug}
+        teamId={teamId}
+        projectId={projectId}
+        environmentType="deployment"
+      />
+    ),
     new: (
       <div className="space-y-4">
         <p className="text-sm text-on-surface-variant">
@@ -152,6 +167,7 @@ export function DeploymentEnvironmentsCard({
 export interface DevelopmentEnvironmentsCardProps {
   environments: EnvironmentCR[];
   projectSlug: string;
+  teamId: string;
   projectId: string;
   primaryRepoId?: string;
   primaryRepoFullName?: string;
@@ -162,6 +178,7 @@ export interface DevelopmentEnvironmentsCardProps {
 export function DevelopmentEnvironmentsCard({
   environments,
   projectSlug,
+  teamId,
   projectId,
   primaryRepoId,
   primaryRepoFullName,
@@ -208,6 +225,15 @@ export function DevelopmentEnvironmentsCard({
       </div>
     ),
     config: configContent,
+    secrets: (
+      <EnvironmentSecretsTab
+        environments={environments}
+        projectSlug={projectSlug}
+        teamId={teamId}
+        projectId={projectId}
+        environmentType="development"
+      />
+    ),
     new:
       primaryRepoId && primaryRepoFullName ? (
         <CreateDevEnvironment projectId={projectId} />

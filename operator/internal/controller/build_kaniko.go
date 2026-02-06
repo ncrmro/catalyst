@@ -181,7 +181,7 @@ func (r *EnvironmentReconciler) reconcileSingleBuild(ctx context.Context, env *c
 	sanitizedCommit := strings.ReplaceAll(commit, "/", "-")
 	sanitizedCommit = strings.ReplaceAll(sanitizedCommit, ":", "-")
 	sanitizedCommit = strings.ReplaceAll(sanitizedCommit, " ", "-")
-	
+
 	imageName := fmt.Sprintf("%s/%s-%s", project.Name, build.Name, env.Name)
 	imageTag := fmt.Sprintf("%s/%s:%s", registryInternal, imageName, sanitizedCommit)
 

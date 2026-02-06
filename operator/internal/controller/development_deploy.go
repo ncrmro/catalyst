@@ -230,7 +230,7 @@ func desiredManagedServiceStatefulSet(namespace string, svcSpec catalystv1alpha1
 		mountPath := "/var/lib/" + svcSpec.Name
 		if svcSpec.Name == "postgres" || svcSpec.Name == "postgresql" {
 			mountPath = "/var/lib/postgresql/data"
-			
+
 			// Ensure PGDATA env var is set to match mount path
 			hasPGDATA := false
 			for _, env := range container.Env {
@@ -246,7 +246,7 @@ func desiredManagedServiceStatefulSet(namespace string, svcSpec catalystv1alpha1
 				})
 			}
 		}
-		
+
 		container.VolumeMounts = []corev1.VolumeMount{
 			{
 				Name:      svcSpec.Name + "-data",

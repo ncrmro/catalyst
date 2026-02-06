@@ -250,6 +250,7 @@ describe("Secrets Model Integration", () => {
       const resolved = await resolveSecretsForEnvironment(
         testTeamId,
         testProjectId,
+        null, // No template type override needed here
         testEnvironmentId,
       );
 
@@ -281,6 +282,7 @@ describe("Secrets Model Integration", () => {
       const resolved = await resolveSecretsForEnvironment(
         testTeamId,
         testProjectId,
+        null,
         testEnvironmentId,
       );
 
@@ -302,6 +304,7 @@ describe("Secrets Model Integration", () => {
       const resolved = await resolveSecretsForEnvironment(
         testTeamId,
         testProjectId,
+        null,
         testEnvironmentId,
       );
 
@@ -349,6 +352,7 @@ describe("Secrets Model Integration", () => {
       const resolved = await resolveSecretsForEnvironment(
         testTeamId,
         testProjectId,
+        null,
         testEnvironmentId,
       );
 
@@ -360,7 +364,7 @@ describe("Secrets Model Integration", () => {
 
     it("should throw error if environmentId provided without projectId", async () => {
       await expect(
-        resolveSecretsForEnvironment(testTeamId, null, testEnvironmentId),
+        resolveSecretsForEnvironment(testTeamId, null, null, testEnvironmentId),
       ).rejects.toThrow("projectId is required when environmentId is provided");
     });
   });
@@ -482,6 +486,7 @@ MIIEowIBAAKCAQEA...
         testTeamId,
         null,
         null,
+        null,
       );
 
       expect(resolved.get("PRIVATE_KEY")?.value).toBe(privateKey);
@@ -506,6 +511,7 @@ MIIEowIBAAKCAQEA...
 
       const resolved = await resolveSecretsForEnvironment(
         testTeamId,
+        null,
         null,
         null,
       );

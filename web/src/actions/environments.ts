@@ -224,6 +224,35 @@ export async function createProjectEnvironment(
 }
 
 /**
+ * Get a mapping of environment names to their database IDs for a project.
+ * Useful for secret management where environment level needs the DB ID.
+ */
+export async function getProjectEnvironmentsMap(projectSlug: string) {
+  const { getEnvironments } = await import("@/models/environments");
+  const { getProjects } = await import("@/models/projects");
+
+  const userTeamIds = await getUserTeamIds();
+  const projectsResult = await getProjects({
+    slugs: [projectSlug],
+    teamIds: userTeamIds,
+  });
+
+  if (projectsResult.length === 0) return {};
+  const project = projectsResult[0];
+
+  const dbEnvironments = await getEnvironments({
+    projectIds: [project.id],
+  });
+
+  const map: Record<string, string> = {};
+  dbEnvironments.forEach((env) => {
+    map[env.environment] = env.id;
+  });
+
+  return map;
+}
+
+/**
  * Get full environment detail data for the env detail page.
  * Resolves the correct project namespace (not "default") and fetches CR, DB record, and pods.
  */
