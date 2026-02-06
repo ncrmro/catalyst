@@ -133,7 +133,8 @@ export function TemplateSecretsSection({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold text-on-surface uppercase tracking-wider">
-            {environmentType === "deployment" ? "Deployment" : "Development"} Defaults
+            {environmentType === "deployment" ? "Deployment" : "Development"}{" "}
+            Defaults
           </h3>
           <p className="text-xs text-on-surface-variant">
             Secrets applied to all {environmentType} environments.

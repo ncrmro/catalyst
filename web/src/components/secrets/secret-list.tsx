@@ -111,7 +111,9 @@ export function SecretList({
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   {customActions}
-                  {(!renderCustomActions || (secret.source === "environment" || (secret.source === "project" && !renderCustomActions))) && (
+                  {(!renderCustomActions ||
+                    secret.source === "environment" ||
+                    (secret.source === "project" && !renderCustomActions)) && (
                     <>
                       <button
                         onClick={() => onEdit(secret.name)}

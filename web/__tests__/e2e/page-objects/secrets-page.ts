@@ -48,13 +48,19 @@ export class SecretsPage extends BasePage {
     });
 
     // Find the Project Secrets card container
-    const card = this.page.locator("div").filter({ has: this.pageHeading }).first();
-    
+    const card = this.page
+      .locator("div")
+      .filter({ has: this.pageHeading })
+      .first();
+
     // Check if the table is visible. If not, click the chevron button to expand.
     if (!(await this.secretList.isVisible())) {
-       const chevronButton = card.locator("button").filter({ has: this.page.locator("svg") }).last();
-       await chevronButton.click();
-       await expect(this.secretList).toBeVisible();
+      const chevronButton = card
+        .locator("button")
+        .filter({ has: this.page.locator("svg") })
+        .last();
+      await chevronButton.click();
+      await expect(this.secretList).toBeVisible();
     }
 
     // Check if secret already exists in the table (targeting body rows)

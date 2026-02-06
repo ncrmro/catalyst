@@ -233,7 +233,7 @@ describe("Template Secrets Model Integration", () => {
 
       // Resolve for deployment environment but WITHOUT environment-level secret
       await db.delete(secrets).where(eq(secrets.id, envSecret.id));
-      
+
       const resolved2 = await resolveSecretsForEnvironment(
         testTeamId,
         testProjectId,
@@ -245,7 +245,7 @@ describe("Template Secrets Model Integration", () => {
 
       // Resolve for deployment environment but WITHOUT template-level secret
       await db.delete(secrets).where(eq(secrets.id, templateSecret.id));
-      
+
       const resolved3 = await resolveSecretsForEnvironment(
         testTeamId,
         testProjectId,
