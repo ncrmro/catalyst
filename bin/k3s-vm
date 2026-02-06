@@ -368,23 +368,35 @@ def install_crds() -> None:
     kubeconfig_path = str(KUBECONFIG_FILE.resolve())
 
     try:
+        # Attempt direct installation first if kubectl is available
+        # config/crd is a kustomization directory
+        env = os.environ.copy()
+        env["KUBECONFIG"] = kubeconfig_path
+        
+        try:
+            debug("Attempting direct CRD installation via kubectl apply -k")
+            run(["kubectl", "apply", "-k", "config/crd"], cwd=operator_dir, env=env, capture=True)
+            info("CRDs installed successfully (via kubectl)")
+            return
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            # Fall back to nix develop + make install
+            debug("Direct kubectl apply failed or not available, falling back to make install")
+
         # We use nix develop to ensure tools (kubectl, kustomize, controller-gen) are available
         cmd = [
             "nix", "develop",
             "--command", "bash", "-c", "make install"
         ]
 
-        env = os.environ.copy()
-        env["KUBECONFIG"] = kubeconfig_path
-
         # Run make install in operator directory
         # We capture output to avoid cluttering unless there is an error
         run(cmd, cwd=operator_dir, env=env, capture=True)
-        info("CRDs installed successfully")
+        info("CRDs installed successfully (via make)")
     except subprocess.CalledProcessError as e:
         # If capture=True, stdout/stderr are in e.stdout/e.stderr
-        msg = e.stderr if e.stderr else str(e)
-        print(f"  Warning: Failed to install CRDs: {msg}")
+        error_output = e.stderr if e.stderr else e.stdout
+        msg = error_output if error_output else str(e)
+        print(f"  Warning: Failed to install CRDs:\n{msg}")
 
 
 def _build_vm(memory: int, cores: int) -> None:
