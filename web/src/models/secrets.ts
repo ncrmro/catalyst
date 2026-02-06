@@ -89,7 +89,7 @@ export async function resolveSecretsForEnvironment(
           "resolveSecretsForEnvironment: projectId is required when environmentId is provided",
         );
       }
-      
+
       conditions.push(
         and(
           eq(secrets.teamId, teamId),

@@ -4,7 +4,14 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { db } from "@/db";
-import { secrets, teams, projects, projectEnvironments, users, repos } from "@/db/schema";
+import {
+  secrets,
+  teams,
+  projects,
+  projectEnvironments,
+  users,
+  repos,
+} from "@/db/schema";
 import { eq } from "drizzle-orm";
 import {
   resolveSecretsForEnvironment,
@@ -107,7 +114,7 @@ describe("Secrets Model Integration", () => {
     if (testUserId) {
       await db.delete(users).where(eq(users.id, testUserId));
     }
-    
+
     // Restore encryption key
     if (originalKey !== undefined) {
       process.env.TOKEN_ENCRYPTION_KEY = originalKey;

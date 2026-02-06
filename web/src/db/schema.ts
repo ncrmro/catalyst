@@ -476,7 +476,7 @@ export const secrets = pgTable(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    
+
     // Hierarchical foreign keys (team_id always present)
     teamId: text("team_id")
       .notNull()

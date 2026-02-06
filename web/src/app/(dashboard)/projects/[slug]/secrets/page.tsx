@@ -47,7 +47,9 @@ export default function ProjectSecretsPage() {
         console.log(`Fetching project data for slug: ${projectSlug}`);
         const project = await fetchProjectBySlug(projectSlug);
         if (project) {
-          console.log(`Successfully fetched project: ${project.id} for team: ${project.teamId}`);
+          console.log(
+            `Successfully fetched project: ${project.id} for team: ${project.teamId}`,
+          );
           setTeamId(project.teamId);
           setProjectId(project.id);
         } else {
@@ -56,7 +58,9 @@ export default function ProjectSecretsPage() {
         }
       } catch (err) {
         console.error("Failed to fetch project data:", err);
-        setError(`Failed to load project data: ${err instanceof Error ? err.message : String(err)}`);
+        setError(
+          `Failed to load project data: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     };
 
