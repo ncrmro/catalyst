@@ -159,6 +159,7 @@ export const teamsRelations = relations(teams, ({ one, many }) => ({
   memberships: many(teamsMemberships),
   repos: many(repos),
   projects: many(projects),
+  secrets: many(secrets),
 }));
 
 export const teamsMemberships = pgTable("teams_memberships", {
@@ -288,6 +289,7 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   repositories: many(projectsRepos),
   environments: many(projectEnvironments),
   manifests: many(projectManifests),
+  secrets: many(secrets),
 }));
 
 export const projectsRepos = pgTable(
@@ -354,7 +356,7 @@ export const projectEnvironments = pgTable(
 
 export const projectEnvironmentsRelations = relations(
   projectEnvironments,
-  ({ one }) => ({
+  ({ one, many }) => ({
     project: one(projects, {
       fields: [projectEnvironments.projectId],
       references: [projects.id],
@@ -363,6 +365,7 @@ export const projectEnvironmentsRelations = relations(
       fields: [projectEnvironments.repoId],
       references: [repos.id],
     }),
+    secrets: many(secrets),
   }),
 );
 
@@ -452,6 +455,76 @@ export const githubUserTokensRelations = relations(
     }),
   }),
 );
+
+/**
+ * Secrets Table
+ *
+ * Three-tier secret management system (Team → Project → Environment).
+ * Secrets are encrypted at rest using AES-256-GCM (same pattern as githubUserTokens).
+ *
+ * Scoping hierarchy (via composite primary key):
+ * - Team-level:        teamId set, projectId=NULL, environmentId=NULL
+ * - Project-level:     teamId set, projectId set,  environmentId=NULL
+ * - Environment-level: teamId set, projectId set,  environmentId set
+ *
+ * Precedence: Environment > Project > Team (resolved at deployment time).
+ */
+export const secrets = pgTable(
+  "secrets",
+  {
+    // Primary key
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    
+    // Hierarchical foreign keys (team_id always present)
+    teamId: text("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    projectId: text("project_id").references(() => projects.id, {
+      onDelete: "cascade",
+    }),
+    environmentId: text("environment_id").references(
+      () => projectEnvironments.id,
+      { onDelete: "cascade" },
+    ),
+    name: text("name").notNull(), // e.g., "GITHUB_APP_ID"
+
+    // Secret data (encrypted at rest)
+    description: text("description"),
+    encryptedValue: text("encrypted_value").notNull(),
+    iv: text("iv").notNull(), // Initialization vector
+    authTag: text("auth_tag").notNull(), // GCM authentication tag
+
+    // Metadata
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  // Note: Unique constraints with NULL handling are defined in migration 0023
+  // to properly enforce uniqueness at each scope level (team/project/environment)
+);
+
+export const secretsRelations = relations(secrets, ({ one }) => ({
+  team: one(teams, {
+    fields: [secrets.teamId],
+    references: [teams.id],
+  }),
+  project: one(projects, {
+    fields: [secrets.projectId],
+    references: [projects.id],
+  }),
+  environment: one(projectEnvironments, {
+    fields: [secrets.environmentId],
+    references: [projectEnvironments.id],
+  }),
+  creator: one(users, {
+    fields: [secrets.createdBy],
+    references: [users.id],
+  }),
+}));
 
 /**
  * Pull Requests Table

@@ -1,5 +1,6 @@
 import { test, expect, waitForEnvironmentReady } from "./fixtures/k8s-fixture";
 import { ProjectsPage } from "./page-objects/projects-page";
+import { SecretsPage } from "./page-objects/secrets-page";
 
 // Constants for Catalyst CRDs
 const API_GROUP = "catalyst.catalyst.dev";
@@ -57,7 +58,32 @@ test.describe.serial("Deployment Environment E2E", () => {
     // Verify project details page has loaded
     await projectsPage.verifyProjectDetailsPageLoaded();
 
-    console.log("✓ Navigated to project details page");
+    const currentUrl = page.url();
+    const urlParts = currentUrl.split("/");
+    const projectSlug = urlParts[urlParts.indexOf("projects") + 1] || "";
+    console.log(`✓ Navigated to project details page for: ${projectSlug}`);
+
+    // --- SECRET SETUP STEP ---
+    // Ensure required secrets exist for the environment to deploy successfully
+    // (FR-ENV-034 through FR-ENV-041)
+    const secretsPage = new SecretsPage(page);
+    await secretsPage.goto(projectSlug);
+
+    // Add stub secrets for E2E test if they don't exist
+    // These match what the operator expects to find for git operations
+    await secretsPage.addSecretIfMissing(
+      "GITHUB_APP_ID",
+      "123456",
+      "Stub App ID for E2E",
+    );
+    await secretsPage.addSecretIfMissing(
+      "GITHUB_APP_PRIVATE_KEY",
+      "-----BEGIN RSA PRIVATE KEY-----\nstub\n-----END RSA PRIVATE KEY-----",
+      "Stub Private Key for E2E",
+    );
+
+    console.log("✓ Verified required secrets are present");
+    // -------------------------
 
     // Navigate to Platform tab within the project navigation
     const projectNavigation = page.getByRole("tablist", {

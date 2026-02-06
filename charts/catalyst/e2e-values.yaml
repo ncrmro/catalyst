@@ -27,7 +27,7 @@ web:
     - name: AUTH_TRUST_HOST
       value: "true"
     - name: TOKEN_ENCRYPTION_KEY
-      value: "test-encryption-key-for-e2e-32ch"
+      value: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     - name: GITHUB_DISABLE_APP_CHECKS
       value: "true"
     - name: GITHUB_REPOS_MODE

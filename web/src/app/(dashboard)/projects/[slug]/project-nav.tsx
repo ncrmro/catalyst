@@ -20,11 +20,14 @@ export function ProjectNav({ slug }: ProjectNavProps) {
       label: "Conventions",
       href: `${basePath}/platform/conventions`,
     },
+    { value: "secrets", label: "Secrets", href: `${basePath}/secrets` },
   ];
 
   // Determine active value based on pathname
   let activeValue = "features";
-  if (pathname.startsWith(`${basePath}/platform/conventions`)) {
+  if (pathname.startsWith(`${basePath}/secrets`)) {
+    activeValue = "secrets";
+  } else if (pathname.startsWith(`${basePath}/platform/conventions`)) {
     activeValue = "conventions";
   } else if (pathname.startsWith(`${basePath}/platform`)) {
     activeValue = "platform";

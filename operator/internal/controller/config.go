@@ -67,22 +67,30 @@ func resolveConfig(envConfig *catalystv1alpha1.EnvironmentConfig, tmplConfig *ca
 	}
 	if len(envConfig.Env) > 0 {
 		// Merge env vars by name (environment config wins for duplicates)
-		envMap := make(map[string]corev1.EnvVar)
-		
-		// Add template env vars first
-		for _, env := range result.Env {
-			envMap[env.Name] = env
-		}
-		
-		// Override with environment-specific env vars
+		// Maintain order from template followed by environment-specific variables
+		envOverrides := make(map[string]corev1.EnvVar)
 		for _, env := range envConfig.Env {
-			envMap[env.Name] = env
+			envOverrides[env.Name] = env
 		}
-		
-		// Convert map back to slice
-		mergedEnv := make([]corev1.EnvVar, 0, len(envMap))
-		for _, env := range envMap {
-			mergedEnv = append(mergedEnv, env)
+
+		var mergedEnv []corev1.EnvVar
+		processedNames := make(map[string]bool)
+
+		// First, add all from template (applying overrides if present)
+		for _, env := range result.Env {
+			if override, ok := envOverrides[env.Name]; ok {
+				mergedEnv = append(mergedEnv, override)
+			} else {
+				mergedEnv = append(mergedEnv, env)
+			}
+			processedNames[env.Name] = true
+		}
+
+		// Then, add all from environment config that weren't in template
+		for _, env := range envConfig.Env {
+			if !processedNames[env.Name] {
+				mergedEnv = append(mergedEnv, env)
+			}
 		}
 		result.Env = mergedEnv
 	}
