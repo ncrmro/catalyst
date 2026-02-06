@@ -179,6 +179,7 @@ export default async function PlatformPage({ params }: PlatformPageProps) {
       <DeploymentEnvironmentsCard
         environments={deploymentEnvironments}
         projectSlug={slug}
+        projectId={project.id}
         configContent={deploymentConfigContent}
       />
 

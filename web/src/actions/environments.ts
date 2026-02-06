@@ -199,9 +199,9 @@ export async function createProjectEnvironment(
       };
     }
 
-    // Revalidate the projects and environments pages (routes use slugs, not IDs)
+    // Revalidate the projects page (routes use slugs, not IDs)
     revalidatePath(`/projects/${project.slug}`);
-    revalidatePath(`/environments/${project.slug}`);
+    revalidatePath(`/projects/${project.slug}/platform`);
 
     // Return success
     return {
