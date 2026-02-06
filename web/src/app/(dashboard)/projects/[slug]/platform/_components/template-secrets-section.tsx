@@ -137,6 +137,8 @@ export function TemplateSecretsSection({
           </h3>
           <p className="text-xs text-on-surface-variant">
             Secrets applied to all {environmentType} environments.
+            Environment-specific overrides can be set on each environment&apos;s
+            detail page.
           </p>
         </div>
         {!showForm && !editingSecret && (

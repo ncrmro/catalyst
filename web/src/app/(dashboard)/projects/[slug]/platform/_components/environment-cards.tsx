@@ -127,8 +127,6 @@ export function DeploymentEnvironmentsCard({
     config: configContent,
     secrets: (
       <EnvironmentSecretsTab
-        environments={environments}
-        projectSlug={projectSlug}
         teamId={teamId}
         projectId={projectId}
         environmentType="deployment"
@@ -227,8 +225,6 @@ export function DevelopmentEnvironmentsCard({
     config: configContent,
     secrets: (
       <EnvironmentSecretsTab
-        environments={environments}
-        projectSlug={projectSlug}
         teamId={teamId}
         projectId={projectId}
         environmentType="development"
