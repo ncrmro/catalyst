@@ -185,6 +185,18 @@ VCSProviderSingleton.initialize({
 │           └── comments.ts
 ```
 
+## Setup and Integration
+
+For a **complete setup guide** including:
+- GitHub App configuration
+- Required API endpoints implementation
+- Auth.js integration with JWT/session callbacks
+- OAuth flows and token management
+- Database schema setup
+- Security best practices
+
+See **[SETUP.md](./SETUP.md)** for comprehensive instructions.
+
 ## Auth.js Integration
 
 This package works with Auth.js (NextAuth.js) to provide GitHub authentication using GitHub App credentials instead of a separate OAuth App.
@@ -198,23 +210,28 @@ GitHub App credentials provide several advantages over OAuth App credentials:
 - **Fine-grained permissions**: Control access at the resource level
 - **Installation tracking**: Know exactly which repos/orgs are accessible
 
-### Two Callback URLs
+### Required API Endpoints
 
-The authentication system uses two separate callback routes. **Both must be configured in your GitHub App settings** (one per line):
+The authentication system requires three API endpoints to be implemented in your application:
+
+| Endpoint                    | Purpose                              | Handler Type       | Documentation Link                        |
+| --------------------------- | ------------------------------------ | ------------------ | ----------------------------------------- |
+| `/api/auth/callback/github` | OAuth sign-in flow                   | Auth.js (built-in) | [SETUP.md](./SETUP.md#authjs-oauth-callback) |
+| `/api/github/callback`      | GitHub App installation              | Custom route       | [SETUP.md](./SETUP.md#github-app-installation-callback) |
+| `/api/github/webhook`       | GitHub webhook events (PR, push, etc.) | Custom route       | [SETUP.md](./SETUP.md#github-webhook-handler) |
+
+**Both callback URLs must be configured in your GitHub App settings** (one per line):
 
 ```
 https://your-domain.com/api/auth/callback/github
 https://your-domain.com/api/github/callback
 ```
 
-| Callback URL                | Purpose                 | Handler            |
-| --------------------------- | ----------------------- | ------------------ |
-| `/api/auth/callback/github` | OAuth sign-in flow      | Auth.js (built-in) |
-| `/api/github/callback`      | GitHub App installation | Custom route       |
-
-**Sign-in Flow**: When users click "Sign in with GitHub", Auth.js handles the OAuth flow using the GitHub App's client ID and secret. Tokens are stored encrypted in the `github_user_tokens` table.
+**Sign-in Flow**: When users click "Sign in with GitHub", Auth.js handles the OAuth flow using the GitHub App's client ID and secret. Tokens are stored encrypted in the `github_user_tokens` table via the JWT callback.
 
 **Installation Flow**: When users install the GitHub App on their repos, GitHub redirects to `/api/github/callback` with an `installation_id`. This ID is saved to link the user with their app installation.
+
+**Webhook Flow**: GitHub sends real-time events to `/api/github/webhook` for installation changes, pull requests, pushes, etc. The endpoint validates the signature and processes events.
 
 > **Note**: If the first callback URL is missing from your GitHub App settings, users will see "The redirect_uri is not associated with this application" when signing in.
 
@@ -257,7 +274,77 @@ export async function GET(request: NextRequest) {
 }
 ```
 
-For programmatic session creation (used in the callback above), see the [Programmatic Session Creation](../../../packages/@tetrastack/backend/README.md#programmatic-session-creation) section in the `@tetrastack/backend` README.
+### Auth.js JWT Callback Integration
+
+The JWT callback is where tokens are stored in the database and kept fresh. This is a critical integration point:
+
+```typescript
+// src/auth.ts
+import NextAuth from "next-auth";
+import authConfig from "@/lib/auth.config";
+import { refreshTokenIfNeeded, storeGitHubTokens } from "@/lib/vcs-providers";
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
+  ...authConfig,
+  callbacks: {
+    async jwt({ token, account }) {
+      // On initial sign-in, account object contains GitHub OAuth tokens
+      if (account?.provider === "github") {
+        token.accessToken = account.access_token;
+        token.refreshToken = account.refresh_token;
+        token.tokenExpiresAt = account.expires_at;
+        token.tokenScope = account.scope;
+      }
+
+      // Find or create user by email
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, token.email))
+        .limit(1);
+
+      if (existingUser) {
+        token.id = existingUser.id;
+
+        // Store tokens in database on initial sign-in
+        if (account?.provider === "github" && token.accessToken) {
+          await storeGitHubTokens(existingUser.id, {
+            accessToken: token.accessToken as string,
+            refreshToken: token.refreshToken as string,
+            expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000), // 8 hours
+            scope: token.tokenScope as string || "",
+          });
+        } else if (!account) {
+          // Not a fresh signin - auto-refresh tokens if needed
+          const refreshedTokens = await refreshTokenIfNeeded(existingUser.id);
+          if (refreshedTokens) {
+            token.accessToken = refreshedTokens.accessToken;
+            token.refreshToken = refreshedTokens.refreshToken;
+          }
+        }
+      }
+
+      return token;
+    },
+
+    async session({ session, token }) {
+      if (token?.id && session.user) {
+        session.user.id = token.id as string;
+        session.accessToken = token.accessToken as string;
+      }
+      return session;
+    },
+  },
+});
+```
+
+**Key Points:**
+
+- **Initial Sign-In**: Tokens from `account` object are stored in database with encryption
+- **Subsequent Requests**: `refreshTokenIfNeeded()` automatically refreshes tokens 5 minutes before expiry
+- **Session Access**: Access token is made available in session for direct API calls
+
+For complete implementation details, see [SETUP.md](./SETUP.md#authjs-main-file-with-jwt-callback).
 
 ### GitHub App Permissions
 
@@ -378,9 +465,29 @@ const devCookies = {
 cookies: process.env.NODE_ENV === "development" ? devCookies : undefined,
 ```
 
-## Related
+## Related Documentation
 
+- **[SETUP.md](./SETUP.md)** - **Complete setup guide** with step-by-step instructions for:
+  - GitHub App configuration
+  - API endpoint implementation (OAuth callbacks, webhooks)
+  - Auth.js integration with JWT/session callbacks
+  - Database schema and migrations
+  - VCSProviderSingleton initialization
+  - Environment variables
+  - Security best practices
+  - OAuth flow diagrams
+  - Troubleshooting common issues
 - [EXAMPLES.md](./EXAMPLES.md) - Code examples and server actions
 - [AGENTS.md](./AGENTS.md) - Instructions for AI agents
-- [specs/003-vcs-providers/research.github-app.md](../../../specs/003-vcs-providers/research.github-app.md) - GitHub App research
-- [specs/003-vcs-providers/plan.github-app.md](../../../specs/003-vcs-providers/plan.github-app.md) - Implementation plan
+- [specs/003-vcs-providers/spec.md](../../../specs/003-vcs-providers/spec.md) - Integration specification
+- [specs/003-vcs-providers/research.github-app.md](../../../specs/003-vcs-providers/research.github-app.md) - GitHub App research and comparison
+- [specs/003-vcs-providers/plan.github-app.md](../../../specs/003-vcs-providers/plan.github-app.md) - Implementation plan and architecture
+- [specs/003-vcs-providers/research.providers-auth.md](../../../specs/003-vcs-providers/research.providers-auth.md) - Multi-provider authentication research
+
+## External Resources
+
+- [GitHub Docs: Authenticating with a GitHub App](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app)
+- [GitHub Docs: Refreshing user access tokens](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/refreshing-user-access-tokens)
+- [Auth.js GitHub Provider](https://authjs.dev/getting-started/providers/github)
+- [Auth.js JWT Callback](https://authjs.dev/guides/basics/callbacks#jwt-callback)
+- [Auth.js Session Callback](https://authjs.dev/guides/basics/callbacks#session-callback)
