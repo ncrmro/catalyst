@@ -211,12 +211,6 @@ export interface VCSProvider {
     client: AuthenticatedClient,
   ): Promise<Array<{ login: string; id: string; avatarUrl: string }>>;
 
-  /**
-   * Validate provider configuration (environment variables, etc.)
-   * Should throw an error if configuration is invalid.
-   */
-  validateConfig(): void;
-
   // Repositories
   listUserRepositories(client: AuthenticatedClient): Promise<Repository[]>;
   listOrgRepositories(
