@@ -53,12 +53,12 @@ export class SecretsPage extends BasePage {
       .filter({ has: this.pageHeading })
       .first();
 
+    // Scroll card into view before interacting
+    await card.scrollIntoViewIfNeeded();
+
     // Check if the table is visible. If not, click the chevron button to expand.
     if (!(await this.secretList.isVisible())) {
-      const chevronButton = card
-        .locator("button")
-        .filter({ has: this.page.locator("svg") })
-        .last();
+      const chevronButton = card.getByTestId("project-secrets-expand");
       await chevronButton.click();
       await expect(this.secretList).toBeVisible();
     }
