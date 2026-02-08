@@ -284,6 +284,7 @@ export async function patchEnvironmentCRAnnotations(
 
   const client = config.makeApiClient(CustomObjectsApi);
 
+  // Use strategic merge patch (default) - only update annotations
   const patch = {
     metadata: {
       annotations,
@@ -298,9 +299,6 @@ export async function patchEnvironmentCRAnnotations(
       plural: PLURAL,
       name,
       body: patch,
-      headers: {
-        "Content-Type": "application/merge-patch+json",
-      },
     });
     return { success: true };
   } catch (error: unknown) {
