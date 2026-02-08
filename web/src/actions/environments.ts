@@ -213,40 +213,38 @@ export async function createProjectEnvironment(
     );
 
     if (!primaryRepoLink) {
-      return {
-        success: false,
-        message:
-          "No primary repository is configured for this project. Cannot create environment in a consistent state.",
-      };
-    }
-
-    // Create DB record immediately
-    const [dbRecord] = await createEnvironments({
-      projectId: project.id,
-      repoId: primaryRepoLink.repoId,
-      environment: environmentName,
-    });
-
-    // Patch annotation on the CR so operator can fetch secrets from first reconciliation
-    if (dbRecord) {
-      const patchResult = await patchEnvironmentCRAnnotations(
-        projectNamespace,
-        environmentName,
-        {
-          "catalyst.dev/environment-id": dbRecord.id,
-        },
+      console.warn(
+        "No primary repository configured for project — skipping DB record and annotation. Self-healing will apply on first page view.",
       );
+    } else {
+      // Create DB record immediately
+      const [dbRecord] = await createEnvironments({
+        projectId: project.id,
+        repoId: primaryRepoLink.repoId,
+        environment: environmentName,
+      });
 
-      if (patchResult.success) {
-        console.log(
-          `Set environmentId annotation on Environment CR at creation: ${environmentName}`,
+      // Patch annotation on the CR so operator can fetch secrets from first reconciliation
+      if (dbRecord) {
+        const patchResult = await patchEnvironmentCRAnnotations(
+          projectNamespace,
+          environmentName,
+          {
+            "catalyst.dev/environment-id": dbRecord.id,
+          },
         );
-      } else {
-        // Annotation patching failed - this is a critical error
-        return {
-          success: false,
-          message: `Failed to set environmentId annotation on Environment CR: ${patchResult.error}`,
-        };
+
+        if (patchResult.success) {
+          console.log(
+            `Set environmentId annotation on Environment CR at creation: ${environmentName}`,
+          );
+        } else {
+          // Annotation patching failed - this is a critical error
+          return {
+            success: false,
+            message: `Failed to set environmentId annotation on Environment CR: ${patchResult.error}`,
+          };
+        }
       }
     }
 
