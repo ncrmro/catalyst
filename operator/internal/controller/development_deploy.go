@@ -126,26 +126,22 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 	environmentId := env.ObjectMeta.Annotations["catalyst.dev/environment-id"]
 	if environmentId != "" {
 		webAPIURL := getCatalystWebURL()
-		if webAPIURL != "" {
-			log.Info("Fetching secrets from web API", "environmentId", environmentId, "webAPIURL", webAPIURL)
-			
-			// Import secrets package
-			secretsFetcher := secrets.NewSecretsFetcher(webAPIURL)
-			fetchedSecrets, err := secretsFetcher.FetchSecrets(ctx, environmentId)
-			if err != nil {
-				log.Error(err, "Failed to fetch secrets from web API", "environmentId", environmentId)
+		log.Info("Fetching secrets from web API", "environmentId", environmentId, "webAPIURL", webAPIURL)
+		
+		// Import secrets package
+		secretsFetcher := secrets.NewSecretsFetcher(webAPIURL)
+		fetchedSecrets, err := secretsFetcher.FetchSecrets(ctx, environmentId)
+		if err != nil {
+			log.Error(err, "Failed to fetch secrets from web API", "environmentId", environmentId)
+			log.Info("Continuing deployment without secrets - graceful degradation")
+		} else {
+			// Sync secrets to K8s Secret
+			if err := r.SyncCatalystSecrets(ctx, namespace, fetchedSecrets); err != nil {
+				log.Error(err, "Failed to sync secrets to Kubernetes", "namespace", namespace)
 				log.Info("Continuing deployment without secrets - graceful degradation")
 			} else {
-				// Sync secrets to K8s Secret
-				if err := r.SyncCatalystSecrets(ctx, namespace, fetchedSecrets); err != nil {
-					log.Error(err, "Failed to sync secrets to Kubernetes", "namespace", namespace)
-					log.Info("Continuing deployment without secrets - graceful degradation")
-				} else {
-					log.Info("Successfully synced secrets", "namespace", namespace, "secretCount", len(fetchedSecrets))
-				}
+				log.Info("Successfully synced secrets", "namespace", namespace, "secretCount", len(fetchedSecrets))
 			}
-		} else {
-			log.Info("CATALYST_WEB_URL not configured, skipping secret fetching")
 		}
 	} else {
 		log.Info("Environment does not have environmentId annotation, skipping secret fetching")
