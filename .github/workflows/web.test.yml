@@ -169,7 +169,11 @@ jobs:
           kind load docker-image ghcr.io/ncrmro/catalyst/operator:latest --name preview-cluster
           kind load docker-image ghcr.io/ncrmro/catalyst/web:latest --name preview-cluster
 
-          echo "Images built and loaded into Kind cluster"
+          # Remove Docker images to free disk space (Kind has its own copy now)
+          docker rmi ghcr.io/ncrmro/catalyst/operator:latest ghcr.io/ncrmro/catalyst/web:latest
+          docker builder prune -f
+
+          echo "Images built, loaded into Kind cluster, and cleaned from Docker"
 
       - name: Build Helm chart dependencies
         working-directory: ./web
