@@ -278,28 +278,41 @@ export async function patchEnvironmentCRAnnotations(
   name: string,
   annotations: Record<string, string>,
 ): Promise<{ success: boolean; error?: string }> {
-  const CustomObjectsApi = await getCustomObjectsApi();
   const config = await getClusterConfig();
   if (!config) throw new Error("No cluster config");
 
-  const client = config.makeApiClient(CustomObjectsApi);
+  // Import KubernetesObjectApi and PatchStrategy for proper merge patch
+  const { KubernetesObjectApi, PatchStrategy } = await import(
+    "@kubernetes/client-node"
+  );
+  // Import KubeConfig type separately for type assertion
+  type NativeKubeConfig = import("@kubernetes/client-node").KubeConfig;
 
-  // Use strategic merge patch (default) - only update annotations
+  // The wrapper KubeConfig has the same interface as the native one
+  const k8sApi = KubernetesObjectApi.makeApiClient(
+    config as unknown as NativeKubeConfig,
+  );
+
+  // Create a partial object with just the metadata to patch
   const patch = {
+    apiVersion: `${GROUP}/${VERSION}`,
+    kind: "Environment",
     metadata: {
+      name,
+      namespace,
       annotations,
     },
   };
 
   try {
-    await client.patchNamespacedCustomObject({
-      group: GROUP,
-      version: VERSION,
-      namespace,
-      plural: PLURAL,
-      name,
-      body: patch,
-    });
+    await k8sApi.patch(
+      patch,
+      undefined, // pretty
+      undefined, // dryRun
+      undefined, // fieldManager
+      undefined, // force
+      PatchStrategy.MergePatch, // Use merge patch strategy
+    );
     return { success: true };
   } catch (error: unknown) {
     if (isKubeNotFound(error)) {
