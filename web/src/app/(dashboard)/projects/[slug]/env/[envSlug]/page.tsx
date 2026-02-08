@@ -30,6 +30,9 @@ export default async function EnvironmentPage({
       environmentId={detail.environmentId}
       environmentConfig={detail.environmentConfig}
       pods={detail.pods}
+      teamId={detail.teamId}
+      projectId={detail.projectId}
+      environmentType={detail.environmentType}
     />
   );
 }

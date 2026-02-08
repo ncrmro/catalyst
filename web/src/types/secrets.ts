@@ -10,9 +10,17 @@ import type { secrets } from "@/db/schema";
 /**
  * Secret scope levels
  */
+export type SecretEnvironmentType = "deployment" | "development";
+
 export type SecretScope =
   | { level: "team"; teamId: string }
   | { level: "project"; teamId: string; projectId: string }
+  | {
+      level: "template";
+      teamId: string;
+      projectId: string;
+      environmentType: SecretEnvironmentType;
+    }
   | {
       level: "environment";
       teamId: string;
@@ -31,7 +39,7 @@ export type Secret = typeof secrets.$inferSelect;
 export type ResolvedSecret = {
   name: string;
   value: string;
-  source: "team" | "project" | "environment";
+  source: "team" | "project" | "template" | "environment";
   description?: string | null;
 };
 
@@ -58,7 +66,7 @@ export type UpdateSecretInput = {
 export type MaskedSecret = {
   name: string;
   description?: string | null;
-  source: "team" | "project" | "environment";
+  source: "team" | "project" | "template" | "environment";
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;

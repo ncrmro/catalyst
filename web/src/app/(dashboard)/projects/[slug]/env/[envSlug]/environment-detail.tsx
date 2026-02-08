@@ -7,6 +7,8 @@ import { execCommand } from "@/actions/pod-exec";
 import { EnvironmentCR } from "@/types/crd";
 import type { EnvironmentConfig } from "@/types/environment-config";
 import type { PodInfo } from "@/actions/kubernetes";
+import type { SecretEnvironmentType } from "@/types/secrets";
+import { EnvironmentSecretsCard } from "./_components/environment-secrets-card";
 
 interface EnvironmentDetailProps {
   environment: EnvironmentCR;
@@ -15,6 +17,9 @@ interface EnvironmentDetailProps {
   environmentId?: string;
   environmentConfig?: EnvironmentConfig | null;
   pods: PodInfo[];
+  teamId: string;
+  projectId: string;
+  environmentType: SecretEnvironmentType;
 }
 
 // Mock data for agents and logs as they are not yet in the CR
@@ -86,9 +91,12 @@ export default function EnvironmentDetailView({
   environment,
   targetNamespace,
   podName,
-  environmentId: _environmentId,
+  environmentId,
   environmentConfig: _environmentConfig,
   pods,
+  teamId,
+  projectId,
+  environmentType,
 }: EnvironmentDetailProps) {
   const [selectedContainer, setSelectedContainer] = useState<string | null>(
     "workspace",
@@ -169,7 +177,6 @@ export default function EnvironmentDetailView({
     <>
       {/* Header */}
       <GlassCard>
-        howdy partner!
         <div className="flex items-start justify-between">
           <div>
             <h2 className="text-lg font-semibold text-on-surface">
@@ -445,6 +452,26 @@ export default function EnvironmentDetailView({
             </div>
           )}
         </div>
+      </GlassCard>
+
+      {/* Secrets */}
+      <GlassCard>
+        <h2 className="text-lg font-semibold text-on-surface mb-4">Secrets</h2>
+        {environmentId ? (
+          <EnvironmentSecretsCard
+            teamId={teamId}
+            projectId={projectId}
+            environmentId={environmentId}
+            environmentType={environmentType}
+          />
+        ) : (
+          <div className="py-6 text-center bg-surface-variant/20 rounded-lg">
+            <p className="text-sm text-on-surface-variant">
+              Environment secrets will be available once this environment is
+              synced to the database.
+            </p>
+          </div>
+        )}
       </GlassCard>
 
       {/* Terminal Modal */}

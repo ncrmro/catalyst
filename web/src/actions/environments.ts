@@ -224,6 +224,35 @@ export async function createProjectEnvironment(
 }
 
 /**
+ * Get a mapping of environment names to their database IDs for a project.
+ * Useful for secret management where environment level needs the DB ID.
+ */
+export async function getProjectEnvironmentsMap(projectSlug: string) {
+  const { getEnvironments } = await import("@/models/environments");
+  const { getProjects } = await import("@/models/projects");
+
+  const userTeamIds = await getUserTeamIds();
+  const projectsResult = await getProjects({
+    slugs: [projectSlug],
+    teamIds: userTeamIds,
+  });
+
+  if (projectsResult.length === 0) return {};
+  const project = projectsResult[0];
+
+  const dbEnvironments = await getEnvironments({
+    projectIds: [project.id],
+  });
+
+  const map: Record<string, string> = {};
+  dbEnvironments.forEach((env) => {
+    map[env.environment] = env.id;
+  });
+
+  return map;
+}
+
+/**
  * Get full environment detail data for the env detail page.
  * Resolves the correct project namespace (not "default") and fetches CR, DB record, and pods.
  */
@@ -264,8 +293,40 @@ export async function getEnvironmentDetail(
   const environment = await getEnvironmentCR(projectNamespace, envSlug);
   if (!environment) return null;
 
-  // Fetch environment config from database
-  const dbEnvironment = await getEnvironmentByName(projectSlug, envSlug);
+  // Fetch environment config from database, or create if it doesn't exist
+  let dbEnvironment = await getEnvironmentByName(projectSlug, envSlug);
+
+  // Auto-create DB record if environment exists in K8s but not in DB
+  if (!dbEnvironment) {
+    const { createEnvironments } = await import("@/models/environments");
+    const { getProjectRepos } = await import("@/models/project-repos");
+
+    // Get the primary repo for this project
+    const repoLinks = await getProjectRepos({ projectIds: [project.id] });
+    const primaryRepoLink = repoLinks.find(
+      (r: { isPrimary: boolean }) => r.isPrimary,
+    );
+
+    if (primaryRepoLink) {
+      try {
+        await createEnvironments({
+          projectId: project.id,
+          repoId: primaryRepoLink.repoId,
+          environment: envSlug,
+        });
+        // Re-fetch to get the full environment object with project relation
+        dbEnvironment = await getEnvironmentByName(projectSlug, envSlug);
+        console.log(
+          `Auto-created DB record for environment: ${envSlug} in project ${projectSlug}`,
+        );
+      } catch (error) {
+        console.error(
+          `Failed to auto-create DB record for environment ${envSlug}:`,
+          error,
+        );
+      }
+    }
+  }
 
   // Calculate target namespace matching operator logic
   const targetNamespace = `${environment.spec.projectRef.name}-${environment.metadata.name}`;
@@ -286,6 +347,14 @@ export async function getEnvironmentDetail(
     );
   }
 
+  // Determine environment type based on environment name
+  // "development" environments are dev-* or feature-*, everything else is deployment
+  const envName = environment.metadata.name.toLowerCase();
+  const environmentType: "deployment" | "development" =
+    envName.startsWith("dev-") || envName.startsWith("feature-")
+      ? "development"
+      : "deployment";
+
   return {
     environment,
     targetNamespace,
@@ -293,6 +362,10 @@ export async function getEnvironmentDetail(
     environmentId: dbEnvironment?.id,
     environmentConfig: dbEnvironment?.config,
     pods,
+    // Additional props for secrets management
+    teamId: projectWithTeam.team.id,
+    projectId: project.id,
+    environmentType,
   };
 }
 

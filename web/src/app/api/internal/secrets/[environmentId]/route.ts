@@ -176,6 +176,7 @@ export async function GET(
         id: projectEnvironments.id,
         projectId: projectEnvironments.projectId,
         teamId: projects.teamId,
+        environmentName: projectEnvironments.environment,
       })
       .from(projectEnvironments)
       .innerJoin(projects, eq(projectEnvironments.projectId, projects.id))
@@ -192,18 +193,25 @@ export async function GET(
       );
     }
 
-    const { teamId, projectId } = environment[0];
+    const { teamId, projectId, environmentName } = environment[0];
+
+    // Detect environment type from name (matches logic in environments action)
+    const environmentType = environmentName.startsWith("dev-")
+      ? "development"
+      : "deployment";
 
     // 3. Resolve secrets with precedence
     console.log("Resolving secrets for environment", {
       environmentId,
       teamId,
       projectId,
+      environmentType,
     });
 
     const resolvedSecrets = await resolveSecretsForEnvironment(
       teamId,
       projectId,
+      environmentType,
       environmentId,
     );
 

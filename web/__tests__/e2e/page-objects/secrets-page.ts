@@ -20,7 +20,7 @@ export class SecretsPage extends BasePage {
     super(page);
     this.pageHeading = page.getByRole("heading", {
       name: "Project Secrets",
-      level: 1,
+      level: 2,
     });
     this.addSecretButton = page.getByRole("button", { name: "+ Add Secret" });
     this.secretList = page.locator("table");
@@ -34,30 +34,29 @@ export class SecretsPage extends BasePage {
   }
 
   async goto(projectSlug: string) {
-    await this.page.goto(`/projects/${projectSlug}/secrets`);
+    await this.page.goto(`/projects/${projectSlug}/platform`);
     await expect(this.pageHeading).toBeVisible();
   }
 
   /**
-   * Add a new secret if it doesn't already exist
+   * Add a new secret
    */
   async addSecretIfMissing(name: string, value: string, description?: string) {
-    // Wait for "Loading..." to disappear if present
-    await expect(this.page.getByText("Loading")).not.toBeVisible({
-      timeout: 30000,
-    });
+    await expect(this.pageHeading).toBeVisible({ timeout: 30000 });
 
-    // Check if secret already exists in the table (targeting body rows)
-    const secretRow = this.secretList
-      .locator("tbody tr")
-      .filter({ hasText: name });
-    if (await secretRow.isVisible()) {
-      console.log(`✓ Secret '${name}' already exists, skipping creation`);
-      return;
-    }
+    const card = this.page
+      .locator("div")
+      .filter({ has: this.pageHeading })
+      .first();
+
+    await card.scrollIntoViewIfNeeded();
+
+    // Use the add button specific to the Project Secrets card
+    const addBtn = card.getByRole("button", { name: "+ Add Secret" });
+    await expect(addBtn).toBeVisible();
 
     console.log(`⏳ Adding secret '${name}'...`);
-    await this.addSecretButton.click();
+    await addBtn.click();
     await expect(this.secretForm).toBeVisible();
 
     await this.nameInput.fill(name);

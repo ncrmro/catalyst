@@ -1,6 +1,6 @@
 {
-  "id": "f48f6644-4eff-4ef8-8569-7325dd5be6e4",
-  "prevId": "4c371990-5d94-423d-bf7f-592ecaf1533a",
+  "id": "486542aa-b536-4b40-bb59-e25d3b457063",
+  "prevId": "0f743acf-bb13-4329-be8f-7db4e7955d1e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1290,6 +1290,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "environment_type": {
+          "name": "environment_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "name": {
           "name": "name",
           "type": "text",
@@ -1341,7 +1347,126 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "secrets_team_level_unique": {
+          "name": "secrets_team_level_unique",
+          "columns": [
+            {
+              "expression": "team_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "project_id IS NULL AND environment_id IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "secrets_project_level_unique": {
+          "name": "secrets_project_level_unique",
+          "columns": [
+            {
+              "expression": "team_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "project_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "environment_id IS NULL AND project_id IS NOT NULL AND environment_type IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "secrets_template_level_unique": {
+          "name": "secrets_template_level_unique",
+          "columns": [
+            {
+              "expression": "team_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "project_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "environment_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "environment_type IS NOT NULL AND environment_id IS NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "secrets_environment_level_unique": {
+          "name": "secrets_environment_level_unique",
+          "columns": [
+            {
+              "expression": "team_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "project_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "environment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "project_id IS NOT NULL AND environment_id IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "secrets_team_id_teams_id_fk": {
           "name": "secrets_team_id_teams_id_fk",
@@ -1381,13 +1506,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "secrets_team_id_project_id_environment_id_name_unique": {
-          "name": "secrets_team_id_project_id_environment_id_name_unique",
-          "nullsNotDistinct": false,
-          "columns": ["team_id", "project_id", "environment_id", "name"]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

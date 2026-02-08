@@ -8,6 +8,7 @@ import {
   DeploymentEnvironmentsCard,
   DevelopmentEnvironmentsCard,
 } from "./_components/environment-cards";
+import { ProjectSecretsCard } from "./_components/project-secrets-card";
 import { DetectionWrapper } from "./_components/detection-wrapper";
 import { DetectionLoading } from "./_components/detection-loading";
 import { RepositoriesCard, type Repo } from "./_components/repository-card";
@@ -175,10 +176,15 @@ export default async function PlatformPage({ params }: PlatformPageProps) {
         </div>
       </GlassCard>
 
+      {/* Project Secrets (Inherited by all environments) */}
+      <ProjectSecretsCard teamId={project.teamId} projectId={project.id} />
+
       {/* Deployment Environments Card with Tabs */}
       <DeploymentEnvironmentsCard
         environments={deploymentEnvironments}
         projectSlug={slug}
+        teamId={project.teamId}
+        projectId={project.id}
         configContent={deploymentConfigContent}
       />
 
@@ -186,6 +192,7 @@ export default async function PlatformPage({ params }: PlatformPageProps) {
       <DevelopmentEnvironmentsCard
         environments={developmentEnvironments}
         projectSlug={slug}
+        teamId={project.teamId}
         projectId={project.id}
         primaryRepoId={primaryRepo?.id}
         primaryRepoFullName={primaryRepo?.fullName}
