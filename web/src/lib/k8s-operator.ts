@@ -285,8 +285,13 @@ export async function patchEnvironmentCRAnnotations(
   const { KubernetesObjectApi, PatchStrategy } = await import(
     "@kubernetes/client-node"
   );
+  // Import KubeConfig type separately for type assertion
+  type NativeKubeConfig = import("@kubernetes/client-node").KubeConfig;
 
-  const k8sApi = KubernetesObjectApi.makeApiClient(config as any);
+  // The wrapper KubeConfig has the same interface as the native one
+  const k8sApi = KubernetesObjectApi.makeApiClient(
+    config as unknown as NativeKubeConfig,
+  );
 
   // Create a partial object with just the metadata to patch
   const patch = {
