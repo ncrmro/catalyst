@@ -199,6 +199,57 @@ export async function createProjectEnvironment(
       };
     }
 
+    // Create DB record and set annotation immediately (Fix for operator secret injection)
+    try {
+      const { createEnvironments } = await import("@/models/environments");
+      const { getProjectRepos } = await import("@/models/project-repos");
+      const { patchEnvironmentCRAnnotations } = await import(
+        "@/lib/k8s-operator"
+      );
+
+      // Get the primary repo for this project
+      const repoLinks = await getProjectRepos({ projectIds: [project.id] });
+      const primaryRepoLink = repoLinks.find(
+        (r: { isPrimary: boolean }) => r.isPrimary,
+      );
+
+      if (primaryRepoLink) {
+        // Create DB record immediately
+        const [dbRecord] = await createEnvironments({
+          projectId: project.id,
+          repoId: primaryRepoLink.repoId,
+          environment: environmentName,
+        });
+
+        // Patch annotation on the CR so operator can fetch secrets from first reconciliation
+        if (dbRecord) {
+          const patchResult = await patchEnvironmentCRAnnotations(
+            projectNamespace,
+            environmentName,
+            {
+              "catalyst.dev/environment-id": dbRecord.id,
+            },
+          );
+
+          if (patchResult.success) {
+            console.log(
+              `Set environmentId annotation on Environment CR at creation: ${environmentName}`,
+            );
+          } else {
+            console.warn(
+              `Failed to set environmentId annotation on Environment CR: ${patchResult.error}`,
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error(
+        `Failed to create DB record or set annotation for environment ${environmentName}:`,
+        error,
+      );
+      // Don't fail the whole operation - environment CR was created successfully
+    }
+
     // Revalidate the projects and environments pages (routes use slugs, not IDs)
     revalidatePath(`/projects/${project.slug}`);
     revalidatePath(`/environments/${project.slug}`);
@@ -345,6 +396,40 @@ export async function getEnvironmentDetail(
       } catch (error) {
         console.error(
           `Failed to auto-create DB record for environment ${envSlug}:`,
+          error,
+        );
+      }
+    }
+  }
+
+  // Ensure annotation exists for ALL environments (self-healing fallback)
+  // This handles environments created before the fix and any edge cases where annotation patching failed
+  if (dbEnvironment) {
+    const annotations = environment.metadata.annotations || {};
+    if (!annotations["catalyst.dev/environment-id"]) {
+      const { patchEnvironmentCRAnnotations } = await import(
+        "@/lib/k8s-operator"
+      );
+      try {
+        const patchResult = await patchEnvironmentCRAnnotations(
+          projectNamespace,
+          envSlug,
+          {
+            "catalyst.dev/environment-id": dbEnvironment.id,
+          },
+        );
+        if (patchResult.success) {
+          console.log(
+            `Self-healed missing environmentId annotation for Environment CR: ${envSlug}`,
+          );
+        } else {
+          console.warn(
+            `Failed to self-heal environmentId annotation: ${patchResult.error}`,
+          );
+        }
+      } catch (error) {
+        console.error(
+          `Error during annotation self-healing for ${envSlug}:`,
           error,
         );
       }

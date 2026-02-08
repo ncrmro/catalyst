@@ -125,7 +125,7 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 	// Read environmentId from annotation
 	environmentId := env.ObjectMeta.Annotations["catalyst.dev/environment-id"]
 	if environmentId != "" {
-		webAPIURL := os.Getenv("WEB_API_URL")
+		webAPIURL := getCatalystWebURL()
 		if webAPIURL != "" {
 			log.Info("Fetching secrets from web API", "environmentId", environmentId, "webAPIURL", webAPIURL)
 			
@@ -145,7 +145,7 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 				}
 			}
 		} else {
-			log.Info("WEB_API_URL not configured, skipping secret fetching")
+			log.Info("CATALYST_WEB_URL not configured, skipping secret fetching")
 		}
 	} else {
 		log.Info("Environment does not have environmentId annotation, skipping secret fetching")

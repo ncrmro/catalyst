@@ -153,6 +153,8 @@ export interface EnvironmentCR {
     name: string;
     namespace: string;
     creationTimestamp?: string;
+    annotations?: Record<string, string>;
+    labels?: Record<string, string>;
   };
   spec: EnvironmentCRSpec;
   status?: {
