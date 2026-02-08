@@ -39,42 +39,23 @@ export class SecretsPage extends BasePage {
   }
 
   /**
-   * Add a new secret if it doesn't already exist
+   * Add a new secret
    */
   async addSecretIfMissing(name: string, value: string, description?: string) {
-    // Wait for "Loading..." to disappear if present
-    await expect(this.page.getByText("Loading")).not.toBeVisible({
-      timeout: 30000,
-    });
+    await expect(this.pageHeading).toBeVisible({ timeout: 30000 });
 
-    // Find the Project Secrets card container
     const card = this.page
       .locator("div")
       .filter({ has: this.pageHeading })
       .first();
 
-    // Check if the table is visible. If not, click the chevron button to expand.
-    if (!(await this.secretList.isVisible())) {
-      const chevronButton = card
-        .locator("button")
-        .filter({ has: this.page.locator("svg") })
-        .last();
-      await chevronButton.click();
-      await expect(this.secretList).toBeVisible();
-    }
+    await card.scrollIntoViewIfNeeded();
 
-    // Check if secret already exists in the table (targeting body rows)
-    const secretRow = this.secretList
-      .locator("tbody tr")
-      .filter({ hasText: name });
-    if (await secretRow.isVisible()) {
-      console.log(`✓ Secret '${name}' already exists, skipping creation`);
-      return;
-    }
+    // Use the add button specific to the Project Secrets card
+    const addBtn = card.getByRole("button", { name: "+ Add Secret" });
+    await expect(addBtn).toBeVisible();
 
     console.log(`⏳ Adding secret '${name}'...`);
-    // Use the add button specific to the Project Secrets card if multiple exist on page
-    const addBtn = card.getByRole("button", { name: "+ Add Secret" });
     await addBtn.click();
     await expect(this.secretForm).toBeVisible();
 
