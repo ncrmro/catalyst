@@ -93,6 +93,7 @@ func sanitizeLabelValue(s string) string {
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=authentication.k8s.io,resources=tokenreviews,verbs=create
 
 //nolint:gocyclo
 func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -608,6 +609,62 @@ func (r *EnvironmentReconciler) reconcileWorkspaceMode(ctx context.Context, env 
 	}
 
 	return ctrl.Result{}, nil
+}
+
+// SyncCatalystSecrets creates or updates the catalyst-secrets Secret in the namespace
+// with the provided key-value pairs from the web API
+func (r *EnvironmentReconciler) SyncCatalystSecrets(
+	ctx context.Context,
+	namespace string,
+	secrets map[string]string,
+) error {
+	log := logf.FromContext(ctx)
+	secretName := "catalyst-secrets"
+
+	// Convert secrets to bytes for K8s Secret data
+	data := make(map[string][]byte)
+	for key, value := range secrets {
+		data[key] = []byte(value)
+	}
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/managed-by": "catalyst-operator",
+			},
+		},
+		Data: data,
+	}
+
+	// Try to get existing secret
+	existing := &corev1.Secret{}
+	err := r.Get(ctx, client.ObjectKey{
+		Name:      secretName,
+		Namespace: namespace,
+	}, existing)
+
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// Create new secret
+			if err := r.Create(ctx, secret); err != nil {
+				return fmt.Errorf("failed to create secret: %w", err)
+			}
+			log.Info("Created catalyst-secrets", "namespace", namespace, "secretCount", len(secrets))
+		} else {
+			return fmt.Errorf("failed to get secret: %w", err)
+		}
+	} else {
+		// Update existing secret
+		existing.Data = data
+		if err := r.Update(ctx, existing); err != nil {
+			return fmt.Errorf("failed to update secret: %w", err)
+		}
+		log.Info("Updated catalyst-secrets", "namespace", namespace, "secretCount", len(secrets))
+	}
+
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

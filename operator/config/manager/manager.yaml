@@ -65,6 +65,9 @@ spec:
           - --health-probe-bind-address=:8081
         image: controller:latest
         name: manager
+        env:
+        - name: WEB_API_URL
+          value: "http://web.catalyst-system.svc.cluster.local:3000"
         ports: []
         securityContext:
           readOnlyRootFilesystem: true

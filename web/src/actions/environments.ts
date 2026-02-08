@@ -300,6 +300,9 @@ export async function getEnvironmentDetail(
   if (!dbEnvironment) {
     const { createEnvironments } = await import("@/models/environments");
     const { getProjectRepos } = await import("@/models/project-repos");
+    const { patchEnvironmentCRAnnotations } = await import(
+      "@/lib/k8s-operator"
+    );
 
     // Get the primary repo for this project
     const repoLinks = await getProjectRepos({ projectIds: [project.id] });
@@ -319,6 +322,26 @@ export async function getEnvironmentDetail(
         console.log(
           `Auto-created DB record for environment: ${envSlug} in project ${projectSlug}`,
         );
+
+        // Add environmentId annotation to the Environment CR for operator secret fetching
+        if (dbEnvironment) {
+          const patchResult = await patchEnvironmentCRAnnotations(
+            projectNamespace,
+            envSlug,
+            {
+              "catalyst.dev/environment-id": dbEnvironment.id,
+            },
+          );
+          if (patchResult.success) {
+            console.log(
+              `Added environmentId annotation to Environment CR: ${envSlug}`,
+            );
+          } else {
+            console.warn(
+              `Failed to add environmentId annotation to Environment CR: ${patchResult.error}`,
+            );
+          }
+        }
       } catch (error) {
         console.error(
           `Failed to auto-create DB record for environment ${envSlug}:`,

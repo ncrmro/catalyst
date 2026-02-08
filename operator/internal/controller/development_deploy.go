@@ -30,6 +30,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	catalystv1alpha1 "github.com/ncrmro/catalyst/operator/api/v1alpha1"
+	"github.com/ncrmro/catalyst/operator/internal/secrets"
 )
 
 // gitScriptsConfigMapName is the name of the ConfigMap containing git scripts
@@ -120,7 +121,37 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 		}
 	}
 
-	// 4. Create web deployment and service using config
+	// 4. Fetch and sync secrets from web API (before creating deployment)
+	// Read environmentId from annotation
+	environmentId := env.ObjectMeta.Annotations["catalyst.dev/environment-id"]
+	if environmentId != "" {
+		webAPIURL := os.Getenv("WEB_API_URL")
+		if webAPIURL != "" {
+			log.Info("Fetching secrets from web API", "environmentId", environmentId, "webAPIURL", webAPIURL)
+			
+			// Import secrets package
+			secretsFetcher := secrets.NewSecretsFetcher(webAPIURL)
+			fetchedSecrets, err := secretsFetcher.FetchSecrets(ctx, environmentId)
+			if err != nil {
+				log.Error(err, "Failed to fetch secrets from web API", "environmentId", environmentId)
+				log.Info("Continuing deployment without secrets - graceful degradation")
+			} else {
+				// Sync secrets to K8s Secret
+				if err := r.SyncCatalystSecrets(ctx, namespace, fetchedSecrets); err != nil {
+					log.Error(err, "Failed to sync secrets to Kubernetes", "namespace", namespace)
+					log.Info("Continuing deployment without secrets - graceful degradation")
+				} else {
+					log.Info("Successfully synced secrets", "namespace", namespace, "secretCount", len(fetchedSecrets))
+				}
+			}
+		} else {
+			log.Info("WEB_API_URL not configured, skipping secret fetching")
+		}
+	} else {
+		log.Info("Environment does not have environmentId annotation, skipping secret fetching")
+	}
+
+	// 5. Create web deployment and service using config
 	webDeployment := desiredDevelopmentDeploymentFromConfig(env, project, namespace, &config)
 	if err := r.Create(ctx, webDeployment); err != nil && !isAlreadyExists(err) {
 		return false, err
@@ -439,6 +470,17 @@ func desiredDevelopmentDeploymentFromConfig(env *catalystv1alpha1.Environment, p
 		Ports:        config.Ports,
 		Env:          envVars,
 		VolumeMounts: config.VolumeMounts,
+		// Inject secrets from catalyst-secrets Secret
+		EnvFrom: []corev1.EnvFromSource{
+			{
+				SecretRef: &corev1.SecretEnvSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "catalyst-secrets",
+					},
+					Optional: boolPtr(true), // Don't fail if secret doesn't exist
+				},
+			},
+		},
 	}
 
 	if config.Resources != nil {
@@ -541,4 +583,8 @@ func desiredDevelopmentServiceFromConfig(namespace string, config *catalystv1alp
 // int32Ptr returns a pointer to an int32
 func int32Ptr(i int32) *int32 {
 	return &i
+}
+
+func boolPtr(b bool) *bool {
+	return &b
 }

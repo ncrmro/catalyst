@@ -269,6 +269,48 @@ export async function deleteEnvironmentCR(
   }
 }
 
+/**
+ * Add or update annotations on an Environment CR
+ * Used to link the Environment CR to the database record via environmentId
+ */
+export async function patchEnvironmentCRAnnotations(
+  namespace: string,
+  name: string,
+  annotations: Record<string, string>,
+): Promise<{ success: boolean; error?: string }> {
+  const CustomObjectsApi = await getCustomObjectsApi();
+  const config = await getClusterConfig();
+  if (!config) throw new Error("No cluster config");
+
+  const client = config.makeApiClient(CustomObjectsApi);
+
+  // Use strategic merge patch (default) - only update annotations
+  const patch = {
+    metadata: {
+      annotations,
+    },
+  };
+
+  try {
+    await client.patchNamespacedCustomObject({
+      group: GROUP,
+      version: VERSION,
+      namespace,
+      plural: PLURAL,
+      name,
+      body: patch,
+    });
+    return { success: true };
+  } catch (error: unknown) {
+    if (isKubeNotFound(error)) {
+      return { success: false, error: "Environment CR not found" };
+    }
+    const err = error as { message?: string };
+    console.error("Failed to patch Environment CR annotations:", error);
+    return { success: false, error: err.message || "Unknown error" };
+  }
+}
+
 interface KubernetesError {
   response?: {
     statusCode?: number;
