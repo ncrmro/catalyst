@@ -163,7 +163,6 @@ export function ProjectSecretsCard({
             </button>
           )}
           <button
-            data-testid="project-secrets-expand"
             onClick={() => setIsExpanded(!isExpanded)}
             className="p-1 text-on-surface-variant hover:bg-surface-variant rounded-full transition-colors"
           >
