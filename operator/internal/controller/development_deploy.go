@@ -127,7 +127,7 @@ func (r *EnvironmentReconciler) ReconcileDevelopmentMode(ctx context.Context, en
 	if environmentId != "" {
 		webAPIURL := getCatalystWebURL()
 		log.Info("Fetching secrets from web API", "environmentId", environmentId, "webAPIURL", webAPIURL)
-		
+
 		// Import secrets package
 		secretsFetcher := secrets.NewSecretsFetcher(webAPIURL)
 		fetchedSecrets, err := secretsFetcher.FetchSecrets(ctx, environmentId)

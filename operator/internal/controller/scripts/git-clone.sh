@@ -50,12 +50,27 @@ echo "URL: $GIT_REPO_URL"
 echo "Commit: $GIT_COMMIT"
 echo "Destination: $CLONE_PATH"
 
-# Clone repository
-git clone "$GIT_REPO_URL" "$CLONE_PATH"
-
-# Checkout specific commit
-cd "$CLONE_PATH"
-git checkout "$GIT_COMMIT"
+# Handle existing directories
+if [ -d "$CLONE_PATH/.git" ]; then
+    # Already cloned — fetch and checkout the desired commit
+    echo "Existing git repository found at $CLONE_PATH, fetching updates..."
+    cd "$CLONE_PATH"
+    git fetch origin
+    git checkout "$GIT_COMMIT"
+elif [ -d "$CLONE_PATH" ] && [ "$(ls -A "$CLONE_PATH" 2>/dev/null)" ]; then
+    # Non-empty but not a git repo — clean and clone
+    echo "Non-empty directory at $CLONE_PATH without .git, cleaning..."
+    rm -rf "$CLONE_PATH"/*
+    rm -rf "$CLONE_PATH"/.[!.]*
+    git clone "$GIT_REPO_URL" "$CLONE_PATH"
+    cd "$CLONE_PATH"
+    git checkout "$GIT_COMMIT"
+else
+    # Empty or non-existent — normal clone
+    git clone "$GIT_REPO_URL" "$CLONE_PATH"
+    cd "$CLONE_PATH"
+    git checkout "$GIT_COMMIT"
+fi
 
 echo "=== Clone Complete ==="
 echo "Repository cloned at commit $GIT_COMMIT"

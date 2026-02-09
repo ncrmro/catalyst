@@ -31,7 +31,7 @@ import (
 
 func TestNewSecretsFetcher(t *testing.T) {
 	fetcher := NewSecretsFetcher("http://test-api")
-	
+
 	assert.Equal(t, "http://test-api", fetcher.WebAPIURL)
 	assert.NotNil(t, fetcher.HTTPClient)
 	assert.Equal(t, "/var/run/secrets/kubernetes.io/serviceaccount/token", fetcher.ServiceAccount)
@@ -44,7 +44,7 @@ func TestFetchSecrets_Success(t *testing.T) {
 		assert.Equal(t, "GET", r.Method)
 		assert.Equal(t, "/api/internal/secrets/test-env-123", r.URL.Path)
 		assert.Contains(t, r.Header.Get("Authorization"), "Bearer")
-		
+
 		// Return mock response
 		response := SecretsResponse{
 			Secrets: map[string]string{
@@ -73,7 +73,7 @@ func TestFetchSecrets_Success(t *testing.T) {
 
 	// Test
 	secrets, err := fetcher.FetchSecrets(context.Background(), "test-env-123")
-	
+
 	require.NoError(t, err)
 	assert.Len(t, secrets, 3)
 	assert.Equal(t, "postgresql://localhost/test", secrets["DATABASE_URL"])
@@ -99,7 +99,7 @@ func TestFetchSecrets_Unauthorized(t *testing.T) {
 	}
 
 	secrets, err := fetcher.FetchSecrets(context.Background(), "test-env-123")
-	
+
 	require.Error(t, err)
 	assert.Nil(t, secrets)
 	assert.Contains(t, err.Error(), "unauthorized")
@@ -123,7 +123,7 @@ func TestFetchSecrets_NotFound(t *testing.T) {
 	}
 
 	secrets, err := fetcher.FetchSecrets(context.Background(), "nonexistent-env")
-	
+
 	require.Error(t, err)
 	assert.Nil(t, secrets)
 	assert.Contains(t, err.Error(), "environment not found")
@@ -137,7 +137,7 @@ func TestFetchSecrets_TokenFileNotFound(t *testing.T) {
 	}
 
 	secrets, err := fetcher.FetchSecrets(context.Background(), "test-env-123")
-	
+
 	require.Error(t, err)
 	assert.Nil(t, secrets)
 	assert.Contains(t, err.Error(), "failed to read SA token")
@@ -165,7 +165,7 @@ func TestFetchSecrets_EmptyResponse(t *testing.T) {
 	}
 
 	secrets, err := fetcher.FetchSecrets(context.Background(), "test-env-123")
-	
+
 	require.NoError(t, err)
 	assert.NotNil(t, secrets)
 	assert.Len(t, secrets, 0)
@@ -190,7 +190,7 @@ func TestFetchSecrets_InvalidJSON(t *testing.T) {
 	}
 
 	secrets, err := fetcher.FetchSecrets(context.Background(), "test-env-123")
-	
+
 	require.Error(t, err)
 	assert.Nil(t, secrets)
 	assert.Contains(t, err.Error(), "failed to parse response")
