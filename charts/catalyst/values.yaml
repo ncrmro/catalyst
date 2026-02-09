@@ -54,6 +54,9 @@ operator:
   localPreviewRouting: false  # When true, uses http://{namespace}.localhost:{ingressPort}
   ingressPort: ""             # Port for local preview routing (e.g. "8080")
   ingressNamespace: ""        # Namespace where ingress controller runs (default: "ingress-nginx")
+  
+  # Catalyst Web URL configuration
+  catalystWebUrl: ""          # Override CATALYST_WEB_URL. If empty, defaults to in-cluster web service DNS.
 
   resources:
     limits:

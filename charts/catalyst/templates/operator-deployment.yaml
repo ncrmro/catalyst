@@ -87,7 +87,11 @@ spec:
             - name: INGRESS_NAMESPACE
               value: {{ .Values.operator.ingressNamespace | default .Release.Namespace | quote }}
             - name: CATALYST_WEB_URL
+              {{- if .Values.operator.catalystWebUrl }}
+              value: {{ .Values.operator.catalystWebUrl | quote }}
+              {{- else }}
               value: "http://{{ include "catalyst.fullname" . }}-web.{{ .Release.Namespace }}.svc.cluster.local:3000"
+              {{- end }}
             {{- if .Values.web.enableGitTokenPatMode }}
             - name: ENABLE_PAT_FALLBACK
               value: "true"
