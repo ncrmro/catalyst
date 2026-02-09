@@ -1,5 +1,5 @@
 # Production overrides for tetraship.app
-# Web app + DB hosted on Railway (catalyst.ncrmro.com)
+# Web app + database hosted on Railway (catalyst.ncrmro.com)
 # Only operator + K8s infrastructure deployed in-cluster
 
 ingress-nginx:
