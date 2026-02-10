@@ -1,0 +1,18 @@
+# Example: Enforce STRICT mTLS mode for all workloads in a namespace
+# 
+# This PeerAuthentication policy ensures that only mTLS connections are accepted,
+# rejecting any plain-text traffic. This provides stronger security guarantees.
+#
+# Apply to a specific namespace:
+#   kubectl apply -f istio-strict-mtls.yaml -n <your-namespace>
+#
+# Apply cluster-wide (in the root namespace where istiod is installed):
+#   kubectl apply -f istio-strict-mtls.yaml -n catalyst-system
+
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+spec:
+  mtls:
+    mode: STRICT
