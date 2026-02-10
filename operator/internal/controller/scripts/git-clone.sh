@@ -52,19 +52,16 @@ echo "Destination: $CLONE_PATH"
 
 # Handle existing directories
 if [ -d "$CLONE_PATH/.git" ]; then
-    # Already cloned — fetch and checkout the desired commit
+    # Already cloned — fetch to update refs only, preserving local changes
     echo "Existing git repository found at $CLONE_PATH, fetching updates..."
     cd "$CLONE_PATH"
     git fetch origin
-    git checkout "$GIT_COMMIT"
-elif [ -d "$CLONE_PATH" ] && [ "$(ls -A "$CLONE_PATH" 2>/dev/null)" ]; then
-    # Non-empty but not a git repo — clean and clone
-    echo "Non-empty directory at $CLONE_PATH without .git, cleaning..."
-    rm -rf "$CLONE_PATH"/*
-    rm -rf "$CLONE_PATH"/.[!.]*
-    git clone "$GIT_REPO_URL" "$CLONE_PATH"
-    cd "$CLONE_PATH"
-    git checkout "$GIT_COMMIT"
+    echo "Repository refs updated. Local working directory preserved."
+elif [ -d "$CLONE_PATH" ] && [ "$(ls -A "$CLONE_PATH" 2>/dev/null || :)" ]; then
+    # Non-empty but not a git repo — skip cloning to avoid data loss
+    echo "Warning: Non-empty directory at $CLONE_PATH without .git directory" >&2
+    echo "Skipping clone to preserve existing files. Please clean manually if needed." >&2
+    exit 0
 else
     # Empty or non-existent — normal clone
     git clone "$GIT_REPO_URL" "$CLONE_PATH"
