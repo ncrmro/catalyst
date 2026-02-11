@@ -87,6 +87,54 @@ const buildGitHubConfig = () => {
 
 export const GITHUB_CONFIG = buildGitHubConfig();
 
+/**
+ * Known placeholder patterns used in environment variable templates
+ * These patterns indicate that OAuth credentials have not been properly configured
+ */
+const OAUTH_PLACEHOLDER_PATTERNS = [
+  "your_github_app_client_id_here",
+  "your_github_app_client_secret_here",
+  "your_app_client_id",
+  "your_app_client_secret",
+  "stub",
+] as const;
+
+/**
+ * Check if a credential value looks like a placeholder
+ * Uses exact matching or starts-with logic to avoid false positives
+ */
+function isPlaceholderValue(value: string): boolean {
+  if (!value || value.trim() === "") {
+    return true;
+  }
+
+  // Check for exact matches with known placeholders
+  type PlaceholderPattern = (typeof OAUTH_PLACEHOLDER_PATTERNS)[number];
+  if (OAUTH_PLACEHOLDER_PATTERNS.includes(value as PlaceholderPattern)) {
+    return true;
+  }
+
+  // Check if value starts with common placeholder prefixes
+  const placeholderPrefixes = ["your_", "stub"];
+  if (placeholderPrefixes.some((prefix) => value.startsWith(prefix))) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Check if GitHub OAuth credentials are properly configured (not placeholder values)
+ * Used to determine if the GitHub connection feature should be available to users
+ */
+export function isGitHubOAuthConfigured(): boolean {
+  const clientId = GITHUB_CONFIG.APP_CLIENT_ID || "";
+  const clientSecret = GITHUB_CONFIG.APP_CLIENT_SECRET || "";
+
+  // Both credentials must be valid (not placeholders or empty)
+  return !isPlaceholderValue(clientId) && !isPlaceholderValue(clientSecret);
+}
+
 // ============================================================================
 // TOKEN STORAGE & RETRIEVAL
 // ============================================================================
