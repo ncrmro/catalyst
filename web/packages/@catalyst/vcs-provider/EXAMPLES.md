@@ -2,6 +2,8 @@
 
 This document provides example code for common VCS operations using the `@catalyst/vcs-provider` package.
 
+> **📘 First Time Setup?** If you're setting up the VCS provider for the first time, start with **[SETUP.md](./SETUP.md)** for complete configuration instructions including GitHub App setup, API endpoints, Auth.js integration, and database schema.
+
 ## Using VCSProviderSingleton (NEW & RECOMMENDED)
 
 The VCSProviderSingleton provides the easiest and most powerful way to interact with VCS providers.
