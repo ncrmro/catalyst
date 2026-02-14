@@ -10,6 +10,7 @@ import { getUserTeamIds } from "@/lib/team-auth";
 import { createEnvironmentCR } from "@/lib/k8s-operator";
 import { generateNameUnchecked } from "@/lib/name-generator";
 import {
+  generateEnvironmentNamespace,
   generateProjectNamespace,
   sanitizeNamespaceComponent,
 } from "@/lib/namespace-utils";
@@ -435,7 +436,11 @@ export async function getEnvironmentDetail(
   }
 
   // Calculate target namespace matching operator logic
-  const targetNamespace = `${environment.spec.projectRef.name}-${environment.metadata.name}`;
+  const targetNamespace = generateEnvironmentNamespace(
+    projectWithTeam.team.name,
+    sanitizedProjectName,
+    environment.metadata.name,
+  );
 
   // Helper to generate workspace pod name matching the operator logic
   const commitPart =
