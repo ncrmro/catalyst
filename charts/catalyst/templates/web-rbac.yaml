@@ -17,6 +17,14 @@ rules:
   - create
   - get
   - list
+# Pod listing for environment detail page
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
 # TokenReview for git-token endpoint (validate pod ServiceAccount tokens)
 - apiGroups:
   - authentication.k8s.io
