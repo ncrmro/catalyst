@@ -1,0 +1,45 @@
+# Example values for a basic Rails deployment with PostgreSQL
+
+# Your Rails application image
+image:
+  repository: my-rails-app
+  tag: v1.0.0
+
+# Rails configuration
+rails:
+  env:
+    - name: RAILS_ENV
+      value: "production"
+    - name: PORT
+      value: "3000"
+    - name: RAILS_LOG_TO_STDOUT
+      value: "true"
+    - name: RAILS_SERVE_STATIC_FILES
+      value: "true"
+    - name: SECRET_KEY_BASE
+      valueFrom:
+        secretKeyRef:
+          name: rails-secrets
+          key: secret-key-base
+
+# PostgreSQL configuration
+postgresql:
+  enabled: true
+  auth:
+    username: rails
+    database: rails_production
+    password: "change-me-in-production"
+  primary:
+    persistence:
+      enabled: true
+      size: 5Gi
+
+# Enable ingress for external access
+ingress:
+  enabled: false
+  className: "nginx"
+  hosts:
+    - host: my-rails-app.example.com
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
