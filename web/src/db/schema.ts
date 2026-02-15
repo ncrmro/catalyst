@@ -687,7 +687,6 @@ export const reports = pgTable("reports", {
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });
 
-export * from "./schema/conventions";
 export * from "./schema/specs";
 export * from "./schema/platform-tasks";
 export * from "./schema/agent-contexts";
