@@ -176,6 +176,13 @@
       "when": 1770381964184,
       "tag": "0024_template_secrets",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1771162581752,
+      "tag": "0025_hard_madelyne_pryor",
+      "breakpoints": true
     }
   ]
 }
