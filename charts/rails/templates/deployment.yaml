@@ -35,11 +35,7 @@ spec:
       {{- if .Values.postgresql.enabled }}
       initContainers:
         - name: migrate
-          {{- if .Values.image.repository }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          {{- else }}
-          image: "{{ .Values.image.repository | default "your-rails-app" }}:{{ .Values.image.tag | default "latest" }}"
-          {{- end }}
+          image: "{{ required "image.repository is required" .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["bundle", "exec", "rails", "db:migrate"]
           env:
@@ -74,11 +70,7 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if .Values.image.repository }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          {{- else }}
-          image: "{{ .Values.image.repository | default "your-rails-app" }}:{{ .Values.image.tag | default "latest" }}"
-          {{- end }}
+          image: "{{ required "image.repository is required" .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
@@ -92,11 +84,13 @@ spec:
                   name: {{ required "postgresql.auth.existingSecret is required" .Values.postgresql.auth.existingSecret }}
                   key: DATABASE_URL
             {{- end }}
+            {{- if .Values.postgresql.enabled }}
             - name: SECRET_KEY_BASE
               valueFrom:
                 secretKeyRef:
                   name: {{ required "postgresql.auth.existingSecret is required" .Values.postgresql.auth.existingSecret }}
                   key: SECRET_KEY_BASE
+            {{- end }}
             {{- if .Values.redis.enabled }}
             - name: REDIS_URL
               valueFrom:
