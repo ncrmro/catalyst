@@ -1,0 +1,1 @@
+DROP TABLE "convention_rules" CASCADE;
