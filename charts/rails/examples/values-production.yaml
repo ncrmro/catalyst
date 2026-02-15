@@ -1,0 +1,92 @@
+# Example values for production deployment with autoscaling
+
+# Your Rails application image
+image:
+  repository: my-rails-app
+  tag: v1.0.0
+
+# Production Rails configuration
+rails:
+  env:
+    - name: RAILS_ENV
+      value: "production"
+    - name: PORT
+      value: "3000"
+    - name: RAILS_LOG_TO_STDOUT
+      value: "true"
+    - name: RAILS_SERVE_STATIC_FILES
+      value: "true"
+    - name: SECRET_KEY_BASE
+      valueFrom:
+        secretKeyRef:
+          name: rails-secrets
+          key: secret-key-base
+
+# Multiple replicas for high availability
+replicaCount: 3
+
+# Enable autoscaling
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+# Production resource limits
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+# PostgreSQL configuration
+postgresql:
+  enabled: true
+  auth:
+    username: rails
+    database: rails_production
+    password: "strong-production-password"
+  primary:
+    persistence:
+      enabled: true
+      size: 20Gi
+
+# Redis for caching and sessions
+redis:
+  enabled: true
+  auth:
+    password: "strong-redis-password"
+  master:
+    persistence:
+      enabled: true
+      size: 5Gi
+
+# Enable ingress with TLS
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: app.example.com
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls:
+    - secretName: rails-tls
+      hosts:
+        - app.example.com
+
+# Enable workers for background jobs
+worker:
+  enabled: true
+  replicaCount: 3
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 256Mi
