@@ -692,3 +692,4 @@ export * from "./schema/specs";
 export * from "./schema/platform-tasks";
 export * from "./schema/agent-contexts";
 export * from "./schema/observability";
+export * from "./schema/billing";
