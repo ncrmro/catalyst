@@ -22,7 +22,6 @@ export async function getBilling() {
   // Use dynamic import to avoid bundling billing code when disabled
   // and to allow the package to be missing in some environments
   try {
-    // @ts-ignore - may not be resolved during typecheck if package is not yet linked
     return await import("@catalyst/billing");
   } catch (error) {
     console.error("Failed to load @catalyst/billing package despite BILLING_ENABLED=true", error);
