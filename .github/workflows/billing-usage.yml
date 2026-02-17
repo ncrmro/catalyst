@@ -1,0 +1,73 @@
+name: Billing - Daily Usage Recording
+
+on:
+  # Run daily at 00:00 UTC (record usage for the previous day)
+  schedule:
+    - cron: "0 0 * * *"
+
+  # Allow manual triggering for testing
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Usage date (YYYY-MM-DD, defaults to yesterday)"
+        required: false
+        type: string
+      dryRun:
+        description: "Dry run (record usage but don't report to Stripe)"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  record-usage:
+    name: Record Daily Usage
+    runs-on: ubuntu-latest
+
+    # Only run if billing is enabled
+    # This prevents the workflow from failing in environments where billing is disabled
+    if: vars.BILLING_ENABLED == 'true'
+
+    steps:
+      - name: Record Usage
+        run: |
+          # Build URL with optional query parameters
+          URL="${{ secrets.WEB_APP_URL }}/api/jobs/record-usage"
+          
+          if [ -n "${{ inputs.date }}" ]; then
+            URL="${URL}?date=${{ inputs.date }}"
+          fi
+          
+          if [ "${{ inputs.dryRun }}" == "true" ]; then
+            if [[ "$URL" == *"?"* ]]; then
+              URL="${URL}&dryRun=true"
+            else
+              URL="${URL}?dryRun=true"
+            fi
+          fi
+          
+          # Call the API endpoint with bearer token authentication
+          response=$(curl -s -w "\n%{http_code}" -X POST "$URL" \
+            -H "Authorization: Bearer ${{ secrets.JOBS_SECRET }}" \
+            -H "Content-Type: application/json")
+          
+          # Extract status code (last line)
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          echo "Response status: $http_code"
+          echo "Response body: $body"
+          
+          # Check if request was successful
+          if [ "$http_code" -ne 200 ]; then
+            echo "Error: Usage recording failed with status $http_code"
+            exit 1
+          fi
+          
+          # Parse and display results
+          echo "Usage recording completed successfully"
+          echo "$body" | jq '.'
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Daily usage recording job failed. Check the logs for details."
