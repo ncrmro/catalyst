@@ -72,28 +72,37 @@ export async function countTeamEnvironments(
   db: PgDatabase<any, any, any>,
   teamId: string,
 ): Promise<{ activeCount: number; spundownCount: number }> {
-  // Import schemas locally to avoid circular dependencies
-  const { projects, projectEnvironments } = await import("@/db/schema");
-  const { eq } = await import("drizzle-orm");
+  try {
+    // Import schemas locally to avoid circular dependencies
+    const { projects, projectEnvironments } = await import("@/db/schema");
+    const { eq } = await import("drizzle-orm");
 
-  // Query all environments for this team's projects
-  const environments = await db
-    .select({
-      id: projectEnvironments.id,
-      environment: projectEnvironments.environment,
-    })
-    .from(projectEnvironments)
-    .innerJoin(projects, eq(projectEnvironments.projectId, projects.id))
-    .where(eq(projects.teamId, teamId));
+    // Query all environments for this team's projects
+    const environments = await db
+      .select({
+        id: projectEnvironments.id,
+        environment: projectEnvironments.environment,
+      })
+      .from(projectEnvironments)
+      .innerJoin(projects, eq(projectEnvironments.projectId, projects.id))
+      .where(eq(projects.teamId, teamId));
 
-  // For now, consider all environments as active
-  // TODO: Query Kubernetes deployment status to determine active vs spun-down
-  // Active = replicas > 0 with ready pods
-  // Spun-down = replicas = 0 or no ready pods
-  const activeCount = environments.length;
-  const spundownCount = 0;
+    // For now, consider all environments as active
+    // TODO: Query Kubernetes deployment status to determine active vs spun-down
+    // Active = replicas > 0 with ready pods
+    // Spun-down = replicas = 0 or no ready pods
+    const activeCount = environments.length;
+    const spundownCount = 0;
 
-  return { activeCount, spundownCount };
+    return { activeCount, spundownCount };
+  } catch (error) {
+    console.error("[usage-job] Error counting environments", {
+      teamId,
+      error,
+    });
+    // Return zero counts on error
+    return { activeCount: 0, spundownCount: 0 };
+  }
 }
 
 /**
@@ -202,30 +211,6 @@ export async function recordTeamUsage(
       teamId,
       error: errorMessage,
     });
-
-    // Try to mark the error in the database if we have a record
-    try {
-      const { usageRecords } = await import("./db/schema");
-      const { eq, and } = await import("drizzle-orm");
-
-      const [existing] = await db
-        .select()
-        .from(usageRecords)
-        .where(
-          and(eq(usageRecords.teamId, teamId), eq(usageRecords.usageDate, date)),
-        )
-        .limit(1);
-
-      if (existing) {
-        await markUsageReported(db, existing.id, errorMessage);
-      }
-    } catch (markError) {
-      // Ignore errors when trying to mark the error
-      console.error("[usage-job] Failed to mark error in database", {
-        teamId,
-        error: markError,
-      });
-    }
 
     return {
       teamId,
