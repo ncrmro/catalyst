@@ -7,7 +7,7 @@
 import { isTeamOnPaidPlan } from "./models";
 import { FREE_TIER_LIMITS } from "./constants";
 import type { PgDatabase } from "drizzle-orm/pg-core";
-import { eq, and, count } from "drizzle-orm";
+import { eq, count } from "drizzle-orm";
 import { projectEnvironments, projects } from "./db/schema";
 
 export interface CanCreateEnvironmentResult {
