@@ -73,9 +73,13 @@ export async function countTeamEnvironments(
   teamId: string,
 ): Promise<{ activeCount: number; spundownCount: number }> {
   try {
-    // Import schemas locally to avoid circular dependencies
-    const { projects, projectEnvironments } = await import("@/db/schema");
-    const { eq } = await import("drizzle-orm");
+    // Need to import from the main schema, not billing schema
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const dbSchema = require("@/db/schema");
+    const drizzleOrm = require("drizzle-orm");
+
+    const { projects, projectEnvironments } = dbSchema;
+    const { eq } = drizzleOrm;
 
     // Query all environments for this team's projects
     const environments = await db
@@ -252,8 +256,13 @@ export async function runDailyUsageJob(
   });
 
   // Get all teams with active subscriptions
-  const { stripeSubscriptions } = await import("./db/schema");
-  const { inArray } = await import("drizzle-orm");
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const billingSchema = require("./db/schema");
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const drizzleOrm = require("drizzle-orm");
+
+  const { stripeSubscriptions } = billingSchema;
+  const { inArray } = drizzleOrm;
 
   const subscriptions = await db
     .select({
