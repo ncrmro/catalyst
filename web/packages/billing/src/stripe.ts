@@ -6,28 +6,6 @@
  */
 
 import Stripe from "stripe";
-import { createLogger } from "./logging";
-
-const logger = createLogger("stripe");
-
-// Billing meter identifiers (configured in Stripe Dashboard)
-export const BILLING_METERS = {
-  ACTIVE_ENV_DAY: "active_env_day",
-  SPINDOWN_ENV_DAY: "spindown_env_day",
-} as const;
-
-// Free tier limits
-export const FREE_TIER_LIMITS = {
-  ACTIVE_ENVIRONMENTS: 3,
-  SPUNDOWN_ENVIRONMENTS: 5,
-  PROJECTS: 1,
-} as const;
-
-// Pricing (for display purposes, actual prices in Stripe)
-export const PRICING = {
-  ACTIVE_ENV_MONTHLY: 3.5, // $3.50/month
-  SPUNDOWN_ENV_MONTHLY: 0.75, // $0.75/month
-} as const;
 
 /**
  * Get the Stripe secret key from environment, throwing if not set.
@@ -118,7 +96,7 @@ export async function createCheckoutSession(params: {
 
   const session = await stripe.checkout.sessions.create(sessionParams);
 
-  logger.info("Created checkout session", {
+  console.info("[stripe] Created checkout session", {
     teamId: params.teamId,
     sessionId: session.id,
   });
@@ -150,7 +128,7 @@ export async function createBillingPortalSession(params: {
     return_url: params.returnUrl,
   });
 
-  logger.info("Created billing portal session", {
+  console.info("[stripe] Created billing portal session", {
     customerId: params.customerId,
   });
 
@@ -190,7 +168,7 @@ export async function recordUsageMeterEvent(params: {
 
   await stripe.billing.meterEvents.create(meterEvent, requestOptions);
 
-  logger.info("Recorded usage meter event", {
+  console.info("[stripe] Recorded usage meter event", {
     customerId: params.customerId,
     eventName: params.eventName,
     value: params.value,
@@ -223,7 +201,7 @@ export async function createCustomer(params: {
     metadata: params.metadata,
   });
 
-  logger.info("Created Stripe customer", {
+  console.info("[stripe] Created Stripe customer", {
     customerId: customer.id,
     teamId: params.metadata.teamId,
   });

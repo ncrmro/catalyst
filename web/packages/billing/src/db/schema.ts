@@ -1,12 +1,3 @@
-/**
- * Billing Schema
- *
- * Tables for Stripe billing integration:
- * - stripe_customers: Maps teams to Stripe customer IDs
- * - stripe_subscriptions: Tracks team subscription status
- * - usage_records: Daily usage snapshots for billing meter reporting
- */
-
 import {
   pgTable,
   text,
@@ -17,7 +8,11 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
-import { teams } from "../schema";
+
+// Minimal FK-only table definition to avoid coupling
+export const teams = pgTable("teams", {
+  id: text("id").primaryKey(),
+});
 
 /**
  * Stripe Customers Table

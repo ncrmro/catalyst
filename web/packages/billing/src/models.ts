@@ -3,34 +3,32 @@
  *
  * Database operations for Stripe billing integration.
  * Handles customer management, subscriptions, and usage recording.
- *
- * No authentication - handled by actions layer.
  */
 
-import { db } from "@/db";
 import {
   stripeCustomers,
   stripeSubscriptions,
   usageRecords,
   teams,
-} from "@/db/schema";
+} from "./db/schema";
 import { eq, and, inArray } from "drizzle-orm";
-import {
-  createCustomer as createStripeCustomer,
-  FREE_TIER_LIMITS,
-} from "@/lib/stripe";
+import { createCustomer as createStripeCustomer } from "./stripe";
+import { FREE_TIER_LIMITS } from "./constants";
 import type Stripe from "stripe";
+import type { PgDatabase } from "drizzle-orm/pg-core";
 
 /**
  * Get or create a Stripe customer for a team.
  * If the team doesn't have a Stripe customer, creates one via Stripe API.
  *
+ * @param db - Drizzle database instance
  * @param teamId - Team ID
  * @param teamName - Team name (used for Stripe customer name)
  * @param email - Email for the Stripe customer
  * @returns Stripe customer ID
  */
 export async function getOrCreateStripeCustomer(
+  db: PgDatabase<any, any, any>,
   teamId: string,
   teamName: string,
   email: string,
@@ -66,10 +64,14 @@ export async function getOrCreateStripeCustomer(
 /**
  * Get Stripe customer for a team.
  *
+ * @param db - Drizzle database instance
  * @param teamId - Team ID
  * @returns Stripe customer record or null
  */
-export async function getStripeCustomerByTeamId(teamId: string) {
+export async function getStripeCustomerByTeamId(
+  db: PgDatabase<any, any, any>,
+  teamId: string,
+) {
   const customers = await db
     .select()
     .from(stripeCustomers)
@@ -82,10 +84,14 @@ export async function getStripeCustomerByTeamId(teamId: string) {
 /**
  * Get Stripe customer by Stripe customer ID.
  *
+ * @param db - Drizzle database instance
  * @param stripeCustomerId - Stripe customer ID
  * @returns Stripe customer record or null
  */
-export async function getStripeCustomerByStripeId(stripeCustomerId: string) {
+export async function getStripeCustomerByStripeId(
+  db: PgDatabase<any, any, any>,
+  stripeCustomerId: string,
+) {
   const customers = await db
     .select()
     .from(stripeCustomers)
@@ -98,11 +104,13 @@ export async function getStripeCustomerByStripeId(stripeCustomerId: string) {
 /**
  * Link a Stripe customer to a team (from checkout.session.completed webhook).
  *
+ * @param db - Drizzle database instance
  * @param teamId - Team ID from session metadata
  * @param stripeCustomerId - Stripe customer ID
  * @param email - Customer email
  */
 export async function linkStripeCustomer(
+  db: PgDatabase<any, any, any>,
   teamId: string,
   stripeCustomerId: string,
   email: string | null,
@@ -140,10 +148,12 @@ export async function linkStripeCustomer(
 /**
  * Upsert a subscription record from Stripe webhook data.
  *
+ * @param db - Drizzle database instance
  * @param teamId - Team ID
  * @param subscription - Stripe subscription object
  */
 export async function upsertSubscription(
+  db: PgDatabase<any, any, any>,
   teamId: string,
   subscription: Stripe.Subscription,
 ) {
@@ -187,10 +197,14 @@ export async function upsertSubscription(
 /**
  * Get subscription for a team.
  *
+ * @param db - Drizzle database instance
  * @param teamId - Team ID
  * @returns Active subscription or null
  */
-export async function getSubscriptionByTeamId(teamId: string) {
+export async function getSubscriptionByTeamId(
+  db: PgDatabase<any, any, any>,
+  teamId: string,
+) {
   const subscriptions = await db
     .select()
     .from(stripeSubscriptions)
@@ -214,11 +228,15 @@ export async function getSubscriptionByTeamId(teamId: string) {
 /**
  * Check if a team is on a paid plan (has active subscription).
  *
+ * @param db - Drizzle database instance
  * @param teamId - Team ID
  * @returns True if team has an active subscription
  */
-export async function isTeamOnPaidPlan(teamId: string): Promise<boolean> {
-  const subscription = await getSubscriptionByTeamId(teamId);
+export async function isTeamOnPaidPlan(
+  db: PgDatabase<any, any, any>,
+  teamId: string,
+): Promise<boolean> {
+  const subscription = await getSubscriptionByTeamId(db, teamId);
 
   if (!subscription) {
     return false;
@@ -233,11 +251,13 @@ export async function isTeamOnPaidPlan(teamId: string): Promise<boolean> {
  * Record daily usage for a team.
  * Idempotent - will update existing record for the same date.
  *
+ * @param db - Drizzle database instance
  * @param teamId - Team ID
  * @param date - Usage date
  * @param counts - Environment counts
  */
 export async function recordDailyUsage(
+  db: PgDatabase<any, any, any>,
   teamId: string,
   date: Date,
   counts: {
@@ -297,10 +317,12 @@ export async function recordDailyUsage(
 /**
  * Mark a usage record as reported to Stripe.
  *
+ * @param db - Drizzle database instance
  * @param usageRecordId - Usage record ID
  * @param error - Optional error message if reporting failed
  */
 export async function markUsageReported(
+  db: PgDatabase<any, any, any>,
   usageRecordId: string,
   error?: string,
 ) {
@@ -318,9 +340,12 @@ export async function markUsageReported(
 /**
  * Get unreported usage records for billing.
  *
+ * @param db - Drizzle database instance
  * @returns Usage records that haven't been reported to Stripe
  */
-export async function getUnreportedUsageRecords() {
+export async function getUnreportedUsageRecords(
+  db: PgDatabase<any, any, any>,
+) {
   return db
     .select({
       usageRecord: usageRecords,
@@ -336,13 +361,17 @@ export async function getUnreportedUsageRecords() {
 /**
  * Get team billing status including subscription and usage.
  *
+ * @param db - Drizzle database instance
  * @param teamId - Team ID
  * @returns Billing status with subscription and current usage
  */
-export async function getTeamBillingStatus(teamId: string) {
+export async function getTeamBillingStatus(
+  db: PgDatabase<any, any, any>,
+  teamId: string,
+) {
   const [subscription, customer] = await Promise.all([
-    getSubscriptionByTeamId(teamId),
-    getStripeCustomerByTeamId(teamId),
+    getSubscriptionByTeamId(db, teamId),
+    getStripeCustomerByTeamId(db, teamId),
   ]);
 
   // Get current month usage (simplified - all records for team)
