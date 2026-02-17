@@ -1,24 +1,19 @@
+"use server";
+
 /**
  * Billing Server Actions
  *
  * Server actions for billing flows: checkout, portal, and billing status.
+ * These actions dynamically import the billing package when BILLING_ENABLED=true
+ * and provide appropriate errors when billing is disabled.
+ *
  * All actions verify team admin/owner role before proceeding.
  */
-
-"use server";
 
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { isUserTeamAdminOrOwner } from "@/lib/team-auth";
-import {
-  createCheckoutSession as createStripeCheckout,
-  createBillingPortalSession as createStripePortal,
-} from "./stripe";
-import {
-  getOrCreateStripeCustomer,
-  getStripeCustomerByTeamId,
-  getTeamBillingStatus as getTeamBillingStatusModel,
-} from "./models";
+import { getBilling, isBillingEnabled } from "@/lib/billing-guard";
 import { teams } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
@@ -33,7 +28,7 @@ interface BillingActionResult<T = void> {
 
 /**
  * Create a Stripe Checkout session for a team to upgrade to paid plan.
- * Requires team admin or owner role.
+ * Requires team admin or owner role and billing to be enabled.
  *
  * @param teamId - The team ID to create checkout for
  * @returns Checkout URL to redirect user to, or error
@@ -42,6 +37,14 @@ export async function createCheckoutSession(
   teamId: string,
 ): Promise<BillingActionResult<{ checkoutUrl: string }>> {
   try {
+    // Check if billing is enabled
+    if (!isBillingEnabled()) {
+      return {
+        success: false,
+        error: "Billing is not enabled on this instance",
+      };
+    }
+
     // Check authentication
     const session = await auth();
     if (!session?.user?.id) {
@@ -69,8 +72,17 @@ export async function createCheckoutSession(
       };
     }
 
+    // Dynamically import billing package
+    const billing = await getBilling();
+    if (!billing) {
+      return {
+        success: false,
+        error: "Billing package not available",
+      };
+    }
+
     // Get or create Stripe customer
-    const customerId = await getOrCreateStripeCustomer(
+    const customerId = await billing.getOrCreateStripeCustomer(
       db,
       teamId,
       team.name,
@@ -87,7 +99,7 @@ export async function createCheckoutSession(
     }
 
     // Create checkout session
-    const { checkoutUrl } = await createStripeCheckout({
+    const { checkoutUrl } = await billing.createCheckoutSession({
       teamId,
       teamName: team.name,
       customerEmail: session.user.email ?? "",
@@ -121,6 +133,14 @@ export async function createBillingPortalSession(
   teamId: string,
 ): Promise<BillingActionResult<{ portalUrl: string }>> {
   try {
+    // Check if billing is enabled
+    if (!isBillingEnabled()) {
+      return {
+        success: false,
+        error: "Billing is not enabled on this instance",
+      };
+    }
+
     // Check authentication
     const session = await auth();
     if (!session?.user?.id) {
@@ -139,8 +159,17 @@ export async function createBillingPortalSession(
       };
     }
 
+    // Dynamically import billing package
+    const billing = await getBilling();
+    if (!billing) {
+      return {
+        success: false,
+        error: "Billing package not available",
+      };
+    }
+
     // Get Stripe customer
-    const customer = await getStripeCustomerByTeamId(db, teamId);
+    const customer = await billing.getStripeCustomerByTeamId(db, teamId);
     if (!customer) {
       return {
         success: false,
@@ -149,7 +178,7 @@ export async function createBillingPortalSession(
     }
 
     // Create portal session
-    const { portalUrl } = await createStripePortal({
+    const { portalUrl } = await billing.createBillingPortalSession({
       customerId: customer.stripeCustomerId,
       returnUrl: `${process.env.NEXTAUTH_URL}/settings/billing`,
     });
@@ -196,6 +225,14 @@ export async function getTeamBillingStatus(teamId: string): Promise<
   }>
 > {
   try {
+    // Check if billing is enabled
+    if (!isBillingEnabled()) {
+      return {
+        success: false,
+        error: "Billing is not enabled on this instance",
+      };
+    }
+
     // Check authentication
     const session = await auth();
     if (!session?.user?.id) {
@@ -214,8 +251,17 @@ export async function getTeamBillingStatus(teamId: string): Promise<
       };
     }
 
+    // Dynamically import billing package
+    const billing = await getBilling();
+    if (!billing) {
+      return {
+        success: false,
+        error: "Billing package not available",
+      };
+    }
+
     // Get billing status from model
-    const billingStatus = await getTeamBillingStatusModel(db, teamId);
+    const billingStatus = await billing.getTeamBillingStatus(db, teamId);
 
     return {
       success: true,
