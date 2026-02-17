@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
           { status: 400 },
         );
       }
-    } catch (error) {
+    } catch (_error) {
       return NextResponse.json(
         { error: "Invalid date parameter" },
         { status: 400 },
