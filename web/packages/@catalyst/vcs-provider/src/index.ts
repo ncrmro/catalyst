@@ -32,7 +32,7 @@ export type { VCSProviderConfig } from "./vcs-provider";
 
 // Export provider classes for explicit registration
 export { GitHubProvider } from "./providers/github/provider";
-export { ForejoProvider } from "./providers/forgejo/provider";
+export { ForejoProvider, registerForejoTokenGetter } from "./providers/forgejo/provider";
 
 // 3. GitHub Specific Exports (Still needed by the web app for now)
 // TODO: Refactor web app to use the Singleton for these operations
