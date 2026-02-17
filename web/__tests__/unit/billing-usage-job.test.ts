@@ -47,6 +47,8 @@ vi.mock("drizzle-orm", () => ({
   eq: vi.fn(() => ({})),
   and: vi.fn(() => ({})),
   inArray: vi.fn(() => ({})),
+  relations: vi.fn(() => ({})),
+  sql: vi.fn(() => ({})),
 }));
 
 import {
@@ -89,7 +91,12 @@ describe("countTeamEnvironments", () => {
 
     mockDb.where = vi.fn().mockResolvedValue(mockEnvironments);
 
-    const result = await countTeamEnvironments(mockDb, "team-123");
+    const mockSchema = {
+      projects: { id: "id", teamId: "teamId" },
+      projectEnvironments: { id: "id", environment: "environment", projectId: "projectId" },
+    };
+
+    const result = await countTeamEnvironments(mockDb, "team-123", mockSchema);
 
     expect(result.activeCount).toBe(5);
     expect(result.spundownCount).toBe(0);
@@ -98,7 +105,12 @@ describe("countTeamEnvironments", () => {
   it("should return zero counts for team with no environments", async () => {
     mockDb.where = vi.fn().mockResolvedValue([]);
 
-    const result = await countTeamEnvironments(mockDb, "team-empty");
+    const mockSchema = {
+      projects: { id: "id", teamId: "teamId" },
+      projectEnvironments: { id: "id", environment: "environment", projectId: "projectId" },
+    };
+
+    const result = await countTeamEnvironments(mockDb, "team-empty", mockSchema);
 
     expect(result.activeCount).toBe(0);
     expect(result.spundownCount).toBe(0);
@@ -108,6 +120,10 @@ describe("countTeamEnvironments", () => {
 describe("recordTeamUsage", () => {
   let mockDb: PgDatabase<any, any, any>;
   const testDate = new Date("2024-01-15T00:00:00Z");
+  const mockSchema = {
+    projects: { id: "id", teamId: "teamId" },
+    projectEnvironments: { id: "id", environment: "environment", projectId: "projectId" },
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -124,7 +140,7 @@ describe("recordTeamUsage", () => {
   it("should skip recording for free tier teams", async () => {
     vi.mocked(isTeamOnPaidPlan).mockResolvedValue(false);
 
-    const result = await recordTeamUsage(mockDb, "team-free", testDate);
+    const result = await recordTeamUsage(mockDb, "team-free", testDate, mockSchema);
 
     expect(result.success).toBe(true);
     expect(result.reportedToStripe).toBe(false);
@@ -155,7 +171,7 @@ describe("recordTeamUsage", () => {
     };
     vi.mocked(recordDailyUsage).mockResolvedValue(mockUsageRecord as any);
 
-    const result = await recordTeamUsage(mockDb, "team-paid", testDate);
+    const result = await recordTeamUsage(mockDb, "team-paid", testDate, mockSchema);
 
     expect(result.success).toBe(true);
     expect(result.reportedToStripe).toBe(false); // No billable usage
@@ -206,7 +222,7 @@ describe("recordTeamUsage", () => {
       updatedAt: new Date(),
     });
 
-    const result = await recordTeamUsage(mockDb, "team-paid", testDate, {
+    const result = await recordTeamUsage(mockDb, "team-paid", testDate, mockSchema, {
       reportToStripe: true,
     });
 
@@ -250,7 +266,7 @@ describe("recordTeamUsage", () => {
     };
     vi.mocked(recordDailyUsage).mockResolvedValue(mockUsageRecord as any);
 
-    const result = await recordTeamUsage(mockDb, "team-paid", testDate, {
+    const result = await recordTeamUsage(mockDb, "team-paid", testDate, mockSchema, {
       reportToStripe: false,
     });
 
@@ -264,7 +280,7 @@ describe("recordTeamUsage", () => {
       new Error("Database connection failed"),
     );
 
-    const result = await recordTeamUsage(mockDb, "team-error", testDate);
+    const result = await recordTeamUsage(mockDb, "team-error", testDate, mockSchema);
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("Database connection failed");
@@ -273,6 +289,10 @@ describe("recordTeamUsage", () => {
 
 describe("runDailyUsageJob", () => {
   let mockDb: PgDatabase<any, any, any>;
+  const mockSchema = {
+    projects: { id: "id", teamId: "teamId" },
+    projectEnvironments: { id: "id", environment: "environment", projectId: "projectId" },
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -308,7 +328,7 @@ describe("runDailyUsageJob", () => {
     } as any);
 
     const testDate = new Date("2024-01-15");
-    const result = await runDailyUsageJob(mockDb, { date: testDate });
+    const result = await runDailyUsageJob(mockDb, mockSchema, { date: testDate });
 
     expect(result.totalTeams).toBe(3);
     expect(result.successCount).toBe(3);
@@ -319,7 +339,7 @@ describe("runDailyUsageJob", () => {
     mockDb.where = vi.fn().mockResolvedValue([]);
 
     const inputDate = new Date("2024-01-15T14:30:00Z");
-    const result = await runDailyUsageJob(mockDb, { date: inputDate });
+    const result = await runDailyUsageJob(mockDb, mockSchema, { date: inputDate });
 
     // Result date should be normalized to midnight
     expect(result.date.getUTCHours()).toBe(0);
@@ -330,7 +350,7 @@ describe("runDailyUsageJob", () => {
   it("should default to yesterday when no date provided", async () => {
     mockDb.where = vi.fn().mockResolvedValue([]);
 
-    const result = await runDailyUsageJob(mockDb);
+    const result = await runDailyUsageJob(mockDb, mockSchema);
 
     // Date should be yesterday
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -360,7 +380,7 @@ describe("runDailyUsageJob", () => {
       billableSpundownCount: 0,
     } as any);
 
-    const result = await runDailyUsageJob(mockDb);
+    const result = await runDailyUsageJob(mockDb, mockSchema);
 
     expect(result.totalTeams).toBe(3);
     expect(result.successCount).toBe(2);
