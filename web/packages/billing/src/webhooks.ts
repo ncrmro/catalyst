@@ -12,6 +12,7 @@ import {
   upsertSubscription,
   getStripeCustomerByStripeId,
 } from "./models";
+import { getSubscription } from "./stripe";
 
 /**
  * Handle checkout.session.completed event.
@@ -222,7 +223,7 @@ export async function handleInvoicePaid(
 
 /**
  * Handle invoice.payment_failed event.
- * Updates subscription status to past_due when payment fails.
+ * Fetches the subscription from Stripe and updates status to past_due in database.
  *
  * @param db - Drizzle database instance
  * @param event - Stripe invoice payment failed event
@@ -238,7 +239,7 @@ export async function handleInvoicePaymentFailed(
     subscriptionId: invoice.subscription,
   });
 
-  // If this is for a subscription, the status will be updated to past_due
+  // If this is for a subscription, fetch the updated subscription and update status
   if (invoice.subscription) {
     const subscriptionId =
       typeof invoice.subscription === "string"
@@ -272,9 +273,24 @@ export async function handleInvoicePaymentFailed(
       invoiceId: invoice.id,
     });
 
-    // The subscription status will be automatically updated to 'past_due' by Stripe
-    // and we'll receive a customer.subscription.updated event
-    // We just log the payment failure here
+    // Fetch the latest subscription status from Stripe (should be 'past_due')
+    // and update our database
+    try {
+      const subscription = await getSubscription(subscriptionId);
+      await upsertSubscription(db, customerRecord.teamId, subscription);
+
+      console.info("[webhook] Updated subscription status to past_due", {
+        teamId: customerRecord.teamId,
+        subscriptionId,
+        status: subscription.status,
+      });
+    } catch (error) {
+      console.error("[webhook] Failed to fetch/update subscription", {
+        subscriptionId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 }
 
@@ -327,13 +343,19 @@ export async function handleWebhookEvent(
         );
         break;
 
-      // New subscription created (also handled by updated)
-      case "customer.subscription.created":
+      // New subscription created (handle same as updated)
+      case "customer.subscription.created": {
+        const createdEvent = event as Stripe.CustomerSubscriptionCreatedEvent;
+        // The event data has the same structure, just call the handler directly
         await handleCustomerSubscriptionUpdated(
           db,
-          event as unknown as Stripe.CustomerSubscriptionUpdatedEvent,
+          {
+            ...createdEvent,
+            type: "customer.subscription.updated",
+          } as Stripe.CustomerSubscriptionUpdatedEvent,
         );
         break;
+      }
 
       default:
         console.info("[webhook] Unhandled event type", { type: event.type });
