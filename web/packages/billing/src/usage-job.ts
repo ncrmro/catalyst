@@ -16,6 +16,8 @@ import {
   getStripeCustomerByTeamId,
 } from "./models";
 import { BILLING_METERS, FREE_TIER_LIMITS } from "./constants";
+import { stripeSubscriptions } from "./db/schema";
+import { inArray, eq } from "drizzle-orm";
 import type { PgDatabase } from "drizzle-orm/pg-core";
 
 /**
@@ -66,20 +68,16 @@ export interface UsageJobOptions {
  *
  * @param db - Drizzle database instance
  * @param teamId - Team ID
+ * @param schema - Database schema objects (projects, projectEnvironments)
  * @returns Environment counts
  */
 export async function countTeamEnvironments(
   db: PgDatabase<any, any, any>,
   teamId: string,
+  schema: { projects: any; projectEnvironments: any },
 ): Promise<{ activeCount: number; spundownCount: number }> {
   try {
-    // Need to import from the main schema, not billing schema
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const dbSchema = require("@/db/schema");
-    const drizzleOrm = require("drizzle-orm");
-
-    const { projects, projectEnvironments } = dbSchema;
-    const { eq } = drizzleOrm;
+    const { projects, projectEnvironments } = schema;
 
     // Query all environments for this team's projects
     const environments = await db
@@ -115,6 +113,7 @@ export async function countTeamEnvironments(
  * @param db - Drizzle database instance
  * @param teamId - Team ID
  * @param date - Usage date
+ * @param schema - Database schema objects (projects, projectEnvironments)
  * @param options - Job options
  * @returns Result of the operation
  */
@@ -122,6 +121,7 @@ export async function recordTeamUsage(
   db: PgDatabase<any, any, any>,
   teamId: string,
   date: Date,
+  schema: { projects: any; projectEnvironments: any },
   options: UsageJobOptions = {},
 ): Promise<TeamUsageResult> {
   const { reportToStripe = true } = options;
@@ -139,7 +139,7 @@ export async function recordTeamUsage(
     }
 
     // Count environments
-    const counts = await countTeamEnvironments(db, teamId);
+    const counts = await countTeamEnvironments(db, teamId, schema);
 
     // Record to database (idempotent - updates existing record for same date)
     const usageRecord = await recordDailyUsage(db, teamId, date, {
@@ -229,11 +229,13 @@ export async function recordTeamUsage(
  * Run the daily usage recording job for all paid teams.
  *
  * @param db - Drizzle database instance
+ * @param schema - Database schema objects (projects, projectEnvironments)
  * @param options - Job options
  * @returns Results for all teams
  */
 export async function runDailyUsageJob(
   db: PgDatabase<any, any, any>,
+  schema: { projects: any; projectEnvironments: any },
   options: UsageJobOptions = {},
 ): Promise<{
   date: Date;
@@ -256,14 +258,6 @@ export async function runDailyUsageJob(
   });
 
   // Get all teams with active subscriptions
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const billingSchema = require("./db/schema");
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const drizzleOrm = require("drizzle-orm");
-
-  const { stripeSubscriptions } = billingSchema;
-  const { inArray } = drizzleOrm;
-
   const subscriptions = await db
     .select({
       teamId: stripeSubscriptions.teamId,
@@ -287,7 +281,7 @@ export async function runDailyUsageJob(
   // Process each team
   const results: TeamUsageResult[] = [];
   for (const teamId of teamIds) {
-    const result = await recordTeamUsage(db, teamId, normalizedDate, options);
+    const result = await recordTeamUsage(db, teamId, normalizedDate, schema, options);
     results.push(result);
   }
 

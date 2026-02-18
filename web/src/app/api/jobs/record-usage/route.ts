@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
           { status: 400 },
         );
       }
-    } catch (error) {
+    } catch (_error) {
       return NextResponse.json(
         { error: "Invalid date parameter" },
         { status: 400 },
@@ -98,15 +98,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Import main schema for projects and projectEnvironments
+    const { projects, projectEnvironments } = await import("@/db/schema");
+
     console.info("[record-usage] Starting usage recording job", {
       date: usageDate?.toISOString() ?? "yesterday",
       dryRun,
     });
 
-    const result = await billing.runDailyUsageJob(db, {
-      date: usageDate,
-      reportToStripe: !dryRun,
-    });
+    const result = await billing.runDailyUsageJob(
+      db,
+      { projects, projectEnvironments },
+      {
+        date: usageDate,
+        reportToStripe: !dryRun,
+      },
+    );
 
     console.info("[record-usage] Job completed", {
       date: result.date.toISOString(),
