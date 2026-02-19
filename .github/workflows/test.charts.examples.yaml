@@ -2,15 +2,8 @@
 name: Test Charts Examples
 
 on:
-  push:
-    branches: [main, master]
-    paths:
-      - 'charts/**'
-  pull_request:
-    branches: [main, master]
-    paths:
-      - 'charts/**'
   workflow_dispatch:
+  workflow_call:
 
 jobs:
   lint-charts:
