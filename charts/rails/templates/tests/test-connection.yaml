@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "rails.fullname" . }}-test-connection"
+  labels:
+    {{- include "rails.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox:latest
+      imagePullPolicy: IfNotPresent
+      command: ['wget']
+      args: ['{{ include "rails.fullname" . }}:{{ .Values.service.port }}/up']
+  restartPolicy: Never

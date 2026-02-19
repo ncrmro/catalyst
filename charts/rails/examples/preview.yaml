@@ -1,0 +1,80 @@
+# Example values for a minimal Rails preview environment (PR-driven)
+# This is optimized for quick startup and minimal resource usage
+
+# Rails application image
+image:
+  repository: my-rails-app
+  tag: "pr-123"
+  pullPolicy: IfNotPresent
+
+# Single replica for preview
+replicaCount: 1
+
+# Rails configuration
+rails:
+  env:
+    - name: RAILS_ENV
+      value: "production"
+    - name: PORT
+      value: "3000"
+    - name: RAILS_LOG_TO_STDOUT
+      value: "true"
+    - name: RAILS_SERVE_STATIC_FILES
+      value: "true"
+
+# No workers for preview environments
+worker:
+  enabled: false
+
+# Minimal PostgreSQL for preview
+postgresql:
+  enabled: true
+  auth:
+    username: rails
+    database: rails_preview
+    existingSecret: "rails-database"
+  primary:
+    persistence:
+      enabled: true
+      size: 1Gi
+
+# No Redis for preview
+redis:
+  enabled: false
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 3000
+
+# No ingress (accessed via namespace-based routing)
+ingress:
+  enabled: false
+
+# Minimal resources for preview
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Basic health checks
+livenessProbe:
+  httpGet:
+    path: /up
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /up
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+# No autoscaling for preview
+autoscaling:
+  enabled: false
