@@ -1,0 +1,67 @@
+# Example values for preview environment deployment
+
+# Your Rails application image (typically from PR build)
+image:
+  repository: my-rails-app
+  tag: pr-123
+
+# Preview environment Rails configuration
+rails:
+  env:
+    - name: RAILS_ENV
+      value: "production"
+    - name: PORT
+      value: "3000"
+    - name: RAILS_LOG_TO_STDOUT
+      value: "true"
+    - name: RAILS_SERVE_STATIC_FILES
+      value: "true"
+    - name: SECRET_KEY_BASE
+      value: "preview-secret-key-not-for-production"
+
+# Single replica for preview
+replicaCount: 1
+
+# Minimal resources for preview environments
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# PostgreSQL configuration with minimal resources
+postgresql:
+  enabled: true
+  auth:
+    username: rails
+    database: rails_preview
+    password: "preview-password"
+  primary:
+    persistence:
+      enabled: true
+      size: 1Gi
+    resources:
+      limits:
+        cpu: 250m
+        memory: 256Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi
+
+# Disable Redis for preview (unless needed for specific features)
+redis:
+  enabled: false
+
+# Disable workers for preview environments
+worker:
+  enabled: false
+
+# Disable autoscaling for preview
+autoscaling:
+  enabled: false
+
+# Ingress configured by Catalyst operator
+ingress:
+  enabled: false
