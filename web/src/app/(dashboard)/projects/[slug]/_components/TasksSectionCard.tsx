@@ -9,6 +9,7 @@ import type { Spec, PRsBySpec } from "@/lib/pr-spec-matching";
 import { type IssuesBySpec, matchIssueToSpec } from "@/lib/issue-spec-matching";
 import type { Issue } from "@/types/reports";
 import { buildSpecUrl } from "@/lib/spec-url";
+import { formatSpecName } from "@/lib/spec-formatting";
 
 type TabValue = "specs" | "issues" | "prs";
 
@@ -62,7 +63,7 @@ function SpecGroupHeader({
             href={specHref}
             className="text-sm font-medium text-on-surface hover:text-primary transition-colors truncate"
           >
-            {specName}
+            {formatSpecName(specName)}
           </Link>
         ) : (
           <span className="text-sm font-medium text-on-surface-variant truncate">
