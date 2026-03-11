@@ -159,3 +159,46 @@ export const usageRecordsRelations = relations(usageRecords, ({ one }) => ({
     references: [teams.id],
   }),
 }));
+
+/**
+ * Cloud Resource Usage Records Table
+ *
+ * Hourly usage snapshots for managed cloud resources (clusters, nodes).
+ * Used for reporting to Stripe Billing Meters.
+ */
+export const cloudResourceUsageRecords = pgTable(
+  "cloud_resource_usage_records",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    cloudAccountId: text("cloud_account_id").notNull(),
+    resourceType: text("resource_type").notNull(), // 'managed_cluster' | 'managed_node'
+    resourceId: text("resource_id").notNull(),
+    quantity: integer("quantity").notNull().default(1),
+    usageHour: timestamp("usage_hour", { mode: "date" }).notNull(),
+    reportedToStripe: boolean("reported_to_stripe").notNull().default(false),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("cloud_resource_usage_idempotent").on(
+      table.teamId,
+      table.resourceType,
+      table.resourceId,
+      table.usageHour,
+    ),
+  ],
+);
+
+export const cloudResourceUsageRecordsRelations = relations(
+  cloudResourceUsageRecords,
+  ({ one }) => ({
+    team: one(teams, {
+      fields: [cloudResourceUsageRecords.teamId],
+      references: [teams.id],
+    }),
+  }),
+);
