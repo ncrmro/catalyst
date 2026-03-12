@@ -52,7 +52,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### 3.2.1 Identity Passing (Self-Managed Clusters)
 
-Because Catalyst provisions self-managed Kubernetes clusters (not managed services like EKS/GKE/AKS), the VMs running the control plane and worker nodes need their own cloud identities so that the Kubernetes Cloud Controller Manager (CCM) and CSI storage drivers can function (e.g., provisioning load balancers, attaching block storage volumes).
+Because Catalyst provisions self-managed Kubernetes clusters, the VMs running the control plane and worker nodes need their own cloud identities so that the Kubernetes Cloud Controller Manager (CCM) and CSI storage drivers can function (e.g., provisioning load balancers, attaching block storage volumes).
 
 This means Catalyst's cross-account role MUST be able to create identities and attach them to compute resources:
 
@@ -79,7 +79,7 @@ The identity-passing permission is inherently dangerous — if unscoped, it enab
 
 ### 4.2 Cluster Configuration
 
-- Catalyst MUST provision self-managed Kubernetes clusters (e.g., kubeadm, Cluster API) as the primary deployment model. Managed offerings (EKS, GKE, AKS) MAY be supported as an alternative but are not the default.
+- Catalyst MUST provision self-managed Kubernetes clusters (e.g., kubeadm, Cluster API) as the primary deployment model.
 - Catalyst MUST support configuring node pools with heterogeneous instance types within a single cluster.
 - The system MUST support autoscaling of node pools based on resource utilization.
 - The system MUST provision clusters with a baseline security configuration including network policies, RBAC, and pod security standards.
@@ -143,7 +143,7 @@ The identity-passing permission is inherently dangerous — if unscoped, it enab
 
 ### 7.1 Value Proposition
 
-- Catalyst's managed infrastructure MUST be priced below equivalent managed services from cloud providers (e.g., RDS, EKS, GKE) for equivalent configurations.
+- Catalyst's managed infrastructure MUST be priced below equivalent managed services from cloud providers (e.g., managed Kubernetes, managed databases) for equivalent configurations.
 - The system SHOULD provide cost comparison estimates showing the difference between Catalyst-managed resources and provider-managed equivalents.
 
 ### 7.2 Resource Right-Sizing

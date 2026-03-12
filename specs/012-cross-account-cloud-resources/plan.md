@@ -181,7 +181,7 @@ Three core Composite Resource Definitions (XRDs) and their Compositions.
 
 ### 1. XKubernetesCluster
 
-Provisions a managed Kubernetes cluster with networking and node groups. Maps to spec sections 4.1–4.3.
+Provisions a self-managed Kubernetes cluster with networking and node groups. Maps to spec sections 4.1–4.3.
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v1
@@ -292,8 +292,7 @@ spec:
               required: [engine, targetClusterRef]
 ```
 
-- **In-cluster Composition** (default): Deploys CloudNativePG operator (PostgreSQL) or equivalent operator into the managed cluster via provider-helm
-- **Cloud-managed Composition** (optional): Provisions RDS/Cloud SQL/Azure Database in the target account
+- **In-cluster Composition**: Deploys CloudNativePG operator (PostgreSQL) or equivalent operator into the provisioned cluster via provider-helm
 
 ### 3. XObservabilityStack
 
@@ -803,8 +802,8 @@ aws iam delete-role --role-name CatalystCrossAccountRole --profile target-accoun
 ## Dependencies
 
 - `crossplane` (Helm chart) — Core Crossplane control plane runtime
-- `provider-aws` — AWS resource provisioning (EKS, VPC, IAM, etc.)
-- `provider-gcp` — GCP resource provisioning (GKE, VPC, IAM, etc.)
-- `provider-azure` — Azure resource provisioning (AKS, VNet, etc.)
-- `crossplane-contrib/provider-helm` — Deploy Helm charts into managed clusters (observability stack, database operators)
-- `crossplane-contrib/provider-kubernetes` — Create K8s resources in managed clusters (namespaces, RBAC, network policies)
+- `provider-aws` — AWS resource provisioning (EC2, VPC, IAM, ASG, ELB)
+- `provider-gcp` — GCP resource provisioning (GCE, VPC, IAM, MIG)
+- `provider-azure` — Azure resource provisioning (VM, VNet, VMSS, Managed Identity)
+- `crossplane-contrib/provider-helm` — Deploy Helm charts into provisioned clusters (observability stack, database operators)
+- `crossplane-contrib/provider-kubernetes` — Create K8s resources in provisioned clusters (namespaces, RBAC, network policies)
