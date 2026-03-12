@@ -2,9 +2,9 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: 'Catalyst AWS Onboarding: Enables Cross-Account Provisioning via OIDC Federation'
 
 Parameters:
-  OIDCIssuerURL:
+  OIDCIssuerHost:
     Type: String
-    Description: 'The OIDC Issuer URL of the Catalyst Kubernetes cluster (e.g., https://oidc.example.com)'
+    Description: 'The OIDC Issuer hostname without https:// (e.g., oidc.eks.us-east-1.amazonaws.com/id/XXXXX)'
   ExternalID:
     Type: String
     Description: 'A unique External ID for security (used in the trust policy)'
@@ -22,7 +22,7 @@ Resources:
   CatalystOIDCProvider:
     Type: 'AWS::IAM::OIDCProvider'
     Properties:
-      Url: !Ref OIDCIssuerURL
+      Url: !Sub 'https://${OIDCIssuerHost}'
       ClientIdList:
         - 'sts.amazonaws.com'
       ThumbprintList:
@@ -45,10 +45,8 @@ Resources:
             Action: 'sts:AssumeRoleWithWebIdentity'
             Condition:
               StringEquals:
-                !Sub
-                  - '${IssuerHost}:sub': 'system:serviceaccount:crossplane-system:provider-aws'
-                    '${IssuerHost}:aud': 'sts.amazonaws.com'
-                  - IssuerHost: !Select [1, !Split ['//', !Ref OIDCIssuerURL]]
+                !Sub '${OIDCIssuerHost}:sub': 'system:serviceaccount:crossplane-system:provider-aws'
+                !Sub '${OIDCIssuerHost}:aud': 'sts.amazonaws.com'
               # ExternalID check for extra security
               # StringEquals:
               #   'sts:ExternalId': !Ref ExternalID
