@@ -1,0 +1,31 @@
+# Catalyst ProviderConfig for AWS
+# This template is used to provision cloud resources in a customer's AWS account
+# via OIDC federation (IRSA + AssumeRole).
+
+apiVersion: aws.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  # Unique name for the customer account configuration
+  # In production, this maps to the cloudAccount ID
+  name: aws-customer-account
+spec:
+  # Credentials source: IRSA (IAM Roles for Service Accounts)
+  # This tells Crossplane to use the projected service account token
+  # provided by the Kubernetes cluster's OIDC issuer.
+  # No static access keys or secrets are stored in the cluster.
+  credentials:
+    source: IRSA
+
+  # AssumeRoleChain: Catalyst assumes the customer's provisioning role.
+  # This provides the cross-account credential chain.
+  # The role ARN is obtained during customer onboarding (CloudFormation template).
+  assumeRoleChain:
+    - # The target ARN of the role in the customer's AWS account.
+      # Must match the ARN output by the Catalyst CloudFormation template.
+      roleARN: "arn:aws:iam::123456789012:role/Catalyst-ProvisioningRole"
+
+# Security Model:
+# 1. Catalyst's provider-aws pod authenticates using its own OIDC-signed token.
+# 2. It then assumes the role specified in roleARN above.
+# 3. The customer's trust policy limits which Catalyst pods can assume this role.
+# 4. The customer's provisioning policy limits Catalyst to least-privilege actions.
