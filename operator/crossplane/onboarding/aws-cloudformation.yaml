@@ -36,20 +36,28 @@ Resources:
     Type: 'AWS::IAM::Role'
     Properties:
       RoleName: !Sub '${ResourcePrefix}-ProvisioningRole'
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Federated: !Ref CatalystOIDCProvider
-            Action: 'sts:AssumeRoleWithWebIdentity'
-            Condition:
-              StringEquals:
-                !Sub '${OIDCIssuerHost}:sub': 'system:serviceaccount:crossplane-system:provider-aws'
-                !Sub '${OIDCIssuerHost}:aud': 'sts.amazonaws.com'
-              # ExternalID check for extra security
-              # StringEquals:
-              #   'sts:ExternalId': !Ref ExternalID
+      # SECURITY: AssumeRolePolicyDocument is a JSON string so Fn::Sub can
+      # substitute ${OIDCIssuerHost} into the condition keys. CloudFormation
+      # does not allow intrinsic functions as YAML map keys.
+      AssumeRolePolicyDocument: !Sub |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Federated": "${CatalystOIDCProvider}"
+              },
+              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Condition": {
+                "StringEquals": {
+                  "${OIDCIssuerHost}:sub": "system:serviceaccount:crossplane-system:provider-aws",
+                  "${OIDCIssuerHost}:aud": "sts.amazonaws.com"
+                }
+              }
+            }
+          ]
+        }
 
       # 3. Inline Provisioning Policy (Least Privilege)
       Policies:
