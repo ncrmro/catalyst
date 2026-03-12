@@ -1,55 +1,37 @@
 ---
 repo: ncrmro/catalyst
-branch: stripe
-agent: gemini
+branch: spike/crossplane-k3s-setup
+agent: claude
 priority: 1
-status: ready
-created: 2026-02-16
+status: pending
+created: 2026-03-12
 ---
 
-# Move billing code into web/packages/billing/ workspace package
+# Install Crossplane + provider-aws in K3s Dev Environment
 
 ## Description
 
-The `stripe` branch has billing code scattered in `web/src/` (stripe client, models, DB schema). The spec plan (`specs/011-billing/plan.md`) requires all billing code to live in `web/packages/billing/` as a separate workspace package so self-hosted deployments can exclude it entirely. This is Phase 1 (Tasks 1-3) of the billing spec.
+Add Crossplane core and provider-aws to the local K3s development environment so that cross-account provisioning can be tested locally. This is part of the Phase 1 spike for spec 012 (cross-account cloud resources).
 
-Tech stack: Next.js 15, TypeScript, Drizzle ORM, npm workspaces. See `web/AGENTS.md` and `AGENTS.md` for full context. The existing `@catalyst/kubernetes-client` package at `web/packages/@catalyst/kubernetes-client/` is the reference pattern for internal packages.
+The K3s dev environment is managed by `bin/k3s-vm` (Python script, NixOS + QEMU). It applies manifests from `.k3s-vm/manifests/base.json` on startup. Helm charts are installed via `bin/helm` wrapper (pre-configured with KUBECONFIG and namespace).
 
-### What needs to move
+Read `specs/012-cross-account-cloud-resources/plan.md` for full architectural context. Read `.k3s-vm/AGENTS.md` for K3s VM details.
 
-| From | To |
-|------|-----|
-| `web/src/lib/stripe.ts` | `web/packages/billing/src/stripe.ts` |
-| `web/src/models/billing.ts` | `web/packages/billing/src/models.ts` |
-| `web/src/db/schema/billing.ts` | `web/packages/billing/src/db/schema.ts` |
-
-### Key design decisions
-
-1. **Constants**: Extract `FREE_TIER_LIMITS`, `BILLING_METERS`, `PRICING` from stripe.ts into `constants.ts`
-2. **Schema FK references**: The billing schema references core `teams` table. Use a minimal FK-only table definition within the billing package (just `pgTable("teams", { id: text("id").primaryKey() })`) to avoid coupling
-3. **Dependency injection for db**: The billing models currently import `db` from `@/db`. Refactor to accept `db` as a parameter to billing functions instead
-4. **Logging**: The stripe client uses `createLogger` from `@/lib/logging`. Replace with simple console-based logging within the package (no dependency on app internals)
-5. **Package naming**: `@catalyst/billing` following the `@catalyst/kubernetes-client` pattern
-6. **Stripe dependency**: Move `stripe` from `web/package.json` to `packages/billing/package.json`. `drizzle-orm` is a peer dependency
-7. **Billing guard**: Create `web/src/lib/billing-guard.ts` that dynamically imports `@catalyst/billing` only when `BILLING_ENABLED=true`
-8. **Drizzle config**: Update `web/drizzle.config.ts` to conditionally include billing schema when `BILLING_ENABLED=true`
+Tech stack: NixOS VM with K3s, QEMU, Helm, `bin/kubectl` / `bin/helm` wrappers.
 
 ## Acceptance Criteria
 
-- [x] `web/packages/billing/package.json` exists with name `@catalyst/billing`, stripe dependency, drizzle-orm peer dep
-- [x] `web/packages/billing/tsconfig.json` matches kubernetes-client pattern (ESNext, bundler resolution)
-- [x] `web/packages/billing/src/index.ts` re-exports the public API
-- [x] `web/packages/billing/src/constants.ts` has FREE_TIER_LIMITS, BILLING_METERS, PRICING
-- [x] `web/packages/billing/src/stripe.ts` has Stripe client and helper functions (no app internal imports)
-- [x] `web/packages/billing/src/models.ts` has billing DB operations accepting `db` parameter
-- [x] `web/packages/billing/src/db/schema.ts` has billing tables with minimal teams FK reference
-- [x] `web/src/lib/stripe.ts` is deleted
-- [x] `web/src/models/billing.ts` is deleted
-- [x] `web/src/db/schema/billing.ts` is deleted
-- [x] `export * from "./schema/billing"` removed from `web/src/db/schema.ts`
-- [x] `stripe` dependency removed from root `web/package.json`
-- [x] `web/src/lib/billing-guard.ts` created with dynamic import guard
-- [x] `web/drizzle.config.ts` conditionally includes billing schema
-- [x] `cd web && npm install` succeeds (workspace resolves)
-- [x] `npm run typecheck` passes
-- [x] No `stripe` imports remain in `web/src/` (only in `packages/billing/`)
+- [x] Crossplane core Helm chart added to K3s dev environment setup
+- [x] provider-aws installed and configured as a Crossplane Provider CR
+- [x] A setup script or documentation exists at `crossplane/dev-setup.sh` that installs Crossplane + provider-aws into the running K3s VM using `bin/helm`
+- [x] Script is idempotent (safe to run multiple times)
+- [ ] After running the script: `bin/kubectl get pods -n crossplane-system` shows Crossplane pods running, `bin/kubectl get providers` shows provider-aws installed
+- [x] README at `crossplane/README.md` documents the dev setup steps
+
+## Agent Notes
+
+- `dev-setup.sh` uses `helm upgrade --install` which is idempotent by design
+- Uses `bin/helm` and `bin/kubectl` wrappers as required by the project conventions
+- provider-aws uses Upbound's official package (`xpkg.upbound.io/upbound/provider-aws:v1.14.0`)
+- Kubectl verification criteria left unchecked — requires running K3s VM to validate (not available in sandbox)
+- README includes directory structure showing relationship to onboarding artifacts from crossplane-aws-onboarding task
