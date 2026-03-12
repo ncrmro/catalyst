@@ -1,14 +1,4 @@
-// Billing constants — sourced from @catalyst/billing constants
-const FREE_TIER_LIMITS = {
-  ACTIVE_ENVIRONMENTS: 3,
-  SPUNDOWN_ENVIRONMENTS: 5,
-  PROJECTS: 1,
-} as const;
-
-const PRICING = {
-  ACTIVE_ENV_MONTHLY: 3.5,
-  SPUNDOWN_ENV_MONTHLY: 0.75,
-} as const;
+import { FREE_TIER_LIMITS, PRICING } from "@catalyst/billing";
 import { PricingCard } from "./_components/PricingCard";
 
 export default function UpgradePage() {

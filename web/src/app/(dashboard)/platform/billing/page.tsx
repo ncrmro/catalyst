@@ -1,10 +1,5 @@
 import Link from "next/link";
-// Free tier limits — sourced from @catalyst/billing constants
-const FREE_TIER_LIMITS = {
-  ACTIVE_ENVIRONMENTS: 3,
-  SPUNDOWN_ENVIRONMENTS: 5,
-  PROJECTS: 1,
-} as const;
+import { FREE_TIER_LIMITS } from "@catalyst/billing";
 import { PlanCard } from "./_components/PlanCard";
 import { Card } from "@/components/ui/card";
 

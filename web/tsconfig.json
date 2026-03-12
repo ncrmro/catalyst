@@ -22,7 +22,9 @@
       "@/*": ["./src/*"],
       "@/__tests__/*": ["./__tests__/*"],
       "@fixtures": ["./fixtures"],
-      "@fixtures/*": ["./fixtures/*"]
+      "@fixtures/*": ["./fixtures/*"],
+      "@catalyst/billing": ["./packages/billing/index.ts"],
+      "@catalyst/billing/*": ["./packages/billing/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
