@@ -93,35 +93,24 @@ export default async function PlatformPage() {
   const hasRealClusters = clusters.some((cluster) => cluster.source !== "mock");
 
   return (
-    <div className="py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-on-background catalyst-title">
-            Platform
-          </h1>
-          <p className="mt-2 text-on-surface-variant">
-            Monitor and manage your clusters and environments
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {clusters.map((cluster, index) => (
-            <ClusterCard
-              key={`${cluster.name}-${cluster.source}-${index}`}
-              cluster={cluster}
-              onToggleOIDC={toggleGitHubOIDC}
-            />
-          ))}
-        </div>
-
-        <div className="mt-8 text-center">
-          <p className="text-sm text-on-surface-variant">
-            {hasRealClusters
-              ? "Showing real cluster data from kubeconfig sources"
-              : "This is a demo page showing mock cluster data. Configure KUBECONFIG_PRIMARY, KUBECONFIG_FOO, or KUBECONFIG_BAR environment variables to see real cluster data."}
-          </p>
-        </div>
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {clusters.map((cluster, index) => (
+          <ClusterCard
+            key={`${cluster.name}-${cluster.source}-${index}`}
+            cluster={cluster}
+            onToggleOIDC={toggleGitHubOIDC}
+          />
+        ))}
       </div>
-    </div>
+
+      <div className="mt-8 text-center">
+        <p className="text-sm text-on-surface-variant">
+          {hasRealClusters
+            ? "Showing real cluster data from kubeconfig sources"
+            : "This is a demo page showing mock cluster data. Configure KUBECONFIG_PRIMARY, KUBECONFIG_FOO, or KUBECONFIG_BAR environment variables to see real cluster data."}
+        </p>
+      </div>
+    </>
   );
 }
