@@ -49,6 +49,8 @@ const mockCreateManagedCluster = vi.mocked(createManagedClusterModel);
 const mockRequestClusterDeletion = vi.mocked(requestClusterDeletion);
 const mockGetCloudAccounts = vi.mocked(getCloudAccounts);
 
+// Spec 012 §4.1: Cluster lifecycle (create, update, delete)
+// Spec 012 §10.2: RBAC for all operations on target account resources
 describe("managed clusters actions", () => {
   const teamId = "team-123";
   const userId = "user-456";
@@ -61,6 +63,7 @@ describe("managed clusters actions", () => {
   });
 
   describe("listManagedClusters", () => {
+    // Spec 012 §10.2: Customers MUST be able to define which team members can access resources
     it("should require team membership", async () => {
       mockIsUserTeamMember.mockResolvedValue(false);
 
@@ -106,6 +109,7 @@ describe("managed clusters actions", () => {
   });
 
   describe("createManagedCluster", () => {
+    // Spec 012 §10.2: Customers MUST be able to define which team members can provision resources
     it("should require team admin", async () => {
       mockIsUserTeamAdminOrOwner.mockResolvedValue(false);
 
@@ -119,6 +123,7 @@ describe("managed clusters actions", () => {
       expect(result.success).toBe(false);
     });
 
+    // Spec 012 §3.3: Resources in one target account MUST NOT be accessible from another
     it("should validate cloud account belongs to team", async () => {
       mockGetCloudAccounts.mockResolvedValue([]);
 
@@ -153,6 +158,7 @@ describe("managed clusters actions", () => {
   });
 
   describe("deleteManagedCluster", () => {
+    // Spec 012 §4.1: Cluster deletion MUST require explicit confirmation
     it("should require explicit confirmation matching cluster name", async () => {
       mockGetManagedClusters.mockResolvedValue([
         { id: "cluster-1", name: "production-cluster" } as any,

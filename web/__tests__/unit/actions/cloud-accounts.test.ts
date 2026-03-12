@@ -38,6 +38,9 @@ const mockGetCloudAccounts = vi.mocked(getCloudAccounts);
 const mockCreateCloudAccount = vi.mocked(createCloudAccountModel);
 const mockDeleteCloudAccount = vi.mocked(deleteCloudAccountModel);
 
+// Spec 012 §3.1: Account linking and §3.2: Credential management
+// Spec 012 §3.3: Account isolation — resources in one target account MUST NOT be accessible from another
+// Spec 012 §10.2: RBAC for all operations on target account resources
 describe("cloud accounts actions", () => {
   const teamId = "team-123";
   const userId = "user-456";
@@ -51,6 +54,8 @@ describe("cloud accounts actions", () => {
   });
 
   describe("listCloudAccounts", () => {
+    // Spec 012 §10.3: Catalyst's control plane MUST NOT retain copies of generated secrets
+    // Credential fields must be stripped from API responses
     it("should return account summaries without encrypted fields", async () => {
       mockGetCloudAccounts.mockResolvedValue([
         {
@@ -93,6 +98,7 @@ describe("cloud accounts actions", () => {
       }
     });
 
+    // Spec 012 §10.2: RBAC for all operations on target account resources
     it("should require authentication", async () => {
       mockAuth.mockResolvedValue(null as any);
 
@@ -101,6 +107,7 @@ describe("cloud accounts actions", () => {
       expect(result.success).toBe(false);
     });
 
+    // Spec 012 §3.1: Each target account MUST be associated with exactly one customer organization
     it("should require team membership", async () => {
       mockIsUserTeamMember.mockResolvedValue(false);
 

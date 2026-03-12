@@ -8,6 +8,7 @@ import {
   decryptCloudCredential,
 } from "@/models/cloud-accounts";
 
+// Spec 012 §3.2: When long-lived keys are unavoidable, they MUST be encrypted at rest
 describe("cloud credential encryption", () => {
   let originalKey: string | undefined;
 
@@ -24,6 +25,8 @@ describe("cloud credential encryption", () => {
       delete process.env.TOKEN_ENCRYPTION_KEY;
     }
   });
+
+  // Spec 012 §3.2: Credentials MUST be encrypted at rest — verify AES-256-GCM round-trip
   it("should round-trip a JSON credential string", () => {
     const credential = JSON.stringify({
       accessKeyId: "AKIAIOSFODNN7EXAMPLE",
@@ -41,6 +44,7 @@ describe("cloud credential encryption", () => {
     expect(decrypted).toBe(credential);
   });
 
+  // Spec 012 §3.2: Encrypted credentials must detect tampering (GCM auth tag verification)
   it("should throw on tampered auth tag", () => {
     const credential = '{"key": "value"}';
     const { encryptedData, iv, authTag } = encryptCloudCredential(credential);

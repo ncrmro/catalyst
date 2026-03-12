@@ -15,6 +15,8 @@ import {
 import { createCloudAccount } from "@/models/cloud-accounts";
 import { userFactory, teamFactory } from "../../factories";
 
+// Spec 012 §4.1: Cluster lifecycle — create, update, delete
+// Spec 012 §4.1: Cluster deletion MUST require explicit confirmation and SHOULD support a soft-delete grace period
 describe("Managed Clusters Model Integration", () => {
   let testUserId: string;
   let testTeamId: string;
@@ -111,6 +113,7 @@ describe("Managed Clusters Model Integration", () => {
   });
 
   describe("requestClusterDeletion", () => {
+    // Spec 012 §4.1: Cluster deletion MUST require explicit confirmation
     it("should reject when deletionProtection is true", async () => {
       const cluster = await createManagedCluster({
         cloudAccountId: testCloudAccountId,
@@ -128,6 +131,7 @@ describe("Managed Clusters Model Integration", () => {
       );
     });
 
+    // Spec 012 §4.1: Deletion SHOULD support a soft-delete grace period (72 hours)
     it("should set grace period and status when protection is off", async () => {
       const cluster = await createManagedCluster({
         cloudAccountId: testCloudAccountId,

@@ -17,6 +17,8 @@ import { createManagedCluster } from "@/models/managed-clusters";
 import { createCloudAccount } from "@/models/cloud-accounts";
 import { userFactory, teamFactory } from "../../factories";
 
+// Spec 012 §4.2: Catalyst MUST support configuring node pools with heterogeneous instance types
+// Spec 012 §4.2: The system MUST support autoscaling of node pools based on resource utilization
 describe("Node Pools Model Integration", () => {
   let testUserId: string;
   let testTeamId: string;
@@ -102,6 +104,8 @@ describe("Node Pools Model Integration", () => {
   });
 
   describe("createNodePool", () => {
+    // Spec 012 §4.2: Autoscaling support (minNodes/maxNodes)
+    // Spec 012 §7.3: Spot instance usage MUST be opt-in per node pool
     it("should create with autoscaling config", async () => {
       const pool = await createNodePool({
         clusterId: testClusterId,

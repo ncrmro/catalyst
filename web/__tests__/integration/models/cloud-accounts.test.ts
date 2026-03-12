@@ -15,6 +15,8 @@ import {
 } from "@/models/cloud-accounts";
 import { userFactory, teamFactory } from "../../factories";
 
+// Spec 012 §3.1: Account linking — support linking one or more target accounts
+// Spec 012 §3.2: Credential management — encrypted at rest
 describe("Cloud Accounts Model Integration", () => {
   let testUserId: string;
   let testTeamId: string;
@@ -103,6 +105,7 @@ describe("Cloud Accounts Model Integration", () => {
   });
 
   describe("createCloudAccount", () => {
+    // Spec 012 §3.2: Credentials MUST be encrypted at rest — full DB round-trip
     it("should create with encrypted credential fields", async () => {
       const credential = JSON.stringify({
         accessKeyId: "AKIAIOSFODNN7EXAMPLE",
@@ -178,6 +181,7 @@ describe("Cloud Accounts Model Integration", () => {
   });
 
   describe("deleteCloudAccount", () => {
+    // Spec 012 §3.1: Account unlinking uses soft-delete (status → revoked)
     it("should soft-delete by setting status to revoked", async () => {
       const account = await createCloudAccount({
         teamId: testTeamId,

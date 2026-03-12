@@ -2,6 +2,9 @@
  * Usage Job Tests
  *
  * Tests for daily usage recording and Stripe reporting logic.
+ * Spec 012 §9.1: Management fee model — per resource, per cluster, per node
+ * Spec 012 §9.2: Metering — at least hourly granularity, includes resource type/quantity/duration
+ * Spec 012 §9.3: Billing integration — MUST integrate with existing billing system (spec 011)
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -137,6 +140,7 @@ describe("recordTeamUsage", () => {
     } as any;
   });
 
+  // Spec 012 §9.3: Free-tier teams should not generate billing events
   it("should skip recording for free tier teams", async () => {
     vi.mocked(isTeamOnPaidPlan).mockResolvedValue(false);
 
@@ -147,6 +151,7 @@ describe("recordTeamUsage", () => {
     expect(recordDailyUsage).not.toHaveBeenCalled();
   });
 
+  // Spec 012 §9.2: Usage records MUST include resource type, quantity, duration
   it("should record usage for paid teams", async () => {
     // Setup mocks
     vi.mocked(isTeamOnPaidPlan).mockResolvedValue(true);
@@ -186,6 +191,7 @@ describe("recordTeamUsage", () => {
     );
   });
 
+  // Spec 012 §9.3: MUST integrate with existing billing system — Stripe meter events
   it("should report to Stripe when there is billable usage", async () => {
     // Setup mocks
     vi.mocked(isTeamOnPaidPlan).mockResolvedValue(true);
@@ -357,6 +363,7 @@ describe("runDailyUsageJob", () => {
     expect(result.date.getUTCDate()).toBe(yesterday.getUTCDate());
   });
 
+  // Spec 012 §9.2: Metering MUST be reliable — individual team failures should not halt the job
   it("should continue processing after individual team failures", async () => {
     // Mock 3 teams
     mockDb.where = vi
