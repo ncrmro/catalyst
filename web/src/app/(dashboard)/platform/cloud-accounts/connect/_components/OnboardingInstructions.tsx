@@ -8,7 +8,7 @@ interface OnboardingInstructionsProps {
 
 const MOCK_EXTERNAL_ID = "catalyst-a1b2c3d4-e5f6";
 const MOCK_TEMPLATE_URL =
-  "https://console.aws.amazon.com/cloudformation/home#/stacks/quickcreate?templateURL=https://catalyst-onboarding.s3.amazonaws.com/cross-account-role.yaml";
+  "https://console.aws.amazon.com/cloudformation/home#/stacks/quickcreate?templateURL=https://catalyst-public.s3.amazonaws.com/onboarding/aws-cloudformation.yaml";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
