@@ -1,6 +1,29 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: 'Catalyst AWS Onboarding: Enables Cross-Account Provisioning via OIDC Federation'
 
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Catalyst Cluster Connection
+        Parameters:
+          - OIDCIssuerHost
+          - ExternalID
+      - Label:
+          default: Customization
+        Parameters:
+          - ResourcePrefix
+          - AllowedRegion
+    ParameterLabels:
+      OIDCIssuerHost:
+        default: OIDC Issuer Host
+      ExternalID:
+        default: External ID
+      ResourcePrefix:
+        default: Resource Prefix
+      AllowedRegion:
+        default: Allowed AWS Region
+
 Parameters:
   OIDCIssuerHost:
     Type: String
@@ -36,6 +59,11 @@ Resources:
     Type: 'AWS::IAM::Role'
     Properties:
       RoleName: !Sub '${ResourcePrefix}-ProvisioningRole'
+      Tags:
+        - Key: catalyst-managed
+          Value: 'true'
+        - Key: catalyst-component
+          Value: crossplane-provisioning
       # SECURITY: AssumeRolePolicyDocument is a JSON string so Fn::Sub can
       # substitute ${OIDCIssuerHost} into the condition keys. CloudFormation
       # does not allow intrinsic functions as YAML map keys.
