@@ -101,11 +101,15 @@ Each linked cloud account gets its own `ProviderConfig` with provider-native ide
 
 ### Credential Flow
 
+Since Catalyst's control plane runs on Hetzner (not inside a cloud provider), there is no native OIDC/IRSA identity. The credential chain is:
+
 1. Customer links cloud account in Catalyst UI → `cloudAccounts` row created with encrypted IAM role ARN / workload identity config
 2. Bridge controller reads `cloudAccounts`, creates `ProviderConfig` CR with the credential reference
-3. Crossplane provider uses ProviderConfig to authenticate API calls to customer's cloud
-4. No long-lived cloud credentials stored in Crossplane — ProviderConfig references federated identity (spec 3.2)
-5. If federation unavailable, encrypted keys stored in K8s Secret with 90-day rotation (spec 3.2 fallback)
+3. Crossplane provider authenticates using a dedicated IAM user's static credentials (stored as a K8s Secret), then calls `sts:AssumeRole` into the customer's target role
+4. The IAM user has **only** `sts:AssumeRole` permissions — it cannot access any AWS resources directly
+5. Customer's target role is scoped to least-privilege for the resources Catalyst manages (spec §3.2)
+6. Static credentials are encrypted at rest in the K8s Secret and rotated on a schedule not exceeding 90 days (spec §3.2)
+7. Future: if Catalyst's control plane moves to AWS, replace static credentials with IRSA/OIDC for the initial auth hop
 
 ## Data Model (already implemented)
 
@@ -392,31 +396,62 @@ web/
 
 ## Validating with a Real AWS Account
 
-This section documents how to manually validate the cross-account provisioning flow end-to-end against a real AWS account. This is not part of CI — it requires access to two AWS accounts (Catalyst's control plane account and a "customer" target account).
+This section documents how to manually validate the cross-account provisioning flow end-to-end against a real AWS account. This is not part of CI — it requires an AWS account to act as the "customer" target. Catalyst's control plane runs on Hetzner (not AWS), so the Crossplane provider authenticates to AWS using a dedicated IAM user's static credentials, then assumes a role in the customer's account.
 
 ### Prerequisites
 
-- Two AWS accounts: **Control** (where Catalyst runs) and **Target** (simulated customer account)
-- AWS CLI configured with credentials for both accounts
+- One AWS account acting as the **Target** (simulated customer account)
+- A dedicated IAM user in that account (or a separate "Catalyst operations" account) whose credentials Crossplane uses as the initial authentication hop
+- AWS CLI configured (`aws configure --profile target-account`)
 - Local K3s VM running (`bin/k3s-vm`)
 - Crossplane installed in the K3s cluster (see Spike Work section above)
 
 ### Step 1: Create the IAM Role in the Target Account
 
-The target account needs an IAM role that Catalyst can assume. This mirrors what a real customer would do via the CloudFormation onboarding template (spec §3.2).
+The target account needs an IAM role that Catalyst can assume. In production, customers would create this via the CloudFormation onboarding template (spec §3.2). For validation, we create it manually.
+
+Since Catalyst runs on Hetzner (not AWS), there is no OIDC/IRSA identity. Instead, create a dedicated IAM user whose credentials Crossplane will use to call `sts:AssumeRole` into the target role.
 
 ```bash
-# Get the Catalyst control plane's OIDC provider ARN (or IAM user/role ARN for testing)
-CATALYST_PRINCIPAL_ARN="arn:aws:iam::CONTROL_ACCOUNT_ID:root"
+# Create a dedicated IAM user for Catalyst's Crossplane provider.
+# In production this would live in a separate "Catalyst operations" account;
+# for testing, the same account is fine.
+aws iam create-user --user-name catalyst-crossplane --profile target-account
 
-# In the TARGET account, create the trust policy
-cat > /tmp/trust-policy.json <<'EOF'
+aws iam create-access-key --user-name catalyst-crossplane --profile target-account
+# Save the AccessKeyId and SecretAccessKey — you'll need them in Step 2.
+
+# Grant the user ONLY sts:AssumeRole (it cannot do anything else directly)
+cat > /tmp/catalyst-user-policy.json <<'EOF'
 {
   "Version": "2012-10-17",
   "Statement": [
     {
       "Effect": "Allow",
-      "Principal": { "AWS": "CATALYST_PRINCIPAL_ARN_PLACEHOLDER" },
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:iam::*:role/CatalystCrossAccountRole"
+    }
+  ]
+}
+EOF
+
+aws iam put-user-policy \
+  --user-name catalyst-crossplane \
+  --policy-name AssumeRoleOnly \
+  --policy-document file:///tmp/catalyst-user-policy.json \
+  --profile target-account
+
+# Get the user's ARN for the trust policy below
+CATALYST_USER_ARN=$(aws iam get-user --user-name catalyst-crossplane --profile target-account --query 'User.Arn' --output text)
+
+# Create the target role's trust policy — trusts the Catalyst IAM user
+cat > /tmp/trust-policy.json <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": { "AWS": "$CATALYST_USER_ARN" },
       "Action": "sts:AssumeRole",
       "Condition": {
         "StringEquals": {
@@ -427,7 +462,6 @@ cat > /tmp/trust-policy.json <<'EOF'
   ]
 }
 EOF
-sed -i "s|CATALYST_PRINCIPAL_ARN_PLACEHOLDER|$CATALYST_PRINCIPAL_ARN|" /tmp/trust-policy.json
 
 # Create the role in the target account
 aws iam create-role \
@@ -502,16 +536,15 @@ echo $TARGET_ROLE_ARN
 
 ### Step 2: Create the Crossplane ProviderConfig
 
-In the K3s cluster, create a ProviderConfig that assumes the target account role (spec §3.2).
+In the K3s cluster, create a ProviderConfig that assumes the target account role (spec §3.2). Since Catalyst runs on Hetzner, the Crossplane provider uses static credentials from the dedicated IAM user created in Step 1.
 
 ```bash
-# First, create a K8s Secret with Catalyst's own AWS credentials
-# In production this uses IRSA/OIDC; for testing, static creds are acceptable
-kubectl create secret generic aws-control-plane-creds \
+# Create a K8s Secret with the catalyst-crossplane IAM user's credentials (from Step 1)
+bin/kubectl create secret generic aws-catalyst-creds \
   -n crossplane-system \
   --from-literal=credentials="[default]
-aws_access_key_id = YOUR_CONTROL_ACCOUNT_KEY
-aws_secret_access_key = YOUR_CONTROL_ACCOUNT_SECRET"
+aws_access_key_id = AKIAIOSFODNN7EXAMPLE
+aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 
 # Create the ProviderConfig that assumes into the target account
 cat <<EOF | bin/kubectl apply -f -
@@ -524,7 +557,7 @@ spec:
     source: Secret
     secretRef:
       namespace: crossplane-system
-      name: aws-control-plane-creds
+      name: aws-catalyst-creds
       key: credentials
   assumeRoleChain:
     - roleARN: $TARGET_ROLE_ARN
@@ -667,6 +700,7 @@ bin/kubectl delete vpc cross-account-test-vpc
 ### Step 9: Clean Up IAM (Target Account)
 
 ```bash
+# Delete the target role and its inline policy
 aws iam delete-role-policy \
   --role-name CatalystCrossAccountRole \
   --policy-name CatalystProvisioningPolicy \
@@ -675,6 +709,13 @@ aws iam delete-role-policy \
 aws iam delete-role \
   --role-name CatalystCrossAccountRole \
   --profile target-account
+
+# Delete the Catalyst IAM user and its credentials
+# First list and delete access keys
+ACCESS_KEY_ID=$(aws iam list-access-keys --user-name catalyst-crossplane --profile target-account --query 'AccessKeyMetadata[0].AccessKeyId' --output text)
+aws iam delete-access-key --user-name catalyst-crossplane --access-key-id $ACCESS_KEY_ID --profile target-account
+aws iam delete-user-policy --user-name catalyst-crossplane --policy-name AssumeRoleOnly --profile target-account
+aws iam delete-user --user-name catalyst-crossplane --profile target-account
 ```
 
 ### Validation Checklist
