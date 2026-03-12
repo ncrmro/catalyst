@@ -58,9 +58,14 @@ export function OnboardingInstructions({
             2. Launch the CloudFormation stack in your AWS account
           </p>
           <div className="flex items-center gap-2 p-3 bg-surface-variant rounded-lg text-sm">
-            <span className="flex-1 truncate text-on-surface-variant">
-              {MOCK_TEMPLATE_URL}
-            </span>
+            <a
+              href={MOCK_TEMPLATE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 truncate text-primary hover:underline"
+            >
+              Open in AWS Console
+            </a>
             <CopyButton text={MOCK_TEMPLATE_URL} />
           </div>
           <p className="text-xs text-on-surface-variant">
