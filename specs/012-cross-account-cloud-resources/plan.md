@@ -51,14 +51,17 @@ Two-tier architecture: Catalyst's control plane hosts Crossplane and the web app
               ┌────────────────────┐  ┌────────────────────┐
               │ CUSTOMER ACCOUNT A │  │ CUSTOMER ACCOUNT B │
               │  ┌──────────────┐  │  │  ┌──────────────┐  │
-              │  │  EKS Cluster │  │  │  │  GKE Cluster │  │
+              │  │ Self-Managed │  │  │  │ Self-Managed │  │
+              │  │ K8s (EC2+    │  │  │  │ K8s (GCE+    │  │
+              │  │  kubeadm)    │  │  │  │  kubeadm)    │  │
               │  │  + VPC       │  │  │  │  + VPC       │  │
+              │  │  + IAM Roles │  │  │  │  + SAs       │  │
               │  │  + Node Pools│  │  │  │  + Node Pools│  │
               │  └──────────────┘  │  │  └──────────────┘  │
               └────────────────────┘  └────────────────────┘
 ```
 
-**Flow**: Web app creates `ManagedCluster` DB record → bridge controller creates Crossplane `XKubernetesCluster` Claim → Crossplane provisions EKS/GKE/AKS in customer's cloud account via their ProviderConfig → status synced back to DB.
+**Flow**: Web app creates `ManagedCluster` DB record → bridge controller creates Crossplane `XKubernetesCluster` Claim → Crossplane provisions self-managed K8s cluster (VMs + networking + IAM identities + kubeadm bootstrap) in customer's cloud account via their ProviderConfig → status synced back to DB.
 
 ## How Crossplane Fits
 
@@ -86,11 +89,11 @@ Maps to spec sections 3.2 (Credential Management) and 3.3 (Account Isolation).
 
 ### Per-Customer ProviderConfig
 
-Each linked cloud account gets its own `ProviderConfig` with provider-native identity federation:
+Each linked cloud account gets its own `ProviderConfig` with provider-native identity federation. No access keys, service account JSON keys, or client secrets are used at any point.
 
-- **AWS**: IAM role assumption via `assumeRoleArn` (customer creates role with trust policy for Catalyst's OIDC provider)
-- **GCP**: Workload Identity Federation (customer creates workload identity pool with Catalyst's service account)
-- **Azure**: Federated service principal with OIDC (customer creates app registration with federated credential)
+- **AWS**: OIDC federation — customer's IAM role trust policy trusts Catalyst's K8s OIDC issuer URL. Crossplane pods use projected service account tokens to obtain temporary STS credentials, then `sts:AssumeRole` into the customer's target role.
+- **GCP**: Workload Identity Federation — customer creates a workload identity pool with Catalyst's OIDC issuer as a trusted provider. Crossplane impersonates a Provisioner Service Account in the customer's project.
+- **Azure**: Federated credentials — customer creates an App Registration with a federated identity credential trusting Catalyst's K8s OIDC issuer. Crossplane authenticates as the Service Principal without client secrets.
 
 ### Namespace Isolation
 
@@ -101,11 +104,57 @@ Each linked cloud account gets its own `ProviderConfig` with provider-native ide
 
 ### Credential Flow
 
-1. Customer links cloud account in Catalyst UI → `cloudAccounts` row created with encrypted IAM role ARN / workload identity config
-2. Bridge controller reads `cloudAccounts`, creates `ProviderConfig` CR with the credential reference
-3. Crossplane provider authenticates using base credentials (stored as a K8s Secret), then calls `sts:AssumeRole` into the customer's target role
-4. Customer's target role is scoped to least-privilege for the resources Catalyst manages (spec §3.2)
-5. Base credentials are encrypted at rest in the K8s Secret and rotated on a schedule not exceeding 90 days (spec §3.2)
+1. Customer runs onboarding template (CloudFormation / Terraform / Deployment Manager) that creates a cross-account role trusting Catalyst's OIDC issuer URL + ExternalID
+2. Customer links cloud account in Catalyst UI → `cloudAccounts` row created with the role ARN / identity pool config (no secrets — just references)
+3. Bridge controller reads `cloudAccounts`, creates `ProviderConfig` CR referencing the OIDC-based authentication
+4. Crossplane provider pod uses its projected service account token to authenticate via OIDC federation, then assumes the customer's cross-account role
+5. Customer's target role is scoped to least-privilege for the resources Catalyst manages (spec §3.2), including identity-passing permissions with tag-based conditions
+
+### Identity Passing (The Critical "Gotcha")
+
+Self-managed Kubernetes clusters require Catalyst to not only create VMs, but also **create cloud identities and attach them to those VMs** so that the Kubernetes Cloud Controller Manager (CCM) and CSI storage drivers can function (provisioning load balancers, attaching block storage, managing DNS).
+
+This identity-passing privilege is the most dangerous permission Catalyst requests. If unscoped, it enables full privilege escalation — Catalyst could attach an `AdministratorAccess` role to a VM, SSH into it, and take over the customer's entire account.
+
+#### AWS: `iam:PassRole` + Instance Profiles
+
+The cross-account role needs `iam:PassRole` to attach IAM Instance Profiles to EC2 instances and Auto Scaling Groups.
+
+```json
+{
+  "Sid": "PassRoleToK8sNodes",
+  "Effect": "Allow",
+  "Action": "iam:PassRole",
+  "Resource": "arn:aws:iam::*:role/Catalyst-K8s-*",
+  "Condition": {
+    "StringEquals": {
+      "iam:PassedToService": ["ec2.amazonaws.com", "autoscaling.amazonaws.com"],
+      "aws:ResourceTag/catalyst-managed": "true"
+    }
+  }
+}
+```
+
+**Security guardrails:**
+- `iam:PassRole` is restricted to role ARNs matching `Catalyst-K8s-*`
+- `iam:PassedToService` limits which AWS services can receive the role
+- Tag condition ensures only Catalyst-created roles can be passed
+
+#### GCP: `roles/iam.serviceAccountUser`
+
+The impersonated Provisioner Service Account needs `serviceAccountUser` on the specific Service Accounts for control plane and worker VMs.
+
+**Security guardrails:**
+- Bind `serviceAccountUser` only to specific SA resources (e.g., `catalyst-k8s-cp@project.iam.gserviceaccount.com`), never at project level
+- Use IAM Conditions to restrict to SAs with specific labels
+
+#### Azure: `Managed Identity Operator`
+
+The Service Principal needs `Managed Identity Operator` to create User-Assigned Managed Identities and attach them to Virtual Machine Scale Sets.
+
+**Security guardrails:**
+- Scope the role assignment to a dedicated Resource Group (e.g., `rg-catalyst-k8s`)
+- The Service Principal cannot modify identities outside this Resource Group
 
 ## Data Model (already implemented)
 
@@ -189,11 +238,11 @@ spec:
               required: [region, nodePools, providerConfigRef]
 ```
 
-Each cloud provider gets its own Composition selecting on `spec.providerConfigRef`:
+Each cloud provider gets its own Composition selecting on `spec.providerConfigRef`. These provision self-managed K8s clusters, not managed services:
 
-- **AWS Composition**: VPC + subnets + security groups + EKS cluster + managed node groups + cluster autoscaler
-- **GCP Composition**: VPC + subnets + GKE cluster + node pools + cluster autoscaler
-- **Azure Composition**: VNet + subnets + AKS cluster + agent pools + cluster autoscaler
+- **AWS Composition**: VPC + subnets + security groups + IAM roles (control plane + worker) + IAM instance profiles + EC2 instances (control plane) + ASG (workers) + kubeadm bootstrap + cluster autoscaler
+- **GCP Composition**: VPC + subnets + firewall rules + Service Accounts (control plane + worker) + GCE instances (control plane) + MIG (workers) + kubeadm bootstrap + cluster autoscaler
+- **Azure Composition**: VNet + subnets + NSGs + User-Assigned Managed Identities + VMSS (control plane + workers) + kubeadm bootstrap + cluster autoscaler
 
 ### 2. XDatabase
 
@@ -313,22 +362,27 @@ They complement each other: Crossplane provisions the cluster → Catalyst opera
 
 ## Spike Work
 
-### Spike: Cross-Account EKS Provisioning via Crossplane
+### Spike: Cross-Account Self-Managed K8s via Crossplane
 
-**Goal**: Validate that Crossplane can provision an EKS cluster in a separate AWS account from a central control plane cluster.
+**Goal**: Validate that Crossplane can provision a self-managed Kubernetes cluster (EC2 + kubeadm) in a separate AWS account using OIDC federation — no access keys.
 
 **Approach**:
 1. Install Crossplane + provider-aws in local K3s (using existing `bin/k3s-vm`)
-2. Create a ProviderConfig with `assumeRoleArn` pointing to an IAM role in a separate AWS account
-3. Write a minimal `XKubernetesCluster` Composition (EKS + VPC + 1 node group)
-4. Apply the Claim and observe provisioning
-5. Retrieve kubeconfig from the provisioned cluster
-6. Delete the Claim and verify all resources are cleaned up
+2. Expose the K3s OIDC issuer endpoint (or use a projected service account token approach)
+3. Create IAM role in target AWS account trusting the OIDC issuer
+4. Create a ProviderConfig using OIDC-based authentication + `assumeRoleArn`
+5. Write a minimal `XKubernetesCluster` Composition (VPC + IAM roles + instance profiles + EC2 control plane + ASG workers + kubeadm bootstrap)
+6. Validate that `iam:PassRole` with tag conditions works for attaching instance profiles
+7. Retrieve kubeconfig and verify `kubectl get nodes` works
+8. Delete the Claim and verify all resources are cleaned up (VMs, VPC, IAM roles, instance profiles)
 
 **Success Criteria**:
-- EKS cluster created in target AWS account within 15 minutes
-- Kubeconfig retrievable and `kubectl get nodes` works
-- Claim deletion removes all AWS resources (VPC, subnets, security groups, EKS cluster, node group)
+- Self-managed K8s cluster created in target AWS account
+- Zero access keys used anywhere in the credential chain
+- `iam:PassRole` restricted by tag conditions — untagged roles cannot be passed
+- CCM can provision an AWS load balancer (proves identity passing works)
+- Kubeconfig retrievable and nodes Ready
+- Claim deletion removes all AWS resources including IAM roles and instance profiles
 - ProviderConfig credential isolation verified (second ProviderConfig cannot access first account's resources)
 
 **Findings**: _To be filled after spike is complete._
@@ -337,7 +391,7 @@ They complement each other: Crossplane provisions the cluster → Catalyst opera
 
 | Metric | Target | Measurement Method |
 |---|---|---|
-| Cluster provisioning time (SC-001) | < 15 min (EKS/GKE/AKS) | Timestamp delta: Claim creation → Ready condition |
+| Cluster provisioning time (SC-001) | < 20 min (self-managed K8s) | Timestamp delta: Claim creation → Ready condition |
 | Drift detection latency (SC-002) | < 5 min | Time from manual AWS Console change to Crossplane detecting drift |
 | Cluster deletion completeness (SC-003) | 100% resource cleanup | Post-deletion AWS resource audit (no orphaned VPCs, SGs, etc.) |
 | Credential isolation (SC-004) | Zero cross-account access | Penetration test: Claim in namespace A cannot use ProviderConfig from namespace B |
@@ -392,61 +446,73 @@ web/
 
 ## Validating with a Real AWS Account
 
-Manual validation of the cross-account provisioning flow. Not part of CI — requires an AWS account to act as a customer's target account. It doesn't matter where Catalyst's control plane runs; what matters is that Crossplane can authenticate to AWS and provision a complete Kubernetes cluster in the target account.
+Manual validation of the cross-account provisioning flow. Not part of CI — requires an AWS account to act as a customer's target account. Validates the full chain: OIDC federation → AssumeRole → self-managed K8s provisioning with identity passing.
 
 ### Prerequisites
 
 - An AWS account to use as the target (simulated customer)
 - AWS CLI configured (`aws configure --profile target-account`)
 - A Kubernetes cluster with Crossplane + provider-aws installed (local K3s via `bin/k3s-vm` works fine)
-- AWS credentials that Crossplane can use as a base secret (IAM user access key or any credential that can call `sts:AssumeRole`)
+- The K3s cluster's OIDC issuer URL accessible (for OIDC federation with AWS IAM)
 
-### Step 1: Set Up AWS IAM
+### Step 1: Expose the Cluster OIDC Issuer
 
-Create the IAM resources that model the production flow: Crossplane authenticates with base credentials, then assumes a role in the customer's account. For testing, everything can live in a single AWS account.
+Crossplane needs to authenticate to AWS using OIDC federation — no access keys. The K8s cluster's service account token issuer must be accessible as an OIDC provider.
 
 ```bash
-# 1a. Create an IAM user whose credentials Crossplane will use.
-#     This user can ONLY assume roles — no direct resource access.
-aws iam create-user --user-name catalyst-crossplane --profile target-account
-aws iam create-access-key --user-name catalyst-crossplane --profile target-account
-# Save the AccessKeyId and SecretAccessKey for Step 2.
+# Get the K8s OIDC issuer URL
+OIDC_ISSUER=$(bin/kubectl get --raw /.well-known/openid-configuration | jq -r '.issuer')
+echo "OIDC Issuer: $OIDC_ISSUER"
 
-aws iam put-user-policy \
-  --user-name catalyst-crossplane \
-  --policy-name AssumeRoleOnly \
-  --policy-document '{
-    "Version": "2012-10-17",
-    "Statement": [{
-      "Effect": "Allow",
-      "Action": "sts:AssumeRole",
-      "Resource": "arn:aws:iam::*:role/CatalystCrossAccountRole"
-    }]
-  }' \
+# For local K3s, you may need to expose the OIDC discovery endpoint publicly
+# (e.g., via ngrok or by uploading .well-known/openid-configuration + JWKS to S3)
+# See: https://docs.aws.amazon.com/eks/latest/userguide/associate-service-account-role.html
+#      (the self-managed variant — create your own OIDC provider in IAM)
+```
+
+### Step 2: Set Up AWS IAM with OIDC Trust
+
+Create the IAM resources that model the production flow. The cross-account role trusts the K8s OIDC issuer — no IAM users or access keys anywhere.
+
+```bash
+# 2a. Register the OIDC provider in AWS IAM
+#     Get the OIDC thumbprint (required by AWS)
+OIDC_THUMBPRINT=$(echo | openssl s_client -servername "$OIDC_ISSUER_HOST" \
+  -connect "$OIDC_ISSUER_HOST:443" 2>/dev/null | \
+  openssl x509 -fingerprint -noout | sed 's/://g' | cut -d= -f2 | tr '[:upper:]' '[:lower:]')
+
+aws iam create-open-id-connect-provider \
+  --url "$OIDC_ISSUER" \
+  --client-id-list "sts.amazonaws.com" \
+  --thumbprint-list "$OIDC_THUMBPRINT" \
   --profile target-account
 
-# 1b. Create the target role that Crossplane assumes into.
-#     In production, customers create this via CloudFormation onboarding template.
-CATALYST_USER_ARN=$(aws iam get-user --user-name catalyst-crossplane \
-  --profile target-account --query 'User.Arn' --output text)
+OIDC_PROVIDER_ARN=$(aws iam list-open-id-connect-providers --profile target-account \
+  --query "OpenIDConnectProviderList[?ends_with(Arn, '$(echo $OIDC_ISSUER | sed 's|https://||')')].Arn" \
+  --output text)
 
+# 2b. Create the cross-account role trusting the OIDC provider
+#     Only the Crossplane provider service account can assume this role.
 aws iam create-role \
   --role-name CatalystCrossAccountRole \
   --assume-role-policy-document "{
     \"Version\": \"2012-10-17\",
     \"Statement\": [{
       \"Effect\": \"Allow\",
-      \"Principal\": { \"AWS\": \"$CATALYST_USER_ARN\" },
-      \"Action\": \"sts:AssumeRole\",
+      \"Principal\": { \"Federated\": \"$OIDC_PROVIDER_ARN\" },
+      \"Action\": \"sts:AssumeRoleWithWebIdentity\",
       \"Condition\": {
-        \"StringEquals\": { \"sts:ExternalId\": \"catalyst-test-external-id\" }
+        \"StringEquals\": {
+          \"$(echo $OIDC_ISSUER | sed 's|https://||'):sub\": \"system:serviceaccount:crossplane-system:provider-aws\",
+          \"$(echo $OIDC_ISSUER | sed 's|https://||'):aud\": \"sts.amazonaws.com\"
+        }
       }
     }]
   }" \
   --profile target-account
 
-# 1c. Attach least-privilege permissions (spec §3.2).
-#     Scoped to EKS + VPC + IAM in a single region.
+# 2c. Attach permissions for self-managed K8s provisioning (spec §3.2, §3.2.1)
+#     Includes: EC2 (VMs, networking), IAM (roles, instance profiles, PassRole), ASG
 aws iam put-role-policy \
   --role-name CatalystCrossAccountRole \
   --policy-name CatalystProvisioningPolicy \
@@ -454,51 +520,81 @@ aws iam put-role-policy \
     "Version": "2012-10-17",
     "Statement": [
       {
-        "Sid": "EKSAndNetworking",
+        "Sid": "NetworkingAndCompute",
         "Effect": "Allow",
         "Action": [
-          "eks:*",
+          "ec2:RunInstances", "ec2:TerminateInstances", "ec2:DescribeInstances",
           "ec2:*Vpc*", "ec2:*Subnet*", "ec2:*SecurityGroup*",
           "ec2:*InternetGateway*", "ec2:*RouteTable*", "ec2:*Route",
           "ec2:*NatGateway*", "ec2:*Address*",
-          "ec2:*Tags*", "ec2:DescribeAvailabilityZones"
+          "ec2:*Tags*", "ec2:DescribeAvailabilityZones",
+          "ec2:DescribeImages", "ec2:DescribeKeyPairs",
+          "ec2:CreateKeyPair", "ec2:DeleteKeyPair",
+          "ec2:*Volume*", "ec2:AttachVolume", "ec2:DetachVolume",
+          "elasticloadbalancing:*"
         ],
         "Resource": "*",
         "Condition": { "StringEquals": { "aws:RequestedRegion": "us-east-1" } }
       },
       {
-        "Sid": "IAMForEKS",
+        "Sid": "AutoScaling",
         "Effect": "Allow",
         "Action": [
-          "iam:CreateRole", "iam:DeleteRole", "iam:GetRole",
-          "iam:AttachRolePolicy", "iam:DetachRolePolicy",
-          "iam:CreateOpenIDConnectProvider", "iam:DeleteOpenIDConnectProvider",
-          "iam:TagRole", "iam:PassRole", "iam:CreateServiceLinkedRole"
+          "autoscaling:*AutoScalingGroup*", "autoscaling:*LaunchConfiguration*",
+          "autoscaling:*Tags*", "autoscaling:SetDesiredCapacity",
+          "autoscaling:DescribeLaunchConfigurations"
         ],
-        "Resource": "*"
+        "Resource": "*",
+        "Condition": { "StringEquals": { "aws:RequestedRegion": "us-east-1" } }
+      },
+      {
+        "Sid": "IAMRolesAndProfiles",
+        "Effect": "Allow",
+        "Action": [
+          "iam:CreateRole", "iam:DeleteRole", "iam:GetRole", "iam:TagRole",
+          "iam:AttachRolePolicy", "iam:DetachRolePolicy", "iam:PutRolePolicy",
+          "iam:DeleteRolePolicy", "iam:GetRolePolicy",
+          "iam:CreateInstanceProfile", "iam:DeleteInstanceProfile",
+          "iam:AddRoleToInstanceProfile", "iam:RemoveRoleFromInstanceProfile",
+          "iam:GetInstanceProfile", "iam:ListInstanceProfilesForRole"
+        ],
+        "Resource": [
+          "arn:aws:iam::*:role/Catalyst-K8s-*",
+          "arn:aws:iam::*:instance-profile/Catalyst-K8s-*"
+        ]
+      },
+      {
+        "Sid": "PassRoleToK8sNodes",
+        "Effect": "Allow",
+        "Action": "iam:PassRole",
+        "Resource": "arn:aws:iam::*:role/Catalyst-K8s-*",
+        "Condition": {
+          "StringEquals": {
+            "iam:PassedToService": ["ec2.amazonaws.com", "autoscaling.amazonaws.com"],
+            "aws:ResourceTag/catalyst-managed": "true"
+          }
+        }
       }
     ]
   }' \
   --profile target-account
 
-# Save the role ARN
 TARGET_ROLE_ARN=$(aws iam get-role --role-name CatalystCrossAccountRole \
   --profile target-account --query 'Role.Arn' --output text)
 ```
 
-### Step 2: Configure Crossplane ProviderConfig
+### Step 3: Configure Crossplane ProviderConfig (OIDC)
 
-Give Crossplane the base credentials and tell it to assume into the target role.
+No secrets created — Crossplane authenticates via projected service account token.
 
 ```bash
-# Create K8s Secret with the IAM user's credentials from Step 1a
-bin/kubectl create secret generic aws-catalyst-creds \
+# Annotate the Crossplane provider service account for OIDC
+bin/kubectl annotate serviceaccount provider-aws \
   -n crossplane-system \
-  --from-literal=credentials="[default]
-aws_access_key_id = <ACCESS_KEY_FROM_STEP_1a>
-aws_secret_access_key = <SECRET_KEY_FROM_STEP_1a>"
+  eks.amazonaws.com/role-arn="$TARGET_ROLE_ARN" \
+  --overwrite
 
-# Create the ProviderConfig
+# Create the ProviderConfig using IRSA/OIDC authentication
 cat <<EOF | bin/kubectl apply -f -
 apiVersion: aws.upbound.io/v1beta1
 kind: ProviderConfig
@@ -506,20 +602,15 @@ metadata:
   name: target-account-test
 spec:
   credentials:
-    source: Secret
-    secretRef:
-      namespace: crossplane-system
-      name: aws-catalyst-creds
-      key: credentials
+    source: IRSA
   assumeRoleChain:
     - roleARN: $TARGET_ROLE_ARN
-      externalID: catalyst-test-external-id
 EOF
 ```
 
-### Step 3: Smoke Test — Create a VPC
+### Step 4: Smoke Test — Create a VPC
 
-Verify the credential chain works before attempting a full cluster.
+Verify the OIDC credential chain works before attempting a full cluster.
 
 ```bash
 cat <<EOF | bin/kubectl apply -f -
@@ -549,9 +640,9 @@ aws ec2 describe-vpcs \
   --region us-east-1 --profile target-account
 ```
 
-### Step 4: Provision an EKS Cluster
+### Step 5: Provision a Self-Managed K8s Cluster
 
-Full provisioning test (spec §4.1).
+Full provisioning test (spec §4.1, §4.2, §3.2.1).
 
 ```bash
 cat <<EOF | bin/kubectl apply -f -
@@ -573,23 +664,65 @@ spec:
   providerConfigRef: target-account-test
 EOF
 
-# Monitor (~12-15 min for EKS)
+# Monitor (~15-20 min for self-managed K8s: VPC + IAM + VMs + kubeadm bootstrap)
 bin/kubectl get kubernetescluster validation-cluster -n tenant-test -w
 ```
 
-### Step 5: Connect to the Provisioned Cluster
+### Step 6: Connect and Validate Identity Passing
 
 ```bash
 bin/kubectl get secret validation-cluster-conn -n tenant-test \
   -o jsonpath='{.data.kubeconfig}' | base64 -d > /tmp/target-kubeconfig.yaml
 
+# Basic connectivity
 KUBECONFIG=/tmp/target-kubeconfig.yaml kubectl get nodes
 KUBECONFIG=/tmp/target-kubeconfig.yaml kubectl get namespaces
+
+# Validate identity passing — CCM should be able to create a LoadBalancer
+# (proves IAM instance profile was attached correctly via iam:PassRole)
+KUBECONFIG=/tmp/target-kubeconfig.yaml kubectl create deployment nginx --image=nginx
+KUBECONFIG=/tmp/target-kubeconfig.yaml kubectl expose deployment nginx \
+  --type=LoadBalancer --port=80
+KUBECONFIG=/tmp/target-kubeconfig.yaml kubectl get svc nginx -w
+# Wait for EXTERNAL-IP — this confirms the AWS Cloud Controller Manager
+# on the worker nodes can call the ELB API using the attached IAM role.
 ```
 
-Expected: 2 nodes `Ready`, default namespaces present.
+Expected: 2 nodes `Ready`, LoadBalancer gets an EXTERNAL-IP.
 
-### Step 6: Validate Tenant Isolation (Spec §3.3)
+### Step 7: Validate PassRole Tag Restriction (Spec §3.2.1)
+
+Confirm that `iam:PassRole` is correctly restricted to Catalyst-tagged roles.
+
+```bash
+# Create an untagged IAM role (simulating a customer's existing admin role)
+aws iam create-role \
+  --role-name AdminRole-DO-NOT-PASS \
+  --assume-role-policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"}]}' \
+  --profile target-account
+
+# Try to create an instance profile with this untagged role
+# and attach it to an EC2 instance — this MUST fail
+aws iam create-instance-profile --instance-profile-name bad-profile --profile target-account
+aws iam add-role-to-instance-profile \
+  --instance-profile-name bad-profile \
+  --role-name AdminRole-DO-NOT-PASS --profile target-account
+
+# This should fail with AccessDenied because AdminRole-DO-NOT-PASS
+# doesn't have the catalyst-managed=true tag
+aws ec2 associate-iam-instance-profile \
+  --iam-instance-profile Name=bad-profile \
+  --instance-id <ANY_CATALYST_INSTANCE_ID> \
+  --region us-east-1 --profile target-account
+
+# Clean up the test role
+aws iam remove-role-from-instance-profile --instance-profile-name bad-profile \
+  --role-name AdminRole-DO-NOT-PASS --profile target-account
+aws iam delete-instance-profile --instance-profile-name bad-profile --profile target-account
+aws iam delete-role --role-name AdminRole-DO-NOT-PASS --profile target-account
+```
+
+### Step 8: Validate Tenant Isolation (Spec §3.3)
 
 A Claim in a different namespace must not be able to use another tenant's ProviderConfig.
 
@@ -617,7 +750,7 @@ EOF
 bin/kubectl describe kubernetescluster isolation-test -n tenant-other
 ```
 
-### Step 7: Validate Deletion (Spec §4.1)
+### Step 9: Validate Deletion (Spec §4.1)
 
 ```bash
 bin/kubectl delete kubernetescluster validation-cluster -n tenant-test
@@ -626,44 +759,46 @@ bin/kubectl delete kubernetescluster validation-cluster -n tenant-test
 bin/kubectl get managed -l crossplane.io/claim-name=validation-cluster -w
 
 # Confirm nothing remains in AWS
-aws eks list-clusters --region us-east-1 --profile target-account
+aws ec2 describe-instances \
+  --filters "Name=tag:catalyst-managed,Values=true" "Name=instance-state-name,Values=running" \
+  --region us-east-1 --profile target-account
 aws ec2 describe-vpcs \
   --filters "Name=tag:catalyst-managed,Values=true" \
   --region us-east-1 --profile target-account
+aws iam list-roles --profile target-account \
+  --query "Roles[?starts_with(RoleName, 'Catalyst-K8s-')]"
 ```
 
-### Step 8: Clean Up
+### Step 10: Clean Up
 
 ```bash
 # Remove the smoke-test VPC
 bin/kubectl delete vpc cross-account-test-vpc
 
-# Remove AWS IAM resources
+# Remove the OIDC provider from AWS IAM
+aws iam delete-open-id-connect-provider \
+  --open-id-connect-provider-arn "$OIDC_PROVIDER_ARN" --profile target-account
+
+# Remove the cross-account role
 aws iam delete-role-policy --role-name CatalystCrossAccountRole \
   --policy-name CatalystProvisioningPolicy --profile target-account
 aws iam delete-role --role-name CatalystCrossAccountRole --profile target-account
-
-ACCESS_KEY_ID=$(aws iam list-access-keys --user-name catalyst-crossplane \
-  --profile target-account --query 'AccessKeyMetadata[0].AccessKeyId' --output text)
-aws iam delete-access-key --user-name catalyst-crossplane \
-  --access-key-id $ACCESS_KEY_ID --profile target-account
-aws iam delete-user-policy --user-name catalyst-crossplane \
-  --policy-name AssumeRoleOnly --profile target-account
-aws iam delete-user --user-name catalyst-crossplane --profile target-account
 ```
 
 ### Validation Checklist
 
 | # | Check | Spec Ref | Pass/Fail |
 |---|-------|----------|-----------|
-| 1 | ProviderConfig created with AssumeRole + ExternalID | §3.2 | |
-| 2 | VPC created in target account (credential chain works) | §3.1 | |
-| 3 | EKS cluster provisioned and nodes Ready | §4.1 | |
+| 1 | OIDC provider registered, ProviderConfig uses IRSA (no access keys) | §3.2 | |
+| 2 | VPC created in target account (OIDC credential chain works) | §3.1 | |
+| 3 | Self-managed K8s cluster provisioned and nodes Ready | §4.1, §4.2 | |
 | 4 | Kubeconfig retrievable, `kubectl get nodes` works | §4.1 | |
-| 5 | Claim in different namespace cannot use another tenant's ProviderConfig | §3.3 | |
-| 6 | Claim deletion removes all AWS resources (VPC, SG, EKS, node groups) | §4.1 | |
-| 7 | IAM role uses least-privilege permissions | §3.2 | |
-| 8 | Provisioning time < 15 minutes | SC-001 | |
+| 5 | CCM creates LoadBalancer (identity passing via iam:PassRole works) | §3.2.1 | |
+| 6 | PassRole restricted to tagged roles (untagged role fails) | §3.2.1, §10.2.1 | |
+| 7 | Claim in different namespace cannot use another tenant's ProviderConfig | §3.3 | |
+| 8 | Claim deletion removes all AWS resources (VMs, VPC, SG, IAM roles, instance profiles) | §4.1 | |
+| 9 | Zero access keys used in the entire flow | §3.2 | |
+| 10 | Provisioning time < 20 minutes | SC-001 | |
 
 ## Dependencies
 

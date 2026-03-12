@@ -43,10 +43,24 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### 3.2 Credential Management
 
-- Catalyst MUST use provider-native identity federation (e.g., IAM roles with external trust, workload identity) as the primary credential mechanism.
-- Catalyst MUST NOT store long-lived cloud provider access keys at rest unless identity federation is unavailable for the target provider.
-- When long-lived keys are unavoidable, they MUST be encrypted at rest and rotated on a schedule not exceeding 90 days.
+- Catalyst MUST use provider-native identity federation as the sole credential mechanism:
+  - **AWS**: OIDC federation — customer's IAM role trusts Catalyst's OIDC issuer, Crossplane pods use projected service account tokens. No IAM users or access keys.
+  - **GCP**: Workload Identity Federation — customer creates a workload identity pool trusting Catalyst's OIDC issuer.
+  - **Azure**: Federated credentials on an App Registration (Service Principal) — customer configures federated identity credential trusting Catalyst's OIDC issuer.
+- Catalyst MUST NOT use long-lived cloud provider access keys (AWS access keys, GCP service account JSON keys, Azure client secrets) under any circumstances.
 - Credential delegates MUST follow least-privilege principles — Catalyst SHALL request only the permissions necessary for the resources it manages.
+
+### 3.2.1 Identity Passing (Self-Managed Clusters)
+
+Because Catalyst provisions self-managed Kubernetes clusters (not managed services like EKS/GKE/AKS), the VMs running the control plane and worker nodes need their own cloud identities so that the Kubernetes Cloud Controller Manager (CCM) and CSI storage drivers can function (e.g., provisioning load balancers, attaching block storage volumes).
+
+This means Catalyst's cross-account role MUST be able to create identities and attach them to compute resources:
+
+- **AWS**: The cross-account role MUST have `iam:PassRole` permission. This allows Catalyst to create an IAM Instance Profile and attach it to EC2 instances / Auto Scaling Groups. `iam:PassRole` MUST be restricted to specific resource ARNs (e.g., `arn:aws:iam::*:role/Catalyst-K8s-*`) and SHOULD use tag-based conditions to prevent privilege escalation.
+- **GCP**: The impersonated Service Account MUST have `roles/iam.serviceAccountUser` on the specific Service Accounts designated for control plane and worker node VMs. This role MUST NOT be granted at the project level.
+- **Azure**: The Service Principal MUST have the `Managed Identity Operator` role to create and assign User-Assigned Managed Identities to Virtual Machine Scale Sets. The Service Principal MUST be scoped to a dedicated Resource Group.
+
+The identity-passing permission is inherently dangerous — if unscoped, it enables privilege escalation (e.g., attaching an `AdministratorAccess` role to an EC2 instance). All onboarding templates MUST use Attribute-Based Access Control (ABAC) / tag-based conditions to restrict identity-passing to Catalyst-managed resources only.
 
 ### 3.3 Account Isolation
 
@@ -65,10 +79,11 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### 4.2 Cluster Configuration
 
+- Catalyst MUST provision self-managed Kubernetes clusters (e.g., kubeadm, Cluster API) as the primary deployment model. Managed offerings (EKS, GKE, AKS) MAY be supported as an alternative but are not the default.
 - Catalyst MUST support configuring node pools with heterogeneous instance types within a single cluster.
 - The system MUST support autoscaling of node pools based on resource utilization.
-- Catalyst SHOULD support both managed Kubernetes offerings (provider-native) and self-managed distributions, selectable per cluster.
 - The system MUST provision clusters with a baseline security configuration including network policies, RBAC, and pod security standards.
+- Catalyst MUST attach provider-native identities to cluster VMs so that the Kubernetes Cloud Controller Manager (CCM) and CSI drivers can manage cloud resources (load balancers, persistent volumes, DNS).
 
 ### 4.3 Kubernetes Version Management
 
@@ -195,6 +210,12 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 - Catalyst MUST enforce role-based access control (RBAC) for all operations on target account resources.
 - Customers MUST be able to define which team members can provision, modify, or delete resources in each target account.
 - All resource provisioning and modification actions MUST be logged in an immutable audit trail.
+
+### 10.2.1 Cross-Account Privilege Escalation Prevention
+
+- Customer onboarding templates (CloudFormation, Terraform modules, Deployment Manager templates) MUST use tag-based conditions on all identity-passing permissions (`iam:PassRole`, `serviceAccountUser`, `Managed Identity Operator`).
+- Catalyst-provisioned resources MUST be tagged with a consistent identifier (e.g., `catalyst-managed: true`) and identity-passing permissions MUST be conditioned on these tags.
+- Catalyst MUST NOT be able to pass arbitrary IAM roles, Service Accounts, or Managed Identities to compute resources — only those created and tagged by Catalyst's own provisioning pipeline.
 
 ### 10.3 Secrets Management
 
