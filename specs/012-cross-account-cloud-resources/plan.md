@@ -101,15 +101,11 @@ Each linked cloud account gets its own `ProviderConfig` with provider-native ide
 
 ### Credential Flow
 
-Since Catalyst's control plane runs on Hetzner (not inside a cloud provider), there is no native OIDC/IRSA identity. The credential chain is:
-
 1. Customer links cloud account in Catalyst UI → `cloudAccounts` row created with encrypted IAM role ARN / workload identity config
 2. Bridge controller reads `cloudAccounts`, creates `ProviderConfig` CR with the credential reference
-3. Crossplane provider authenticates using a dedicated IAM user's static credentials (stored as a K8s Secret), then calls `sts:AssumeRole` into the customer's target role
-4. The IAM user has **only** `sts:AssumeRole` permissions — it cannot access any AWS resources directly
-5. Customer's target role is scoped to least-privilege for the resources Catalyst manages (spec §3.2)
-6. Static credentials are encrypted at rest in the K8s Secret and rotated on a schedule not exceeding 90 days (spec §3.2)
-7. Future: if Catalyst's control plane moves to AWS, replace static credentials with IRSA/OIDC for the initial auth hop
+3. Crossplane provider authenticates using base credentials (stored as a K8s Secret), then calls `sts:AssumeRole` into the customer's target role
+4. Customer's target role is scoped to least-privilege for the resources Catalyst manages (spec §3.2)
+5. Base credentials are encrypted at rest in the K8s Secret and rotated on a schedule not exceeding 90 days (spec §3.2)
 
 ## Data Model (already implemented)
 
@@ -396,157 +392,113 @@ web/
 
 ## Validating with a Real AWS Account
 
-This section documents how to manually validate the cross-account provisioning flow end-to-end against a real AWS account. This is not part of CI — it requires an AWS account to act as the "customer" target. Catalyst's control plane runs on Hetzner (not AWS), so the Crossplane provider authenticates to AWS using a dedicated IAM user's static credentials, then assumes a role in the customer's account.
+Manual validation of the cross-account provisioning flow. Not part of CI — requires an AWS account to act as a customer's target account. It doesn't matter where Catalyst's control plane runs; what matters is that Crossplane can authenticate to AWS and provision a complete Kubernetes cluster in the target account.
 
 ### Prerequisites
 
-- One AWS account acting as the **Target** (simulated customer account)
-- A dedicated IAM user in that account (or a separate "Catalyst operations" account) whose credentials Crossplane uses as the initial authentication hop
+- An AWS account to use as the target (simulated customer)
 - AWS CLI configured (`aws configure --profile target-account`)
-- Local K3s VM running (`bin/k3s-vm`)
-- Crossplane installed in the K3s cluster (see Spike Work section above)
+- A Kubernetes cluster with Crossplane + provider-aws installed (local K3s via `bin/k3s-vm` works fine)
+- AWS credentials that Crossplane can use as a base secret (IAM user access key or any credential that can call `sts:AssumeRole`)
 
-### Step 1: Create the IAM Role in the Target Account
+### Step 1: Set Up AWS IAM
 
-The target account needs an IAM role that Catalyst can assume. In production, customers would create this via the CloudFormation onboarding template (spec §3.2). For validation, we create it manually.
-
-Since Catalyst runs on Hetzner (not AWS), there is no OIDC/IRSA identity. Instead, create a dedicated IAM user whose credentials Crossplane will use to call `sts:AssumeRole` into the target role.
+Create the IAM resources that model the production flow: Crossplane authenticates with base credentials, then assumes a role in the customer's account. For testing, everything can live in a single AWS account.
 
 ```bash
-# Create a dedicated IAM user for Catalyst's Crossplane provider.
-# In production this would live in a separate "Catalyst operations" account;
-# for testing, the same account is fine.
+# 1a. Create an IAM user whose credentials Crossplane will use.
+#     This user can ONLY assume roles — no direct resource access.
 aws iam create-user --user-name catalyst-crossplane --profile target-account
-
 aws iam create-access-key --user-name catalyst-crossplane --profile target-account
-# Save the AccessKeyId and SecretAccessKey — you'll need them in Step 2.
-
-# Grant the user ONLY sts:AssumeRole (it cannot do anything else directly)
-cat > /tmp/catalyst-user-policy.json <<'EOF'
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": "sts:AssumeRole",
-      "Resource": "arn:aws:iam::*:role/CatalystCrossAccountRole"
-    }
-  ]
-}
-EOF
+# Save the AccessKeyId and SecretAccessKey for Step 2.
 
 aws iam put-user-policy \
   --user-name catalyst-crossplane \
   --policy-name AssumeRoleOnly \
-  --policy-document file:///tmp/catalyst-user-policy.json \
+  --policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:iam::*:role/CatalystCrossAccountRole"
+    }]
+  }' \
   --profile target-account
 
-# Get the user's ARN for the trust policy below
-CATALYST_USER_ARN=$(aws iam get-user --user-name catalyst-crossplane --profile target-account --query 'User.Arn' --output text)
+# 1b. Create the target role that Crossplane assumes into.
+#     In production, customers create this via CloudFormation onboarding template.
+CATALYST_USER_ARN=$(aws iam get-user --user-name catalyst-crossplane \
+  --profile target-account --query 'User.Arn' --output text)
 
-# Create the target role's trust policy — trusts the Catalyst IAM user
-cat > /tmp/trust-policy.json <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": { "AWS": "$CATALYST_USER_ARN" },
-      "Action": "sts:AssumeRole",
-      "Condition": {
-        "StringEquals": {
-          "sts:ExternalId": "catalyst-test-external-id"
-        }
-      }
-    }
-  ]
-}
-EOF
-
-# Create the role in the target account
 aws iam create-role \
   --role-name CatalystCrossAccountRole \
-  --assume-role-policy-document file:///tmp/trust-policy.json \
+  --assume-role-policy-document "{
+    \"Version\": \"2012-10-17\",
+    \"Statement\": [{
+      \"Effect\": \"Allow\",
+      \"Principal\": { \"AWS\": \"$CATALYST_USER_ARN\" },
+      \"Action\": \"sts:AssumeRole\",
+      \"Condition\": {
+        \"StringEquals\": { \"sts:ExternalId\": \"catalyst-test-external-id\" }
+      }
+    }]
+  }" \
   --profile target-account
 
-# Attach a scoped permissions policy (NOT AdministratorAccess)
-# This follows spec §3.2: least-privilege
-cat > /tmp/permissions-policy.json <<'EOF'
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "EKSManagement",
-      "Effect": "Allow",
-      "Action": [
-        "eks:*",
-        "ec2:CreateVpc", "ec2:DeleteVpc", "ec2:DescribeVpcs",
-        "ec2:CreateSubnet", "ec2:DeleteSubnet", "ec2:DescribeSubnets",
-        "ec2:CreateSecurityGroup", "ec2:DeleteSecurityGroup",
-        "ec2:AuthorizeSecurityGroupIngress", "ec2:RevokeSecurityGroupIngress",
-        "ec2:AuthorizeSecurityGroupEgress", "ec2:RevokeSecurityGroupEgress",
-        "ec2:DescribeSecurityGroups",
-        "ec2:CreateInternetGateway", "ec2:DeleteInternetGateway",
-        "ec2:AttachInternetGateway", "ec2:DetachInternetGateway",
-        "ec2:DescribeInternetGateways",
-        "ec2:CreateRouteTable", "ec2:DeleteRouteTable",
-        "ec2:CreateRoute", "ec2:DeleteRoute",
-        "ec2:AssociateRouteTable", "ec2:DisassociateRouteTable",
-        "ec2:DescribeRouteTables",
-        "ec2:CreateTags", "ec2:DeleteTags", "ec2:DescribeTags",
-        "ec2:DescribeAvailabilityZones",
-        "ec2:AllocateAddress", "ec2:ReleaseAddress", "ec2:DescribeAddresses",
-        "ec2:CreateNatGateway", "ec2:DeleteNatGateway", "ec2:DescribeNatGateways"
-      ],
-      "Resource": "*",
-      "Condition": {
-        "StringEquals": {
-          "aws:RequestedRegion": "us-east-1"
-        }
-      }
-    },
-    {
-      "Sid": "IAMForEKS",
-      "Effect": "Allow",
-      "Action": [
-        "iam:CreateRole", "iam:DeleteRole", "iam:GetRole",
-        "iam:AttachRolePolicy", "iam:DetachRolePolicy",
-        "iam:CreateOpenIDConnectProvider", "iam:DeleteOpenIDConnectProvider",
-        "iam:TagRole", "iam:PassRole",
-        "iam:CreateServiceLinkedRole"
-      ],
-      "Resource": "arn:aws:iam::TARGET_ACCOUNT_ID:*"
-    }
-  ]
-}
-EOF
-
+# 1c. Attach least-privilege permissions (spec §3.2).
+#     Scoped to EKS + VPC + IAM in a single region.
 aws iam put-role-policy \
   --role-name CatalystCrossAccountRole \
   --policy-name CatalystProvisioningPolicy \
-  --policy-document file:///tmp/permissions-policy.json \
+  --policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "EKSAndNetworking",
+        "Effect": "Allow",
+        "Action": [
+          "eks:*",
+          "ec2:*Vpc*", "ec2:*Subnet*", "ec2:*SecurityGroup*",
+          "ec2:*InternetGateway*", "ec2:*RouteTable*", "ec2:*Route",
+          "ec2:*NatGateway*", "ec2:*Address*",
+          "ec2:*Tags*", "ec2:DescribeAvailabilityZones"
+        ],
+        "Resource": "*",
+        "Condition": { "StringEquals": { "aws:RequestedRegion": "us-east-1" } }
+      },
+      {
+        "Sid": "IAMForEKS",
+        "Effect": "Allow",
+        "Action": [
+          "iam:CreateRole", "iam:DeleteRole", "iam:GetRole",
+          "iam:AttachRolePolicy", "iam:DetachRolePolicy",
+          "iam:CreateOpenIDConnectProvider", "iam:DeleteOpenIDConnectProvider",
+          "iam:TagRole", "iam:PassRole", "iam:CreateServiceLinkedRole"
+        ],
+        "Resource": "*"
+      }
+    ]
+  }' \
   --profile target-account
+
+# Save the role ARN
+TARGET_ROLE_ARN=$(aws iam get-role --role-name CatalystCrossAccountRole \
+  --profile target-account --query 'Role.Arn' --output text)
 ```
 
-Record the role ARN for the next step:
-```bash
-TARGET_ROLE_ARN=$(aws iam get-role --role-name CatalystCrossAccountRole --profile target-account --query 'Role.Arn' --output text)
-echo $TARGET_ROLE_ARN
-```
+### Step 2: Configure Crossplane ProviderConfig
 
-### Step 2: Create the Crossplane ProviderConfig
-
-In the K3s cluster, create a ProviderConfig that assumes the target account role (spec §3.2). Since Catalyst runs on Hetzner, the Crossplane provider uses static credentials from the dedicated IAM user created in Step 1.
+Give Crossplane the base credentials and tell it to assume into the target role.
 
 ```bash
-# Create a K8s Secret with the catalyst-crossplane IAM user's credentials (from Step 1)
+# Create K8s Secret with the IAM user's credentials from Step 1a
 bin/kubectl create secret generic aws-catalyst-creds \
   -n crossplane-system \
   --from-literal=credentials="[default]
-aws_access_key_id = AKIAIOSFODNN7EXAMPLE
-aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+aws_access_key_id = <ACCESS_KEY_FROM_STEP_1a>
+aws_secret_access_key = <SECRET_KEY_FROM_STEP_1a>"
 
-# Create the ProviderConfig that assumes into the target account
+# Create the ProviderConfig
 cat <<EOF | bin/kubectl apply -f -
 apiVersion: aws.upbound.io/v1beta1
 kind: ProviderConfig
@@ -565,9 +517,9 @@ spec:
 EOF
 ```
 
-### Step 3: Verify Cross-Account Access
+### Step 3: Smoke Test — Create a VPC
 
-Before provisioning a full cluster, verify the credential chain works by creating a minimal resource:
+Verify the credential chain works before attempting a full cluster.
 
 ```bash
 cat <<EOF | bin/kubectl apply -f -
@@ -588,21 +540,18 @@ spec:
     name: target-account-test
 EOF
 
-# Watch until READY=True (should take ~30s)
+# Watch until READY=True (~30s)
 bin/kubectl get vpc cross-account-test-vpc -w
-```
 
-Verify the VPC exists in the target account:
-```bash
+# Confirm in AWS
 aws ec2 describe-vpcs \
   --filters "Name=tag:catalyst-test,Values=cross-account-validation" \
-  --region us-east-1 \
-  --profile target-account
+  --region us-east-1 --profile target-account
 ```
 
-### Step 4: Apply the XKubernetesCluster Claim
+### Step 4: Provision an EKS Cluster
 
-This is the full provisioning test (spec §4.1):
+Full provisioning test (spec §4.1).
 
 ```bash
 cat <<EOF | bin/kubectl apply -f -
@@ -624,31 +573,27 @@ spec:
   providerConfigRef: target-account-test
 EOF
 
-# Monitor provisioning (expect ~12-15 minutes for EKS)
+# Monitor (~12-15 min for EKS)
 bin/kubectl get kubernetescluster validation-cluster -n tenant-test -w
 ```
 
-### Step 5: Validate the Provisioned Cluster
-
-Once the Claim shows `READY=True`:
+### Step 5: Connect to the Provisioned Cluster
 
 ```bash
-# Retrieve the kubeconfig (written to a connection secret)
-bin/kubectl get secret validation-cluster-conn -n tenant-test -o jsonpath='{.data.kubeconfig}' | base64 -d > /tmp/target-kubeconfig.yaml
+bin/kubectl get secret validation-cluster-conn -n tenant-test \
+  -o jsonpath='{.data.kubeconfig}' | base64 -d > /tmp/target-kubeconfig.yaml
 
-# Verify the cluster is functional
 KUBECONFIG=/tmp/target-kubeconfig.yaml kubectl get nodes
 KUBECONFIG=/tmp/target-kubeconfig.yaml kubectl get namespaces
 ```
 
-Expected: 2 nodes in `Ready` state, default namespaces present.
+Expected: 2 nodes `Ready`, default namespaces present.
 
-### Step 6: Validate Account Isolation (Spec §3.3)
+### Step 6: Validate Tenant Isolation (Spec §3.3)
 
-Create a second namespace and verify it cannot use the first tenant's ProviderConfig:
+A Claim in a different namespace must not be able to use another tenant's ProviderConfig.
 
 ```bash
-# This should be rejected by the admission webhook (or fail at the Crossplane level)
 cat <<EOF | bin/kubectl apply -f -
 apiVersion: catalyst.tetraship.app/v1alpha1
 kind: KubernetesCluster
@@ -668,53 +613,42 @@ spec:
   providerConfigRef: target-account-test
 EOF
 
-# Should show an error or denied status — not provisioning
+# Should be rejected or show an error — must NOT provision
 bin/kubectl describe kubernetescluster isolation-test -n tenant-other
 ```
 
 ### Step 7: Validate Deletion (Spec §4.1)
 
 ```bash
-# Delete the Claim
 bin/kubectl delete kubernetescluster validation-cluster -n tenant-test
 
-# Monitor — Crossplane should delete all AWS resources
+# Watch Crossplane clean up all AWS resources (~5-10 min)
 bin/kubectl get managed -l crossplane.io/claim-name=validation-cluster -w
 
-# After all managed resources are gone (~5-10 min), verify in AWS
+# Confirm nothing remains in AWS
 aws eks list-clusters --region us-east-1 --profile target-account
 aws ec2 describe-vpcs \
   --filters "Name=tag:catalyst-managed,Values=true" \
-  --region us-east-1 \
-  --profile target-account
+  --region us-east-1 --profile target-account
 ```
 
-Expected: No EKS clusters, no VPCs with `catalyst-managed=true` tag remain.
-
-### Step 8: Clean Up the Test VPC
+### Step 8: Clean Up
 
 ```bash
+# Remove the smoke-test VPC
 bin/kubectl delete vpc cross-account-test-vpc
-```
 
-### Step 9: Clean Up IAM (Target Account)
+# Remove AWS IAM resources
+aws iam delete-role-policy --role-name CatalystCrossAccountRole \
+  --policy-name CatalystProvisioningPolicy --profile target-account
+aws iam delete-role --role-name CatalystCrossAccountRole --profile target-account
 
-```bash
-# Delete the target role and its inline policy
-aws iam delete-role-policy \
-  --role-name CatalystCrossAccountRole \
-  --policy-name CatalystProvisioningPolicy \
-  --profile target-account
-
-aws iam delete-role \
-  --role-name CatalystCrossAccountRole \
-  --profile target-account
-
-# Delete the Catalyst IAM user and its credentials
-# First list and delete access keys
-ACCESS_KEY_ID=$(aws iam list-access-keys --user-name catalyst-crossplane --profile target-account --query 'AccessKeyMetadata[0].AccessKeyId' --output text)
-aws iam delete-access-key --user-name catalyst-crossplane --access-key-id $ACCESS_KEY_ID --profile target-account
-aws iam delete-user-policy --user-name catalyst-crossplane --policy-name AssumeRoleOnly --profile target-account
+ACCESS_KEY_ID=$(aws iam list-access-keys --user-name catalyst-crossplane \
+  --profile target-account --query 'AccessKeyMetadata[0].AccessKeyId' --output text)
+aws iam delete-access-key --user-name catalyst-crossplane \
+  --access-key-id $ACCESS_KEY_ID --profile target-account
+aws iam delete-user-policy --user-name catalyst-crossplane \
+  --policy-name AssumeRoleOnly --profile target-account
 aws iam delete-user --user-name catalyst-crossplane --profile target-account
 ```
 
@@ -723,14 +657,13 @@ aws iam delete-user --user-name catalyst-crossplane --profile target-account
 | # | Check | Spec Ref | Pass/Fail |
 |---|-------|----------|-----------|
 | 1 | ProviderConfig created with AssumeRole + ExternalID | §3.2 | |
-| 2 | VPC created in target account (cross-account access works) | §3.1 | |
+| 2 | VPC created in target account (credential chain works) | §3.1 | |
 | 3 | EKS cluster provisioned and nodes Ready | §4.1 | |
-| 4 | Kubeconfig retrievable and functional | §4.1 | |
-| 5 | Second namespace cannot use first tenant's ProviderConfig | §3.3 | |
-| 6 | Claim deletion removes all AWS resources | §4.1 | |
-| 7 | No orphaned resources remain (VPC, SG, EKS, node groups) | §4.1 | |
-| 8 | IAM role scoped to minimum required permissions | §3.2 | |
-| 9 | Provisioning time < 15 minutes | SC-001 | |
+| 4 | Kubeconfig retrievable, `kubectl get nodes` works | §4.1 | |
+| 5 | Claim in different namespace cannot use another tenant's ProviderConfig | §3.3 | |
+| 6 | Claim deletion removes all AWS resources (VPC, SG, EKS, node groups) | §4.1 | |
+| 7 | IAM role uses least-privilege permissions | §3.2 | |
+| 8 | Provisioning time < 15 minutes | SC-001 | |
 
 ## Dependencies
 
