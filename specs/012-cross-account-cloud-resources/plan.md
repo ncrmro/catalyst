@@ -89,11 +89,23 @@ Maps to spec sections 3.2 (Credential Management) and 3.3 (Account Isolation).
 
 ### Per-Customer ProviderConfig
 
-Each linked cloud account gets its own `ProviderConfig` with provider-native identity federation. No access keys, service account JSON keys, or client secrets are used at any point.
+Each linked cloud account gets its own `ProviderConfig` with cross-account credential delegation.
 
-- **AWS**: OIDC federation — customer's IAM role trust policy trusts Catalyst's K8s OIDC issuer URL. Crossplane pods use projected service account tokens to obtain temporary STS credentials, then `sts:AssumeRole` into the customer's target role.
-- **GCP**: Workload Identity Federation — customer creates a workload identity pool with Catalyst's OIDC issuer as a trusted provider. Crossplane impersonates a Provisioner Service Account in the customer's project.
-- **Azure**: Federated credentials — customer creates an App Registration with a federated identity credential trusting Catalyst's K8s OIDC issuer. Crossplane authenticates as the Service Principal without client secrets.
+**MVP Credential Chain (AWS)**:
+```
+Railway env vars (AWS_ACCESS_KEY_ID/SECRET)
+  → IAM user scoped to sts:AssumeRole ONLY
+    → sts:AssumeRole(customer role ARN, ExternalID)
+      → short-lived temp creds (1hr)
+        → provision infrastructure in customer account
+```
+
+- **AWS (MVP)**: Catalyst's management plane uses a static IAM access key (stored in Railway env vars, never in the database) scoped to `sts:AssumeRole` only. Crossplane's ProviderConfig uses `Secret`-based auth referencing a K8s Secret with the static key, combined with `assumeRoleChain` to assume the customer's cross-account role with ExternalID.
+- **AWS (Future)**: When migrating off Railway to a platform supporting OIDC (e.g., self-hosted K8s), replace the static key with OIDC federation — projected service account tokens authenticate directly, no static credentials needed.
+- **GCP**: Workload Identity Federation — customer creates a workload identity pool with Catalyst's identity as a trusted provider.
+- **Azure**: Federated credentials — customer creates an App Registration with a federated identity credential.
+
+Customer credentials (role ARN, ExternalID) are stored encrypted (AES-256-GCM) in the `cloudAccounts` table. Temporary credentials from AssumeRole are never persisted.
 
 ### Namespace Isolation
 
@@ -104,10 +116,10 @@ Each linked cloud account gets its own `ProviderConfig` with provider-native ide
 
 ### Credential Flow
 
-1. Customer runs onboarding template (CloudFormation / Terraform / Deployment Manager) that creates a cross-account role trusting Catalyst's OIDC issuer URL + ExternalID
-2. Customer links cloud account in Catalyst UI → `cloudAccounts` row created with the role ARN / identity pool config (no secrets — just references)
-3. Bridge controller reads `cloudAccounts`, creates `ProviderConfig` CR referencing the OIDC-based authentication
-4. Crossplane provider pod uses its projected service account token to authenticate via OIDC federation, then assumes the customer's cross-account role
+1. Customer runs onboarding CloudFormation template that creates a cross-account role trusting Catalyst's AWS account ID + ExternalID
+2. Customer links cloud account in Catalyst UI → `cloudAccounts` row created with the role ARN + ExternalID (encrypted at rest, AES-256-GCM)
+3. Bridge controller reads `cloudAccounts`, creates a `ProviderConfig` CR with `credentials.source: Secret` (referencing the management key) and `assumeRoleChain` (customer role ARN + ExternalID)
+4. Crossplane provider pod authenticates with the static management key, then calls `sts:AssumeRole` to obtain temporary credentials scoped to the customer's account
 5. Customer's target role is scoped to least-privilege for the resources Catalyst manages (spec §3.2), including identity-passing permissions with tag-based conditions
 
 ### Identity Passing (The Critical "Gotcha")
@@ -363,21 +375,23 @@ They complement each other: Crossplane provisions the cluster → Catalyst opera
 
 ### Spike: Cross-Account Self-Managed K8s via Crossplane
 
-**Goal**: Validate that Crossplane can provision a self-managed Kubernetes cluster (EC2 + kubeadm) in a separate AWS account using OIDC federation — no access keys.
+**Goal**: Validate that Crossplane can provision a self-managed Kubernetes cluster (EC2 + kubeadm) in a separate AWS account using static key → AssumeRole credential chain.
 
 **Approach**:
-1. Install Crossplane + provider-aws in local K3s (using existing `bin/k3s-vm`)
-2. Expose the K3s OIDC issuer endpoint (or use a projected service account token approach)
-3. Create IAM role in target AWS account trusting the OIDC issuer
-4. Create a ProviderConfig using OIDC-based authentication + `assumeRoleArn`
-5. Write a minimal `XKubernetesCluster` Composition (VPC + IAM roles + instance profiles + EC2 control plane + ASG workers + kubeadm bootstrap)
-6. Validate that `iam:PassRole` with tag conditions works for attaching instance profiles
-7. Retrieve kubeconfig and verify `kubectl get nodes` works
-8. Delete the Claim and verify all resources are cleaned up (VMs, VPC, IAM roles, instance profiles)
+1. Install Crossplane + provider-aws in local K3s (using existing `bin/k3s-vm` + `crossplane/dev-setup.sh`)
+2. Create management IAM user (scoped to `sts:AssumeRole` only) in Catalyst's AWS account
+3. Deploy CloudFormation onboarding template in target AWS account (creates cross-account role with ExternalID)
+4. Create ProviderConfig using `Secret`-based auth + `assumeRoleChain` with ExternalID
+5. Smoke test: provision and delete a VPC in the target account
+6. Write a minimal `XKubernetesCluster` Composition (VPC + IAM roles + instance profiles + EC2 control plane + ASG workers + kubeadm bootstrap)
+7. Validate that `iam:PassRole` with tag conditions works for attaching instance profiles
+8. Retrieve kubeconfig and verify `kubectl get nodes` works
+9. Delete the Claim and verify all resources are cleaned up (VMs, VPC, IAM roles, instance profiles)
 
 **Success Criteria**:
 - Self-managed K8s cluster created in target AWS account
-- Zero access keys used anywhere in the credential chain
+- Management credential scoped to `sts:AssumeRole` only — no infrastructure permissions
+- ExternalID required on all cross-account role assumptions
 - `iam:PassRole` restricted by tag conditions — untagged roles cannot be passed
 - CCM can provision an AWS load balancer (proves identity passing works)
 - Kubeconfig retrievable and nodes Ready
@@ -410,24 +424,27 @@ They complement each other: Crossplane provisions the cluster → Catalyst opera
 ## File Structure
 
 ```
-operator/
-├── crossplane/
-│   ├── compositions/
-│   │   ├── kubernetes-cluster-aws.yaml
-│   │   ├── kubernetes-cluster-gcp.yaml
-│   │   ├── kubernetes-cluster-azure.yaml
-│   │   ├── database.yaml
-│   │   └── observability-stack.yaml
-│   ├── definitions/                      # CompositeResourceDefinitions (XRDs)
-│   │   ├── xkubernetescluster.yaml
-│   │   ├── xdatabase.yaml
-│   │   └── xobservabilitystack.yaml
-│   ├── functions/                        # Crossplane Functions for complex logic
-│   │   └── cluster-post-provision/       # Post-provision: install operator, create kubeconfig secret
-│   └── provider-configs/                 # Templates for per-account ProviderConfigs
-│       ├── aws.yaml
-│       ├── gcp.yaml
-│       └── azure.yaml
+crossplane/
+├── README.md                             # Setup instructions
+├── dev-setup.sh                          # Install Crossplane + provider-aws in K3s
+├── compositions/
+│   ├── kubernetes-cluster-aws.yaml
+│   ├── kubernetes-cluster-gcp.yaml
+│   ├── kubernetes-cluster-azure.yaml
+│   ├── database.yaml
+│   └── observability-stack.yaml
+├── definitions/                          # CompositeResourceDefinitions (XRDs)
+│   ├── xkubernetescluster.yaml
+│   ├── xdatabase.yaml
+│   └── xobservabilitystack.yaml
+├── functions/                            # Crossplane Functions for complex logic
+│   └── cluster-post-provision/           # Post-provision: install operator, create kubeconfig secret
+├── onboarding/
+│   └── aws-cloudformation.yaml           # Customer onboarding CloudFormation template
+├── provider-configs/                     # Templates for per-account ProviderConfigs
+│   └── aws.yaml
+└── validation/
+    └── aws-smoke-test.sh                 # VPC provisioning smoke test
 web/
 ├── src/
 │   ├── db/schema.ts                      # cloudAccounts, managedClusters, nodePools (done)
@@ -445,155 +462,130 @@ web/
 
 ## Validating with a Real AWS Account
 
-Manual validation of the cross-account provisioning flow. Not part of CI — requires an AWS account to act as a customer's target account. Validates the full chain: OIDC federation → AssumeRole → self-managed K8s provisioning with identity passing.
+Manual validation of the cross-account provisioning flow. Not part of CI — requires an AWS account to act as a customer's target account. Validates the full chain: static key → AssumeRole (with ExternalID) → self-managed K8s provisioning with identity passing.
 
 ### Prerequisites
 
 - An AWS account to use as the target (simulated customer)
 - AWS CLI configured (`aws configure --profile target-account`)
 - A Kubernetes cluster with Crossplane + provider-aws installed (local K3s via `bin/k3s-vm` works fine)
-- The K3s cluster's OIDC issuer URL accessible (for OIDC federation with AWS IAM)
+- Catalyst's management AWS credentials (IAM user scoped to `sts:AssumeRole` only)
 
-### Step 1: Expose the Cluster OIDC Issuer
+### Public S3 Bucket for Onboarding Assets
 
-Crossplane needs to authenticate to AWS using OIDC federation — no access keys. The K8s cluster's service account token issuer must be accessible as an OIDC provider.
+CloudFormation QuickCreate links require the template to be hosted on S3 — GitHub raw URLs are not supported by the `templateURL` parameter. Catalyst needs a public S3 bucket to host onboarding templates.
+
+**Bucket setup:**
 
 ```bash
-# Get the K8s OIDC issuer URL
-OIDC_ISSUER=$(bin/kubectl get --raw /.well-known/openid-configuration | jq -r '.issuer')
-echo "OIDC Issuer: $OIDC_ISSUER"
+# Create the bucket (us-east-1 for global access)
+aws s3api create-bucket \
+  --bucket tetraship-public \
+  --region us-east-1
 
-# For local K3s, you may need to expose the OIDC discovery endpoint publicly
-# (e.g., via ngrok or by uploading .well-known/openid-configuration + JWKS to S3)
-# See: https://docs.aws.amazon.com/eks/latest/userguide/associate-service-account-role.html
-#      (the self-managed variant — create your own OIDC provider in IAM)
+# Enable public access (required for CloudFormation QuickCreate)
+aws s3api delete-public-access-block --bucket tetraship-public
+
+# Set bucket policy — read-only public access, scoped to onboarding/ prefix
+aws s3api put-bucket-policy --bucket tetraship-public --policy '{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Sid": "PublicReadOnboarding",
+    "Effect": "Allow",
+    "Principal": "*",
+    "Action": "s3:GetObject",
+    "Resource": "arn:aws:s3:::tetraship-public/onboarding/*"
+  }]
+}'
+
+# Upload the CloudFormation template
+aws s3 cp crossplane/onboarding/aws-cloudformation.yaml \
+  s3://tetraship-public/onboarding/aws-cloudformation.yaml
 ```
 
-### Step 2: Set Up AWS IAM with OIDC Trust
+**Bucket properties:**
+- **Name**: `tetraship-public` (or `catalyst-onboarding`)
+- **Region**: `us-east-1`
+- **Public access**: Read-only, restricted to `onboarding/` prefix
+- **No write access**: Only CI/CD or admin can upload templates
+- **Versioning**: Enabled (so customers on older QuickCreate links don't break)
 
-Create the IAM resources that model the production flow. The cross-account role trusts the K8s OIDC issuer — no IAM users or access keys anywhere.
+**QuickCreate URL format:**
+```
+https://console.aws.amazon.com/cloudformation/home#/stacks/quickcreate?templateURL=https://tetraship-public.s3.amazonaws.com/onboarding/aws-cloudformation.yaml&param_ExternalID={externalId}&param_CatalystAccountId={catalystAccountId}
+```
+
+**CI/CD**: The template should be uploaded to S3 as part of the release pipeline whenever `crossplane/onboarding/aws-cloudformation.yaml` changes.
+
+### Step 1: Create Management IAM User (One-Time Setup)
+
+Catalyst's management plane needs a static IAM user with only `sts:AssumeRole` permission. This is stored in Railway env vars, never in the database or source code.
 
 ```bash
-# 2a. Register the OIDC provider in AWS IAM
-#     Get the OIDC thumbprint (required by AWS)
-OIDC_THUMBPRINT=$(echo | openssl s_client -servername "$OIDC_ISSUER_HOST" \
-  -connect "$OIDC_ISSUER_HOST:443" 2>/dev/null | \
-  openssl x509 -fingerprint -noout | sed 's/://g' | cut -d= -f2 | tr '[:upper:]' '[:lower:]')
+# Create the management IAM user in Catalyst's own AWS account
+aws iam create-user --user-name catalyst-crossplane-mgmt
 
-aws iam create-open-id-connect-provider \
-  --url "$OIDC_ISSUER" \
-  --client-id-list "sts.amazonaws.com" \
-  --thumbprint-list "$OIDC_THUMBPRINT" \
-  --profile target-account
-
-OIDC_PROVIDER_ARN=$(aws iam list-open-id-connect-providers --profile target-account \
-  --query "OpenIDConnectProviderList[?ends_with(Arn, '$(echo $OIDC_ISSUER | sed 's|https://||')')].Arn" \
-  --output text)
-
-# 2b. Create the cross-account role trusting the OIDC provider
-#     Only the Crossplane provider service account can assume this role.
-aws iam create-role \
-  --role-name CatalystCrossAccountRole \
-  --assume-role-policy-document "{
-    \"Version\": \"2012-10-17\",
-    \"Statement\": [{
-      \"Effect\": \"Allow\",
-      \"Principal\": { \"Federated\": \"$OIDC_PROVIDER_ARN\" },
-      \"Action\": \"sts:AssumeRoleWithWebIdentity\",
-      \"Condition\": {
-        \"StringEquals\": {
-          \"$(echo $OIDC_ISSUER | sed 's|https://||'):sub\": \"system:serviceaccount:crossplane-system:provider-aws\",
-          \"$(echo $OIDC_ISSUER | sed 's|https://||'):aud\": \"sts.amazonaws.com\"
-        }
-      }
-    }]
-  }" \
-  --profile target-account
-
-# 2c. Attach permissions for self-managed K8s provisioning (spec §3.2, §3.2.1)
-#     Includes: EC2 (VMs, networking), IAM (roles, instance profiles, PassRole), ASG
-aws iam put-role-policy \
-  --role-name CatalystCrossAccountRole \
-  --policy-name CatalystProvisioningPolicy \
+# Scope to sts:AssumeRole ONLY — no other permissions
+aws iam put-user-policy \
+  --user-name catalyst-crossplane-mgmt \
+  --policy-name AssumeRoleOnly \
   --policy-document '{
     "Version": "2012-10-17",
-    "Statement": [
-      {
-        "Sid": "NetworkingAndCompute",
-        "Effect": "Allow",
-        "Action": [
-          "ec2:RunInstances", "ec2:TerminateInstances", "ec2:DescribeInstances",
-          "ec2:*Vpc*", "ec2:*Subnet*", "ec2:*SecurityGroup*",
-          "ec2:*InternetGateway*", "ec2:*RouteTable*", "ec2:*Route",
-          "ec2:*NatGateway*", "ec2:*Address*",
-          "ec2:*Tags*", "ec2:DescribeAvailabilityZones",
-          "ec2:DescribeImages", "ec2:DescribeKeyPairs",
-          "ec2:CreateKeyPair", "ec2:DeleteKeyPair",
-          "ec2:*Volume*", "ec2:AttachVolume", "ec2:DetachVolume",
-          "elasticloadbalancing:*"
-        ],
-        "Resource": "*",
-        "Condition": { "StringEquals": { "aws:RequestedRegion": "us-east-1" } }
-      },
-      {
-        "Sid": "AutoScaling",
-        "Effect": "Allow",
-        "Action": [
-          "autoscaling:*AutoScalingGroup*", "autoscaling:*LaunchConfiguration*",
-          "autoscaling:*Tags*", "autoscaling:SetDesiredCapacity",
-          "autoscaling:DescribeLaunchConfigurations"
-        ],
-        "Resource": "*",
-        "Condition": { "StringEquals": { "aws:RequestedRegion": "us-east-1" } }
-      },
-      {
-        "Sid": "IAMRolesAndProfiles",
-        "Effect": "Allow",
-        "Action": [
-          "iam:CreateRole", "iam:DeleteRole", "iam:GetRole", "iam:TagRole",
-          "iam:AttachRolePolicy", "iam:DetachRolePolicy", "iam:PutRolePolicy",
-          "iam:DeleteRolePolicy", "iam:GetRolePolicy",
-          "iam:CreateInstanceProfile", "iam:DeleteInstanceProfile",
-          "iam:AddRoleToInstanceProfile", "iam:RemoveRoleFromInstanceProfile",
-          "iam:GetInstanceProfile", "iam:ListInstanceProfilesForRole"
-        ],
-        "Resource": [
-          "arn:aws:iam::*:role/Catalyst-K8s-*",
-          "arn:aws:iam::*:instance-profile/Catalyst-K8s-*"
-        ]
-      },
-      {
-        "Sid": "PassRoleToK8sNodes",
-        "Effect": "Allow",
-        "Action": "iam:PassRole",
-        "Resource": "arn:aws:iam::*:role/Catalyst-K8s-*",
-        "Condition": {
-          "StringEquals": {
-            "iam:PassedToService": ["ec2.amazonaws.com", "autoscaling.amazonaws.com"],
-            "aws:ResourceTag/catalyst-managed": "true"
-          }
-        }
-      }
-    ]
-  }' \
-  --profile target-account
+    "Statement": [{
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Resource": "*"
+    }]
+  }'
 
-TARGET_ROLE_ARN=$(aws iam get-role --role-name CatalystCrossAccountRole \
-  --profile target-account --query 'Role.Arn' --output text)
+# Create access key — store these in Railway env vars
+aws iam create-access-key --user-name catalyst-crossplane-mgmt
+# Output: AccessKeyId + SecretAccessKey → set as Railway env vars
 ```
 
-### Step 3: Configure Crossplane ProviderConfig (OIDC)
+### Step 2: Set Up Customer Cross-Account Role
 
-No secrets created — Crossplane authenticates via projected service account token.
+Run the CloudFormation template in the target (customer) AWS account. This creates the cross-account role trusting Catalyst's AWS account ID + ExternalID.
 
 ```bash
-# Annotate the Crossplane provider service account for OIDC
-bin/kubectl annotate serviceaccount provider-aws \
-  -n crossplane-system \
-  eks.amazonaws.com/role-arn="$TARGET_ROLE_ARN" \
-  --overwrite
+# Get Catalyst's AWS account ID
+CATALYST_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+EXTERNAL_ID="catalyst-$(openssl rand -hex 16)"
 
-# Create the ProviderConfig using IRSA/OIDC authentication
+# Deploy the onboarding template in the customer's account
+aws cloudformation create-stack \
+  --stack-name catalyst-onboarding \
+  --template-body file://crossplane/onboarding/aws-cloudformation.yaml \
+  --parameters \
+    ParameterKey=CatalystAccountId,ParameterValue=$CATALYST_ACCOUNT_ID \
+    ParameterKey=ExternalID,ParameterValue=$EXTERNAL_ID \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --profile target-account
+
+# Wait for completion
+aws cloudformation wait stack-create-complete \
+  --stack-name catalyst-onboarding --profile target-account
+
+# Get the role ARN
+TARGET_ROLE_ARN=$(aws cloudformation describe-stacks \
+  --stack-name catalyst-onboarding --profile target-account \
+  --query 'Stacks[0].Outputs[?OutputKey==`ProvisioningRoleArn`].OutputValue' --output text)
+echo "Target Role ARN: $TARGET_ROLE_ARN"
+```
+
+### Step 3: Configure Crossplane ProviderConfig (Secret-Based)
+
+Create a K8s Secret with the management credentials, then a ProviderConfig that uses it with AssumeRole.
+
+```bash
+# Create the management credential secret
+bin/kubectl create secret generic aws-mgmt-creds \
+  -n crossplane-system \
+  --from-literal=creds="[default]
+aws_access_key_id = $AWS_ACCESS_KEY_ID
+aws_secret_access_key = $AWS_SECRET_ACCESS_KEY"
+
+# Create the ProviderConfig using Secret auth + AssumeRole
 cat <<EOF | bin/kubectl apply -f -
 apiVersion: aws.upbound.io/v1beta1
 kind: ProviderConfig
@@ -601,15 +593,20 @@ metadata:
   name: target-account-test
 spec:
   credentials:
-    source: IRSA
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: aws-mgmt-creds
+      key: creds
   assumeRoleChain:
     - roleARN: $TARGET_ROLE_ARN
+      externalID: $EXTERNAL_ID
 EOF
 ```
 
 ### Step 4: Smoke Test — Create a VPC
 
-Verify the OIDC credential chain works before attempting a full cluster.
+Verify the AssumeRole credential chain works before attempting a full cluster.
 
 ```bash
 cat <<EOF | bin/kubectl apply -f -
@@ -774,11 +771,10 @@ aws iam list-roles --profile target-account \
 # Remove the smoke-test VPC
 bin/kubectl delete vpc cross-account-test-vpc
 
-# Remove the OIDC provider from AWS IAM
-aws iam delete-open-id-connect-provider \
-  --open-id-connect-provider-arn "$OIDC_PROVIDER_ARN" --profile target-account
+# Remove the cross-account role (or delete CloudFormation stack)
+aws cloudformation delete-stack --stack-name catalyst-onboarding --profile target-account
 
-# Remove the cross-account role
+# Or manually remove the cross-account role
 aws iam delete-role-policy --role-name CatalystCrossAccountRole \
   --policy-name CatalystProvisioningPolicy --profile target-account
 aws iam delete-role --role-name CatalystCrossAccountRole --profile target-account
@@ -788,15 +784,15 @@ aws iam delete-role --role-name CatalystCrossAccountRole --profile target-accoun
 
 | # | Check | Spec Ref | Pass/Fail |
 |---|-------|----------|-----------|
-| 1 | OIDC provider registered, ProviderConfig uses IRSA (no access keys) | §3.2 | |
-| 2 | VPC created in target account (OIDC credential chain works) | §3.1 | |
+| 1 | ProviderConfig uses Secret + AssumeRole (management key scoped to sts:AssumeRole only) | §3.2 | |
+| 2 | VPC created in target account (credential chain works) | §3.1 | |
 | 3 | Self-managed K8s cluster provisioned and nodes Ready | §4.1, §4.2 | |
 | 4 | Kubeconfig retrievable, `kubectl get nodes` works | §4.1 | |
 | 5 | CCM creates LoadBalancer (identity passing via iam:PassRole works) | §3.2.1 | |
 | 6 | PassRole restricted to tagged roles (untagged role fails) | §3.2.1, §10.2.1 | |
 | 7 | Claim in different namespace cannot use another tenant's ProviderConfig | §3.3 | |
 | 8 | Claim deletion removes all AWS resources (VMs, VPC, SG, IAM roles, instance profiles) | §4.1 | |
-| 9 | Zero access keys used in the entire flow | §3.2 | |
+| 9 | ExternalID enforced on cross-account role assumption | §3.2 | |
 | 10 | Provisioning time < 20 minutes | SC-001 | |
 
 ## Dependencies

@@ -1,0 +1,44 @@
+# Catalyst ProviderConfig for AWS
+#
+# Uses static management credentials (Secret) + AssumeRole to obtain
+# short-lived credentials in a customer's AWS account.
+#
+# Credential chain:
+#   Railway env vars (AWS_ACCESS_KEY_ID/SECRET)
+#     -> K8s Secret (aws-mgmt-creds)
+#       -> sts:AssumeRole(customer role ARN, ExternalID)
+#         -> short-lived temp creds (1hr)
+#           -> provision infrastructure in customer account
+#
+# The management IAM user has ONLY sts:AssumeRole permission.
+# All infrastructure permissions come from the customer's cross-account role.
+#
+# Future: Replace Secret source with IRSA when migrating to a platform
+# that supports OIDC (e.g., self-hosted K8s instead of Railway).
+
+apiVersion: aws.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  # Unique name per customer account — maps to cloudAccounts.id
+  name: aws-customer-account
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: aws-mgmt-creds
+      key: creds
+
+  # AssumeRoleChain: Catalyst assumes the customer's provisioning role.
+  # The role ARN and ExternalID come from the customer's onboarding
+  # (CloudFormation template output + generated ExternalID).
+  assumeRoleChain:
+    - roleARN: "arn:aws:iam::123456789012:role/Catalyst-ProvisioningRole"
+      externalID: "catalyst-<generated-external-id>"
+
+# Security Model:
+# 1. Catalyst authenticates with a static IAM key scoped to sts:AssumeRole only.
+# 2. It assumes the customer's provisioning role using ExternalID.
+# 3. The customer's trust policy limits which AWS accounts can assume this role.
+# 4. The customer's provisioning policy limits Catalyst to least-privilege actions.
+# 5. ExternalID prevents confused deputy attacks.

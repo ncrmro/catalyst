@@ -43,12 +43,14 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### 3.2 Credential Management
 
-- Catalyst MUST use provider-native identity federation as the sole credential mechanism:
-  - **AWS**: OIDC federation — customer's IAM role trusts Catalyst's OIDC issuer, Crossplane pods use projected service account tokens. No IAM users or access keys.
-  - **GCP**: Workload Identity Federation — customer creates a workload identity pool trusting Catalyst's OIDC issuer.
-  - **Azure**: Federated credentials on an App Registration (Service Principal) — customer configures federated identity credential trusting Catalyst's OIDC issuer.
-- Catalyst MUST NOT use long-lived cloud provider access keys (AWS access keys, GCP service account JSON keys, Azure client secrets) under any circumstances.
+- Catalyst MUST use `sts:AssumeRole` (AWS), Workload Identity (GCP), or Federated Credentials (Azure) to obtain short-lived credentials for target accounts.
+- Catalyst's management credential MUST be scoped to assume-role permissions only — all infrastructure permissions come from customer-side IAM roles.
+- For MVP, Catalyst MAY use a static IAM access key for its management credential, stored in the deployment environment (not in source code or database).
+- Catalyst SHOULD migrate to OIDC-based identity for its management credential when the deployment platform supports it.
+- Customer credentials (role ARN, ExternalID) MUST be stored encrypted at rest using AES-256-GCM.
+- Temporary credentials obtained via AssumeRole MUST NOT be persisted.
 - Credential delegates MUST follow least-privilege principles — Catalyst SHALL request only the permissions necessary for the resources it manages.
+- Customer onboarding templates MUST require an ExternalID to prevent confused deputy attacks.
 
 ### 3.2.1 Identity Passing (Self-Managed Clusters)
 
