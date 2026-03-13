@@ -62,7 +62,13 @@ This means Catalyst's cross-account role MUST be able to create identities and a
 
 The identity-passing permission is inherently dangerous — if unscoped, it enables privilege escalation (e.g., attaching an `AdministratorAccess` role to an EC2 instance). All onboarding templates MUST use Attribute-Based Access Control (ABAC) / tag-based conditions to restrict identity-passing to Catalyst-managed resources only.
 
-### 3.3 Account Isolation
+### 3.3 Cluster Access
+
+- The system MUST support VPN-based cluster access via Tailscale or Headscale.
+- The system MUST provide downloadable kubeconfig files configured with Catalyst as the OIDC identity provider.
+- The system MUST display cluster access credentials and connection instructions.
+
+### 3.4 Account Isolation
 
 - Resources provisioned in one target account MUST NOT be accessible from another target account through Catalyst's control plane.
 - Catalyst MUST maintain separate authentication contexts per target account — a credential compromise in one target account MUST NOT grant access to another.
@@ -85,7 +91,13 @@ The identity-passing permission is inherently dangerous — if unscoped, it enab
 - The system MUST provision clusters with a baseline security configuration including network policies, RBAC, and pod security standards.
 - Catalyst MUST attach provider-native identities to cluster VMs so that the Kubernetes Cloud Controller Manager (CCM) and CSI drivers can manage cloud resources (load balancers, persistent volumes, DNS).
 
-### 4.3 Kubernetes Version Management
+### 4.3 Cluster Provisioning UI
+
+- The system MUST provide a UI for users to provision a new cluster specifying region, Kubernetes version, and instance type.
+- The system MUST display cluster provisioning status (pending, provisioning, running, error).
+- The system MUST provide a UI for adding and configuring autoscaling node groups.
+
+### 4.4 Kubernetes Version Management
 
 - Catalyst MUST track supported Kubernetes versions and SHOULD alert customers when their cluster version approaches end-of-life.
 - Version upgrades MUST be performed as rolling updates with zero downtime for stateless workloads.
@@ -134,7 +146,13 @@ The identity-passing permission is inherently dangerous — if unscoped, it enab
 - Customers MUST be able to define custom alert rules and notification channels.
 - The alerting system SHOULD support routing alerts to external systems (PagerDuty, Slack, email, webhooks).
 
-### 6.4 Dashboards
+### 6.4 Observability UI
+
+- The system MUST provide a UI toggle to enable or disable the observability stack per cluster.
+- The system MUST allow independent configuration of metrics collection, log aggregation, and alerting components.
+- The system MUST display observability stack deployment status.
+
+### 6.5 Dashboards
 
 - Catalyst SHOULD provide pre-built dashboards for cluster health, workload metrics, and database performance.
 - Dashboards MUST be accessible from the Catalyst UI without requiring direct access to the target cluster.
@@ -185,13 +203,18 @@ The identity-passing permission is inherently dangerous — if unscoped, it enab
 - The management fee MUST be based on the resources under management (e.g., per node, per database instance, per cluster).
 - Cloud infrastructure costs (compute, storage, network) are paid directly by the customer to their cloud provider — Catalyst MUST NOT intermediate these charges.
 
-### 9.2 Metering
+### 9.2 Billing UI
+
+- The system MUST display the management fee associated with each managed resource before provisioning.
+- The system MUST meter managed cluster and observability stack usage independently.
+
+### 9.3 Metering
 
 - Catalyst MUST meter resource usage per target account with at least hourly granularity.
 - Usage records MUST include resource type, quantity, duration, and the target account they belong to.
 - Metering data MUST be available to customers via the Catalyst UI and an API.
 
-### 9.3 Billing Integration
+### 9.4 Billing Integration
 
 - Catalyst MUST integrate with the existing billing system (spec `011-billing`).
 - The system SHOULD support per-organization billing with itemized statements showing managed resources and their associated fees.
