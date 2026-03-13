@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
+import { ClusterProvisioning } from "./ClusterProvisioning";
+import { NodeGroupCard } from "./NodeGroupCard";
+import { VPNSetup } from "./VPNSetup";
+import { KubeconfigSetup } from "./KubeconfigSetup";
+import { ObservabilityStack } from "./ObservabilityStack";
 
 interface AccountDetailProps {
   id: string;
@@ -85,16 +90,11 @@ export function AccountDetail({
         </div>
       </Card>
 
-      <Card>
-        <div className="space-y-3">
-          <h3 className="text-base font-medium text-on-surface">
-            Managed Resources
-          </h3>
-          <p className="text-sm text-on-surface-variant">
-            No resources have been provisioned in this account yet.
-          </p>
-        </div>
-      </Card>
+      <ClusterProvisioning />
+      <NodeGroupCard />
+      <VPNSetup />
+      <KubeconfigSetup />
+      <ObservabilityStack />
 
       <Card>
         <div className="flex items-center justify-between">

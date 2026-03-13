@@ -2,6 +2,8 @@
 export const BILLING_METERS = {
   ACTIVE_ENV_DAY: "active_env_day",
   SPINDOWN_ENV_DAY: "spindown_env_day",
+  MANAGED_CLUSTER: "managed_cluster",
+  OBSERVABILITY_STACK: "observability_stack",
 } as const;
 
 // Free tier limits
@@ -15,4 +17,6 @@ export const FREE_TIER_LIMITS = {
 export const PRICING = {
   ACTIVE_ENV_MONTHLY: 3.5, // $3.50/month
   SPUNDOWN_ENV_MONTHLY: 0.75, // $0.75/month
+  MANAGED_CLUSTER_MONTHLY: 100, // $100/mo per cluster
+  OBSERVABILITY_STACK_MONTHLY: 200, // $200/mo per cluster
 } as const;
