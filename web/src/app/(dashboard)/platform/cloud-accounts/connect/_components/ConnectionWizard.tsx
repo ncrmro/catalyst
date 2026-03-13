@@ -82,6 +82,24 @@ export function ConnectionWizard() {
           <p className="text-sm text-on-surface-variant">
             Paste the Role ARN from the CloudFormation stack outputs.
           </p>
+          <div className="p-3 rounded-lg bg-surface-variant/50 border border-outline/30">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs text-on-surface-variant">Sample ARN</p>
+              <button
+                onClick={() =>
+                  setArn(
+                    "arn:aws:iam::123456789012:role/CatalystCrossAccountRole",
+                  )
+                }
+                className="text-xs text-primary hover:underline"
+              >
+                Use sample
+              </button>
+            </div>
+            <p className="text-xs text-on-surface font-mono">
+              arn:aws:iam::123456789012:role/CatalystCrossAccountRole
+            </p>
+          </div>
           <input
             type="text"
             value={arn}
