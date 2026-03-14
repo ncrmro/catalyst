@@ -29,6 +29,10 @@ jobs:
           pip install cfn-lint
           cfn-lint crossplane/onboarding/aws-cloudformation.yaml
 
+      - name: Shellcheck bash scripts
+        run: |
+          shellcheck crossplane/dev-setup.sh crossplane/validation/aws-smoke-test.sh
+
   integration:
     name: LocalStack Integration
     runs-on: ubuntu-latest
