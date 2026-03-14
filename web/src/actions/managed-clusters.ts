@@ -9,6 +9,10 @@ import {
   updateManagedCluster,
 } from "@/models/managed-clusters";
 import { getCloudAccounts } from "@/models/cloud-accounts";
+import {
+  createClusterClaim,
+  deleteClusterClaim,
+} from "@/models/crossplane-bridge";
 
 type ActionResult<T> =
   | { success: true; data: T }
@@ -115,6 +119,9 @@ export async function createManagedCluster(
       createdBy: session.user.id,
     });
 
+    // Create Crossplane KubernetesCluster Claim
+    await createClusterClaim(cluster.id);
+
     return { success: true, data: { id: cluster.id } };
   } catch (error) {
     console.error("Failed to create managed cluster:", error);
@@ -160,6 +167,10 @@ export async function deleteManagedCluster(
 
   try {
     const deleted = await requestClusterDeletionModel(clusterId);
+    
+    // Delete Crossplane KubernetesCluster Claim
+    await deleteClusterClaim(clusterId);
+    
     return { success: true, data: { id: deleted.id } };
   } catch (error) {
     const message =

@@ -7,6 +7,10 @@ import {
   createCloudAccount as createCloudAccountModel,
   deleteCloudAccount as deleteCloudAccountModel,
 } from "@/models/cloud-accounts";
+import {
+  createProviderConfig,
+  deleteProviderConfig,
+} from "@/models/crossplane-bridge";
 
 type ActionResult<T> =
   | { success: true; data: T }
@@ -104,6 +108,9 @@ export async function linkCloudAccount(
       createdBy: session.user.id,
     });
 
+    // Create Crossplane ProviderConfig
+    await createProviderConfig(account.id);
+
     return { success: true, data: { id: account.id } };
   } catch (error) {
     console.error("Failed to link cloud account:", error);
@@ -127,6 +134,9 @@ export async function unlinkCloudAccount(
   }
 
   try {
+    // Delete Crossplane ProviderConfig before DB record
+    await deleteProviderConfig(accountId);
+
     const account = await deleteCloudAccountModel(accountId);
     return { success: true, data: { id: account.id } };
   } catch (error) {

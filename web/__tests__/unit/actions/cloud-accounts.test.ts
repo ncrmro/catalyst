@@ -19,6 +19,11 @@ vi.mock("@/models/cloud-accounts", () => ({
   deleteCloudAccount: vi.fn(),
 }));
 
+vi.mock("@/models/crossplane-bridge", () => ({
+  createProviderConfig: vi.fn(),
+  deleteProviderConfig: vi.fn(),
+}));
+
 import { auth } from "@/auth";
 import { isUserTeamMember } from "@/lib/team-auth";
 import {
@@ -26,6 +31,10 @@ import {
   createCloudAccount as createCloudAccountModel,
   deleteCloudAccount as deleteCloudAccountModel,
 } from "@/models/cloud-accounts";
+import {
+  createProviderConfig,
+  deleteProviderConfig,
+} from "@/models/crossplane-bridge";
 import {
   listCloudAccounts,
   linkCloudAccount,
@@ -37,6 +46,8 @@ const mockIsUserTeamMember = vi.mocked(isUserTeamMember);
 const mockGetCloudAccounts = vi.mocked(getCloudAccounts);
 const mockCreateCloudAccount = vi.mocked(createCloudAccountModel);
 const mockDeleteCloudAccount = vi.mocked(deleteCloudAccountModel);
+const mockCreateProviderConfig = vi.mocked(createProviderConfig);
+const mockDeleteProviderConfig = vi.mocked(deleteProviderConfig);
 
 // Spec 012 §3.1: Account linking and §3.2: Credential management
 // Spec 012 §3.3: Account isolation — resources in one target account MUST NOT be accessible from another
@@ -154,6 +165,7 @@ describe("cloud accounts actions", () => {
           createdBy: userId,
         }),
       );
+      expect(mockCreateProviderConfig).toHaveBeenCalledWith("acc-new");
     });
   });
 
@@ -167,6 +179,7 @@ describe("cloud accounts actions", () => {
       const result = await unlinkCloudAccount(teamId, "acc-1");
 
       expect(result.success).toBe(true);
+      expect(mockDeleteProviderConfig).toHaveBeenCalledWith("acc-1");
       expect(mockDeleteCloudAccount).toHaveBeenCalledWith("acc-1");
     });
   });

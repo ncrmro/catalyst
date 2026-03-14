@@ -24,6 +24,11 @@ vi.mock("@/models/cloud-accounts", () => ({
   getCloudAccounts: vi.fn(),
 }));
 
+vi.mock("@/models/crossplane-bridge", () => ({
+  createClusterClaim: vi.fn(),
+  deleteClusterClaim: vi.fn(),
+}));
+
 import { auth } from "@/auth";
 import {
   isUserTeamMember,
@@ -35,6 +40,10 @@ import {
   requestClusterDeletion,
 } from "@/models/managed-clusters";
 import { getCloudAccounts } from "@/models/cloud-accounts";
+import {
+  createClusterClaim,
+  deleteClusterClaim,
+} from "@/models/crossplane-bridge";
 import {
   listManagedClusters,
   createManagedCluster,
@@ -48,6 +57,8 @@ const mockGetManagedClusters = vi.mocked(getManagedClusters);
 const mockCreateManagedCluster = vi.mocked(createManagedClusterModel);
 const mockRequestClusterDeletion = vi.mocked(requestClusterDeletion);
 const mockGetCloudAccounts = vi.mocked(getCloudAccounts);
+const mockCreateClusterClaim = vi.mocked(createClusterClaim);
+const mockDeleteClusterClaim = vi.mocked(deleteClusterClaim);
 
 // Spec 012 §4.1: Cluster lifecycle (create, update, delete)
 // Spec 012 §10.2: RBAC for all operations on target account resources
@@ -154,6 +165,7 @@ describe("managed clusters actions", () => {
       });
 
       expect(result.success).toBe(true);
+      expect(mockCreateClusterClaim).toHaveBeenCalledWith("cluster-new");
     });
   });
 
@@ -191,6 +203,7 @@ describe("managed clusters actions", () => {
       );
 
       expect(result.success).toBe(true);
+      expect(mockDeleteClusterClaim).toHaveBeenCalledWith("cluster-1");
     });
   });
 });
