@@ -57,6 +57,33 @@ Railway env vars (AWS_ACCESS_KEY_ID/SECRET)
 
 See `provider-configs/aws.yaml` for the ProviderConfig template.
 
+## Compositions and Definitions
+
+Catalyst uses Crossplane Composite Resources (XRs) to define high-level infrastructure abstractions that can be fulfilled by different cloud providers.
+
+### XKubernetesCluster XRD
+
+The `XKubernetesCluster` CompositeResourceDefinition (XRD) at `crossplane/definitions/xkubernetescluster.yaml` defines the schema for a Kubernetes cluster.
+
+**Key Fields:**
+- `region`: The AWS region to provision the cluster in.
+- `kubernetesVersion`: The desired Kubernetes version (default: `1.31`).
+- `nodePools`: An array of node pool configurations (instance type, node counts).
+- `providerConfigRef`: The name of the `ProviderConfig` to use (enables multi-tenant isolation).
+
+### AWS Kubernetes Cluster Composition
+
+The `aws-kubernetes-cluster` Composition at `crossplane/compositions/aws-kubernetes-cluster.yaml` fulfills the `XKubernetesCluster` abstraction using AWS resources.
+
+**Provisions:**
+- **Networking**: VPC, Public & Private subnets in 2 AZs, IGW, NAT GW, and Route Tables.
+- **Security**: Security groups for the control plane and worker nodes with restrictive rules.
+- **Identity**: IAM Roles and Instance Profiles for CP and workers, following the `Catalyst-K8s-*` naming convention and tagged with `catalyst-managed: true`.
+- **Compute**: Control plane EC2 instance and a Launch Template for worker nodes.
+
+**Multi-Tenancy:**
+Multi-tenancy is enforced by patching the `spec.providerConfigRef` from the `KubernetesCluster` claim to all managed resources. This ensures that resources are created in the correct customer account and that credentials are never leaked between tenants.
+
 ## Testing
 
 Three testing tiers validate the Crossplane configuration:

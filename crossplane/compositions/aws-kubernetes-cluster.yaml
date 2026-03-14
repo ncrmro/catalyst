@@ -1,0 +1,414 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: aws-kubernetes-cluster
+  labels:
+    provider: aws
+spec:
+  compositeTypeRef:
+    apiVersion: catalyst.tetraship.app/v1alpha1
+    kind: XKubernetesCluster
+  patchSets:
+    - name: metadata
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.labels
+          toFieldPath: metadata.labels
+        - fromFieldPath: "spec.providerConfigRef.name"
+          toFieldPath: "spec.providerConfigRef.name"
+  resources:
+    - name: vpc
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: VPC
+        spec:
+          forProvider:
+            region: us-east-1
+            cidrBlock: 10.0.0.0/16
+            enableDnsSupport: true
+            enableDnsHostnames: true
+            tags:
+              catalyst-managed: "true"
+      patches:
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+        - fromFieldPath: metadata.name
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-vpc"
+    - name: internetGateway
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: InternetGateway
+        spec:
+          forProvider:
+            region: us-east-1
+            vpcIdSelector:
+              matchControllerRef: true
+            tags:
+              catalyst-managed: "true"
+      patches:
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+        - fromFieldPath: metadata.name
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-igw"
+    - name: publicSubnet1
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Subnet
+        spec:
+          forProvider:
+            region: us-east-1
+            availabilityZone: us-east-1a
+            cidrBlock: 10.0.1.0/24
+            vpcIdSelector:
+              matchControllerRef: true
+            tags:
+              catalyst-managed: "true"
+              "kubernetes.io/role/elb": "1"
+      patches:
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+    - name: publicSubnet2
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Subnet
+        spec:
+          forProvider:
+            region: us-east-1
+            availabilityZone: us-east-1b
+            cidrBlock: 10.0.2.0/24
+            vpcIdSelector:
+              matchControllerRef: true
+            tags:
+              catalyst-managed: "true"
+              "kubernetes.io/role/elb": "1"
+      patches:
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+    - name: privateSubnet1
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Subnet
+        spec:
+          forProvider:
+            region: us-east-1
+            availabilityZone: us-east-1a
+            cidrBlock: 10.0.3.0/24
+            vpcIdSelector:
+              matchControllerRef: true
+            tags:
+              catalyst-managed: "true"
+              "kubernetes.io/role/internal-elb": "1"
+      patches:
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+    - name: privateSubnet2
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Subnet
+        spec:
+          forProvider:
+            region: us-east-1
+            availabilityZone: us-east-1b
+            cidrBlock: 10.0.4.0/24
+            vpcIdSelector:
+              matchControllerRef: true
+            tags:
+              catalyst-managed: "true"
+              "kubernetes.io/role/internal-elb": "1"
+      patches:
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+    - name: eip
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: EIP
+        spec:
+          forProvider:
+            region: us-east-1
+            tags:
+              catalyst-managed: "true"
+      patches:
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+    - name: natGateway
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: NATGateway
+        spec:
+          forProvider:
+            region: us-east-1
+            subnetIdSelector:
+              matchControllerRef: true
+            allocationIdSelector:
+              matchControllerRef: true
+            tags:
+              catalyst-managed: "true"
+      patches:
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+    - name: publicRouteTable
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: RouteTable
+        spec:
+          forProvider:
+            region: us-east-1
+            vpcIdSelector:
+              matchControllerRef: true
+            routes:
+            - cidrBlock: 0.0.0.0/0
+              gatewayIdSelector:
+                matchControllerRef: true
+            tags:
+              catalyst-managed: "true"
+      patches:
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+    - name: publicSubnet1RouteTableAssociation
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: RouteTableAssociation
+        spec:
+          forProvider:
+            region: us-east-1
+            subnetIdSelector:
+              matchControllerRef: true
+            routeTableIdSelector:
+              matchControllerRef: true
+      patches:
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+    - name: publicSubnet2RouteTableAssociation
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: RouteTableAssociation
+        spec:
+          forProvider:
+            region: us-east-1
+            subnetIdSelector:
+              matchControllerRef: true
+            routeTableIdSelector:
+              matchControllerRef: true
+      patches:
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+    - name: privateRouteTable
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: RouteTable
+        spec:
+          forProvider:
+            region: us-east-1
+            vpcIdSelector:
+              matchControllerRef: true
+            routes:
+            - cidrBlock: 0.0.0.0/0
+              natGatewayIdSelector:
+                matchControllerRef: true
+            tags:
+              catalyst-managed: "true"
+      patches:
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+    - name: privateSubnet1RouteTableAssociation
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: RouteTableAssociation
+        spec:
+          forProvider:
+            region: us-east-1
+            subnetIdSelector:
+              matchControllerRef: true
+            routeTableIdSelector:
+              matchControllerRef: true
+      patches:
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+    - name: privateSubnet2RouteTableAssociation
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: RouteTableAssociation
+        spec:
+          forProvider:
+            region: us-east-1
+            subnetIdSelector:
+              matchControllerRef: true
+            routeTableIdSelector:
+              matchControllerRef: true
+      patches:
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+    - name: controlPlaneSecurityGroup
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: SecurityGroup
+        spec:
+          forProvider:
+            region: us-east-1
+            vpcIdSelector:
+              matchControllerRef: true
+            ingress:
+              - fromPort: 22
+                toPort: 22
+                protocol: tcp
+                cidrBlocks:
+                  - 0.0.0.0/0
+              - fromPort: 6443
+                toPort: 6443
+                protocol: tcp
+                cidrBlocks:
+                  - 0.0.0.0/0
+            tags:
+              catalyst-managed: "true"
+      patches:
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+    - name: workerSecurityGroup
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: SecurityGroup
+        spec:
+          forProvider:
+            region: us-east-1
+            vpcIdSelector:
+              matchControllerRef: true
+            ingress:
+              - fromPort: 22
+                toPort: 22
+                protocol: tcp
+                cidrBlocks:
+                  - 0.0.0.0/0
+              - fromPort: 10250
+                toPort: 10250
+                protocol: tcp
+                securityGroupIdsSelector:
+                  matchControllerRef: true
+            tags:
+              catalyst-managed: "true"
+      patches:
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+    - name: controlPlaneRole
+      base:
+        apiVersion: iam.aws.upbound.io/v1beta1
+        kind: Role
+        spec:
+          forProvider:
+            assumeRolePolicy: |
+              {
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                    "Effect": "Allow",
+                    "Principal": {
+                      "Service": "ec2.amazonaws.com"
+                    },
+                    "Action": "sts:AssumeRole"
+                  }
+                ]
+              }
+            tags:
+              catalyst-managed: "true"
+      patches:
+        - fromFieldPath: metadata.name
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-cp-role"
+    - name: workerRole
+      base:
+        apiVersion: iam.aws.upbound.io/v1beta1
+        kind: Role
+        spec:
+          forProvider:
+            assumeRolePolicy: |
+              {
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                    "Effect": "Allow",
+                    "Principal": {
+                      "Service": "ec2.amazonaws.com"
+                    },
+                    "Action": "sts:AssumeRole"
+                  }
+                ]
+              }
+            tags:
+              catalyst-managed: "true"
+      patches:
+        - fromFieldPath: metadata.name
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-worker-role"
+    - name: controlPlaneInstanceProfile
+      base:
+        apiVersion: iam.aws.upbound.io/v1beta1
+        kind: InstanceProfile
+        spec:
+          forProvider:
+            roleSelector:
+              matchControllerRef: true
+      patches:
+        - fromFieldPath: metadata.name
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-cp-profile"
+    - name: workerInstanceProfile
+      base:
+        apiVersion: iam.aws.upbound.io/v1beta1
+        kind: InstanceProfile
+        spec:
+          forProvider:
+            roleSelector:
+              matchControllerRef: true
+      patches:
+        - fromFieldPath: metadata.name
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-worker-profile"
+    - name: launchTemplate
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: LaunchTemplate
+        spec:
+          forProvider:
+            region: us-east-1
+            instanceType: t3.medium
+            iamInstanceProfile:
+              nameSelector:
+                matchControllerRef: true
+            networkInterfaces:
+              - associatePublicIpAddress: "true"
+                securityGroupIdsSelector:
+                  - matchControllerRef: true
+            tagSpecifications:
+              - resourceType: "instance"
+                tags:
+                  catalyst-managed: "true"
+      patches:
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+        - fromFieldPath: spec.nodePools[0].instanceType
+          toFieldPath: spec.forProvider.instanceType
+        - fromFieldPath: metadata.name
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-launch-template"

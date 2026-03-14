@@ -1,55 +1,65 @@
 ---
 repo: ncrmro/catalyst
-branch: stripe
+branch: spec/012-cross-account-cloud-resources
 agent: gemini
 priority: 1
 status: ready
-created: 2026-02-16
+created: 2026-03-13
 ---
 
-# Move billing code into web/packages/billing/ workspace package
+# Create XKubernetesCluster XRD and AWS Composition
 
 ## Description
 
-The `stripe` branch has billing code scattered in `web/src/` (stripe client, models, DB schema). The spec plan (`specs/011-billing/plan.md`) requires all billing code to live in `web/packages/billing/` as a separate workspace package so self-hosted deployments can exclude it entirely. This is Phase 1 (Tasks 1-3) of the billing spec.
+Create the Crossplane CompositeResourceDefinition (XRD) for `XKubernetesCluster` and the AWS-specific Composition that provisions a VPC + subnets + security groups + IAM roles + EC2 instances via Crossplane managed resources.
 
-Tech stack: Next.js 15, TypeScript, Drizzle ORM, npm workspaces. See `web/AGENTS.md` and `AGENTS.md` for full context. The existing `@catalyst/kubernetes-client` package at `web/packages/@catalyst/kubernetes-client/` is the reference pattern for internal packages.
+This is the core infrastructure-as-code that makes cluster provisioning work. The XRD defines the schema (region, kubernetesVersion, nodePools), and the Composition maps that schema to concrete AWS resources.
 
-### What needs to move
+**Important context:**
+- The plan.md at `specs/012-cross-account-cloud-resources/plan.md` has the full XRD schema and Composition structure — follow it closely
+- Start with AWS only (GCP/Azure are future work)
+- The XRD group is `catalyst.tetraship.app`, claim kind is `KubernetesCluster`
+- Use Upbound family providers (`provider-aws-ec2`, `provider-aws-iam`) not the monolithic `provider-aws`
+- Compositions should use `spec.providerConfigRef` to select the target account's ProviderConfig
+- Files go in `crossplane/definitions/` and `crossplane/compositions/`
 
-| From | To |
-|------|-----|
-| `web/src/lib/stripe.ts` | `web/packages/billing/src/stripe.ts` |
-| `web/src/models/billing.ts` | `web/packages/billing/src/models.ts` |
-| `web/src/db/schema/billing.ts` | `web/packages/billing/src/db/schema.ts` |
+**Existing worktree:** The branch already has `crossplane/dev-setup.sh`, `crossplane/README.md`, onboarding template, provider config template, test fixtures, and CI workflows. Build on top of this.
 
-### Key design decisions
+Tech stack: Crossplane XRDs (YAML CRDs), Crossplane Compositions (YAML patches), Upbound provider-aws family providers.
 
-1. **Constants**: Extract `FREE_TIER_LIMITS`, `BILLING_METERS`, `PRICING` from stripe.ts into `constants.ts`
-2. **Schema FK references**: The billing schema references core `teams` table. Use a minimal FK-only table definition within the billing package (just `pgTable("teams", { id: text("id").primaryKey() })`) to avoid coupling
-3. **Dependency injection for db**: The billing models currently import `db` from `@/db`. Refactor to accept `db` as a parameter to billing functions instead
-4. **Logging**: The stripe client uses `createLogger` from `@/lib/logging`. Replace with simple console-based logging within the package (no dependency on app internals)
-5. **Package naming**: `@catalyst/billing` following the `@catalyst/kubernetes-client` pattern
-6. **Stripe dependency**: Move `stripe` from `web/package.json` to `packages/billing/package.json`. `drizzle-orm` is a peer dependency
-7. **Billing guard**: Create `web/src/lib/billing-guard.ts` that dynamically imports `@catalyst/billing` only when `BILLING_ENABLED=true`
-8. **Drizzle config**: Update `web/drizzle.config.ts` to conditionally include billing schema when `BILLING_ENABLED=true`
+Read `specs/012-cross-account-cloud-resources/plan.md` section "Composition Definitions" for the full XRD schema. Read `crossplane/README.md` for existing setup. Read `AGENTS.md` for project conventions.
 
 ## Acceptance Criteria
 
-- [x] `web/packages/billing/package.json` exists with name `@catalyst/billing`, stripe dependency, drizzle-orm peer dep
-- [x] `web/packages/billing/tsconfig.json` matches kubernetes-client pattern (ESNext, bundler resolution)
-- [x] `web/packages/billing/src/index.ts` re-exports the public API
-- [x] `web/packages/billing/src/constants.ts` has FREE_TIER_LIMITS, BILLING_METERS, PRICING
-- [x] `web/packages/billing/src/stripe.ts` has Stripe client and helper functions (no app internal imports)
-- [x] `web/packages/billing/src/models.ts` has billing DB operations accepting `db` parameter
-- [x] `web/packages/billing/src/db/schema.ts` has billing tables with minimal teams FK reference
-- [x] `web/src/lib/stripe.ts` is deleted
-- [x] `web/src/models/billing.ts` is deleted
-- [x] `web/src/db/schema/billing.ts` is deleted
-- [x] `export * from "./schema/billing"` removed from `web/src/db/schema.ts`
-- [x] `stripe` dependency removed from root `web/package.json`
-- [x] `web/src/lib/billing-guard.ts` created with dynamic import guard
-- [x] `web/drizzle.config.ts` conditionally includes billing schema
-- [x] `cd web && npm install` succeeds (workspace resolves)
-- [x] `npm run typecheck` passes
-- [x] No `stripe` imports remain in `web/src/` (only in `packages/billing/`)
+- [x] XRD at `crossplane/definitions/xkubernetescluster.yaml` with v1alpha1 schema matching plan.md
+- [x] AWS Composition at `crossplane/compositions/aws-kubernetes-cluster.yaml` that provisions:
+  - [x] VPC with DNS support enabled
+  - [x] Public + private subnets (at least 2 AZs)
+  - [x] Internet gateway + NAT gateway
+  - [x] Security groups (control plane, workers)
+  - [x] IAM roles + instance profiles (control plane, workers) with `catalyst-managed: true` tag
+  - [x] Launch template for worker nodes
+- [x] All YAML passes `yamllint -d relaxed`
+- [x] Compositions use `spec.providerConfigRef` for multi-tenant isolation
+- [x] Comments explain security-critical fields (IAM, security groups, tag conditions)
+- [x] `crossplane/README.md` updated with section on compositions
+- [x] Existing CI (yamllint step in `crossplane.test.yml`) passes with new files
+
+## Agent Notes
+
+- Created `XKubernetesCluster` XRD with the required schema.
+- Created `aws-kubernetes-cluster` Composition with 2 AZ support (a and b).
+- Added VPC, 4 subnets, IGW, NAT GW, Route Tables, and associations.
+- Added Security Groups for CP and Workers with basic ingress rules (6443 for CP, all from CP for Workers).
+- Added IAM Roles and Instance Profiles for CP and Workers, with `catalyst-managed: true` tags and required naming convention `Catalyst-K8s-*`.
+- Added a Control Plane EC2 instance and a Launch Template for worker nodes.
+- Updated `dev-setup.sh` to include `provider-aws-iam` and `provider-aws-autoscaling` family providers.
+- Verified all YAML files with `yamllint -d relaxed` (offline via `nix-shell`).
+
+## Results
+
+```bash
+nix-shell -p yamllint --run "yamllint -d relaxed crossplane/definitions/xkubernetescluster.yaml crossplane/compositions/aws-kubernetes-cluster.yaml" && echo "SUCCESS"
+warning: Nix search path entry '/nix/var/nix/profiles/per-user/root/channels' does not exist, ignoring
+SUCCESS
+```
