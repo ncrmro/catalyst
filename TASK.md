@@ -3,7 +3,7 @@ repo: ncrmro/catalyst
 branch: spec/012-cross-account-cloud-resources
 agent: gemini
 priority: 1
-status: ready
+status: done
 created: 2026-03-13
 ---
 
