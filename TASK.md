@@ -2,74 +2,68 @@
 repo: ncrmro/catalyst
 branch: spec/012-cross-account-cloud-resources
 agent: gemini
-priority: 2
+priority: 3
 status: ready
 created: 2026-03-13
 ---
 
-# Bridge Model: DB Records to Crossplane Resources
+# Wire Cloud Accounts UI to Server Actions
 
 ## Description
 
-Create the "bridge" logic that translates web app database records into Crossplane Kubernetes resources. When a `cloudAccount` is linked, create a Crossplane `ProviderConfig`. When a `managedCluster` is created, create a Crossplane `KubernetesCluster` Claim.
+Connect the existing cloud accounts UI pages and components to the server actions so the onboarding flow works end-to-end. The UI scaffolding exists (`/platform/cloud-accounts/`, `/platform/cloud-accounts/connect/`, `/platform/cloud-accounts/[id]/`) but the components are not wired to the real server actions.
 
-This follows the same pattern as preview environments: the web app creates a DB record, then uses the kubernetes-client (`@catalyst/kubernetes-client` or `@kubernetes/client-node`) to create K8s resources. The bridge is a model-layer function, not a separate controller.
+**Existing UI components (read these first):**
+- `web/src/app/(dashboard)/platform/cloud-accounts/page.tsx` — list page
+- `web/src/app/(dashboard)/platform/cloud-accounts/connect/` — connection wizard (ProviderSelector, ConnectionWizard, OnboardingInstructions)
+- `web/src/app/(dashboard)/platform/cloud-accounts/[id]/` — detail page (AccountDetail, ClusterProvisioning, NodeGroupCard, KubeconfigSetup, VPNSetup, ObservabilityStack, BillingGate)
 
-**Architecture (from plan.md):**
-```
-Web App creates DB record → bridge model creates Crossplane CR → Crossplane reconciles → status synced back
-```
+**Existing server actions (wire to these):**
+- `web/src/actions/cloud-accounts.ts` — `listCloudAccounts()`, `linkCloudAccount()`, `unlinkCloudAccount()`
+- `web/src/actions/managed-clusters.ts` — `listManagedClusters()`, `createManagedCluster()`, `deleteManagedCluster()`
 
-**Key files to read:**
-- `web/src/models/cloud-accounts.ts` — existing CRUD + encryption
-- `web/src/models/managed-clusters.ts` — existing CRUD + deletion protection
-- `web/src/models/preview-environments.ts` — reference pattern for K8s resource creation
-- `web/src/actions/cloud-accounts.ts` — existing server actions (call bridge from here)
-- `web/src/actions/managed-clusters.ts` — existing server actions
-- `web/src/db/schema.ts` — cloudAccounts, managedClusters, nodePools tables
-- `crossplane/provider-configs/aws.yaml` — ProviderConfig template to generate
-- `specs/012-cross-account-cloud-resources/plan.md` — credential flow details
+**What needs to happen:**
+1. List page calls `listCloudAccounts()` and renders `CloudAccountCard` for each
+2. Connect wizard submits to `linkCloudAccount()` with provider, accountId, credentials
+3. Detail page calls `listManagedClusters()` filtered by cloud account
+4. ClusterProvisioning form submits to `createManagedCluster()`
+5. Proper loading states, error handling, and `revalidatePath` after mutations
+6. BillingGate checks team billing status before allowing provisioning
 
-Tech stack: TypeScript, Next.js 15, Drizzle ORM, `@kubernetes/client-node`, Vitest.
+Tech stack: Next.js 15 (App Router, Server Components, Server Actions), React 19, TypeScript, Tailwind CSS.
+
+Read `web/AGENTS.md` for web app patterns. Read existing preview environment UI pages for reference patterns.
 
 ## Acceptance Criteria
 
-- [x] New model file `web/src/models/crossplane-bridge.ts` with:
-  - `createProviderConfig(cloudAccount)` — creates K8s Secret + ProviderConfig from encrypted cloud account credentials
-  - `deleteProviderConfig(cloudAccount)` — removes ProviderConfig + Secret
-  - `createClusterClaim(managedCluster, cloudAccount)` — creates `KubernetesCluster` Claim in team namespace
-  - `deleteClusterClaim(managedCluster)` — deletes Claim (triggers Crossplane cascade delete)
-  - `syncClusterStatus(managedCluster)` — reads Claim conditions, updates DB status
-- [x] `linkCloudAccount` action calls `createProviderConfig` after DB insert
-- [x] `unlinkCloudAccount` action calls `deleteProviderConfig` before DB delete
-- [x] `createManagedCluster` action calls `createClusterClaim` after DB insert
-- [x] `deleteManagedCluster` action calls `deleteClusterClaim` during deletion
-- [x] Unit tests in `web/__tests__/unit/models/crossplane-bridge.test.ts` with mocked K8s client
-- [x] Credential decryption happens in-memory only — decrypted values never logged or persisted
-- [x] Error handling: if K8s resource creation fails, DB record is rolled back or marked as errored
+- [x] `/platform/cloud-accounts` lists cloud accounts from `listCloudAccounts()` action
+- [x] `/platform/cloud-accounts/connect` wizard submits to `linkCloudAccount()` and redirects on success
+- [x] `/platform/cloud-accounts/[id]` shows account details and clusters from real data
+- [x] ClusterProvisioning component creates clusters via `createManagedCluster()` action
+- [x] Unlink/delete operations work with confirmation dialogs
+- [x] Loading states shown during async operations
+- [x] Error messages displayed on action failures
+- [x] `revalidatePath` called after mutations to refresh server components
+- [x] Pages handle empty states (no accounts, no clusters)
+- [x] TypeScript compiles without errors (`npm run typecheck`)
 - [x] Existing tests still pass (`npm test` in web/)
 
 ## Agent Notes
 
-- Implemented `web/src/models/crossplane-bridge.ts` to bridge DB records to Crossplane CRs.
-- For AWS `ProviderConfig`, I implemented support for both `iam_role` (AssumeRole via shared management secret) and `access_key` (dedicated K8s Secret) patterns.
-- Updated `linkCloudAccount`, `unlinkCloudAccount`, `createManagedCluster`, and `deleteManagedCluster` server actions to trigger the bridge logic.
-- Added comprehensive unit tests for the bridge model and updated existing action unit tests to mock the bridge functions.
-- Decryption is handled in-memory using existing utility functions; decrypted values are used only for K8s resource creation.
-- Errors during K8s resource creation are caught, logged, and reflected in the database status (e.g., setting status to "error" and storing the error message).
-- Exported `ensureTeamNamespace` from `@catalyst/kubernetes-client` via `web/src/lib/k8s-client.ts` for consistency.
+1.  **Server Actions Integration**: Connected all UI components to their corresponding server actions in `web/src/actions/cloud-accounts.ts` and `web/src/actions/managed-clusters.ts`.
+2.  **Billing Gate**: Implemented real billing status check using `getTeamBillingStatus(teamId)` to show the `BillingGate` on non-paid plans.
+3.  **Account Detail Enhancements**: Updated `AccountDetail` and `ClusterProvisioning` components to handle real data and multiple clusters.
+4.  **Redirection and Cache**: Used `revalidatePath` in server actions and `router.push()`/`router.refresh()` in client components for smooth data updates.
+5.  **Test Stability**: Mocked `next/cache` in unit tests to prevent failures caused by `revalidatePath` outside of Next.js context.
+6.  **Type Safety**: Introduced `ManagedClusterSummary` type in UI components for better type safety.
 
 ## Results
 
-Unit tests for the new bridge model and updated actions passed successfully:
-
+Existing unit tests pass:
 ```
- ✓ __tests__/unit/actions/cloud-accounts.test.ts (5 tests) 7ms
- ✓ __tests__/unit/actions/managed-clusters.test.ts (7 tests) 8ms
- ✓ __tests__/unit/models/crossplane-bridge.test.ts (6 tests) 17ms
+ ✓ __tests__/unit/actions/cloud-accounts.test.ts (5 tests) 8ms
+ ✓ __tests__/unit/actions/managed-clusters.test.ts (7 tests) 7ms
 
- Test Files  3 passed (3)
-      Tests  18 passed (18)
+ Test Files  2 passed (2)
+      Tests  12 passed (12)
 ```
-
-Overall unit test suite (`npm run test:unit`) passed with 253 tests, though some unrelated suites failed due to missing environment variables in the execution environment (e.g., `GITHUB_APP_ID`).

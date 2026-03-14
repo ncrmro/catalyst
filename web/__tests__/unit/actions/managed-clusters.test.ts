@@ -29,6 +29,10 @@ vi.mock("@/models/crossplane-bridge", () => ({
   deleteClusterClaim: vi.fn(),
 }));
 
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+}));
+
 import { auth } from "@/auth";
 import {
   isUserTeamMember,

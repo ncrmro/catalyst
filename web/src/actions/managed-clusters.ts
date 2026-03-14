@@ -14,6 +14,8 @@ import {
   deleteClusterClaim,
 } from "@/models/crossplane-bridge";
 
+import { revalidatePath } from "next/cache";
+
 type ActionResult<T> =
   | { success: true; data: T }
   | { success: false; error: string };
@@ -35,6 +37,7 @@ export interface ManagedClusterSummary {
 
 export async function listManagedClusters(
   teamId: string,
+  cloudAccountId?: string,
 ): Promise<ActionResult<ManagedClusterSummary[]>> {
   const session = await auth();
 
@@ -48,7 +51,10 @@ export async function listManagedClusters(
   }
 
   try {
-    const clusters = await getManagedClusters({ teamIds: [teamId] });
+    const clusters = await getManagedClusters({
+      teamIds: [teamId],
+      cloudAccountIds: cloudAccountId ? [cloudAccountId] : undefined,
+    });
 
     const summaries: ManagedClusterSummary[] = clusters.map((c) => ({
       id: c.id,
@@ -122,6 +128,8 @@ export async function createManagedCluster(
     // Create Crossplane KubernetesCluster Claim
     await createClusterClaim(cluster.id);
 
+    revalidatePath(`/platform/cloud-accounts/${input.cloudAccountId}`);
+
     return { success: true, data: { id: cluster.id } };
   } catch (error) {
     console.error("Failed to create managed cluster:", error);
@@ -166,10 +174,13 @@ export async function deleteManagedCluster(
   }
 
   try {
+    const cluster = clusters[0];
     const deleted = await requestClusterDeletionModel(clusterId);
     
     // Delete Crossplane KubernetesCluster Claim
     await deleteClusterClaim(clusterId);
+    
+    revalidatePath(`/platform/cloud-accounts/${cluster.cloudAccountId}`);
     
     return { success: true, data: { id: deleted.id } };
   } catch (error) {

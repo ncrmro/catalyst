@@ -24,6 +24,10 @@ vi.mock("@/models/crossplane-bridge", () => ({
   deleteProviderConfig: vi.fn(),
 }));
 
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+}));
+
 import { auth } from "@/auth";
 import { isUserTeamMember } from "@/lib/team-auth";
 import {
