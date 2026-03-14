@@ -38,6 +38,38 @@ export interface DecryptedAWSAccount {
   secretAccessKey?: string;
 }
 
+/** Shape of Kubernetes API status conditions (Crossplane / Kubernetes) */
+interface K8sCondition {
+  type: string;
+  status: string;
+  reason?: string;
+}
+
+/** Shape returned by k8s CustomObjectsApi for our cluster claims */
+interface K8sClusterResponse {
+  body: {
+    status?: {
+      conditions?: K8sCondition[];
+    };
+  };
+}
+
+/**
+ * Narrow an unknown caught error to extract the HTTP status code from
+ * @kubernetes/client-node error responses (which carry a `response.statusCode`
+ * property on the thrown object).
+ */
+function k8sStatusCode(e: unknown): number | undefined {
+  return (e as { response?: { statusCode?: number } }).response?.statusCode;
+}
+
+/**
+ * Extract an error message string from an unknown caught value.
+ */
+function errorMessage(e: unknown): string {
+  return e instanceof Error ? e.message : "Unknown error";
+}
+
 /**
  * Creates a Crossplane ProviderConfig for a linked cloud account.
  * For AWS, it creates a ProviderConfig that either:
@@ -70,7 +102,7 @@ export async function createProviderConfig(accountId: string) {
       let credentials: DecryptedAWSAccount;
       try {
         credentials = JSON.parse(decrypted);
-      } catch (e) {
+      } catch (_e) {
         throw new Error("Failed to parse cloud account credentials. Expected JSON.");
       }
 
@@ -163,7 +195,7 @@ aws_secret_access_key = ${credentials.secretAccessKey}
       .set({ status: "active", lastError: null, updatedAt: new Date() })
       .where(eq(cloudAccounts.id, accountId));
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Failed to create ProviderConfig for account ${accountId}:`, error);
     
     // Update DB with error
@@ -171,7 +203,7 @@ aws_secret_access_key = ${credentials.secretAccessKey}
       .update(cloudAccounts)
       .set({ 
         status: "error", 
-        lastError: error.message || "Unknown error during ProviderConfig creation",
+        lastError: errorMessage(error) || "Unknown error during ProviderConfig creation",
         updatedAt: new Date() 
       })
       .where(eq(cloudAccounts.id, accountId));
@@ -204,8 +236,8 @@ export async function deleteProviderConfig(accountId: string) {
         "providerconfigs",
         account.id
       );
-    } catch (e: any) {
-      if (e.response?.statusCode !== 404) {
+    } catch (e: unknown) {
+      if (k8sStatusCode(e) !== 404) {
         console.error(`Error deleting ProviderConfig ${account.id}:`, e);
       }
     }
@@ -218,8 +250,8 @@ export async function deleteProviderConfig(accountId: string) {
           name: secretName,
           namespace: "crossplane-system"
         });
-      } catch (e: any) {
-        if (e.response?.statusCode !== 404) {
+      } catch (e: unknown) {
+        if (k8sStatusCode(e) !== 404) {
           console.error(`Error deleting secret aws-creds-${account.id}:`, e);
         }
       }
@@ -321,7 +353,7 @@ export async function createClusterClaim(clusterId: string) {
         .where(eq(managedClusters.id, clusterId));
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Failed to create cluster claim for ${clusterId}:`, error);
     
     // Update DB with error
@@ -371,8 +403,8 @@ export async function deleteClusterClaim(clusterId: string) {
       "kubernetesclusters",
       clusterMetadataName
     );
-  } catch (e: any) {
-    if (e.response?.statusCode !== 404) {
+  } catch (e: unknown) {
+    if (k8sStatusCode(e) !== 404) {
       console.error(`Error deleting cluster claim ${cluster.name}:`, e);
     }
   }
@@ -405,17 +437,17 @@ export async function syncClusterStatus(clusterId: string) {
   const clusterMetadataName = clusterClaimName(cluster.name, cluster.id);
 
   try {
-    const response: any = await k8sCustomApi.getNamespacedCustomObject(
+    const response = await k8sCustomApi.getNamespacedCustomObject(
       CATALYST_GROUP,
       CATALYST_VERSION,
       namespace,
       "kubernetesclusters",
       clusterMetadataName
-    );
+    ) as K8sClusterResponse;
 
     // Check conditions for status
-    const conditions = response.body.status?.conditions || [];
-    const readyCondition = conditions.find((c: any) => c.type === "Ready");
+    const conditions: K8sCondition[] = response.body.status?.conditions ?? [];
+    const readyCondition = conditions.find((c) => c.type === "Ready");
 
     let status = "provisioning";
     if (readyCondition?.status === "True") {
@@ -425,7 +457,7 @@ export async function syncClusterStatus(clusterId: string) {
       // For now, if Ready is False, we keep it as provisioning unless there's a more specific error
       // Crossplane often has "Ready=False" during initial provisioning.
       // But if it has a specific "Synced=False" with a serious error, we might want "error".
-      const syncedCondition = conditions.find((c: any) => c.type === "Synced");
+      const syncedCondition = conditions.find((c) => c.type === "Synced");
       if (syncedCondition?.status === "False" && syncedCondition?.reason === "ReconcileError") {
         status = "error";
       }
@@ -437,8 +469,8 @@ export async function syncClusterStatus(clusterId: string) {
         .set({ status, updatedAt: new Date() })
         .where(eq(managedClusters.id, clusterId));
     }
-  } catch (e: any) {
-    if (e.response?.statusCode === 404) {
+  } catch (e: unknown) {
+    if (k8sStatusCode(e) === 404) {
       // If the claim is gone and we were deleting, mark as deleted
       if (cluster.status === "deleting") {
         await db
