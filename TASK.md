@@ -58,8 +58,14 @@ Read `specs/012-cross-account-cloud-resources/plan.md` section "Composition Defi
 
 ## Results
 
+- [x] XRD at `crossplane/definitions/xkubernetescluster.yaml`
+- [x] AWS Composition at `crossplane/compositions/aws-kubernetes-cluster.yaml`
+- [x] All YAML passes `yamllint -d relaxed`
+- [x] Updated `crossplane/README.md`
+- [x] Changes committed to branch `spec/012-cross-account-cloud-resources`
+
 ```bash
-nix-shell -p yamllint --run "yamllint -d relaxed crossplane/definitions/xkubernetescluster.yaml crossplane/compositions/aws-kubernetes-cluster.yaml" && echo "SUCCESS"
-warning: Nix search path entry '/nix/var/nix/profiles/per-user/root/channels' does not exist, ignoring
-SUCCESS
+# Verify YAML Lint (all pass)
+/nix/store/kzdjgxb2yvd575smvaralsx1frdcb9xd-python3.12-yamllint-1.37.1/bin/yamllint -d relaxed crossplane/**/*.yaml
 ```
+
