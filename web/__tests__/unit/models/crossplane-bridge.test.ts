@@ -30,6 +30,14 @@ vi.mock("@/lib/k8s-client", () => ({
   getCoreV1Api: vi.fn(),
   getClusterConfig: vi.fn(),
   ensureTeamNamespace: vi.fn(),
+  sanitizeNamespaceName: vi.fn((name: string) =>
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 63),
+  ),
 }));
 
 vi.mock("@tetrastack/backend/utils", () => ({
@@ -210,7 +218,7 @@ describe("crossplane-bridge model", () => {
           metadata: { name: "my-cluster", namespace: "my-team" },
           spec: expect.objectContaining({
             region: "us-east-1",
-            providerConfigRef: { name: "acc-123" },
+            providerConfigRef: "acc-123",
           }),
         })
       );

@@ -183,6 +183,13 @@
       "when": 1771272048294,
       "tag": "0025_conscious_goblin_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1773493363723,
+      "tag": "0026_blue_captain_america",
+      "breakpoints": true
     }
   ]
 }

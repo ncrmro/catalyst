@@ -175,6 +175,7 @@ describe("cloud accounts actions", () => {
 
   describe("unlinkCloudAccount", () => {
     it("should call deleteCloudAccount model", async () => {
+      mockGetCloudAccounts.mockResolvedValue([{ id: "acc-1" }] as any);
       mockDeleteCloudAccount.mockResolvedValue({
         id: "acc-1",
         status: "revoked",
@@ -185,6 +186,20 @@ describe("cloud accounts actions", () => {
       expect(result.success).toBe(true);
       expect(mockDeleteProviderConfig).toHaveBeenCalledWith("acc-1");
       expect(mockDeleteCloudAccount).toHaveBeenCalledWith("acc-1");
+    });
+
+    // Spec 012 §3.3: Resources in one target account MUST NOT be accessible from another
+    it("should reject if account does not belong to team (IDOR protection)", async () => {
+      mockGetCloudAccounts.mockResolvedValue([] as any);
+
+      const result = await unlinkCloudAccount(teamId, "acc-other-team");
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toContain("not found");
+      }
+      expect(mockDeleteProviderConfig).not.toHaveBeenCalled();
+      expect(mockDeleteCloudAccount).not.toHaveBeenCalled();
     });
   });
 });

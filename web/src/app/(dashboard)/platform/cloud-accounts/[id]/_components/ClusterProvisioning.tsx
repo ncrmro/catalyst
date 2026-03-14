@@ -97,7 +97,7 @@ export function ClusterProvisioning({
               </h3>
               <div className="flex items-center gap-3">
                 <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                  cluster.status === "running" ? "bg-primary/10 text-primary" : "bg-warning/10 text-warning"
+                  cluster.status === "active" ? "bg-primary/10 text-primary" : "bg-warning/10 text-warning"
                 }`}>
                   {cluster.status}
                 </span>

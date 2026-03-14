@@ -22,8 +22,8 @@ import {
   getClusterConfig,
   getCoreV1Api,
   ensureTeamNamespace,
+  sanitizeNamespaceName,
 } from "@/lib/k8s-client";
-import { generateTeamNamespace } from "@/lib/namespace-utils";
 
 // Crossplane Group/Version constants
 const AWS_PROVIDER_GROUP = "aws.upbound.io";
@@ -261,14 +261,18 @@ export async function createClusterClaim(clusterId: string) {
     const kubeConfig = getClusterConfig();
     await ensureTeamNamespace(kubeConfig, team.name);
 
-    const namespace = generateTeamNamespace(team.name);
+    // Use the same sanitization as ensureTeamNamespace for namespace consistency
+    const namespace = sanitizeNamespaceName(team.name);
     const k8sCustomApi = getCustomObjectsApi();
+
+    // Sanitize cluster name to be DNS-1123 compliant for K8s metadata.name
+    const clusterMetadataName = sanitizeNamespaceName(cluster.name);
 
     const claim = {
       apiVersion: `${CATALYST_GROUP}/${CATALYST_VERSION}`,
       kind: "KubernetesCluster",
       metadata: {
-        name: cluster.name,
+        name: clusterMetadataName,
         namespace: namespace,
       },
       spec: {
@@ -282,9 +286,8 @@ export async function createClusterClaim(clusterId: string) {
           desiredNodes: p.minNodes, // Initial desired equals min
           spot: p.spotEnabled,
         })),
-        providerConfigRef: {
-          name: cluster.cloudAccountId,
-        },
+        // XRD defines providerConfigRef as a string (not an object)
+        providerConfigRef: cluster.cloudAccountId,
       },
     };
 
@@ -340,8 +343,11 @@ export async function deleteClusterClaim(clusterId: string) {
 
   if (!team) return;
 
-  const namespace = generateTeamNamespace(team.name);
+  const namespace = sanitizeNamespaceName(team.name);
   const k8sCustomApi = getCustomObjectsApi();
+
+  // Sanitize cluster name to be DNS-1123 compliant for K8s metadata.name
+  const clusterMetadataName = sanitizeNamespaceName(cluster.name);
 
   try {
     await k8sCustomApi.deleteNamespacedCustomObject(
@@ -349,7 +355,7 @@ export async function deleteClusterClaim(clusterId: string) {
       CATALYST_VERSION,
       namespace,
       "kubernetesclusters",
-      cluster.name
+      clusterMetadataName
     );
   } catch (e: any) {
     if (e.response?.statusCode !== 404) {
@@ -378,8 +384,11 @@ export async function syncClusterStatus(clusterId: string) {
 
   if (!team) return;
 
-  const namespace = generateTeamNamespace(team.name);
+  const namespace = sanitizeNamespaceName(team.name);
   const k8sCustomApi = getCustomObjectsApi();
+
+  // Sanitize cluster name to be DNS-1123 compliant for K8s metadata.name
+  const clusterMetadataName = sanitizeNamespaceName(cluster.name);
 
   try {
     const response: any = await k8sCustomApi.getNamespacedCustomObject(
@@ -387,7 +396,7 @@ export async function syncClusterStatus(clusterId: string) {
       CATALYST_VERSION,
       namespace,
       "kubernetesclusters",
-      cluster.name
+      clusterMetadataName
     );
 
     // Check conditions for status

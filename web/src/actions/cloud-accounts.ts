@@ -187,6 +187,15 @@ export async function unlinkCloudAccount(
   }
 
   try {
+    // Verify the account belongs to the team before deleting (prevents IDOR)
+    const accounts = await getCloudAccounts({
+      ids: [accountId],
+      teamIds: [teamId],
+    });
+    if (accounts.length === 0) {
+      return { success: false, error: "Cloud account not found or does not belong to team" };
+    }
+
     // Delete Crossplane ProviderConfig before DB record
     await deleteProviderConfig(accountId);
 

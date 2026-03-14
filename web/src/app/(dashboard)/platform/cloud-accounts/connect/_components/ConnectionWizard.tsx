@@ -45,8 +45,8 @@ export function ConnectionWizard({ teamId }: ConnectionWizardProps) {
         provider,
         name,
         externalAccountId,
-        credentialType: "iam-role",
-        credential: arn,
+        credentialType: "iam_role",
+        credential: JSON.stringify({ roleARN: arn, externalID: "" }),
         resourcePrefix: name.toLowerCase().replace(/[^a-z0-9]/g, "-"),
       });
 
