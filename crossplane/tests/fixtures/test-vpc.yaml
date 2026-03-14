@@ -1,0 +1,17 @@
+# Test VPC resource for lifecycle validation.
+# Used by both LocalStack integration tests and real AWS E2E tests.
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: VPC
+metadata:
+  name: crossplane-test-vpc
+spec:
+  forProvider:
+    region: us-east-1
+    cidrBlock: "10.99.0.0/16"
+    enableDnsHostnames: true
+    enableDnsSupport: true
+    tags:
+      catalyst-managed: "true"
+      catalyst-test: "ci"
+  providerConfigRef:
+    name: localstack

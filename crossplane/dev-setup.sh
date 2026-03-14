@@ -16,21 +16,30 @@ echo "Setting up Crossplane in K3s..."
   --create-namespace \
   --wait
 
-echo "Installing provider-aws..."
+echo "Installing provider-aws-ec2 (family provider)..."
 
-# Apply the provider manifest
+# Family providers are smaller and faster than the monolithic provider-aws.
+# Installing provider-aws-ec2 also auto-installs provider-family-aws
+# which provides the ProviderConfig CRD.
 cat <<EOF | "$PROJECT_ROOT/bin/kubectl" apply -f -
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
-  name: provider-aws
+  name: provider-aws-ec2
 spec:
-  package: xpkg.upbound.io/upbound/provider-aws:v1.14.0
+  package: xpkg.upbound.io/upbound/provider-aws-ec2:v1.16.0
 EOF
 
-echo "Waiting for provider-aws to be healthy (this may take a few minutes as it downloads a large image)..."
-"$PROJECT_ROOT/bin/kubectl" wait provider.pkg.crossplane.io/provider-aws --for=condition=Healthy --timeout=600s || {
-  echo "Warning: provider-aws took too long to become healthy, but setup will continue."
+echo "Waiting for provider-aws-ec2 to be healthy (this may take a few minutes)..."
+"$PROJECT_ROOT/bin/kubectl" wait provider.pkg.crossplane.io/provider-aws-ec2 --for=condition=Healthy --timeout=600s || {
+  echo "Warning: provider-aws-ec2 took too long to become healthy, but setup will continue."
+}
+
+echo "Waiting for provider-family-aws..."
+"$PROJECT_ROOT/bin/kubectl" wait provider.pkg.crossplane.io/provider-family-aws --for=condition=Healthy --timeout=120s || {
+  echo "Warning: provider-family-aws took too long to become healthy."
 }
 
 echo "Crossplane setup complete!"
+echo "Installed providers:"
+"$PROJECT_ROOT/bin/kubectl" get providers

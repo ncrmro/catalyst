@@ -20,8 +20,8 @@ The script is idempotent — safe to run multiple times.
 
 1. Adds the Crossplane Helm repo (`crossplane-stable`)
 2. Installs/upgrades Crossplane core into the `crossplane-system` namespace
-3. Installs `provider-aws` (Upbound official provider)
-4. Waits for provider-aws to become healthy
+3. Installs `provider-aws-ec2` (Upbound family provider) — also auto-installs `provider-family-aws`
+4. Waits for providers to become healthy
 
 ## Verification
 
@@ -38,8 +38,9 @@ bin/kubectl get providers
 Expected output:
 
 ```
-NAME           INSTALLED   HEALTHY   PACKAGE                                    AGE
-provider-aws   True        True      xpkg.upbound.io/upbound/provider-aws:...   ...
+NAME                  INSTALLED   HEALTHY   PACKAGE                                         AGE
+provider-aws-ec2      True        True      xpkg.upbound.io/upbound/provider-aws-ec2:...    ...
+provider-family-aws   True        True      xpkg.upbound.io/upbound/provider-family-aws:... ...
 ```
 
 ## Credential Chain (MVP)
@@ -56,16 +57,58 @@ Railway env vars (AWS_ACCESS_KEY_ID/SECRET)
 
 See `provider-configs/aws.yaml` for the ProviderConfig template.
 
+## Testing
+
+Three testing tiers validate the Crossplane configuration:
+
+### Tier 1: Offline YAML Validation (CI — `unit` job)
+
+Runs on every PR touching `crossplane/**`. No cluster required.
+
+```bash
+# Lint all YAML
+pip install yamllint && yamllint -d relaxed crossplane/**/*.yaml
+
+# Validate CloudFormation structure
+pip install cfn-lint && cfn-lint crossplane/onboarding/aws-cloudformation.yaml
+```
+
+### Tier 2: LocalStack Integration (CI — `integration` job)
+
+Spins up Kind + LocalStack to test VPC create/ready/delete lifecycle without real AWS credentials.
+
+```bash
+# Locally (requires Docker + Kind + Helm):
+docker run -d -p 4566:4566 localstack/localstack:3.4
+kind create cluster --name crossplane-test
+# Then follow the CI steps in .github/workflows/crossplane.test.yml
+```
+
+The test fixtures in `tests/fixtures/` configure Crossplane to route API calls to LocalStack via the `endpoint.url` override in the ProviderConfig.
+
+### Tier 3: Real AWS E2E (manual `workflow_dispatch`)
+
+Triggered manually via `.github/workflows/crossplane.e2e.yml`. Requires:
+- `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` GitHub Secrets (management IAM user)
+- A target role ARN and ExternalID (from CloudFormation onboarding)
+
+Tests the full credential chain: static key → AssumeRole → VPC lifecycle in a real AWS account.
+
 ## Directory Structure
 
 ```
 crossplane/
 ├── README.md                          # This file
-├── dev-setup.sh                       # Installs Crossplane + provider-aws into K3s
+├── dev-setup.sh                       # Installs Crossplane + provider-aws-ec2 into K3s
 ├── onboarding/
 │   └── aws-cloudformation.yaml        # Customer onboarding CloudFormation template
 ├── provider-configs/
 │   └── aws.yaml                       # ProviderConfig template (Secret + AssumeRole)
+├── tests/
+│   └── fixtures/
+│       ├── localstack-creds.yaml      # Dummy Secret for LocalStack
+│       ├── localstack-provider-config.yaml  # ProviderConfig targeting LocalStack
+│       └── test-vpc.yaml              # VPC CR for lifecycle tests
 └── validation/
-    └── aws-smoke-test.sh              # VPC provisioning smoke test
+    └── aws-smoke-test.sh              # VPC provisioning smoke test (manual)
 ```

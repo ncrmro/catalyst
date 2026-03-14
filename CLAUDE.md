@@ -9,6 +9,7 @@ For detailed guidance on specific components, see their AGENTS.md files:
 - `operator/AGENTS.md` - Kubernetes operator (Go, declarative infrastructure)
 - `.k3s-vm/AGENTS.md` - Local K3s VM management and troubleshooting
 - `web/AGENTS.md` - Web application specifics
+- `crossplane/README.md` - Crossplane setup, credential chain, and testing
 
 ## README Documentation
 
@@ -107,6 +108,32 @@ bin/e2e-cluster test            # Run Playwright E2E tests
 bin/e2e-cluster down            # Helm uninstall (VM preserved)
 bin/e2e-cluster status          # Show deployment and pod status
 bin/e2e-cluster logs            # Tail pod logs
+```
+
+### Crossplane (in `/crossplane` directory)
+
+Cross-account cloud infrastructure provisioning using Crossplane with AWS family providers.
+
+```bash
+crossplane/dev-setup.sh       # Install Crossplane + provider-aws-ec2 into K3s
+```
+
+**CI Workflows:**
+
+- `.github/workflows/crossplane.test.yml` — YAML lint + CloudFormation validation + Kind/LocalStack VPC lifecycle (auto on PR)
+- `.github/workflows/crossplane.e2e.yml` — Real AWS VPC lifecycle (`workflow_dispatch` only, requires AWS secrets)
+
+**Testing locally:**
+
+```bash
+# Tier 1: Offline validation
+yamllint -d relaxed crossplane/**/*.yaml
+cfn-lint crossplane/onboarding/aws-cloudformation.yaml
+
+# Tier 2: LocalStack integration (requires Docker + Kind)
+docker run -d -p 4566:4566 localstack/localstack:3.4
+kind create cluster --name crossplane-test
+# Follow steps in .github/workflows/crossplane.test.yml
 ```
 
 ## Architecture Overview

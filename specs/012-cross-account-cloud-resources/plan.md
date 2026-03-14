@@ -421,30 +421,103 @@ They complement each other: Crossplane provisions the cluster → Catalyst opera
 | Long provisioning times blocking UX | Med | Async status polling in web UI; webhook notifications on completion; progress indicators via Crossplane conditions |
 | Provider rate limiting during bulk provisioning | Low | Queue-based provisioning with backoff; limit concurrent Claims per org |
 
+## Testing Strategy
+
+Three-tier testing strategy for Crossplane infrastructure code, complementing the existing web (Vitest/Playwright) and operator (envtest) test suites.
+
+### Tier 1: Unit Tests (Offline)
+
+**No cluster required. Runs in ~30 seconds. Triggered on every PR.**
+
+Validates YAML syntax and structure without any cloud interaction.
+
+| Test | What it validates | Tool |
+|------|-------------------|------|
+| YAML lint | All `crossplane/**/*.yaml` files parse correctly | `yamllint` |
+| CloudFormation structure | `aws-cloudformation.yaml` has required keys (Parameters, Resources, Outputs) | Python `yaml.safe_load` |
+| Composition rendering | XRD + Composition + test input → expected managed resources | `crossplane beta render` (future, when compositions exist) |
+
+### Tier 2: Integration Tests (Kind + LocalStack)
+
+**Runs in ~5-8 minutes. No AWS costs. Triggered on every PR.**
+
+Deploys Crossplane + provider-aws into an ephemeral Kind cluster and points it at LocalStack (fake AWS API). Validates the full reconciliation loop: ProviderConfig → provider authenticates → creates resources → status propagates.
+
+**How it works:** The Upbound provider-aws supports custom endpoint URLs via `spec.endpoint` on ProviderConfig. A LocalStack-specific ProviderConfig overrides all AWS service endpoints:
+
+```yaml
+apiVersion: aws.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: localstack
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: localstack-creds
+      key: creds
+  endpoint:
+    hostnameImmutable: true
+    url:
+      type: Static
+      static: http://<docker-gateway-ip>:4566
+```
+
+LocalStack runs as a GitHub Actions `services` container (same pattern as Postgres in `web.test.yml`). Kind pods reach it via the Docker gateway IP.
+
+| Test | What it validates |
+|------|-------------------|
+| ProviderConfig health | provider-aws connects to LocalStack, becomes Healthy |
+| VPC lifecycle | Create VPC CR → READY=True → delete → confirm gone |
+| Secret-based auth | K8s Secret with creds → ProviderConfig references it correctly |
+
+### Tier 3: E2E Tests (Real AWS)
+
+**Runs in ~5-10 minutes. Incurs AWS costs. Manual trigger only (`workflow_dispatch`).**
+
+Uses a dedicated test AWS account to validate the real credential chain: static IAM key → AssumeRole with ExternalID → provision real VPC → verify in AWS → delete.
+
+| Trigger | When |
+|---------|------|
+| `workflow_dispatch` | Manual trigger for on-demand validation |
+| Merge to main | When `crossplane/**` files change (future, opt-in) |
+
+**NOT triggered on PRs** to avoid cost and credential exposure.
+
+**Credential source:** GitHub Secrets (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_TEST_TARGET_ROLE_ARN`, `AWS_TEST_EXTERNAL_ID`).
+
+**Teardown guarantees:**
+- All test resources tagged with `catalyst-ci-test: true` + run timestamp
+- Cleanup step runs with `if: always()` — even on test failure
+- Final step queries AWS for orphaned tagged resources and warns
+- 30-minute workflow timeout as safety net
+- Kind cluster is ephemeral (destroyed when GHA job ends)
+
+### Provider Strategy: Family Providers
+
+CI uses family providers (`provider-aws-ec2`, `provider-aws-iam`) instead of the monolithic `provider-aws`. The monolith installs 1000+ CRDs and takes 5+ minutes to become healthy. Family providers install only what's needed (~2 minutes).
+
 ## File Structure
 
 ```
 crossplane/
-├── README.md                             # Setup instructions
+├── README.md                             # Setup instructions + testing docs
 ├── dev-setup.sh                          # Install Crossplane + provider-aws in K3s
-├── compositions/
-│   ├── kubernetes-cluster-aws.yaml
-│   ├── kubernetes-cluster-gcp.yaml
-│   ├── kubernetes-cluster-azure.yaml
-│   ├── database.yaml
-│   └── observability-stack.yaml
-├── definitions/                          # CompositeResourceDefinitions (XRDs)
-│   ├── xkubernetescluster.yaml
-│   ├── xdatabase.yaml
-│   └── xobservabilitystack.yaml
-├── functions/                            # Crossplane Functions for complex logic
-│   └── cluster-post-provision/           # Post-provision: install operator, create kubeconfig secret
+├── compositions/                         # (future) XRD Compositions
+├── definitions/                          # (future) CompositeResourceDefinitions
+├── functions/                            # (future) Crossplane Functions
 ├── onboarding/
 │   └── aws-cloudformation.yaml           # Customer onboarding CloudFormation template
-├── provider-configs/                     # Templates for per-account ProviderConfigs
-│   └── aws.yaml
+├── provider-configs/
+│   └── aws.yaml                          # Production template (Secret + AssumeRole)
+├── tests/
+│   └── fixtures/
+│       ├── localstack-creds.yaml         # Dummy Secret for LocalStack
+│       ├── localstack-provider-config.yaml  # ProviderConfig with endpoint override
+│       └── test-vpc.yaml                 # VPC manifest for smoke tests
 └── validation/
-    └── aws-smoke-test.sh                 # VPC provisioning smoke test
+    └── aws-smoke-test.sh                 # Manual VPC provisioning smoke test
 web/
 ├── src/
 │   ├── db/schema.ts                      # cloudAccounts, managedClusters, nodePools (done)
