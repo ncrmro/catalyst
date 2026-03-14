@@ -20,7 +20,7 @@ The script is idempotent — safe to run multiple times.
 
 1. Adds the Crossplane Helm repo (`crossplane-stable`)
 2. Installs/upgrades Crossplane core into the `crossplane-system` namespace
-3. Installs `provider-aws-ec2` (Upbound family provider) — also auto-installs `provider-family-aws`
+3. Installs `provider-aws-ec2`, `provider-aws-iam`, and `provider-aws-autoscaling` (Upbound family providers) — also auto-installs `provider-family-aws`
 4. Waits for providers to become healthy
 
 ## Verification
@@ -79,7 +79,7 @@ The `aws-kubernetes-cluster` Composition at `crossplane/compositions/aws-kuberne
 - **Networking**: VPC, Public & Private subnets in 2 AZs, IGW, NAT GW, and Route Tables.
 - **Security**: Security groups for the control plane and worker nodes with restrictive rules.
 - **Identity**: IAM Roles and Instance Profiles for CP and workers, following the `Catalyst-K8s-*` naming convention and tagged with `catalyst-managed: true`.
-- **Compute**: Control plane EC2 instance and a Launch Template for worker nodes.
+- **Compute**: Control plane EC2 instance, Launch Template, and Auto Scaling Group (ASG) for worker nodes.
 
 **Multi-Tenancy:**
 Multi-tenancy is enforced by patching the `spec.providerConfigRef` from the `KubernetesCluster` claim to all managed resources. This ensures that resources are created in the correct customer account and that credentials are never leaked between tenants.
@@ -121,11 +121,20 @@ Triggered manually via `.github/workflows/crossplane.e2e.yml`. Requires:
 
 Tests the full credential chain: static key → AssumeRole → VPC lifecycle in a real AWS account.
 
-## Directory Structure
+## Compositions
 
+This directory contains the Crossplane Compositions that define how to provision infrastructure.
+
+- `aws-kubernetes-cluster.yaml`: Provisions a self-managed Kubernetes cluster on AWS. This includes a VPC, subnets, security groups, IAM roles, and EC2 instances.
+
+## Directory Structure
 ```
 crossplane/
 ├── README.md                          # This file
+├── compositions/
+│   └── aws-kubernetes-cluster.yaml    # AWS Kubernetes cluster composition
+├── definitions/
+│   └── xkubernetescluster.yaml        # XKubernetesCluster XRD
 ├── dev-setup.sh                       # Installs Crossplane + provider-aws-ec2 into K3s
 ├── onboarding/
 │   └── aws-cloudformation.yaml        # Customer onboarding CloudFormation template
