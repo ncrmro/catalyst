@@ -22,6 +22,10 @@ export { reportFactory } from "./report.factory";
 export { environmentFactory } from "./environment.factory";
 export { projectManifestFactory } from "./project-manifest.factory";
 
+export { cloudAccountFactory } from "./cloud-account.factory";
+export { managedClusterFactory } from "./managed-cluster.factory";
+export { nodePoolFactory } from "./node-pool.factory";
+
 // Kubernetes Custom Resource factories
 export { environmentCRFactory } from "./environment-cr.factory";
 

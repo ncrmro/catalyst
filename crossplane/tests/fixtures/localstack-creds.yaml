@@ -1,0 +1,13 @@
+# Dummy AWS credentials for LocalStack testing.
+# LocalStack accepts any access key / secret — these are not real credentials.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aws-mgmt-creds
+  namespace: crossplane-system
+type: Opaque
+stringData:
+  creds: |
+    [default]
+    aws_access_key_id = test
+    aws_secret_access_key = test

@@ -1,0 +1,170 @@
+name: Crossplane E2E (Real AWS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_role_arn:
+        description: 'Customer role ARN to assume (e.g., arn:aws:iam::123456789012:role/Catalyst-ProvisioningRole)'
+        required: true
+      external_id:
+        description: 'ExternalID for the AssumeRole call'
+        required: true
+
+# SECURITY: 30-minute timeout prevents orphaned resources from accumulating cost.
+timeout-minutes: 30
+
+jobs:
+  e2e:
+    name: Real AWS VPC Lifecycle
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Kind cluster
+        uses: helm/kind-action@v1.10.0
+        with:
+          cluster_name: crossplane-e2e
+          wait: 60s
+
+      - name: Install Crossplane
+        run: |
+          helm repo add crossplane-stable https://charts.crossplane.io/stable
+          helm repo update
+          helm upgrade --install crossplane crossplane-stable/crossplane \
+            --namespace crossplane-system \
+            --create-namespace \
+            --wait --timeout 120s
+
+      - name: Install provider-aws-ec2 (family provider)
+        run: |
+          cat <<'EOF' | kubectl apply -f -
+          apiVersion: pkg.crossplane.io/v1
+          kind: Provider
+          metadata:
+            name: provider-aws-ec2
+          spec:
+            package: xpkg.upbound.io/upbound/provider-aws-ec2:v1.16.0
+          EOF
+
+          echo "Waiting for provider-aws-ec2 to become healthy..."
+          kubectl wait provider.pkg.crossplane.io/provider-aws-ec2 \
+            --for=condition=Healthy --timeout=300s
+
+          kubectl wait provider.pkg.crossplane.io/provider-family-aws \
+            --for=condition=Healthy --timeout=300s
+
+          kubectl get providers
+
+      - name: Create management credential Secret
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          kubectl create secret generic aws-mgmt-creds \
+            -n crossplane-system \
+            --from-literal=creds="[default]
+          aws_access_key_id = ${AWS_ACCESS_KEY_ID}
+          aws_secret_access_key = ${AWS_SECRET_ACCESS_KEY}"
+
+      - name: Create ProviderConfig with AssumeRole chain
+        env:
+          TARGET_ROLE_ARN: ${{ github.event.inputs.target_role_arn }}
+          EXTERNAL_ID: ${{ github.event.inputs.external_id }}
+        run: |
+          cat <<EOF | kubectl apply -f -
+          apiVersion: aws.upbound.io/v1beta1
+          kind: ProviderConfig
+          metadata:
+            name: e2e-target-account
+          spec:
+            credentials:
+              source: Secret
+              secretRef:
+                namespace: crossplane-system
+                name: aws-mgmt-creds
+                key: creds
+            assumeRoleChain:
+              - roleARN: "${TARGET_ROLE_ARN}"
+                externalID: "${EXTERNAL_ID}"
+          EOF
+
+          kubectl get providerconfig e2e-target-account -o yaml
+
+      - name: "Test: VPC create → READY → verify → delete"
+        run: |
+          VPC_NAME="e2e-test-vpc-${GITHUB_RUN_ID}"
+
+          echo "=== Creating VPC: ${VPC_NAME} ==="
+          cat <<EOF | kubectl apply -f -
+          apiVersion: ec2.aws.upbound.io/v1beta1
+          kind: VPC
+          metadata:
+            name: ${VPC_NAME}
+          spec:
+            forProvider:
+              region: us-east-1
+              cidrBlock: "10.99.0.0/16"
+              enableDnsHostnames: true
+              enableDnsSupport: true
+              tags:
+                catalyst-managed: "true"
+                catalyst-test: "e2e"
+                github-run-id: "${GITHUB_RUN_ID}"
+            providerConfigRef:
+              name: e2e-target-account
+          EOF
+
+          echo "=== Waiting for VPC to become READY (up to 180s) ==="
+          kubectl wait vpc "${VPC_NAME}" \
+            --for=condition=Ready --timeout=180s
+
+          echo "=== VPC is READY ==="
+          kubectl get vpc "${VPC_NAME}" -o yaml
+
+          echo "=== Deleting VPC ==="
+          kubectl delete vpc "${VPC_NAME}"
+
+          echo "=== Waiting for VPC deletion ==="
+          kubectl wait vpc "${VPC_NAME}" --for=delete --timeout=120s \
+            || echo "VPC already deleted"
+
+          echo "=== E2E VPC lifecycle test passed ==="
+
+      - name: "Cleanup: check for orphaned resources"
+        if: always()
+        run: |
+          echo "=== Checking for orphaned VPC resources ==="
+          ORPHANED=$(kubectl get vpc -o name 2>/dev/null || true)
+          if [ -n "$ORPHANED" ]; then
+            echo "WARNING: Found orphaned VPC resources, deleting..."
+            echo "$ORPHANED"
+            kubectl delete vpc --all --timeout=120s || true
+          else
+            echo "No orphaned VPC resources found."
+          fi
+
+      - name: Debug on failure
+        if: failure()
+        run: |
+          echo "=== Provider pods ==="
+          kubectl get pods -n crossplane-system
+
+          echo ""
+          echo "=== provider-aws-ec2 logs (last 100 lines) ==="
+          kubectl logs -n crossplane-system \
+            -l pkg.crossplane.io/revision \
+            --tail=100 || echo "No provider logs found"
+
+          echo ""
+          echo "=== Cluster events ==="
+          kubectl get events --sort-by='.lastTimestamp' | tail -30
+
+          echo ""
+          echo "=== VPC status ==="
+          kubectl get vpc -o yaml 2>/dev/null || echo "No VPC resources"
+
+          echo ""
+          echo "=== ProviderConfig status ==="
+          kubectl get providerconfig -o yaml 2>/dev/null || echo "No ProviderConfig"

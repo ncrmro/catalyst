@@ -40,6 +40,7 @@ We use a specification-first approach to define features through user stories an
 - **[006-agent-harness](specs/006-agent-harness/)**: Provides an environment for running and managing CLI-based coding agents.
 - **[007-user-agent-interfaces](specs/007-user-agent-interfaces/)**: Defines the interaction patterns across Web, TUI, MCP, and ChatOps.
 - **[009-projects](specs/009-projects/)**: Groups repositories into projects to enable centralized CI, release management, and spec-driven workflows.
+- **[012-cross-account-cloud-resources](specs/012-cross-account-cloud-resources/)**: Crossplane-based cross-account AWS provisioning with credential chain, CloudFormation onboarding, and three-tier CI testing.
 
 ## Component-Specific Guidance
 

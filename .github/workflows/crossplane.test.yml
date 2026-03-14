@@ -1,0 +1,179 @@
+name: Crossplane Tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'crossplane/**'
+      - '.github/workflows/crossplane.test.yml'
+  workflow_dispatch:
+
+jobs:
+  unit:
+    name: YAML Lint + CloudFormation Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: Lint all YAML files
+        run: |
+          yamllint -d relaxed crossplane/**/*.yaml
+
+      - name: Validate CloudFormation template structure
+        run: |
+          pip install cfn-lint
+          cfn-lint crossplane/onboarding/aws-cloudformation.yaml
+
+      - name: Shellcheck bash scripts
+        run: |
+          shellcheck crossplane/dev-setup.sh crossplane/validation/aws-smoke-test.sh
+
+  integration:
+    name: LocalStack Integration
+    runs-on: ubuntu-latest
+    needs: unit
+
+    services:
+      localstack:
+        image: localstack/localstack:3.4
+        ports:
+          - 4566:4566
+        env:
+          SERVICES: ec2,sts
+          EAGER_SERVICE_LOADING: 1
+        options: >-
+          --health-cmd "curl -f http://localhost:4566/_localstack/health"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify LocalStack is healthy
+        run: |
+          curl -sf http://localhost:4566/_localstack/health | jq .
+
+      - name: Create Kind cluster
+        uses: helm/kind-action@v1.10.0
+        with:
+          cluster_name: crossplane-test
+          wait: 60s
+
+      - name: Install Crossplane
+        run: |
+          helm repo add crossplane-stable https://charts.crossplane.io/stable
+          helm repo update
+          helm upgrade --install crossplane crossplane-stable/crossplane \
+            --namespace crossplane-system \
+            --create-namespace \
+            --wait --timeout 120s
+
+      - name: Install provider-aws-ec2 (family provider)
+        run: |
+          cat <<'EOF' | kubectl apply -f -
+          apiVersion: pkg.crossplane.io/v1
+          kind: Provider
+          metadata:
+            name: provider-aws-ec2
+          spec:
+            package: xpkg.upbound.io/upbound/provider-aws-ec2:v1.16.0
+          EOF
+
+          echo "Waiting for provider-aws-ec2 to become healthy..."
+          kubectl wait provider.pkg.crossplane.io/provider-aws-ec2 \
+            --for=condition=Healthy --timeout=300s
+
+          # provider-family-aws is installed automatically — wait for it too
+          echo "Waiting for provider-family-aws to become healthy..."
+          kubectl wait provider.pkg.crossplane.io/provider-family-aws \
+            --for=condition=Healthy --timeout=300s
+
+          echo "Installed providers:"
+          kubectl get providers
+
+      - name: Discover Docker gateway IP for Kind→LocalStack
+        id: gateway
+        run: |
+          # Kind containers need the Docker bridge gateway to reach the host's
+          # port-forwarded LocalStack. This IP varies per runner.
+          GATEWAY_IP=$(docker network inspect kind \
+            -f '{{range .IPAM.Config}}{{.Gateway}}{{end}}')
+          echo "Gateway IP: ${GATEWAY_IP}"
+          echo "endpoint=http://${GATEWAY_IP}:4566" >> "$GITHUB_OUTPUT"
+
+      - name: Apply test fixtures (Secret + ProviderConfig)
+        env:
+          LOCALSTACK_ENDPOINT: ${{ steps.gateway.outputs.endpoint }}
+        run: |
+          # Create crossplane-system namespace (already exists from Helm install)
+          kubectl apply -f crossplane/tests/fixtures/localstack-creds.yaml
+
+          # Substitute the LocalStack endpoint into the ProviderConfig
+          envsubst < crossplane/tests/fixtures/localstack-provider-config.yaml \
+            | kubectl apply -f -
+
+          echo "Waiting for ProviderConfig to be accepted..."
+          sleep 5
+          kubectl get providerconfig localstack -o yaml
+
+      - name: "Test: VPC create → READY → delete lifecycle"
+        run: |
+          echo "=== Creating test VPC ==="
+          kubectl apply -f crossplane/tests/fixtures/test-vpc.yaml
+
+          echo "=== Waiting for VPC to become READY (up to 120s) ==="
+          kubectl wait vpc crossplane-test-vpc \
+            --for=condition=Ready --timeout=120s
+
+          echo "=== VPC is READY — verifying status ==="
+          kubectl get vpc crossplane-test-vpc -o yaml
+
+          echo "=== Deleting test VPC ==="
+          kubectl delete vpc crossplane-test-vpc
+
+          echo "=== Waiting for VPC deletion (up to 60s) ==="
+          kubectl wait vpc crossplane-test-vpc --for=delete --timeout=60s \
+            || echo "VPC already deleted"
+
+          echo "=== VPC lifecycle test passed ==="
+
+      - name: Debug on failure — provider logs + events
+        if: failure()
+        run: |
+          echo "=== Provider pods ==="
+          kubectl get pods -n crossplane-system
+
+          echo ""
+          echo "=== provider-aws-ec2 logs (last 50 lines) ==="
+          kubectl logs -n crossplane-system \
+            -l pkg.crossplane.io/revision \
+            --tail=50 || echo "No provider logs found"
+
+          echo ""
+          echo "=== Cluster events (last 30) ==="
+          kubectl get events --sort-by='.lastTimestamp' \
+            | tail -30
+
+          echo ""
+          echo "=== VPC resource status ==="
+          kubectl get vpc -o yaml 2>/dev/null || echo "No VPC resources found"
+
+          echo ""
+          echo "=== ProviderConfig status ==="
+          kubectl get providerconfig -o yaml 2>/dev/null || echo "No ProviderConfig found"
+
+      - name: Upload debug artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crossplane-debug-logs
+          path: /tmp/crossplane-debug/
+          retention-days: 7
+          if-no-files-found: ignore

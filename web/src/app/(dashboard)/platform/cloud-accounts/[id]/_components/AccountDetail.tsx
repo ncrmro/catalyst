@@ -1,15 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { ClusterProvisioning } from "./ClusterProvisioning";
 import { NodeGroupCard } from "./NodeGroupCard";
 import { VPNSetup } from "./VPNSetup";
 import { KubeconfigSetup } from "./KubeconfigSetup";
 import { ObservabilityStack } from "./ObservabilityStack";
+import { unlinkCloudAccount } from "@/actions/cloud-accounts";
+
+import { ManagedClusterSummary } from "@/actions/managed-clusters";
 
 interface AccountDetailProps {
   id: string;
+  teamId: string;
   provider: string;
   alias: string;
   accountId: string;
@@ -18,6 +23,7 @@ interface AccountDetailProps {
   roleArn: string;
   externalId: string;
   resourcePrefix: string;
+  clusters: ManagedClusterSummary[];
 }
 
 const statusStyles = {
@@ -27,6 +33,8 @@ const statusStyles = {
 } as const;
 
 export function AccountDetail({
+  id,
+  teamId,
   provider,
   alias,
   accountId,
@@ -35,8 +43,32 @@ export function AccountDetail({
   roleArn,
   externalId,
   resourcePrefix,
+  clusters,
 }: AccountDetailProps) {
+  const router = useRouter();
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isUnlinking, setIsUnlinking] = useState(false);
+  const [unlinkError, setUnlinkError] = useState<string | null>(null);
+
+  const handleUnlink = async () => {
+    setIsUnlinking(true);
+    setUnlinkError(null);
+
+    try {
+      const result = await unlinkCloudAccount(teamId, id);
+      if (result.success) {
+        router.push("/platform/cloud-accounts");
+        router.refresh();
+      } else {
+        setUnlinkError(result.error);
+        setIsUnlinking(false);
+      }
+    } catch (err) {
+      setUnlinkError("An unexpected error occurred.");
+      setIsUnlinking(false);
+      console.error(err);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -90,11 +122,20 @@ export function AccountDetail({
         </div>
       </Card>
 
-      <ClusterProvisioning />
-      <NodeGroupCard />
-      <VPNSetup />
-      <KubeconfigSetup />
-      <ObservabilityStack />
+      <ClusterProvisioning
+        teamId={teamId}
+        cloudAccountId={id}
+        initialClusters={clusters}
+      />
+      
+      {clusters.length > 0 && (
+        <>
+          <NodeGroupCard />
+          <VPNSetup />
+          <KubeconfigSetup />
+          <ObservabilityStack />
+        </>
+      )}
 
       <Card>
         <div className="flex items-center justify-between">
@@ -112,19 +153,33 @@ export function AccountDetail({
               Disconnect
             </button>
           ) : (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowConfirm(false)}
-                className="px-3 py-2 text-sm font-medium rounded-lg text-on-surface-variant hover:bg-surface-variant transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                disabled
-                className="px-4 py-2 text-sm font-medium rounded-lg bg-error text-on-error cursor-not-allowed opacity-60"
-              >
-                Confirm Disconnect
-              </button>
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={isUnlinking}
+                  onClick={() => setShowConfirm(false)}
+                  className="px-3 py-2 text-sm font-medium rounded-lg text-on-surface-variant hover:bg-surface-variant transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUnlink}
+                  disabled={isUnlinking}
+                  className="px-4 py-2 text-sm font-medium rounded-lg bg-error text-on-error hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isUnlinking ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-on-error/30 border-t-on-error rounded-full animate-spin" />
+                      Unlinking...
+                    </>
+                  ) : (
+                    "Confirm Disconnect"
+                  )}
+                </button>
+              </div>
+              {unlinkError && (
+                <p className="text-xs text-error mt-1">{unlinkError}</p>
+              )}
             </div>
           )}
         </div>

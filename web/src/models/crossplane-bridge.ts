@@ -1,0 +1,430 @@
+/**
+ * Crossplane Bridge Model
+ *
+ * Translates database records into Crossplane Kubernetes resources.
+ * Handles ProviderConfig creation for cloud accounts and KubernetesCluster
+ * Claims for managed clusters.
+ *
+ * This is a model-layer function called by server actions, not a separate controller.
+ */
+
+import { db } from "@/db";
+import {
+  cloudAccounts,
+  managedClusters,
+  teams,
+  nodePools,
+} from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { decrypt } from "@tetrastack/backend/utils";
+import {
+  getCustomObjectsApi,
+  getClusterConfig,
+  getCoreV1Api,
+  ensureTeamNamespace,
+} from "@/lib/k8s-client";
+import { generateTeamNamespace } from "@/lib/namespace-utils";
+
+// Crossplane Group/Version constants
+const AWS_PROVIDER_GROUP = "aws.upbound.io";
+const AWS_PROVIDER_VERSION = "v1beta1";
+const CATALYST_GROUP = "catalyst.tetraship.app";
+const CATALYST_VERSION = "v1alpha1";
+
+export interface DecryptedAWSAccount {
+  roleARN: string;
+  externalID: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
+}
+
+/**
+ * Creates a Crossplane ProviderConfig for a linked cloud account.
+ * For AWS, it creates a ProviderConfig that either:
+ * 1. Uses AssumeRole via a shared management secret (iam_role)
+ * 2. Uses an access key in a dedicated secret (access_key)
+ */
+export async function createProviderConfig(accountId: string) {
+  const [account] = await db
+    .select()
+    .from(cloudAccounts)
+    .where(eq(cloudAccounts.id, accountId))
+    .limit(1);
+
+  if (!account) {
+    throw new Error(`Cloud account ${accountId} not found`);
+  }
+
+  try {
+    // Decrypt credentials
+    const decrypted = decrypt(
+      account.credentialEncrypted,
+      account.credentialIv,
+      account.credentialAuthTag
+    );
+
+    const k8sCustomApi = getCustomObjectsApi();
+    const k8sCoreApi = getCoreV1Api();
+
+    if (account.provider === "aws") {
+      let credentials: DecryptedAWSAccount;
+      try {
+        credentials = JSON.parse(decrypted);
+      } catch (e) {
+        throw new Error("Failed to parse cloud account credentials. Expected JSON.");
+      }
+
+      if (account.credentialType === "iam_role") {
+        // AssumeRole pattern: reference shared management secret
+        const providerConfig = {
+          apiVersion: `${AWS_PROVIDER_GROUP}/${AWS_PROVIDER_VERSION}`,
+          kind: "ProviderConfig",
+          metadata: {
+            name: account.id,
+          },
+          spec: {
+            credentials: {
+              source: "Secret",
+              secretRef: {
+                namespace: "crossplane-system",
+                name: "aws-mgmt-creds",
+                key: "creds",
+              },
+            },
+            assumeRoleChain: [
+              {
+                roleARN: credentials.roleARN,
+                externalID: credentials.externalID,
+              },
+            ],
+          },
+        };
+
+        await k8sCustomApi.createClusterCustomObject(
+          AWS_PROVIDER_GROUP,
+          AWS_PROVIDER_VERSION,
+          "providerconfigs",
+          providerConfig
+        );
+      } else if (account.credentialType === "access_key") {
+        // Access key pattern: create a secret for this account
+        const secretName = `aws-creds-${account.id}`;
+        await k8sCoreApi.createNamespacedSecret({
+          namespace: "crossplane-system",
+          body: {
+            apiVersion: "v1",
+            kind: "Secret",
+            metadata: {
+              name: secretName,
+            },
+            stringData: {
+              creds: `[default]
+aws_access_key_id = ${credentials.accessKeyId}
+aws_secret_access_key = ${credentials.secretAccessKey}
+`,
+            },
+          },
+        });
+
+        const providerConfig = {
+          apiVersion: `${AWS_PROVIDER_GROUP}/${AWS_PROVIDER_VERSION}`,
+          kind: "ProviderConfig",
+          metadata: {
+            name: account.id,
+          },
+          spec: {
+            credentials: {
+              source: "Secret",
+              secretRef: {
+                namespace: "crossplane-system",
+                name: secretName,
+                key: "creds",
+              },
+            },
+          },
+        };
+
+        await k8sCustomApi.createClusterCustomObject(
+          AWS_PROVIDER_GROUP,
+          AWS_PROVIDER_VERSION,
+          "providerconfigs",
+          providerConfig
+        );
+      } else {
+        throw new Error(`Credential type ${account.credentialType} not supported for AWS`);
+      }
+    } else {
+      throw new Error(`Provider ${account.provider} not supported yet`);
+    }
+
+    // Mark as active in DB
+    await db
+      .update(cloudAccounts)
+      .set({ status: "active", lastError: null, updatedAt: new Date() })
+      .where(eq(cloudAccounts.id, accountId));
+
+  } catch (error: any) {
+    console.error(`Failed to create ProviderConfig for account ${accountId}:`, error);
+    
+    // Update DB with error
+    await db
+      .update(cloudAccounts)
+      .set({ 
+        status: "error", 
+        lastError: error.message || "Unknown error during ProviderConfig creation",
+        updatedAt: new Date() 
+      })
+      .where(eq(cloudAccounts.id, accountId));
+      
+    throw error;
+  }
+}
+
+/**
+ * Removes a Crossplane ProviderConfig and its associated secret if any.
+ */
+export async function deleteProviderConfig(accountId: string) {
+  const [account] = await db
+    .select()
+    .from(cloudAccounts)
+    .where(eq(cloudAccounts.id, accountId))
+    .limit(1);
+
+  if (!account) return;
+
+  const k8sCustomApi = getCustomObjectsApi();
+  const k8sCoreApi = getCoreV1Api();
+
+  if (account.provider === "aws") {
+    // Delete ProviderConfig
+    try {
+      await k8sCustomApi.deleteClusterCustomObject(
+        AWS_PROVIDER_GROUP,
+        AWS_PROVIDER_VERSION,
+        "providerconfigs",
+        account.id
+      );
+    } catch (e: any) {
+      if (e.response?.statusCode !== 404) {
+        console.error(`Error deleting ProviderConfig ${account.id}:`, e);
+      }
+    }
+
+    // Delete Secret if it was an access_key
+    if (account.credentialType === "access_key") {
+      try {
+        const secretName = `aws-creds-${account.id}`;
+        await k8sCoreApi.deleteNamespacedSecret({
+          name: secretName,
+          namespace: "crossplane-system"
+        });
+      } catch (e: any) {
+        if (e.response?.statusCode !== 404) {
+          console.error(`Error deleting secret aws-creds-${account.id}:`, e);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Creates a KubernetesCluster Claim in the team's namespace.
+ */
+export async function createClusterClaim(clusterId: string) {
+  const [cluster] = await db
+    .select()
+    .from(managedClusters)
+    .where(eq(managedClusters.id, clusterId))
+    .limit(1);
+
+  if (!cluster) {
+    throw new Error(`Managed cluster ${clusterId} not found`);
+  }
+
+  try {
+    const [team] = await db
+      .select()
+      .from(teams)
+      .where(eq(teams.id, cluster.teamId))
+      .limit(1);
+
+    if (!team) {
+      throw new Error(`Team ${cluster.teamId} not found`);
+    }
+
+    const pools = await db
+      .select()
+      .from(nodePools)
+      .where(eq(nodePools.clusterId, cluster.id));
+
+    // Ensure team namespace exists
+    const kubeConfig = getClusterConfig();
+    await ensureTeamNamespace(kubeConfig, team.name);
+
+    const namespace = generateTeamNamespace(team.name);
+    const k8sCustomApi = getCustomObjectsApi();
+
+    const claim = {
+      apiVersion: `${CATALYST_GROUP}/${CATALYST_VERSION}`,
+      kind: "KubernetesCluster",
+      metadata: {
+        name: cluster.name,
+        namespace: namespace,
+      },
+      spec: {
+        region: cluster.region,
+        kubernetesVersion: cluster.kubernetesVersion,
+        nodePools: pools.map(p => ({
+          name: p.name,
+          instanceType: p.instanceType,
+          minNodes: p.minNodes,
+          maxNodes: p.maxNodes,
+          desiredNodes: p.minNodes, // Initial desired equals min
+          spot: p.spotEnabled,
+        })),
+        providerConfigRef: {
+          name: cluster.cloudAccountId,
+        },
+      },
+    };
+
+    await k8sCustomApi.createNamespacedCustomObject(
+      CATALYST_GROUP,
+      CATALYST_VERSION,
+      namespace,
+      "kubernetesclusters",
+      claim
+    );
+
+    // Initial status update in DB if needed (usually it's already 'provisioning')
+    if (cluster.status !== "provisioning") {
+      await db
+        .update(managedClusters)
+        .set({ status: "provisioning", updatedAt: new Date() })
+        .where(eq(managedClusters.id, clusterId));
+    }
+
+  } catch (error: any) {
+    console.error(`Failed to create cluster claim for ${clusterId}:`, error);
+    
+    // Update DB with error
+    await db
+      .update(managedClusters)
+      .set({ 
+        status: "error", 
+        updatedAt: new Date() 
+      })
+      .where(eq(managedClusters.id, clusterId));
+      
+    throw error;
+  }
+}
+
+/**
+ * Deletes a KubernetesCluster Claim.
+ */
+export async function deleteClusterClaim(clusterId: string) {
+  const [cluster] = await db
+    .select()
+    .from(managedClusters)
+    .where(eq(managedClusters.id, clusterId))
+    .limit(1);
+
+  if (!cluster) return;
+
+  const [team] = await db
+    .select()
+    .from(teams)
+    .where(eq(teams.id, cluster.teamId))
+    .limit(1);
+
+  if (!team) return;
+
+  const namespace = generateTeamNamespace(team.name);
+  const k8sCustomApi = getCustomObjectsApi();
+
+  try {
+    await k8sCustomApi.deleteNamespacedCustomObject(
+      CATALYST_GROUP,
+      CATALYST_VERSION,
+      namespace,
+      "kubernetesclusters",
+      cluster.name
+    );
+  } catch (e: any) {
+    if (e.response?.statusCode !== 404) {
+      console.error(`Error deleting cluster claim ${cluster.name}:`, e);
+    }
+  }
+}
+
+/**
+ * Syncs the status of a managed cluster from its Crossplane Claim.
+ */
+export async function syncClusterStatus(clusterId: string) {
+  const [cluster] = await db
+    .select()
+    .from(managedClusters)
+    .where(eq(managedClusters.id, clusterId))
+    .limit(1);
+
+  if (!cluster) return;
+
+  const [team] = await db
+    .select()
+    .from(teams)
+    .where(eq(teams.id, cluster.teamId))
+    .limit(1);
+
+  if (!team) return;
+
+  const namespace = generateTeamNamespace(team.name);
+  const k8sCustomApi = getCustomObjectsApi();
+
+  try {
+    const response: any = await k8sCustomApi.getNamespacedCustomObject(
+      CATALYST_GROUP,
+      CATALYST_VERSION,
+      namespace,
+      "kubernetesclusters",
+      cluster.name
+    );
+
+    // Check conditions for status
+    const conditions = response.body.status?.conditions || [];
+    const readyCondition = conditions.find((c: any) => c.type === "Ready");
+
+    let status = "provisioning";
+    if (readyCondition?.status === "True") {
+      status = "active";
+    } else if (readyCondition?.status === "False") {
+      // Check if it's a persistent failure or just not ready yet
+      // For now, if Ready is False, we keep it as provisioning unless there's a more specific error
+      // Crossplane often has "Ready=False" during initial provisioning.
+      // But if it has a specific "Synced=False" with a serious error, we might want "error".
+      const syncedCondition = conditions.find((c: any) => c.type === "Synced");
+      if (syncedCondition?.status === "False" && syncedCondition?.reason === "ReconcileError") {
+        status = "error";
+      }
+    }
+
+    if (status !== cluster.status) {
+      await db
+        .update(managedClusters)
+        .set({ status, updatedAt: new Date() })
+        .where(eq(managedClusters.id, clusterId));
+    }
+  } catch (e: any) {
+    if (e.response?.statusCode === 404) {
+      // If the claim is gone and we were deleting, mark as deleted
+      if (cluster.status === "deleting") {
+        await db
+          .update(managedClusters)
+          .set({ status: "deleted", updatedAt: new Date() })
+          .where(eq(managedClusters.id, clusterId));
+      }
+    } else {
+      console.error(`Error syncing cluster status for ${clusterId}:`, e);
+    }
+  }
+}

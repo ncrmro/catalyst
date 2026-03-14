@@ -1,0 +1,629 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: aws-kubernetes-cluster
+  labels:
+    provider: aws
+    cluster: kubernetes
+spec:
+  writeConnectionSecretsToNamespace: crossplane-system
+  compositeTypeRef:
+    apiVersion: catalyst.tetraship.app/v1alpha1
+    kind: XKubernetesCluster
+  patchSets:
+    - name: common-fields
+      patches:
+        # Patch the ProviderConfigRef from the Claim to all managed resources.
+        # This is critical for multi-tenant isolation.
+        - fromFieldPath: spec.providerConfigRef
+          toFieldPath: spec.providerConfigRef.name
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+    - name: resource-tags
+      patches:
+        # Security: Tags are used for iam:PassRole restriction and resource tracking.
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: spec.forProvider.tags[catalyst-managed]
+          transforms:
+            - type: string
+              string:
+                type: Constant
+                constant: "true"
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: spec.forProvider.tags[catalyst-cluster]
+
+  resources:
+    # 1. VPC
+    # Security: Enable DNS support for Kubernetes service discovery.
+    - name: vpc
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: VPC
+        spec:
+          forProvider:
+            cidrBlock: 10.0.0.0/16
+            enableDnsHostnames: true
+            enableDnsSupport: true
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+        - type: PatchSet
+          patchSetName: resource-tags
+        - fromFieldPath: metadata.name
+          toFieldPath: spec.forProvider.tags[Name]
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-vpc"
+
+    # 2. Internet Gateway
+    - name: internetGateway
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: InternetGateway
+        spec:
+          forProvider:
+            vpcIdSelector:
+              matchControllerRef: true
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+        - type: PatchSet
+          patchSetName: resource-tags
+
+    # 3. Public Subnet 1 (AZ A)
+    - name: publicSubnet1
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Subnet
+        spec:
+          forProvider:
+            cidrBlock: 10.0.1.0/24
+            mapPublicIpOnLaunch: true
+            vpcIdSelector:
+              matchControllerRef: true
+            tags:
+              "kubernetes.io/role/elb": "1"
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+        - type: PatchSet
+          patchSetName: resource-tags
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.availabilityZone
+          transforms:
+            - type: string
+              string:
+                fmt: "%sa"
+
+    # 4. Public Subnet 2 (AZ B)
+    - name: publicSubnet2
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Subnet
+        spec:
+          forProvider:
+            cidrBlock: 10.0.2.0/24
+            mapPublicIpOnLaunch: true
+            vpcIdSelector:
+              matchControllerRef: true
+            tags:
+              "kubernetes.io/role/elb": "1"
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+        - type: PatchSet
+          patchSetName: resource-tags
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.availabilityZone
+          transforms:
+            - type: string
+              string:
+                fmt: "%sb"
+
+    # 5. Private Subnet 1 (AZ A)
+    - name: privateSubnet1
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Subnet
+        spec:
+          forProvider:
+            cidrBlock: 10.0.3.0/24
+            vpcIdSelector:
+              matchControllerRef: true
+            tags:
+              "kubernetes.io/role/internal-elb": "1"
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+        - type: PatchSet
+          patchSetName: resource-tags
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.availabilityZone
+          transforms:
+            - type: string
+              string:
+                fmt: "%sa"
+
+    # 6. Private Subnet 2 (AZ B)
+    - name: privateSubnet2
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Subnet
+        spec:
+          forProvider:
+            cidrBlock: 10.0.4.0/24
+            vpcIdSelector:
+              matchControllerRef: true
+            tags:
+              "kubernetes.io/role/internal-elb": "1"
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+        - type: PatchSet
+          patchSetName: resource-tags
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.availabilityZone
+          transforms:
+            - type: string
+              string:
+                fmt: "%sb"
+
+    # 7. Elastic IP for NAT
+    - name: eip
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: EIP
+        spec:
+          forProvider:
+            domain: vpc
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+        - type: PatchSet
+          patchSetName: resource-tags
+
+    # 8. NAT Gateway
+    - name: natGateway
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: NATGateway
+        spec:
+          forProvider:
+            subnetIdSelector:
+              matchControllerRef: true
+              matchLabels:
+                crossplane.io/resource-name: publicSubnet1
+            allocationIdSelector:
+              matchControllerRef: true
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+        - type: PatchSet
+          patchSetName: resource-tags
+
+    # 9. Public Route Table
+    - name: publicRouteTable
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: RouteTable
+        spec:
+          forProvider:
+            vpcIdSelector:
+              matchControllerRef: true
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+        - type: PatchSet
+          patchSetName: resource-tags
+
+    # 10. Public Route to Internet
+    - name: publicRoute
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Route
+        spec:
+          forProvider:
+            destinationCidrBlock: 0.0.0.0/0
+            routeTableIdSelector:
+              matchControllerRef: true
+              matchLabels:
+                crossplane.io/resource-name: publicRouteTable
+            gatewayIdSelector:
+              matchControllerRef: true
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+
+    # 11. Public Subnet Associations
+    - name: publicSubnet1Association
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: RouteTableAssociation
+        spec:
+          forProvider:
+            subnetIdSelector:
+              matchControllerRef: true
+              matchLabels:
+                crossplane.io/resource-name: publicSubnet1
+            routeTableIdSelector:
+              matchControllerRef: true
+              matchLabels:
+                crossplane.io/resource-name: publicRouteTable
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+
+    - name: publicSubnet2Association
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: RouteTableAssociation
+        spec:
+          forProvider:
+            subnetIdSelector:
+              matchControllerRef: true
+              matchLabels:
+                crossplane.io/resource-name: publicSubnet2
+            routeTableIdSelector:
+              matchControllerRef: true
+              matchLabels:
+                crossplane.io/resource-name: publicRouteTable
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+
+    # 12. Private Route Table
+    - name: privateRouteTable
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: RouteTable
+        spec:
+          forProvider:
+            vpcIdSelector:
+              matchControllerRef: true
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+        - type: PatchSet
+          patchSetName: resource-tags
+
+    # 13. Private Route to NAT
+    - name: privateRoute
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Route
+        spec:
+          forProvider:
+            destinationCidrBlock: 0.0.0.0/0
+            routeTableIdSelector:
+              matchControllerRef: true
+              matchLabels:
+                crossplane.io/resource-name: privateRouteTable
+            natGatewayIdSelector:
+              matchControllerRef: true
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+
+    # 14. Private Subnet Associations
+    - name: privateSubnet1Association
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: RouteTableAssociation
+        spec:
+          forProvider:
+            subnetIdSelector:
+              matchControllerRef: true
+              matchLabels:
+                crossplane.io/resource-name: privateSubnet1
+            routeTableIdSelector:
+              matchControllerRef: true
+              matchLabels:
+                crossplane.io/resource-name: privateRouteTable
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+
+    - name: privateSubnet2Association
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: RouteTableAssociation
+        spec:
+          forProvider:
+            subnetIdSelector:
+              matchControllerRef: true
+              matchLabels:
+                crossplane.io/resource-name: privateSubnet2
+            routeTableIdSelector:
+              matchControllerRef: true
+              matchLabels:
+                crossplane.io/resource-name: privateRouteTable
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+
+    # 15. Control Plane Security Group
+    # Security: Inbound 6443 for API Server, 22 for SSH.
+    - name: controlPlaneSecurityGroup
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: SecurityGroup
+        spec:
+          forProvider:
+            description: Security group for Kubernetes control plane
+            vpcIdSelector:
+              matchControllerRef: true
+            ingress:
+              - fromPort: 22
+                toPort: 22
+                protocol: tcp
+                cidrBlocks: ["0.0.0.0/0"]
+              - fromPort: 6443
+                toPort: 6443
+                protocol: tcp
+                cidrBlocks: ["0.0.0.0/0"]
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+        - type: PatchSet
+          patchSetName: resource-tags
+        - fromFieldPath: metadata.name
+          toFieldPath: spec.forProvider.tags[Name]
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-cp-sg"
+
+    # 16. Worker Security Group
+    # Security: Allows all traffic from control plane and other workers.
+    - name: workerSecurityGroup
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: SecurityGroup
+        spec:
+          forProvider:
+            description: Security group for Kubernetes worker nodes
+            vpcIdSelector:
+              matchControllerRef: true
+            ingress:
+              - fromPort: 22
+                toPort: 22
+                protocol: tcp
+                cidrBlocks: ["0.0.0.0/0"]
+              - fromPort: 0
+                toPort: 0
+                protocol: "-1"
+                securityGroupIdSelector:
+                  matchControllerRef: true
+                  matchLabels:
+                    crossplane.io/resource-name: controlPlaneSecurityGroup
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+        - type: PatchSet
+          patchSetName: resource-tags
+        - fromFieldPath: metadata.name
+          toFieldPath: spec.forProvider.tags[Name]
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-worker-sg"
+
+    # 17. Control Plane IAM Role
+    # Security: Role name MUST match Catalyst-K8s-* to satisfy iam:PassRole restriction.
+    - name: controlPlaneRole
+      base:
+        apiVersion: iam.aws.upbound.io/v1beta1
+        kind: Role
+        spec:
+          forProvider:
+            assumeRolePolicy: |
+              {
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                    "Effect": "Allow",
+                    "Principal": {
+                      "Service": "ec2.amazonaws.com"
+                    },
+                    "Action": "sts:AssumeRole"
+                  }
+                ]
+              }
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+        - type: PatchSet
+          patchSetName: resource-tags
+        - fromFieldPath: metadata.name
+          toFieldPath: spec.forProvider.name
+          transforms:
+            - type: string
+              string:
+                fmt: "Catalyst-K8s-CP-%s"
+
+    # 18. Worker IAM Role
+    - name: workerRole
+      base:
+        apiVersion: iam.aws.upbound.io/v1beta1
+        kind: Role
+        spec:
+          forProvider:
+            assumeRolePolicy: |
+              {
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                    "Effect": "Allow",
+                    "Principal": {
+                      "Service": "ec2.amazonaws.com"
+                    },
+                    "Action": "sts:AssumeRole"
+                  }
+                ]
+              }
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+        - type: PatchSet
+          patchSetName: resource-tags
+        - fromFieldPath: metadata.name
+          toFieldPath: spec.forProvider.name
+          transforms:
+            - type: string
+              string:
+                fmt: "Catalyst-K8s-Worker-%s"
+
+    # 19. Instance Profiles
+    # Security: MUST be tagged with catalyst-managed: true to be passable.
+    - name: controlPlaneInstanceProfile
+      base:
+        apiVersion: iam.aws.upbound.io/v1beta1
+        kind: InstanceProfile
+        spec:
+          forProvider:
+            roleSelector:
+              matchControllerRef: true
+              matchLabels:
+                crossplane.io/resource-name: controlPlaneRole
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+        - type: PatchSet
+          patchSetName: resource-tags
+        - fromFieldPath: metadata.name
+          toFieldPath: spec.forProvider.name
+          transforms:
+            - type: string
+              string:
+                fmt: "Catalyst-K8s-CP-%s"
+
+    - name: workerInstanceProfile
+      base:
+        apiVersion: iam.aws.upbound.io/v1beta1
+        kind: InstanceProfile
+        spec:
+          forProvider:
+            roleSelector:
+              matchControllerRef: true
+              matchLabels:
+                crossplane.io/resource-name: workerRole
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+        - type: PatchSet
+          patchSetName: resource-tags
+        - fromFieldPath: metadata.name
+          toFieldPath: spec.forProvider.name
+          transforms:
+            - type: string
+              string:
+                fmt: "Catalyst-K8s-Worker-%s"
+
+    # 20. Control Plane Instance
+    # Provisions the initial control plane node.
+    - name: instance-cp
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Instance
+        spec:
+          forProvider:
+            # Ubuntu 22.04 LTS (us-east-1) - Placeholder
+            ami: ami-0c55b159cbfafe1f0
+            iamInstanceProfileSelector:
+              matchControllerRef: true
+              matchLabels:
+                crossplane.io/resource-name: controlPlaneInstanceProfile
+            vpcSecurityGroupIdsSelector:
+              - matchControllerRef: true
+                matchLabels:
+                  crossplane.io/resource-name: controlPlaneSecurityGroup
+            subnetIdSelector:
+              matchControllerRef: true
+              matchLabels:
+                crossplane.io/resource-name: privateSubnet1
+            userData: |
+              #!/bin/bash
+              echo "Bootstrapping Catalyst Control Plane..."
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+        - type: PatchSet
+          patchSetName: resource-tags
+        - fromFieldPath: spec.nodePools[0].instanceType
+          toFieldPath: spec.forProvider.instanceType
+        - fromFieldPath: metadata.name
+          toFieldPath: spec.forProvider.tags[Name]
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-cp"
+
+    # 21. Worker Launch Template
+    - name: launchTemplate
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: LaunchTemplate
+        spec:
+          forProvider:
+            # Ubuntu 22.04 LTS (us-east-1) - Placeholder
+            imageId: ami-0c55b159cbfafe1f0
+            iamInstanceProfile:
+              - nameSelector:
+                  matchControllerRef: true
+                  matchLabels:
+                    crossplane.io/resource-name: workerInstanceProfile
+            networkInterfaces:
+              - associatePublicIpAddress: false
+                securityGroupsSelector:
+                  - matchControllerRef: true
+                    matchLabels:
+                      crossplane.io/resource-name: workerSecurityGroup
+            tagSpecifications:
+              - resourceType: "instance"
+                tags:
+                  catalyst-managed: "true"
+            userData: |
+              #!/bin/bash
+              echo "Bootstrapping Catalyst Worker Node..."
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+        - type: PatchSet
+          patchSetName: resource-tags
+        - fromFieldPath: spec.nodePools[0].instanceType
+          toFieldPath: spec.forProvider.instanceType
+        - fromFieldPath: metadata.name
+          toFieldPath: spec.forProvider.name
+          transforms:
+            - type: string
+              string:
+                fmt: "catalyst-worker-%s"
+
+    # 22. Worker Auto Scaling Group
+    - name: workerAsg
+      base:
+        apiVersion: autoscaling.aws.upbound.io/v1beta1
+        kind: Group
+        spec:
+          forProvider:
+            launchTemplate:
+              - selector:
+                  matchControllerRef: true
+                  matchLabels:
+                    crossplane.io/resource-name: launchTemplate
+            vpcZoneIdentifierSelector:
+              matchControllerRef: true
+              matchLabels:
+                "kubernetes.io/role/internal-elb": "1"
+      patches:
+        - type: PatchSet
+          patchSetName: common-fields
+        - fromFieldPath: spec.nodePools[0].minNodes
+          toFieldPath: spec.forProvider.minSize
+        - fromFieldPath: spec.nodePools[0].maxNodes
+          toFieldPath: spec.forProvider.maxSize
+        - fromFieldPath: spec.nodePools[0].desiredNodes
+          toFieldPath: spec.forProvider.desiredCapacity

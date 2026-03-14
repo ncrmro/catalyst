@@ -9,9 +9,10 @@ import {
   stripeCustomers,
   stripeSubscriptions,
   usageRecords,
+  cloudResourceUsageRecords,
   teams,
 } from "./db/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, gte, lte } from "drizzle-orm";
 import { createCustomer as createStripeCustomer } from "./stripe";
 import { FREE_TIER_LIMITS } from "./constants";
 import type Stripe from "stripe";
@@ -408,4 +409,29 @@ export async function getTeamBillingStatus(
     },
     freeTierLimits: FREE_TIER_LIMITS,
   };
+}
+
+/**
+ * Get cloud resource usage records for a team within a date range.
+ *
+ * @param db - Drizzle database instance
+ * @param teamId - Team ID
+ * @param dateRange - Start and end dates
+ * @returns Cloud resource usage records
+ */
+export async function getCloudResourceUsageForTeam(
+  db: PgDatabase<any, any, any>,
+  teamId: string,
+  dateRange: { start: Date; end: Date },
+) {
+  return db
+    .select()
+    .from(cloudResourceUsageRecords)
+    .where(
+      and(
+        eq(cloudResourceUsageRecords.teamId, teamId),
+        gte(cloudResourceUsageRecords.usageHour, dateRange.start),
+        lte(cloudResourceUsageRecords.usageHour, dateRange.end),
+      ),
+    );
 }

@@ -1,0 +1,290 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import {
+  createProviderConfig,
+  deleteProviderConfig,
+  createClusterClaim,
+  deleteClusterClaim,
+  syncClusterStatus,
+} from "@/models/crossplane-bridge";
+import { db } from "@/db";
+import { decrypt } from "@tetrastack/backend/utils";
+import {
+  getCustomObjectsApi,
+  getCoreV1Api,
+  ensureTeamNamespace,
+} from "@/lib/k8s-client";
+
+vi.mock("@/db", () => ({
+  db: {
+    select: vi.fn().mockReturnThis(),
+    from: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    update: vi.fn().mockReturnThis(),
+    set: vi.fn().mockReturnThis(),
+  },
+}));
+
+vi.mock("@/lib/k8s-client", () => ({
+  getCustomObjectsApi: vi.fn(),
+  getCoreV1Api: vi.fn(),
+  getClusterConfig: vi.fn(),
+  ensureTeamNamespace: vi.fn(),
+}));
+
+vi.mock("@tetrastack/backend/utils", () => ({
+  decrypt: vi.fn(),
+}));
+
+describe("crossplane-bridge model", () => {
+  const mockCustomApi = {
+    createClusterCustomObject: vi.fn(),
+    deleteClusterCustomObject: vi.fn(),
+    createNamespacedCustomObject: vi.fn(),
+    deleteNamespacedCustomObject: vi.fn(),
+    getNamespacedCustomObject: vi.fn(),
+  };
+
+  const mockCoreApi = {
+    createNamespacedSecret: vi.fn(),
+    deleteNamespacedSecret: vi.fn(),
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getCustomObjectsApi).mockReturnValue(mockCustomApi as any);
+    vi.mocked(getCoreV1Api).mockReturnValue(mockCoreApi as any);
+  });
+
+  describe("createProviderConfig", () => {
+    it("should create an AWS ProviderConfig with AssumeRole", async () => {
+      const mockAccount = {
+        id: "acc-123",
+        provider: "aws",
+        credentialType: "iam_role",
+        credentialEncrypted: "encrypted",
+        credentialIv: "iv",
+        credentialAuthTag: "tag",
+      };
+
+      vi.mocked(db.select().from().where().limit).mockResolvedValue([mockAccount] as any);
+      vi.mocked(decrypt).mockReturnValue(JSON.stringify({
+        roleARN: "arn:aws:iam::123456789012:role/Catalyst-Role",
+        externalID: "ext-123",
+      }));
+
+      await createProviderConfig("acc-123");
+
+      expect(mockCustomApi.createClusterCustomObject).toHaveBeenCalledWith(
+        "aws.upbound.io",
+        "v1beta1",
+        "providerconfigs",
+        expect.objectContaining({
+          metadata: { name: "acc-123" },
+          spec: expect.objectContaining({
+            assumeRoleChain: [{
+              roleARN: "arn:aws:iam::123456789012:role/Catalyst-Role",
+              externalID: "ext-123",
+            }],
+          }),
+        })
+      );
+
+      // Verify DB update to 'active'
+      expect(db.update).toHaveBeenCalled();
+    });
+
+    it("should create an AWS ProviderConfig with Access Key", async () => {
+      const mockAccount = {
+        id: "acc-456",
+        provider: "aws",
+        credentialType: "access_key",
+        credentialEncrypted: "encrypted",
+        credentialIv: "iv",
+        credentialAuthTag: "tag",
+      };
+
+      vi.mocked(db.select().from().where().limit).mockResolvedValue([mockAccount] as any);
+      vi.mocked(decrypt).mockReturnValue(JSON.stringify({
+        accessKeyId: "AKIA...",
+        secretAccessKey: "SECRET...",
+      }));
+
+      await createProviderConfig("acc-456");
+
+      // Verify Secret creation
+      expect(mockCoreApi.createNamespacedSecret).toHaveBeenCalledWith(expect.objectContaining({
+        body: expect.objectContaining({
+          metadata: { name: "aws-creds-acc-456" },
+          stringData: expect.objectContaining({
+            creds: expect.stringContaining("AKIA..."),
+          }),
+        }),
+      }));
+
+      // Verify ProviderConfig creation
+      expect(mockCustomApi.createClusterCustomObject).toHaveBeenCalledWith(
+        "aws.upbound.io",
+        "v1beta1",
+        "providerconfigs",
+        expect.objectContaining({
+          metadata: { name: "acc-456" },
+          spec: expect.objectContaining({
+            credentials: {
+              source: "Secret",
+              secretRef: {
+                namespace: "crossplane-system",
+                name: "aws-creds-acc-456",
+                key: "creds",
+              },
+            },
+          }),
+        })
+      );
+    });
+
+    it("should handle K8s errors and update DB status to error", async () => {
+      const mockAccount = {
+        id: "acc-err",
+        provider: "aws",
+        credentialType: "iam_role",
+        credentialEncrypted: "encrypted",
+        credentialIv: "iv",
+        credentialAuthTag: "tag",
+      };
+
+      vi.mocked(db.select().from().where().limit).mockResolvedValue([mockAccount] as any);
+      vi.mocked(decrypt).mockReturnValue(JSON.stringify({ roleARN: "foo", externalID: "bar" }));
+      mockCustomApi.createClusterCustomObject.mockRejectedValue(new Error("K8s API Failure"));
+
+      await expect(createProviderConfig("acc-err")).rejects.toThrow("K8s API Failure");
+
+      // Verify DB update to 'error'
+      expect(db.set).toHaveBeenCalledWith(expect.objectContaining({
+        status: "error",
+        lastError: "K8s API Failure",
+      }));
+    });
+  });
+
+  describe("createClusterClaim", () => {
+    it("should create a KubernetesCluster Claim in team namespace", async () => {
+      const mockCluster = {
+        id: "clus-123",
+        teamId: "team-123",
+        cloudAccountId: "acc-123",
+        name: "my-cluster",
+        region: "us-east-1",
+        kubernetesVersion: "1.31",
+        status: "provisioning",
+      };
+      const mockTeam = { id: "team-123", name: "my-team" };
+      const mockPools = [
+        { name: "pool-1", instanceType: "t3.medium", minNodes: 1, maxNodes: 3, spotEnabled: false },
+      ];
+
+      const mockLimit = vi.fn()
+        .mockResolvedValueOnce([mockCluster])
+        .mockResolvedValueOnce([mockTeam]);
+      
+      const mockWhere = vi.fn()
+        .mockReturnValueOnce({ limit: mockLimit }) // for cluster
+        .mockReturnValueOnce({ limit: mockLimit }) // for team
+        .mockResolvedValueOnce(mockPools);        // for pools
+
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: mockWhere,
+        }),
+      } as any);
+
+      await createClusterClaim("clus-123");
+
+      expect(ensureTeamNamespace).toHaveBeenCalled();
+      expect(mockCustomApi.createNamespacedCustomObject).toHaveBeenCalledWith(
+        "catalyst.tetraship.app",
+        "v1alpha1",
+        "my-team",
+        "kubernetesclusters",
+        expect.objectContaining({
+          metadata: { name: "my-cluster", namespace: "my-team" },
+          spec: expect.objectContaining({
+            region: "us-east-1",
+            providerConfigRef: { name: "acc-123" },
+          }),
+        })
+      );
+    });
+  });
+
+  describe("syncClusterStatus", () => {
+    it("should update DB status to active if Ready condition is True", async () => {
+      const mockCluster = { id: "clus-123", teamId: "team-123", name: "my-clus", status: "provisioning" };
+      const mockTeam = { id: "team-123", name: "my-team" };
+
+      const mockLimit = vi.fn()
+        .mockResolvedValueOnce([mockCluster])
+        .mockResolvedValueOnce([mockTeam]);
+      
+      const mockWhere = vi.fn()
+        .mockReturnValue({ limit: mockLimit });
+
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: mockWhere,
+        })
+      } as any);
+
+      mockCustomApi.getNamespacedCustomObject.mockResolvedValue({
+        body: {
+          status: {
+            conditions: [
+              { type: "Ready", status: "True" }
+            ]
+          }
+        }
+      });
+
+      await syncClusterStatus("clus-123");
+
+      expect(db.set).toHaveBeenCalledWith(expect.objectContaining({
+        status: "active",
+      }));
+    });
+
+    it("should update DB status to error if Synced condition is False with ReconcileError", async () => {
+      const mockCluster = { id: "clus-123", teamId: "team-123", name: "my-clus", status: "provisioning" };
+      const mockTeam = { id: "team-123", name: "my-team" };
+
+      const mockLimit = vi.fn()
+        .mockResolvedValueOnce([mockCluster])
+        .mockResolvedValueOnce([mockTeam]);
+      
+      const mockWhere = vi.fn()
+        .mockReturnValue({ limit: mockLimit });
+
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: mockWhere,
+        })
+      } as any);
+
+      mockCustomApi.getNamespacedCustomObject.mockResolvedValue({
+        body: {
+          status: {
+            conditions: [
+              { type: "Ready", status: "False" },
+              { type: "Synced", status: "False", reason: "ReconcileError" }
+            ]
+          }
+        }
+      });
+
+      await syncClusterStatus("clus-123");
+
+      expect(db.set).toHaveBeenCalledWith(expect.objectContaining({
+        status: "error",
+      }));
+    });
+  });
+});

@@ -1,0 +1,52 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xkubernetesclusters.catalyst.tetraship.app
+spec:
+  group: catalyst.tetraship.app
+  names:
+    kind: XKubernetesCluster
+    plural: xkubernetesclusters
+  claimNames:
+    kind: KubernetesCluster
+    plural: kubernetesclusters
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                region:
+                  type: string
+                kubernetesVersion:
+                  type: string
+                  default: "1.31"
+                nodePools:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      instanceType:
+                        type: string
+                      minNodes:
+                        type: integer
+                        default: 1
+                      maxNodes:
+                        type: integer
+                        default: 5
+                      desiredNodes:
+                        type: integer
+                        default: 2
+                      spot:
+                        type: boolean
+                        default: false
+                providerConfigRef:
+                  type: string
+              required: [region, nodePools, providerConfigRef]

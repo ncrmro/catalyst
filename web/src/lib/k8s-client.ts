@@ -7,5 +7,6 @@ export {
   getCustomObjectsApi,
   KubeConfig,
   resetKubeConfigRegistry,
+  ensureTeamNamespace,
   type ClusterInfo,
 } from "@catalyst/kubernetes-client";

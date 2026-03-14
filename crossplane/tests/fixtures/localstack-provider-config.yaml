@@ -1,0 +1,26 @@
+# ProviderConfig that routes all AWS API calls to LocalStack.
+#
+# The endpoint URL is injected at apply-time via envsubst or sed because the
+# Kind Docker network gateway IP varies per runner. The CI workflow replaces
+# LOCALSTACK_ENDPOINT before applying this manifest.
+apiVersion: aws.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: localstack
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: aws-mgmt-creds
+      key: creds
+
+  endpoint:
+    url:
+      # LOCALSTACK_ENDPOINT is replaced by CI before applying.
+      # For local testing: http://host.docker.internal:4566
+      static: "${LOCALSTACK_ENDPOINT}"
+    hostnameImmutable: true
+  skip_credentials_validation: true
+  skip_metadata_api_check: true
+  skip_requesting_account_id: true

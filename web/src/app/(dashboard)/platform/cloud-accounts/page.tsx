@@ -2,36 +2,45 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { BillingGate } from "./_components/BillingGate";
 import { CloudAccountCard } from "./_components/CloudAccountCard";
+import { listCloudAccounts } from "@/actions/cloud-accounts";
+import { getUserPrimaryTeamId } from "@/lib/team-auth";
+import { getTeamBillingStatus } from "@/actions/billing";
 
-// Mock flags — replace with real checks later
-const isPaidPlan = true;
-const hasAccounts = true;
+export default async function CloudAccountsPage() {
+  const teamId = await getUserPrimaryTeamId();
 
-const mockAccounts = [
-  {
-    id: "aws-123456",
-    provider: "aws",
-    alias: "Production",
-    accountId: "123456789012",
-    status: "connected" as const,
-    region: "us-east-1",
-  },
-  {
-    id: "aws-789012",
-    provider: "aws",
-    alias: "Staging",
-    accountId: "987654321098",
-    status: "pending" as const,
-    region: "us-west-2",
-  },
-];
+  if (!teamId) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-on-surface-variant">Team not found.</p>
+      </div>
+    );
+  }
 
-export default function CloudAccountsPage() {
+  // Check billing status
+  const billingStatus = await getTeamBillingStatus(teamId);
+  const isPaidPlan =
+    billingStatus.success && billingStatus.data?.hasSubscription;
+
   if (!isPaidPlan) {
     return <BillingGate />;
   }
 
-  if (!hasAccounts) {
+  // Fetch accounts
+  const result = await listCloudAccounts(teamId);
+
+  if (!result.success) {
+    return (
+      <div className="p-4 rounded-lg bg-error/10 border border-error/20 text-error">
+        <h3 className="font-semibold">Error loading cloud accounts</h3>
+        <p className="text-sm">{result.error}</p>
+      </div>
+    );
+  }
+
+  const accounts = result.data;
+
+  if (accounts.length === 0) {
     return (
       <Card>
         <div className="text-center py-12">
@@ -81,8 +90,18 @@ export default function CloudAccountsPage() {
         </Link>
       </div>
       <div className="space-y-3">
-        {mockAccounts.map((account) => (
-          <CloudAccountCard key={account.id} {...account} />
+        {accounts.map((account) => (
+          <CloudAccountCard
+            key={account.id}
+            id={account.id}
+            provider={account.provider}
+            alias={account.name}
+            accountId={account.externalAccountId}
+            status={
+              account.status as "connected" | "pending" | "error"
+            }
+            region="us-east-1" // Region might need to come from elsewhere, but the model doesn't have it yet
+          />
         ))}
       </div>
     </div>

@@ -687,6 +687,154 @@ export const reports = pgTable("reports", {
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
 });
 
+/**
+ * Cloud Accounts Table
+ *
+ * Stores credentials and metadata for customer cloud provider accounts (AWS, GCP, Azure).
+ * Credentials are encrypted at rest using AES-256-GCM (same pattern as secrets/githubUserTokens).
+ */
+export const cloudAccounts = pgTable(
+  "cloud_accounts",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(), // 'aws' | 'gcp' | 'azure'
+    name: text("name").notNull(),
+    status: text("status").notNull().default("pending"), // 'pending' | 'active' | 'error' | 'revoked'
+    externalAccountId: text("external_account_id").notNull(), // AWS account ID, GCP project ID, etc.
+    credentialType: text("credential_type").notNull(), // 'iam_role' | 'service_account' | 'access_key'
+    credentialEncrypted: text("credential_encrypted").notNull(),
+    credentialIv: text("credential_iv").notNull(),
+    credentialAuthTag: text("credential_auth_tag").notNull(),
+    resourcePrefix: text("resource_prefix"),
+    lastValidatedAt: timestamp("last_validated_at", { mode: "date" }),
+    lastError: text("last_error"),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("cloud_accounts_team_provider_external_unique").on(
+      table.teamId,
+      table.provider,
+      table.externalAccountId,
+    ),
+  ],
+);
+
+export const cloudAccountsRelations = relations(
+  cloudAccounts,
+  ({ one }) => ({
+    team: one(teams, {
+      fields: [cloudAccounts.teamId],
+      references: [teams.id],
+    }),
+    creator: one(users, {
+      fields: [cloudAccounts.createdBy],
+      references: [users.id],
+    }),
+  }),
+);
+
+/**
+ * Managed Clusters Table
+ *
+ * K8s clusters provisioned in customer cloud accounts.
+ * Kubeconfig is encrypted at rest using AES-256-GCM.
+ */
+export const managedClusters = pgTable(
+  "managed_clusters",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    cloudAccountId: text("cloud_account_id")
+      .notNull()
+      .references(() => cloudAccounts.id, { onDelete: "cascade" }),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    status: text("status").notNull().default("provisioning"), // 'provisioning' | 'active' | 'error' | 'deleting' | 'deleted'
+    region: text("region").notNull(),
+    kubernetesVersion: text("kubernetes_version").notNull(),
+    config: jsonb("config"),
+    kubeconfigEncrypted: text("kubeconfig_encrypted"),
+    kubeconfigIv: text("kubeconfig_iv"),
+    kubeconfigAuthTag: text("kubeconfig_auth_tag"),
+    deletionProtection: boolean("deletion_protection").notNull().default(true),
+    deleteGracePeriodEnds: timestamp("delete_grace_period_ends", {
+      mode: "date",
+    }),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("managed_clusters_cloud_account_name_unique").on(
+      table.cloudAccountId,
+      table.name,
+    ),
+  ],
+);
+
+export const managedClustersRelations = relations(
+  managedClusters,
+  ({ one, many }) => ({
+    cloudAccount: one(cloudAccounts, {
+      fields: [managedClusters.cloudAccountId],
+      references: [cloudAccounts.id],
+    }),
+    team: one(teams, {
+      fields: [managedClusters.teamId],
+      references: [teams.id],
+    }),
+    creator: one(users, {
+      fields: [managedClusters.createdBy],
+      references: [users.id],
+    }),
+    nodePools: many(nodePools),
+  }),
+);
+
+/**
+ * Node Pools Table
+ *
+ * Worker node groups within a managed cluster.
+ */
+export const nodePools = pgTable("node_pools", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  clusterId: text("cluster_id")
+    .notNull()
+    .references(() => managedClusters.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  instanceType: text("instance_type").notNull(),
+  minNodes: integer("min_nodes").notNull().default(1),
+  maxNodes: integer("max_nodes").notNull().default(3),
+  currentNodes: integer("current_nodes").notNull().default(0),
+  spotEnabled: boolean("spot_enabled").notNull().default(false),
+  status: text("status").notNull().default("provisioning"), // 'provisioning' | 'active' | 'scaling' | 'error' | 'deleting'
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow(),
+});
+
+export const nodePoolsRelations = relations(nodePools, ({ one }) => ({
+  cluster: one(managedClusters, {
+    fields: [nodePools.clusterId],
+    references: [managedClusters.id],
+  }),
+}));
+
 export * from "./schema/conventions";
 export * from "./schema/specs";
 export * from "./schema/platform-tasks";
