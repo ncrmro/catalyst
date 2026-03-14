@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 
-type DbStatus = "active" | "pending" | "error" | "revoked" | string;
 type DisplayStatus = "connected" | "pending" | "error";
 
 interface CloudAccountCardProps {
@@ -9,7 +8,7 @@ interface CloudAccountCardProps {
   provider: string;
   alias: string;
   accountId: string;
-  status: DbStatus;
+  status: string;
   region: string;
 }
 
@@ -19,7 +18,7 @@ const statusStyles: Record<DisplayStatus, string> = {
   error: "bg-error/10 text-error",
 };
 
-function toDisplayStatus(dbStatus: DbStatus): DisplayStatus {
+function toDisplayStatus(dbStatus: string): DisplayStatus {
   if (dbStatus === "active") return "connected";
   if (dbStatus === "pending") return "pending";
   return "error"; // covers "error", "revoked", and anything unexpected

@@ -215,7 +215,8 @@ describe("crossplane-bridge model", () => {
         "my-team",
         "kubernetesclusters",
         expect.objectContaining({
-          metadata: { name: "my-cluster", namespace: "my-team" },
+          // Name includes an ID suffix for uniqueness: <sanitized-name>-<last-8-of-id>
+          metadata: { name: "my-cluster-clus-123", namespace: "my-team" },
           spec: expect.objectContaining({
             region: "us-east-1",
             providerConfigRef: "acc-123",

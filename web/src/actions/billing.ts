@@ -305,8 +305,9 @@ export async function checkTeamHasActiveSubscription(
   try {
     const billing = await getBilling();
     if (!billing) {
-      // Billing package unavailable despite being enabled — grant access
-      return true;
+      // Billing package unavailable despite being enabled — deny access to be safe
+      console.error("[billing-actions] Billing package unavailable but BILLING_ENABLED=true");
+      return false;
     }
 
     return billing.isTeamOnPaidPlan(db, teamId);

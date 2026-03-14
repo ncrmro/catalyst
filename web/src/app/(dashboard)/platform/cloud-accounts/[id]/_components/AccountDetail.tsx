@@ -12,7 +12,6 @@ import { unlinkCloudAccount } from "@/actions/cloud-accounts";
 
 import { ManagedClusterSummary } from "@/actions/managed-clusters";
 
-type DbStatus = "active" | "pending" | "error" | "revoked" | string;
 type DisplayStatus = "connected" | "pending" | "error";
 
 interface AccountDetailProps {
@@ -21,7 +20,7 @@ interface AccountDetailProps {
   provider: string;
   alias: string;
   accountId: string;
-  status: DbStatus;
+  status: string;
   region: string;
   roleArn: string;
   externalId: string;
@@ -35,7 +34,7 @@ const statusStyles: Record<DisplayStatus, string> = {
   error: "bg-error/10 text-error",
 };
 
-function toDisplayStatus(dbStatus: DbStatus): DisplayStatus {
+function toDisplayStatus(dbStatus: string): DisplayStatus {
   if (dbStatus === "active") return "connected";
   if (dbStatus === "pending") return "pending";
   return "error"; // covers "error", "revoked", and anything unexpected

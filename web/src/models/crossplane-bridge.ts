@@ -228,6 +228,20 @@ export async function deleteProviderConfig(accountId: string) {
 }
 
 /**
+ * Compute the Kubernetes metadata.name for a managed cluster claim.
+ * Appends a short ID suffix to ensure uniqueness and guard against the edge
+ * case where sanitization of the cluster name produces an empty string (e.g.
+ * a name consisting only of symbols).
+ *
+ * Cluster IDs are UUIDs (36 chars), so slice(-8) always returns 8 characters.
+ */
+function clusterClaimName(clusterName: string, clusterId: string): string {
+  const sanitized = sanitizeNamespaceName(clusterName);
+  const idSuffix = clusterId.slice(-8);
+  return sanitized ? `${sanitized}-${idSuffix}` : idSuffix;
+}
+
+/**
  * Creates a KubernetesCluster Claim in the team's namespace.
  */
 export async function createClusterClaim(clusterId: string) {
@@ -266,7 +280,7 @@ export async function createClusterClaim(clusterId: string) {
     const k8sCustomApi = getCustomObjectsApi();
 
     // Sanitize cluster name to be DNS-1123 compliant for K8s metadata.name
-    const clusterMetadataName = sanitizeNamespaceName(cluster.name);
+    const clusterMetadataName = clusterClaimName(cluster.name, cluster.id);
 
     const claim = {
       apiVersion: `${CATALYST_GROUP}/${CATALYST_VERSION}`,
@@ -346,8 +360,8 @@ export async function deleteClusterClaim(clusterId: string) {
   const namespace = sanitizeNamespaceName(team.name);
   const k8sCustomApi = getCustomObjectsApi();
 
-  // Sanitize cluster name to be DNS-1123 compliant for K8s metadata.name
-  const clusterMetadataName = sanitizeNamespaceName(cluster.name);
+  // Compute the same claim name used when creating the resource
+  const clusterMetadataName = clusterClaimName(cluster.name, cluster.id);
 
   try {
     await k8sCustomApi.deleteNamespacedCustomObject(
@@ -387,8 +401,8 @@ export async function syncClusterStatus(clusterId: string) {
   const namespace = sanitizeNamespaceName(team.name);
   const k8sCustomApi = getCustomObjectsApi();
 
-  // Sanitize cluster name to be DNS-1123 compliant for K8s metadata.name
-  const clusterMetadataName = sanitizeNamespaceName(cluster.name);
+  // Compute the same claim name used when creating the resource
+  const clusterMetadataName = clusterClaimName(cluster.name, cluster.id);
 
   try {
     const response: any = await k8sCustomApi.getNamespacedCustomObject(
