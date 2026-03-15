@@ -63,12 +63,16 @@ describe("crossplane-bridge model", () => {
   class MockCustomObjectsApiClass {}
   class MockCoreV1ApiClass {}
 
-  const mockKubeConfig = {
-    makeApiClient: vi.fn((ApiClass: unknown) => {
+  function makeMakeApiClient() {
+    return vi.fn((ApiClass: unknown) => {
       if (ApiClass === MockCustomObjectsApiClass) return mockCustomApi;
       if (ApiClass === MockCoreV1ApiClass) return mockCoreApi;
-      return {};
-    }),
+      throw new Error(`Unexpected ApiClass passed to makeApiClient: ${String(ApiClass)}`);
+    });
+  }
+
+  const mockKubeConfig = {
+    makeApiClient: makeMakeApiClient(),
   };
 
   beforeEach(() => {
@@ -76,12 +80,8 @@ describe("crossplane-bridge model", () => {
     vi.mocked(getCustomObjectsApi).mockResolvedValue(MockCustomObjectsApiClass as never);
     vi.mocked(getCoreV1Api).mockResolvedValue(MockCoreV1ApiClass as never);
     vi.mocked(getClusterConfig).mockResolvedValue(mockKubeConfig as never);
-    // Reset makeApiClient to use fresh sentinel references
-    mockKubeConfig.makeApiClient = vi.fn((ApiClass: unknown) => {
-      if (ApiClass === MockCustomObjectsApiClass) return mockCustomApi;
-      if (ApiClass === MockCoreV1ApiClass) return mockCoreApi;
-      return {};
-    });
+    // Reset makeApiClient so each test gets a fresh spy
+    mockKubeConfig.makeApiClient = makeMakeApiClient();
   });
 
   describe("createProviderConfig", () => {
