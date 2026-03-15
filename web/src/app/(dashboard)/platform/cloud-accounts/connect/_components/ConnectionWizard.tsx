@@ -17,9 +17,10 @@ const steps: { key: Step; label: string }[] = [
 
 interface ConnectionWizardProps {
   teamId: string;
+  externalId: string;
 }
 
-export function ConnectionWizard({ teamId }: ConnectionWizardProps) {
+export function ConnectionWizard({ teamId, externalId }: ConnectionWizardProps) {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState<Step>("provider");
   const [provider, setProvider] = useState("aws");
@@ -45,8 +46,8 @@ export function ConnectionWizard({ teamId }: ConnectionWizardProps) {
         provider,
         name,
         externalAccountId,
-        credentialType: "iam-role",
-        credential: arn,
+        credentialType: "iam_role",
+        credential: JSON.stringify({ roleARN: arn, externalID: externalId }),
         resourcePrefix: name.toLowerCase().replace(/[^a-z0-9]/g, "-"),
       });
 
@@ -114,7 +115,10 @@ export function ConnectionWizard({ teamId }: ConnectionWizardProps) {
       )}
 
       {currentStep === "instructions" && (
-        <OnboardingInstructions onContinue={() => setCurrentStep("arn")} />
+        <OnboardingInstructions
+          externalId={externalId}
+          onContinue={() => setCurrentStep("arn")}
+        />
       )}
 
       {currentStep === "arn" && (
@@ -266,3 +270,4 @@ export function ConnectionWizard({ teamId }: ConnectionWizardProps) {
     </div>
   );
 }
+

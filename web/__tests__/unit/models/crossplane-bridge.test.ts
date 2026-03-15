@@ -11,6 +11,7 @@ import { decrypt } from "@tetrastack/backend/utils";
 import {
   getCustomObjectsApi,
   getCoreV1Api,
+  getClusterConfig,
   ensureTeamNamespace,
 } from "@/lib/k8s-client";
 
@@ -30,6 +31,14 @@ vi.mock("@/lib/k8s-client", () => ({
   getCoreV1Api: vi.fn(),
   getClusterConfig: vi.fn(),
   ensureTeamNamespace: vi.fn(),
+  sanitizeNamespaceName: vi.fn((name: string) =>
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 63),
+  ),
 }));
 
 vi.mock("@tetrastack/backend/utils", () => ({
@@ -50,10 +59,29 @@ describe("crossplane-bridge model", () => {
     deleteNamespacedSecret: vi.fn(),
   };
 
+  // Sentinel classes used to verify makeApiClient dispatching
+  class MockCustomObjectsApiClass {}
+  class MockCoreV1ApiClass {}
+
+  function makeMakeApiClient() {
+    return vi.fn((ApiClass: unknown) => {
+      if (ApiClass === MockCustomObjectsApiClass) return mockCustomApi;
+      if (ApiClass === MockCoreV1ApiClass) return mockCoreApi;
+      throw new Error(`Unexpected ApiClass passed to makeApiClient: ${String(ApiClass)}`);
+    });
+  }
+
+  const mockKubeConfig = {
+    makeApiClient: makeMakeApiClient(),
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getCustomObjectsApi).mockReturnValue(mockCustomApi as any);
-    vi.mocked(getCoreV1Api).mockReturnValue(mockCoreApi as any);
+    vi.mocked(getCustomObjectsApi).mockResolvedValue(MockCustomObjectsApiClass as never);
+    vi.mocked(getCoreV1Api).mockResolvedValue(MockCoreV1ApiClass as never);
+    vi.mocked(getClusterConfig).mockResolvedValue(mockKubeConfig as never);
+    // Reset makeApiClient so each test gets a fresh spy
+    mockKubeConfig.makeApiClient = makeMakeApiClient();
   });
 
   describe("createProviderConfig", () => {
@@ -76,16 +104,18 @@ describe("crossplane-bridge model", () => {
       await createProviderConfig("acc-123");
 
       expect(mockCustomApi.createClusterCustomObject).toHaveBeenCalledWith(
-        "aws.upbound.io",
-        "v1beta1",
-        "providerconfigs",
         expect.objectContaining({
-          metadata: { name: "acc-123" },
-          spec: expect.objectContaining({
-            assumeRoleChain: [{
-              roleARN: "arn:aws:iam::123456789012:role/Catalyst-Role",
-              externalID: "ext-123",
-            }],
+          group: "aws.upbound.io",
+          version: "v1beta1",
+          plural: "providerconfigs",
+          body: expect.objectContaining({
+            metadata: { name: "acc-123" },
+            spec: expect.objectContaining({
+              assumeRoleChain: [{
+                roleARN: "arn:aws:iam::123456789012:role/Catalyst-Role",
+                externalID: "ext-123",
+              }],
+            }),
           }),
         })
       );
@@ -124,20 +154,22 @@ describe("crossplane-bridge model", () => {
 
       // Verify ProviderConfig creation
       expect(mockCustomApi.createClusterCustomObject).toHaveBeenCalledWith(
-        "aws.upbound.io",
-        "v1beta1",
-        "providerconfigs",
         expect.objectContaining({
-          metadata: { name: "acc-456" },
-          spec: expect.objectContaining({
-            credentials: {
-              source: "Secret",
-              secretRef: {
-                namespace: "crossplane-system",
-                name: "aws-creds-acc-456",
-                key: "creds",
+          group: "aws.upbound.io",
+          version: "v1beta1",
+          plural: "providerconfigs",
+          body: expect.objectContaining({
+            metadata: { name: "acc-456" },
+            spec: expect.objectContaining({
+              credentials: {
+                source: "Secret",
+                secretRef: {
+                  namespace: "crossplane-system",
+                  name: "aws-creds-acc-456",
+                  key: "creds",
+                },
               },
-            },
+            }),
           }),
         })
       );
@@ -202,15 +234,18 @@ describe("crossplane-bridge model", () => {
 
       expect(ensureTeamNamespace).toHaveBeenCalled();
       expect(mockCustomApi.createNamespacedCustomObject).toHaveBeenCalledWith(
-        "catalyst.tetraship.app",
-        "v1alpha1",
-        "my-team",
-        "kubernetesclusters",
         expect.objectContaining({
-          metadata: { name: "my-cluster", namespace: "my-team" },
-          spec: expect.objectContaining({
-            region: "us-east-1",
-            providerConfigRef: { name: "acc-123" },
+          group: "catalyst.tetraship.app",
+          version: "v1alpha1",
+          namespace: "my-team",
+          plural: "kubernetesclusters",
+          body: expect.objectContaining({
+            // Name includes an ID suffix for uniqueness: <sanitized-name>-<last-8-of-id>
+            metadata: { name: "my-cluster-clus-123", namespace: "my-team" },
+            spec: expect.objectContaining({
+              region: "us-east-1",
+              providerConfigRef: "acc-123",
+            }),
           }),
         })
       );
@@ -236,12 +271,10 @@ describe("crossplane-bridge model", () => {
       } as any);
 
       mockCustomApi.getNamespacedCustomObject.mockResolvedValue({
-        body: {
-          status: {
-            conditions: [
-              { type: "Ready", status: "True" }
-            ]
-          }
+        status: {
+          conditions: [
+            { type: "Ready", status: "True" }
+          ]
         }
       });
 
@@ -270,13 +303,11 @@ describe("crossplane-bridge model", () => {
       } as any);
 
       mockCustomApi.getNamespacedCustomObject.mockResolvedValue({
-        body: {
-          status: {
-            conditions: [
-              { type: "Ready", status: "False" },
-              { type: "Synced", status: "False", reason: "ReconcileError" }
-            ]
-          }
+        status: {
+          conditions: [
+            { type: "Ready", status: "False" },
+            { type: "Synced", status: "False", reason: "ReconcileError" }
+          ]
         }
       });
 

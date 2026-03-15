@@ -1,20 +1,28 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 
+type DisplayStatus = "connected" | "pending" | "error";
+
 interface CloudAccountCardProps {
   id: string;
   provider: string;
   alias: string;
   accountId: string;
-  status: "connected" | "pending" | "error";
+  status: string;
   region: string;
 }
 
-const statusStyles = {
+const statusStyles: Record<DisplayStatus, string> = {
   connected: "bg-primary/10 text-primary",
   pending: "bg-warning/10 text-warning",
   error: "bg-error/10 text-error",
-} as const;
+};
+
+function toDisplayStatus(dbStatus: string): DisplayStatus {
+  if (dbStatus === "active") return "connected";
+  if (dbStatus === "pending") return "pending";
+  return "error"; // covers "error", "revoked", and anything unexpected
+}
 
 export function CloudAccountCard({
   id,
@@ -25,6 +33,7 @@ export function CloudAccountCard({
   region,
 }: CloudAccountCardProps) {
   const maskedId = accountId.replace(/^(.{4}).*(.{4})$/, "$1••••$2");
+  const displayStatus = toDisplayStatus(status);
 
   return (
     <Link href={`/platform/cloud-accounts/${id}`}>
@@ -46,9 +55,9 @@ export function CloudAccountCard({
           <div className="flex items-center gap-3">
             <span className="text-xs text-on-surface-variant">{region}</span>
             <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyles[status]}`}
+              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyles[displayStatus]}`}
             >
-              {status}
+              {displayStatus}
             </span>
           </div>
         </div>

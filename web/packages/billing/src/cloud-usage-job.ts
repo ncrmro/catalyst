@@ -6,6 +6,7 @@
  */
 
 import { isTeamOnPaidPlan } from "./models";
+import { eq, and, count, sum } from "drizzle-orm";
 import type { PgDatabase } from "drizzle-orm/pg-core";
 
 export interface CloudResourceCounts {
@@ -29,24 +30,43 @@ export async function countTeamCloudResources(
   schema: { managedClusters: any; nodePools: any },
 ): Promise<CloudResourceCounts> {
   try {
-    const results: Array<Record<string, unknown>> = await db
-      .select()
-      .from(schema.managedClusters)
-      .innerJoin(
-        schema.nodePools,
-        undefined as any, // join condition handled by caller's mock/real schema
-      )
-      .where(undefined as any); // where condition handled by caller
+    const { managedClusters, nodePools } = schema;
 
-    if (!results || results.length === 0) {
+    // Count active clusters for this team
+    const clusterRows = await db
+      .select({ clusterCount: count(managedClusters.id) })
+      .from(managedClusters)
+      .where(
+        and(
+          eq(managedClusters.teamId, teamId),
+          eq(managedClusters.status, "active"),
+        ),
+      );
+
+    const clusterCount = clusterRows[0]?.clusterCount ?? 0;
+
+    if (clusterCount === 0) {
       return { clusterCount: 0, totalNodeCount: 0 };
     }
 
-    const first = results[0];
-    return {
-      clusterCount: (first.clusterCount as number) ?? 0,
-      totalNodeCount: (first.totalNodeCount as number) ?? 0,
-    };
+    // Sum current nodes across all active clusters' node pools
+    const nodeRows = await db
+      .select({ totalNodes: sum(nodePools.currentNodes) })
+      .from(nodePools)
+      .innerJoin(
+        managedClusters,
+        eq(nodePools.clusterId, managedClusters.id),
+      )
+      .where(
+        and(
+          eq(managedClusters.teamId, teamId),
+          eq(managedClusters.status, "active"),
+        ),
+      );
+
+    const totalNodeCount = Number(nodeRows[0]?.totalNodes ?? 0);
+
+    return { clusterCount, totalNodeCount };
   } catch (error) {
     console.error("[cloud-usage-job] Error counting cloud resources", {
       teamId,

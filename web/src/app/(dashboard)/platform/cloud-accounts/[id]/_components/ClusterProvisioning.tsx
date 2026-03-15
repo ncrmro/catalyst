@@ -6,8 +6,6 @@ import { Card } from "@/components/ui/card";
 import { PRICING } from "@catalyst/billing";
 import { createManagedCluster, deleteManagedCluster, ManagedClusterSummary } from "@/actions/managed-clusters";
 
-type ClusterStatus = "empty" | "provisioning";
-
 const REGIONS = ["us-east-1", "us-west-2", "eu-west-1"] as const;
 const K8S_VERSIONS = ["1.31", "1.30", "1.29"] as const;
 const INSTANCE_TYPES = [
@@ -29,7 +27,6 @@ export function ClusterProvisioning({
   initialClusters,
 }: ClusterProvisioningProps) {
   const router = useRouter();
-  const [provisionStatus, setProvisionStatus] = useState<ClusterStatus>("empty");
   const [region, setRegion] = useState<string>(REGIONS[0]);
   const [k8sVersion, setK8sVersion] = useState<string>(K8S_VERSIONS[0]);
   const [clusterName, setClusterName] = useState("");
@@ -41,7 +38,6 @@ export function ClusterProvisioning({
   const handleProvision = async () => {
     setIsProvisioning(true);
     setError(null);
-    setProvisionStatus("provisioning");
 
     try {
       const result = await createManagedCluster(teamId, {
@@ -53,16 +49,13 @@ export function ClusterProvisioning({
       });
 
       if (result.success) {
-        setProvisionStatus("empty");
         setClusterName("");
         router.refresh();
       } else {
         setError(result.error);
-        setProvisionStatus("empty");
       }
-    } catch (err) {
+    } catch (_err) {
       setError("Failed to provision cluster.");
-      setProvisionStatus("empty");
     } finally {
       setIsProvisioning(false);
     }
@@ -79,7 +72,7 @@ export function ClusterProvisioning({
       } else {
         alert(result.error);
       }
-    } catch (err) {
+    } catch (_err) {
       alert("Failed to delete cluster.");
     } finally {
       setDeletingId(null);
@@ -97,7 +90,7 @@ export function ClusterProvisioning({
               </h3>
               <div className="flex items-center gap-3">
                 <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                  cluster.status === "running" ? "bg-primary/10 text-primary" : "bg-warning/10 text-warning"
+                  cluster.status === "active" ? "bg-primary/10 text-primary" : "bg-warning/10 text-warning"
                 }`}>
                   {cluster.status}
                 </span>

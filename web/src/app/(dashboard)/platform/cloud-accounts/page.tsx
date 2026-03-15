@@ -4,7 +4,7 @@ import { BillingGate } from "./_components/BillingGate";
 import { CloudAccountCard } from "./_components/CloudAccountCard";
 import { listCloudAccounts } from "@/actions/cloud-accounts";
 import { getUserPrimaryTeamId } from "@/lib/team-auth";
-import { getTeamBillingStatus } from "@/actions/billing";
+import { checkTeamHasActiveSubscription } from "@/actions/billing";
 
 export default async function CloudAccountsPage() {
   const teamId = await getUserPrimaryTeamId();
@@ -17,10 +17,8 @@ export default async function CloudAccountsPage() {
     );
   }
 
-  // Check billing status
-  const billingStatus = await getTeamBillingStatus(teamId);
-  const isPaidPlan =
-    billingStatus.success && billingStatus.data?.hasSubscription;
+  // Check billing status - works for all team members
+  const isPaidPlan = await checkTeamHasActiveSubscription(teamId);
 
   if (!isPaidPlan) {
     return <BillingGate />;
@@ -97,9 +95,7 @@ export default async function CloudAccountsPage() {
             provider={account.provider}
             alias={account.name}
             accountId={account.externalAccountId}
-            status={
-              account.status as "connected" | "pending" | "error"
-            }
+            status={account.status}
             region="us-east-1" // Region might need to come from elsewhere, but the model doesn't have it yet
           />
         ))}
