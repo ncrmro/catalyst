@@ -55,6 +55,17 @@ class MockProvider implements VCSProvider {
 
   listIssues = vi.fn().mockResolvedValue([]);
 
+  // Organizations
+  getOrganization = vi.fn().mockResolvedValue({
+    id: "1",
+    login: "test-org",
+    avatarUrl: "",
+    url: "",
+    type: "Organization",
+  });
+  listOrganizationMembers = vi.fn().mockResolvedValue([]);
+  getMyOrganizationMembership = vi.fn().mockResolvedValue({ isMember: false });
+
   // Git operations
   createBranch = vi
     .fn()
