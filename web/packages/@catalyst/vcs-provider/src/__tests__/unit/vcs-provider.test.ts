@@ -26,7 +26,6 @@ function createMockProvider(id: ProviderId = "github"): VCSProvider {
       providerId: id,
       raw: {},
     } as AuthenticatedClient),
-    validateConfig: vi.fn(),
     checkConnection: vi.fn(),
     listUserRepositories: vi.fn(),
     listUserOrganizations: vi.fn(),
@@ -147,38 +146,7 @@ describe("VCSProviderSingleton", () => {
       ).toThrow("At least one provider must be specified");
     });
 
-    it("should call validateConfig on each provider during initialization", () => {
-      const mockProvider = createMockProvider();
-      const validateConfig = vi.fn();
-      mockProvider.validateConfig = validateConfig;
-
-      VCSProviderSingleton.initialize({
-        providers: [mockProvider],
-        getTokenData: vi.fn(),
-        refreshToken: vi.fn(),
-        storeTokenData: vi.fn(),
-      });
-
-      expect(validateConfig).toHaveBeenCalledTimes(1);
-    });
-
-    it("should propagate validation errors from providers", () => {
-      const mockProvider = createMockProvider();
-      mockProvider.validateConfig = vi.fn().mockImplementation(() => {
-        throw new Error("Provider validation failed: missing config");
-      });
-
-      expect(() =>
-        VCSProviderSingleton.initialize({
-          providers: [mockProvider],
-          getTokenData: vi.fn(),
-          refreshToken: vi.fn(),
-          storeTokenData: vi.fn(),
-        }),
-      ).toThrow("Provider validation failed: missing config");
-    });
-
-    it("should register all providers successfully after validation", () => {
+    it("should register all providers successfully", () => {
       const mockProvider1 = createMockProvider("github");
       const mockProvider2 = createMockProvider("gitlab" as ProviderId);
 
@@ -414,7 +382,6 @@ describe("VCSProviderSingleton", () => {
         updatePRComment: vi.fn(),
         deletePRComment: vi.fn(),
         getCIStatus: vi.fn(),
-        validateConfig: vi.fn(),
         listIssues: mockListIssues,
         listBranches: vi.fn(),
         verifyWebhookSignature: vi.fn(),
