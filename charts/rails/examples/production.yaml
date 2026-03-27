@@ -1,0 +1,124 @@
+# Example values for deploying a Rails application with all features
+# This demonstrates a typical production-ready configuration
+
+# Rails application image
+image:
+  repository: my-rails-app
+  tag: "v1.0.0"
+  pullPolicy: IfNotPresent
+
+# Scale application pods
+replicaCount: 3
+
+# Rails configuration
+rails:
+  env:
+    - name: RAILS_ENV
+      value: "production"
+    - name: PORT
+      value: "3000"
+    - name: RAILS_LOG_TO_STDOUT
+      value: "true"
+    - name: RAILS_SERVE_STATIC_FILES
+      value: "true"
+    # Add your custom environment variables here
+    - name: SMTP_ADDRESS
+      value: "smtp.example.com"
+    - name: SMTP_PORT
+      value: "587"
+  
+  # For production, provide a secure secret key base
+  secretKeyBase: "change-me-to-a-secure-random-string-at-least-64-characters-long"
+
+# Enable SolidQueue workers for background jobs
+worker:
+  enabled: true
+  replicaCount: 2
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# PostgreSQL database configuration
+postgresql:
+  enabled: true
+  auth:
+    username: rails
+    database: rails_production
+    password: "change-me-in-production"
+    existingSecret: "rails-database"
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
+
+# Redis for caching and ActionCable
+redis:
+  enabled: true
+  auth:
+    password: "change-me-in-production"
+  master:
+    persistence:
+      enabled: true
+      size: 2Gi
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 3000
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: my-app.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: my-app-tls
+      hosts:
+        - my-app.example.com
+
+# Resource limits
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+# Health checks
+livenessProbe:
+  httpGet:
+    path: /up
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /up
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Horizontal Pod Autoscaling
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80

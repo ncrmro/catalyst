@@ -1,0 +1,26 @@
+apiVersion: v2
+name: rails
+description: A Helm chart for Ruby on Rails applications on Kubernetes
+type: application
+version: 0.1.0
+appVersion: "8.0.0"
+keywords:
+  - rails
+  - ruby
+  - web
+  - backend
+home: https://rubyonrails.org/
+sources:
+  - https://github.com/rails/rails
+maintainers:
+  - name: catalyst
+    email: maintainer@example.com
+dependencies:
+  - name: postgresql
+    version: 15.5.38
+    repository: oci://registry-1.docker.io/bitnamicharts
+    condition: postgresql.enabled
+  - name: redis
+    version: 20.6.0
+    repository: oci://registry-1.docker.io/bitnamicharts
+    condition: redis.enabled
