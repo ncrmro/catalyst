@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { PullRequest } from "@/types/reports";
+import { CopyButton } from "@/components/ui/copy-button";
 
 interface PullRequestCardProps {
   pr: PullRequest;
@@ -64,14 +65,17 @@ export function PullRequestCard({ pr }: PullRequestCardProps) {
         </div>
       </div>
 
-      <a
-        href={pr.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-lg font-semibold text-primary hover:opacity-80 mb-2 block"
-      >
-        {pr.title}
-      </a>
+      <div className="flex items-start gap-2 mb-2">
+        <a
+          href={pr.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-lg font-semibold text-primary hover:opacity-80 flex-1"
+        >
+          {pr.title}
+        </a>
+        <CopyButton text={pr.url} label="Copy" className="text-xs px-2 py-1" />
+      </div>
 
       <div className="text-sm text-on-surface-variant mb-3">
         Repository: <span className="font-medium">{pr.repository}</span>
