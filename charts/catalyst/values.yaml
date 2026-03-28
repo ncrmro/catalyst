@@ -1,6 +1,34 @@
 # Default values for catalyst chart
 # This is a YAML-formatted file.
 
+# Values for Istio base subchart
+istio-base:
+  # Base is required for CRDs and core Istio resources
+  enabled: true
+  global:
+    # Configure Istio to use the same namespace as the chart installation
+    istioNamespace: catalyst-system
+
+# Values for istiod subchart (control plane)
+istiod:
+  enabled: true
+  global:
+    # Configure Istio to use the same namespace as the chart installation
+    istioNamespace: catalyst-system
+  meshConfig:
+    # Enable automatic mTLS (PERMISSIVE mode by default)
+    # This allows both mTLS and plain-text traffic, automatically upgrading to mTLS when both sides support it
+    # For STRICT mode enforcement, create a PeerAuthentication policy (see examples/istio-strict-mtls.yaml)
+    enableAutoMtls: true
+  pilot:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
 # Values for ingress-nginx subchart
 ingress-nginx:
   controller:
