@@ -398,7 +398,19 @@ They complement each other: Crossplane provisions the cluster → Catalyst opera
 - Claim deletion removes all AWS resources including IAM roles and instance profiles
 - ProviderConfig credential isolation verified (second ProviderConfig cannot access first account's resources)
 
-**Findings**: _To be filled after spike is complete._
+**Findings** (2026-04-08):
+
+**T001 — Crossplane install: COMPLETE**
+
+- K3s VM started via `bin/k3s-vm` (NixOS QEMU, 1 node Ready)
+- `crossplane/dev-setup.sh` ran successfully: Crossplane v2.2.0 installed; `provider-aws-ec2`, `provider-aws-iam`, `provider-aws-autoscaling`, and `upbound-provider-family-aws` all Healthy
+- **Note**: Provider family auto-name changed to `upbound-provider-family-aws` in this version — the wait condition in `dev-setup.sh` targets the old name `provider-family-aws` (not found), but the provider itself is healthy under the new name. Script line 64 should be updated to match.
+
+**T005 — Smoke test: BLOCKED (missing AWS credentials)**
+
+- No management IAM credentials (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`) are provisioned in the agent environment or Bitwarden.
+- Steps 2–5 of the approach (IAM user creation, CloudFormation onboarding, ProviderConfig, VPC smoke test) require AWS console or CLI access with sufficient permissions.
+- Unblocking path: Nicholas to provision a management IAM user scoped to `sts:AssumeRole` only, store credentials in Bitwarden, and create a target-account role via the CloudFormation template at `crossplane/onboarding/aws-cloudformation.yaml`.
 
 ## Metrics
 
