@@ -16,15 +16,7 @@ import { isUserTeamAdminOrOwner } from "@/lib/team-auth";
 import { getBilling, isBillingEnabled } from "@/lib/billing-guard";
 import { teams } from "@/db/schema";
 import { eq } from "drizzle-orm";
-
-/**
- * Result type for billing operations
- */
-interface BillingActionResult<T = void> {
-  success: boolean;
-  error?: string;
-  data?: T;
-}
+import type { ActionResult } from "@/types/preview-environments";
 
 /**
  * Create a Stripe Checkout session for a team to upgrade to paid plan.
@@ -35,7 +27,7 @@ interface BillingActionResult<T = void> {
  */
 export async function createCheckoutSession(
   teamId: string,
-): Promise<BillingActionResult<{ checkoutUrl: string }>> {
+): Promise<ActionResult<{ checkoutUrl: string }>> {
   try {
     // Check if billing is enabled
     if (!isBillingEnabled()) {
@@ -81,12 +73,29 @@ export async function createCheckoutSession(
       };
     }
 
+    // Require a valid email to create a Stripe customer
+    if (!session.user.email) {
+      return {
+        success: false,
+        error: "A valid email address is required to set up billing",
+      };
+    }
+
+    // Validate NEXTAUTH_URL is configured before building redirect URLs
+    const appUrl = process.env.NEXTAUTH_URL;
+    if (!appUrl) {
+      return {
+        success: false,
+        error: "Server configuration error. Please contact support.",
+      };
+    }
+
     // Get or create Stripe customer
     const customerId = await billing.getOrCreateStripeCustomer(
       db,
       teamId,
       team.name,
-      session.user.email ?? "",
+      session.user.email,
     );
 
     // Get price ID from environment
@@ -102,10 +111,10 @@ export async function createCheckoutSession(
     const { checkoutUrl } = await billing.createCheckoutSession({
       teamId,
       teamName: team.name,
-      customerEmail: session.user.email ?? "",
+      customerEmail: session.user.email,
       customerId,
-      successUrl: `${process.env.NEXTAUTH_URL}/settings/billing?success=true`,
-      cancelUrl: `${process.env.NEXTAUTH_URL}/settings/billing?canceled=true`,
+      successUrl: `${appUrl}/settings/billing?success=true`,
+      cancelUrl: `${appUrl}/settings/billing?canceled=true`,
       priceId,
     });
 
@@ -131,7 +140,7 @@ export async function createCheckoutSession(
  */
 export async function createBillingPortalSession(
   teamId: string,
-): Promise<BillingActionResult<{ portalUrl: string }>> {
+): Promise<ActionResult<{ portalUrl: string }>> {
   try {
     // Check if billing is enabled
     if (!isBillingEnabled()) {
@@ -180,7 +189,7 @@ export async function createBillingPortalSession(
     // Create portal session
     const { portalUrl } = await billing.createBillingPortalSession({
       customerId: customer.stripeCustomerId,
-      returnUrl: `${process.env.NEXTAUTH_URL}/settings/billing`,
+      returnUrl: `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/settings/billing`,
     });
 
     return {
@@ -204,7 +213,7 @@ export async function createBillingPortalSession(
  * @returns Billing status with subscription and usage data, or error
  */
 export async function getTeamBillingStatus(teamId: string): Promise<
-  BillingActionResult<{
+  ActionResult<{
     hasSubscription: boolean;
     subscription: {
       id: string;
