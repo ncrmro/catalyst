@@ -14,6 +14,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const billingEnabled = process.env.BILLING_ENABLED === "true";
+
   return (
     <html lang="en">
       <head>
@@ -37,7 +39,7 @@ export default function RootLayout({
               </div>
             </div>
           }
-          nav={<AppNav />}
+          nav={<AppNav billingEnabled={billingEnabled} />}
         >
           <div className="max-w-6xl mx-auto w-full">{children}</div>
         </ApplicationLayout>
