@@ -877,15 +877,206 @@ export async function createPreviewDeployment(
     return { success: false, podId, error: errorMsg };
   }
 
-  // Operator will handle the rest (Building -> Ready)
-  // We can return early or optionally wait/poll status here if we want synchronous behavior
-  // For MVP, we return "success" that the *request* was submitted.
-  // The UI will poll the DB/K8s for status updates.
-
-  // Note: We are skipping the explicit wait here as the Operator is async.
-  // The Frontend should poll.
+  // Operator will handle the rest (Building -> Ready).
+  // Fire-and-forget: poll CR phase and update the GitHub PR comment when
+  // the environment transitions to Ready or Failed.
+  if (installationId) {
+    watchAndUpdateDeploymentComment({
+      crNamespace,
+      crName,
+      installationId,
+      owner,
+      repo: repoName,
+      prNumber,
+      commitSha,
+      targetNamespace,
+    }).catch((err) => {
+      previewLogger.warn(
+        "watchAndUpdateDeploymentComment failed (non-blocking)",
+        {
+          prNumber,
+          crName,
+          error: err instanceof Error ? err.message : String(err),
+        },
+      );
+    });
+  }
 
   return { success: true, podId, publicUrl };
+}
+
+// ============================================================================
+// Async Comment Updater (polls K8s CR phase, updates GitHub PR comment)
+// ============================================================================
+
+/** Parameters for the background CR-phase watcher. */
+export interface WatchDeploymentCommentParams {
+  crNamespace: string;
+  crName: string;
+  installationId: number;
+  owner: string;
+  repo: string;
+  prNumber: number;
+  commitSha: string;
+  targetNamespace: string;
+  /** Maximum wait time in milliseconds (default: 10 minutes). */
+  timeoutMs?: number;
+  /** Polling interval in milliseconds (default: 5 seconds). */
+  pollIntervalMs?: number;
+}
+
+/**
+ * Poll the Kubernetes Environment CR until it reaches a terminal phase
+ * (Ready or Failed), then update the GitHub PR comment accordingly.
+ *
+ * This function is designed to be called fire-and-forget after the CR is
+ * created. It does not block the webhook response.
+ *
+ * @param params - Watcher parameters
+ */
+export async function watchAndUpdateDeploymentComment(
+  params: WatchDeploymentCommentParams,
+): Promise<void> {
+  const {
+    crNamespace,
+    crName,
+    installationId,
+    owner,
+    repo,
+    prNumber,
+    commitSha,
+    targetNamespace,
+    timeoutMs = 10 * 60 * 1000, // 10 minutes
+    pollIntervalMs = 5_000, // 5 seconds
+  } = params;
+
+  const deadline = Date.now() + timeoutMs;
+
+  previewLogger.info("watchAndUpdateDeploymentComment: starting watcher", {
+    crNamespace,
+    crName,
+    prNumber,
+  });
+
+  while (Date.now() < deadline) {
+    await new Promise<void>((resolve) => setTimeout(resolve, pollIntervalMs));
+
+    let cr;
+    try {
+      cr = await getEnvironmentCR(crNamespace, crName);
+    } catch (err) {
+      previewLogger.warn(
+        "watchAndUpdateDeploymentComment: error fetching CR (will retry)",
+        {
+          crName,
+          error: err instanceof Error ? err.message : String(err),
+        },
+      );
+      continue;
+    }
+
+    const phase = cr?.status?.phase;
+
+    if (phase === "Ready") {
+      const publicUrl = cr?.status?.url || generatePublicUrl(targetNamespace);
+
+      previewLogger.info(
+        "watchAndUpdateDeploymentComment: CR Ready — updating comment to running",
+        { crName, prNumber, publicUrl },
+      );
+
+      try {
+        await upsertDeploymentComment({
+          installationId,
+          owner,
+          repo,
+          prNumber,
+          status: "running",
+          publicUrl,
+          commitSha,
+          namespace: targetNamespace,
+        });
+      } catch (err) {
+        previewLogger.warn(
+          "watchAndUpdateDeploymentComment: failed to update comment to running",
+          {
+            prNumber,
+            error: err instanceof Error ? err.message : String(err),
+          },
+        );
+      }
+      return;
+    }
+
+    if (phase === "Failed" || phase === "Error") {
+      const errorCondition = cr?.status?.conditions?.find(
+        (c) => c.type === "Failed" || c.type === "Error",
+      );
+      const errorMessage = errorCondition
+        ? `${errorCondition.type}: ${errorCondition.status}`
+        : undefined;
+
+      previewLogger.info(
+        "watchAndUpdateDeploymentComment: CR Failed — updating comment to failed",
+        { crName, prNumber, phase },
+      );
+
+      try {
+        await upsertDeploymentComment({
+          installationId,
+          owner,
+          repo,
+          prNumber,
+          status: "failed",
+          commitSha,
+          namespace: targetNamespace,
+          errorMessage,
+        });
+      } catch (err) {
+        previewLogger.warn(
+          "watchAndUpdateDeploymentComment: failed to update comment to failed",
+          {
+            prNumber,
+            error: err instanceof Error ? err.message : String(err),
+          },
+        );
+      }
+      return;
+    }
+
+    // Phase is still pending/building/deploying — keep polling
+    previewLogger.info(
+      "watchAndUpdateDeploymentComment: CR not yet terminal, polling",
+      { crName, phase: phase ?? "unknown", prNumber },
+    );
+  }
+
+  // Timed out — update comment to failed so the user knows something went wrong
+  previewLogger.warn(
+    "watchAndUpdateDeploymentComment: timed out waiting for CR to reach terminal phase",
+    { crName, prNumber, timeoutMs },
+  );
+
+  try {
+    await upsertDeploymentComment({
+      installationId,
+      owner,
+      repo,
+      prNumber,
+      status: "failed",
+      commitSha,
+      namespace: targetNamespace,
+      errorMessage: "Deployment timed out waiting for environment to be ready.",
+    });
+  } catch (err) {
+    previewLogger.warn(
+      "watchAndUpdateDeploymentComment: failed to post timeout-failed comment",
+      {
+        prNumber,
+        error: err instanceof Error ? err.message : String(err),
+      },
+    );
+  }
 }
 
 export interface DeletePreviewDeploymentParams {
