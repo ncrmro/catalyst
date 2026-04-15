@@ -18,6 +18,7 @@ import { ensureProjectNamespace } from "@catalyst/kubernetes-client";
 import { getClusterConfig } from "@/lib/k8s-client";
 import type { EnvironmentType } from "@/types/crd";
 import { resolvePreset } from "@/lib/framework-presets";
+import { billingGuard } from "@/lib/billing-guard";
 
 /**
  * Server actions for creating and managing project environments
@@ -102,6 +103,19 @@ export async function createProjectEnvironment(
     }
 
     const teamName = projectWithTeam.team.name;
+
+    // Check billing limits before proceeding with environment creation
+    const limitCheck = await billingGuard().canCreateEnvironment(
+      projectWithTeam.team.id,
+    );
+    if (!limitCheck.allowed) {
+      return {
+        success: false,
+        message:
+          limitCheck.reason ??
+          "Environment creation is not allowed on your current plan. Please upgrade to create more environments.",
+      };
+    }
 
     // Get the primary repository ID for this project
     if (!project.repositories || project.repositories.length === 0) {
