@@ -15,10 +15,25 @@ import {
   isTeamOnPaidPlan,
   getStripeCustomerByTeamId,
 } from "./models";
-import { BILLING_METERS, FREE_TIER_LIMITS } from "./constants";
+import { BILLING_METERS } from "./constants";
 import { stripeSubscriptions } from "./db/schema";
 import { inArray, eq } from "drizzle-orm";
 import type { PgDatabase } from "drizzle-orm/pg-core";
+
+/**
+ * Minimal schema shape required by the usage job.
+ *
+ * `projects` must expose `id` and `teamId` columns.
+ * `projectEnvironments` must expose `id`, `projectId`, and `environment` columns.
+ * Column values are typed as `any` so both real Drizzle table instances and
+ * lightweight test mocks satisfy this interface.
+ */
+export interface UsageJobSchema {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  projects: { id: any; teamId: any; [key: string]: any };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  projectEnvironments: { id: any; projectId: any; environment: any; [key: string]: any };
+}
 
 /**
  * Environment counts for a single team.
@@ -74,7 +89,7 @@ export interface UsageJobOptions {
 export async function countTeamEnvironments(
   db: PgDatabase<any, any, any>,
   teamId: string,
-  schema: { projects: any; projectEnvironments: any },
+  schema: UsageJobSchema,
 ): Promise<{ activeCount: number; spundownCount: number }> {
   try {
     const { projects, projectEnvironments } = schema;
@@ -121,7 +136,7 @@ export async function recordTeamUsage(
   db: PgDatabase<any, any, any>,
   teamId: string,
   date: Date,
-  schema: { projects: any; projectEnvironments: any },
+  schema: UsageJobSchema,
   options: UsageJobOptions = {},
 ): Promise<TeamUsageResult> {
   const { reportToStripe = true } = options;
@@ -235,7 +250,7 @@ export async function recordTeamUsage(
  */
 export async function runDailyUsageJob(
   db: PgDatabase<any, any, any>,
-  schema: { projects: any; projectEnvironments: any },
+  schema: UsageJobSchema,
   options: UsageJobOptions = {},
 ): Promise<{
   date: Date;
