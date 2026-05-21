@@ -42,13 +42,13 @@ Full protocol design is a follow-up.
 
 ## Definition of done
 
-- [ ] `direnv allow` (or `nix develop`) opens a working dev shell.
-- [ ] `cd code/web && bun install && bun run dev` boots the Astro dev server and serves the placeholder landing page.
-- [ ] `bun run build` produces a Cloudflare Workers bundle under `code/web/dist/`.
-- [ ] `wrangler deploy --dry-run` succeeds inside the dev shell.
-- [ ] `README.md` is marketing-only and links to `docs/getting-started.md`.
-- [ ] `AGENTS.md` is thin and points to `CONTRIBUTOR.md` + this milestone.
-- [ ] `CONTRIBUTOR.md` documents the full local dev loop.
+- [x] `direnv allow` (or `nix develop`) opens a working dev shell.
+- [x] `cd code/web && bun install && bun run dev` boots the Astro dev server and serves the placeholder landing page.
+- [x] `bun run build` produces a Cloudflare Workers bundle under `code/web/dist/`.
+- [x] `wrangler deploy` succeeds inside the dev shell. Live preview: <https://catalyst-web.ncrmro.workers.dev>.
+- [x] `README.md` is marketing-only and links to `docs/getting-started.md`.
+- [x] `AGENTS.md` is thin and points to `CONTRIBUTOR.md` + this milestone.
+- [x] `CONTRIBUTOR.md` documents the full local dev loop.
 
 ## Tracking
 
