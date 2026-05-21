@@ -1,0 +1,26 @@
+{
+  "name": "@catalyst/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "bun test",
+    "lint": "astro check",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^11.0.0",
+    "astro": "^4.16.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "prettier": "^3.3.0",
+    "prettier-plugin-astro": "^0.14.0",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.61.0"
+  }
+}

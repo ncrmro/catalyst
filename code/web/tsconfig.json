@@ -1,0 +1,7 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    "types": ["@astrojs/cloudflare", "@types/bun"]
+  },
+  "include": ["src/**/*", "src/env.d.ts"]
+}
