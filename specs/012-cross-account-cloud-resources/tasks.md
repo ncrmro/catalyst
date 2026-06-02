@@ -11,7 +11,7 @@
 
 ### Infrastructure Setup
 
-- [ ] T001 Install Crossplane core + provider-aws in K3s dev environment
+- [x] T001 Install Crossplane core + provider-aws in K3s dev environment
   - Run `crossplane/dev-setup.sh` (idempotent)
   - Verify Crossplane pods running: `bin/kubectl get pods -n crossplane-system`
   - Verify provider-aws installed: `bin/kubectl get providers`
