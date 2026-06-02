@@ -64,3 +64,8 @@ For local development, you'll need:
 - **GITHUB_PAT**: Personal Access Token for GitHub API access (instead of GitHub App)
 
 See the [complete local development guide](/web/README.md) for detailed setup instructions.
+
+## Contributing
+
+See [`CONTRIBUTOR.md`](CONTRIBUTOR.md) for the development workflow and
+[`AGENTS.md`](AGENTS.md) for the agent-oriented map of the repo.
