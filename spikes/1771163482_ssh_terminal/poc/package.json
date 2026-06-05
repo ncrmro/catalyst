@@ -1,0 +1,26 @@
+{
+  "name": "@catalyst/terminal-server-poc",
+  "version": "0.1.0",
+  "description": "Proof of concept WebSocket terminal server for Catalyst preview environments",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts"
+  },
+  "keywords": ["terminal", "websocket", "kubernetes", "exec"],
+  "author": "Catalyst",
+  "license": "MIT",
+  "dependencies": {
+    "@kubernetes/client-node": "^0.21.0",
+    "jsonwebtoken": "^9.0.2",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^20.14.0",
+    "@types/ws": "^8.5.12",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.0"
+  }
+}
