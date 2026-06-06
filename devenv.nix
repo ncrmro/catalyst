@@ -17,6 +17,7 @@ in {
     docker-client
 
     # Web
+    bun
     nodejs_22
     postgresql
 
