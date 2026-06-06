@@ -24,6 +24,8 @@ result
 
 .playwright-mcp
 .direnv
+.devenv/
+.devenv.flake.nix
 .eslintcache
 charts/catalyst/certs.yaml
 .gemini/tmp

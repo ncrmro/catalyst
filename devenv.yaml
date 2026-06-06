@@ -1,0 +1,5 @@
+inputs:
+  nixpkgs:
+    url: github:cachix/devenv-nixpkgs/8f24a228a782e24576b155d1e39f0d914b380691
+  llm-agents:
+    url: github:numtide/llm-agents.nix
