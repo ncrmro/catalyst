@@ -3,7 +3,7 @@ name: Test Web
 on:
   pull_request:
     paths:
-      - "web/**"
+      - "code/web/**"
       - ".github/actions/build-container-bake/**"
       - ".github/workflows/web.test.yml"
 
@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./web
+        working-directory: ./code/web
 
     steps:
       - name: Checkout code
@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./web
+        working-directory: ./code/web
 
     services:
       postgres:
@@ -111,7 +111,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./web
+        working-directory: ./code/web
 
     steps:
       - name: Checkout code
@@ -160,7 +160,7 @@ jobs:
         run: |
           # Build both images in parallel using docker buildx bake
           # The --load flag loads the images into docker (required for kind load)
-          docker buildx bake --load --file docker-compose.build.yml operator-production web-production
+          docker buildx bake --load --file code/docker-compose.build.yml operator-production web-production
           
           # Verify images were built
           docker images | grep -E '(ghcr.io/ncrmro/catalyst)'
@@ -176,7 +176,7 @@ jobs:
           echo "Images built, loaded into Kind cluster, and cleaned from Docker"
 
       - name: Build Helm chart dependencies
-        working-directory: ./web
+        working-directory: ./code/web
         run: |
           echo "Adding Helm repositories..."
           helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
@@ -274,8 +274,8 @@ jobs:
         with:
           name: playwright-artifacts
           path: |
-            ./web/playwright-report/
-            ./web/test-results/
+            ./code/web/playwright-report/
+            ./code/web/test-results/
           retention-days: 30
 
       - name: Export Kind cluster logs
@@ -442,8 +442,8 @@ jobs:
   #         kubectl get namespaces
   #         echo ""
   #         echo "=== HELM CHARTS AVAILABLE ==="
-  #         ls -la ./charts/
-  #         ls -la ./charts/nextjs/
+  #         ls -la ./code/charts/
+  #         ls -la ./code/charts/nextjs/
 
   #     - name: Deploy to Kind cluster using Helm chart
   #       run: |
@@ -473,7 +473,7 @@ jobs:
   #         kubectl get namespace ${{ env.NAMESPACE }}
 
   #         # Deploy using the nextjs Helm chart
-  #         helm install web-preview-${{ github.event.number }} ./charts/nextjs \
+  #         helm install web-preview-${{ github.event.number }} ./code/charts/nextjs \
   #           --namespace ${{ env.NAMESPACE }} \
   #           --set image.repository="$IMAGE_REPO" \
   #           --set image.tag="$IMAGE_TAG" \

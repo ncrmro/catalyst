@@ -46,7 +46,7 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
-          cache-dependency-path: './web/package-lock.json'
+          cache-dependency-path: './code/web/package-lock.json'
 
       - name: Install Go
         uses: actions/setup-go@v5
@@ -55,7 +55,7 @@ jobs:
 
       - name: Get Playwright version
         id: playwright-version
-        run: echo "version=$(node -p "require('./web/package.json').devDependencies['@playwright/test'].replace('^', '')")" >> $GITHUB_OUTPUT
+        run: echo "version=$(node -p "require('./code/web/package.json').devDependencies['@playwright/test'].replace('^', '')")" >> $GITHUB_OUTPUT
 
       - name: Cache playwright binaries
         uses: actions/cache@v4
@@ -117,7 +117,7 @@ jobs:
 
       - name: Install Environment CRD
         run: |
-          kubectl apply -f ./operator/config/crd/bases/catalyst.catalyst.dev_environments.yaml
+          kubectl apply -f ./code/operator/config/crd/bases/catalyst.catalyst.dev_environments.yaml
           echo "Environment CRD installed"
 
       - name: Add Kind kubeconfig to .env

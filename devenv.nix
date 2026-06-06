@@ -46,9 +46,9 @@ in {
     # Inherit DOCKER_HOST from parent shell, or use default socket
     export DOCKER_HOST="''${DOCKER_HOST:-unix:///var/run/docker.sock}"
 
-    # Safely extract ports from web/.env for display.
-    WEB_PORT=$(grep '^WEB_PORT=' web/.env 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'" || echo "3000")
-    DB_PORT=$(grep '^DB_PORT=' web/.env 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'" || echo "5432")
+    # Safely extract ports from code/web/.env for display.
+    WEB_PORT=$(grep '^WEB_PORT=' code/web/.env 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'" || echo "3000")
+    DB_PORT=$(grep '^DB_PORT=' code/web/.env 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'" || echo "5432")
     DATABASE_URL="postgres://postgres:postgres@localhost:$DB_PORT/catalyst"
 
     echo "Catalyst devenv shell"
@@ -58,6 +58,6 @@ in {
     echo "  Database URL: $DATABASE_URL"
     echo "  K3s Postgres: 5432 (NodePort 30432, if K3s running)"
     echo "----------------------------------------"
-    echo "Run 'make up-local' for local dev or 'make up' for full K3s."
+    echo "Run 'cd code && make up-local' for local dev or 'cd code && make up' for full K3s."
   '';
 }
