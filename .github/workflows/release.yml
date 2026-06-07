@@ -30,7 +30,7 @@ jobs:
               - code/operator/**
               - .github/workflows/operator.yml
             web:
-              - code/web/**
+              - code/web-next-next/**
               - .github/workflows/release.yml
             charts:
               - code/charts/catalyst/**

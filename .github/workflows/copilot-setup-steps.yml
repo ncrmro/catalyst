@@ -46,7 +46,7 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
-          cache-dependency-path: './code/web/package-lock.json'
+          cache-dependency-path: './code/web-next-next/package-lock.json'
 
       - name: Install Go
         uses: actions/setup-go@v5
@@ -55,7 +55,7 @@ jobs:
 
       - name: Get Playwright version
         id: playwright-version
-        run: echo "version=$(node -p "require('./code/web/package.json').devDependencies['@playwright/test'].replace('^', '')")" >> $GITHUB_OUTPUT
+        run: echo "version=$(node -p "require('./code/web-next-next/package.json').devDependencies['@playwright/test'].replace('^', '')")" >> $GITHUB_OUTPUT
 
       - name: Cache playwright binaries
         uses: actions/cache@v4
