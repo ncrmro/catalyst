@@ -1,0 +1,17 @@
+# Declarative Railway config for catalyst (config-as-code).
+#
+# catalyst.dev is currently hosted on Railway. Cloudflare Workers is
+# being added in parallel as the eventual primary; until that lands,
+# Railway stays the production target. Edit Railway's repo-mode
+# settings to reference this file.
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "cd code/web && bun install --frozen-lockfile && bun run build"
+
+[deploy]
+startCommand = "cd code/web && bun run preview"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+healthcheckPath = "/"
+healthcheckTimeout = 30
