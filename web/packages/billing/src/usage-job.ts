@@ -15,7 +15,7 @@ import {
   isTeamOnPaidPlan,
   getStripeCustomerByTeamId,
 } from "./models";
-import { BILLING_METERS, FREE_TIER_LIMITS } from "./constants";
+import { BILLING_METERS } from "./constants";
 import { stripeSubscriptions } from "./db/schema";
 import { inArray, eq } from "drizzle-orm";
 import type { PgDatabase } from "drizzle-orm/pg-core";
@@ -59,6 +59,23 @@ export interface UsageJobOptions {
 }
 
 /**
+ * Schema objects required for environment counting.
+ * These are passed from the API route which has access to @/ imports.
+ *
+ * Note: Due to workspace package constraints (cannot import @/ paths),
+ * we cannot use the actual schema types here. The caller must pass:
+ * - projects: Drizzle table with columns { id, teamId, ... }
+ * - projectEnvironments: Drizzle table with columns { id, environment, projectId, ... }
+ *
+ * Using `any` here is intentional to allow Drizzle table objects to be passed
+ * from the API route without complex type gymnastics.
+ */
+export interface SchemaObjects {
+  projects: any;
+  projectEnvironments: any;
+}
+
+/**
  * Count environments for a team by querying project_environments table
  * joined with projects table to filter by team.
  *
@@ -74,7 +91,7 @@ export interface UsageJobOptions {
 export async function countTeamEnvironments(
   db: PgDatabase<any, any, any>,
   teamId: string,
-  schema: { projects: any; projectEnvironments: any },
+  schema: SchemaObjects,
 ): Promise<{ activeCount: number; spundownCount: number }> {
   try {
     const { projects, projectEnvironments } = schema;
@@ -121,7 +138,7 @@ export async function recordTeamUsage(
   db: PgDatabase<any, any, any>,
   teamId: string,
   date: Date,
-  schema: { projects: any; projectEnvironments: any },
+  schema: SchemaObjects,
   options: UsageJobOptions = {},
 ): Promise<TeamUsageResult> {
   const { reportToStripe = true } = options;
@@ -235,7 +252,7 @@ export async function recordTeamUsage(
  */
 export async function runDailyUsageJob(
   db: PgDatabase<any, any, any>,
-  schema: { projects: any; projectEnvironments: any },
+  schema: SchemaObjects,
   options: UsageJobOptions = {},
 ): Promise<{
   date: Date;
