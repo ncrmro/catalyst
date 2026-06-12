@@ -48,8 +48,10 @@ in {
     export DOCKER_HOST="''${DOCKER_HOST:-unix:///var/run/docker.sock}"
 
     # Safely extract ports from code/web/.env for display.
-    WEB_PORT=$(grep '^WEB_PORT=' code/web/.env 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'" || echo "3000")
-    DB_PORT=$(grep '^DB_PORT=' code/web/.env 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'" || echo "5432")
+    WEB_PORT=$(grep '^WEB_PORT=' code/web/.env 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'")
+    WEB_PORT="''${WEB_PORT:-3000}"
+    DB_PORT=$(grep '^DB_PORT=' code/web/.env 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'")
+    DB_PORT="''${DB_PORT:-5432}"
     DATABASE_URL="postgres://postgres:postgres@localhost:$DB_PORT/catalyst"
 
     echo "Catalyst devenv shell"
