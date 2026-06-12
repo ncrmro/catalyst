@@ -5,11 +5,11 @@ on:
   push:
     branches: [main, master]
     paths:
-      - 'charts/**'
+      - 'code/charts/**'
   pull_request:
     branches: [main, master]
     paths:
-      - 'charts/**'
+      - 'code/charts/**'
   workflow_dispatch:
 
 jobs:
@@ -29,17 +29,17 @@ jobs:
       - name: Lint example chart
         run: |
           echo "Linting example Helm chart..."
-          helm lint charts/example
+          helm lint code/charts/example
           
       - name: Validate chart templating
         run: |
           echo "Validating chart templating..."
-          helm template test-release charts/example --debug --dry-run
+          helm template test-release code/charts/example --debug --dry-run
           
       - name: Validate chart with different values
         run: |
           echo "Validating chart with custom values..."
-          helm template test-release charts/example \
+          helm template test-release code/charts/example \
             --set replicaCount=2 \
             --set image.tag=latest \
             --set service.type=LoadBalancer \

@@ -27,16 +27,16 @@ jobs:
         with:
           files_yaml: |
             operator:
-              - operator/**
+              - code/operator/**
               - .github/workflows/operator.yml
             web:
-              - web/**
+              - code/web-next-next/**
               - .github/workflows/release.yml
             charts:
-              - charts/catalyst/**
+              - code/charts/catalyst/**
               - .github/workflows/release.yml
             dockerfiles:
-              - dockerfiles/**
+              - code/dockerfiles/**
               - .github/workflows/dockerfiles.release.yaml
 
       - name: Show changed components
@@ -229,15 +229,15 @@ jobs:
           fi
 
       - name: Update Helm dependencies
-        run: helm dependency update ./charts/catalyst
+        run: helm dependency update ./code/charts/catalyst
 
       - name: Upgrade CRDs
-        run: kubectl apply -f ./charts/catalyst/crds/ --server-side --force-conflicts
+        run: kubectl apply -f ./code/charts/catalyst/crds/ --server-side --force-conflicts
 
       - name: Deploy Catalyst chart
         run: |
-          helm upgrade --install catalyst ./charts/catalyst \
-            --values ./charts/catalyst/values.production.yaml \
+          helm upgrade --install catalyst ./code/charts/catalyst \
+            --values ./code/charts/catalyst/values.production.yaml \
             --namespace catalyst-system \
             --create-namespace \
             --set operator.image.repository=ghcr.io/${{ github.repository }}/operator \
@@ -293,7 +293,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: dockerfiles
-          file: dockerfiles/pr-job-pod.Dockerfile
+          file: code/dockerfiles/pr-job-pod.Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

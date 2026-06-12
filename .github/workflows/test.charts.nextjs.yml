@@ -3,7 +3,7 @@ name: Test Charts NextJS
 on:
   pull_request:
     paths:
-      - 'charts/nextjs/**'
+      - 'code/charts/nextjs/**'
   workflow_dispatch:
 
 jobs:
@@ -40,7 +40,7 @@ jobs:
       - name: Lint NextJS Helm chart
         run: |
           echo "Linting NextJS Helm chart..."
-          helm lint charts/nextjs
+          helm lint code/charts/nextjs
           
           echo "Validating chart templates..."
-          helm template test-release charts/nextjs --debug --dry-run
+          helm template test-release code/charts/nextjs --debug --dry-run

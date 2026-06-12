@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'crossplane/**'
+      - 'code/code/crossplane/**'
       - '.github/workflows/crossplane.test.yml'
   workflow_dispatch:
 
@@ -22,16 +22,16 @@ jobs:
 
       - name: Lint all YAML files
         run: |
-          yamllint -d relaxed crossplane/**/*.yaml
+          yamllint -d relaxed code/crossplane/**/*.yaml
 
       - name: Validate CloudFormation template structure
         run: |
           pip install cfn-lint
-          cfn-lint crossplane/onboarding/aws-cloudformation.yaml
+          cfn-lint code/crossplane/onboarding/aws-cloudformation.yaml
 
       - name: Shellcheck bash scripts
         run: |
-          shellcheck crossplane/dev-setup.sh crossplane/validation/aws-smoke-test.sh
+          shellcheck code/crossplane/dev-setup.sh code/crossplane/validation/aws-smoke-test.sh
 
   integration:
     name: LocalStack Integration
@@ -113,10 +113,10 @@ jobs:
           LOCALSTACK_ENDPOINT: ${{ steps.gateway.outputs.endpoint }}
         run: |
           # Create crossplane-system namespace (already exists from Helm install)
-          kubectl apply -f crossplane/tests/fixtures/localstack-creds.yaml
+          kubectl apply -f code/crossplane/tests/fixtures/localstack-creds.yaml
 
           # Substitute the LocalStack endpoint into the ProviderConfig
-          envsubst < crossplane/tests/fixtures/localstack-provider-config.yaml \
+          envsubst < code/crossplane/tests/fixtures/localstack-provider-config.yaml \
             | kubectl apply -f -
 
           echo "Waiting for ProviderConfig to be accepted..."
@@ -126,7 +126,7 @@ jobs:
       - name: "Test: VPC create → READY → delete lifecycle"
         run: |
           echo "=== Creating test VPC ==="
-          kubectl apply -f crossplane/tests/fixtures/test-vpc.yaml
+          kubectl apply -f code/crossplane/tests/fixtures/test-vpc.yaml
 
           echo "=== Waiting for VPC to become READY (up to 120s) ==="
           kubectl wait vpc crossplane-test-vpc \

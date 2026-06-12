@@ -4,12 +4,12 @@ on:
   # push:
   #   branches: [ main ]
   #   paths:
-  #     - 'operator/**'
+  #     - 'code/operator/**'
   #     - '.github/workflows/operator.yml'
   pull_request:
     # branches: [ main ]
     paths:
-      - 'operator/**'
+      - 'code/operator/**'
       - '.github/workflows/operator.yml'
 
 jobs:
@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./operator
+        working-directory: ./code/operator
     steps:
       - uses: actions/checkout@v4
 
