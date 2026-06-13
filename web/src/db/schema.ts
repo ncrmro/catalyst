@@ -37,6 +37,10 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     fields: [users.id],
     references: [githubUserTokens.userId],
   }),
+  forejoToken: one(forejoUserTokens, {
+    fields: [users.id],
+    references: [forejoUserTokens.userId],
+  }),
 }));
 
 export const accounts = pgTable(
@@ -198,7 +202,9 @@ export const repos = pgTable(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    githubId: integer("github_id").notNull(),
+    provider: text("provider").notNull().default("github"), // 'github', 'forgejo', 'gitlab', etc.
+    providerId: text("provider_id").notNull(), // Repository ID from the provider
+    githubId: integer("github_id"), // Legacy GitHub ID (nullable for backward compatibility)
     name: text("name").notNull(),
     fullName: text("full_name").notNull(),
     description: text("description"),
@@ -219,6 +225,13 @@ export const repos = pgTable(
     pushedAt: timestamp("pushed_at", { mode: "date" }),
   },
   (table) => [
+    // Unique constraint on provider + providerId + teamId
+    uniqueIndex("repo_provider_id_team_id_unique").on(
+      table.provider,
+      table.providerId,
+      table.teamId,
+    ),
+    // Keep legacy GitHub index for backward compatibility
     uniqueIndex("repo_github_id_team_id_unique").on(
       table.githubId,
       table.teamId,
@@ -451,6 +464,41 @@ export const githubUserTokensRelations = relations(
   ({ one }) => ({
     user: one(users, {
       fields: [githubUserTokens.userId],
+      references: [users.id],
+    }),
+  }),
+);
+
+/**
+ * Forgejo User Tokens Table
+ *
+ * Stores encrypted OAuth2 tokens for Forgejo integration per user.
+ * Similar to githubUserTokens but for Forgejo/Gitea instances.
+ */
+export const forejoUserTokens = pgTable("forgejo_user_tokens", {
+  userId: text("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull()
+    .primaryKey(),
+  // Instance URL for the Forgejo server (since it's self-hosted)
+  instanceUrl: text("instance_url").notNull(),
+  accessTokenEncrypted: text("access_token_encrypted"),
+  accessTokenIv: text("access_token_iv"),
+  accessTokenAuthTag: text("access_token_auth_tag"),
+  refreshTokenEncrypted: text("refresh_token_encrypted"),
+  refreshTokenIv: text("refresh_token_iv"),
+  refreshTokenAuthTag: text("refresh_token_auth_tag"),
+  tokenExpiresAt: timestamp("token_expires_at"),
+  tokenScope: text("token_scope"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const forejoUserTokensRelations = relations(
+  forejoUserTokens,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [forejoUserTokens.userId],
       references: [users.id],
     }),
   }),

@@ -575,6 +575,7 @@ export { _VCSProviderSingleton as VCSProviderSingleton };
 export {
   // Provider classes for explicit registration
   GitHubProvider,
+  ForejoProvider,
 
   // GitHub API fetchers (still used in specialized areas)
   getGitHubAccessToken,
@@ -590,6 +591,9 @@ export {
   // Comments
   upsertDeploymentComment,
   deleteDeploymentComment,
+
+  // Forgejo provider exports
+  registerForejoTokenGetter,
 } from "@catalyst/vcs-provider";
 
 export type {

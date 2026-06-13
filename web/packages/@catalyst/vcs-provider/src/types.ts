@@ -7,6 +7,7 @@
 // Provider identification
 export type ProviderId =
   | "github"
+  | "forgejo"
   | "gitlab"
   | "bitbucket"
   | "azure"
