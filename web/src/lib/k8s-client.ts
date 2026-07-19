@@ -8,5 +8,6 @@ export {
   KubeConfig,
   resetKubeConfigRegistry,
   ensureTeamNamespace,
+  sanitizeNamespaceName,
   type ClusterInfo,
 } from "@catalyst/kubernetes-client";

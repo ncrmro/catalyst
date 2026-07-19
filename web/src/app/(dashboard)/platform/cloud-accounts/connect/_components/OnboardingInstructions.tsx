@@ -3,11 +3,11 @@
 import { useState } from "react";
 
 interface OnboardingInstructionsProps {
+  externalId: string;
   onContinue: () => void;
 }
 
-const MOCK_EXTERNAL_ID = "catalyst-a1b2c3d4-e5f6";
-const MOCK_TEMPLATE_URL =
+const TEMPLATE_URL =
   "https://console.aws.amazon.com/cloudformation/home#/stacks/quickcreate?templateURL=https://tetraship-public.s3.amazonaws.com/onboarding/aws-cloudformation.yaml&stackName=Catalyst-Onboarding&capabilities=CAPABILITY_NAMED_IAM";
 
 function CopyButton({ text }: { text: string }) {
@@ -34,6 +34,7 @@ function CopyButton({ text }: { text: string }) {
 }
 
 export function OnboardingInstructions({
+  externalId,
   onContinue,
 }: OnboardingInstructionsProps) {
   return (
@@ -48,8 +49,8 @@ export function OnboardingInstructions({
             1. Copy your External ID
           </p>
           <div className="flex items-center gap-2 p-3 bg-surface-variant rounded-lg font-mono text-sm text-on-surface">
-            <span className="flex-1 truncate">{MOCK_EXTERNAL_ID}</span>
-            <CopyButton text={MOCK_EXTERNAL_ID} />
+            <span className="flex-1 truncate">{externalId}</span>
+            <CopyButton text={externalId} />
           </div>
         </li>
 
@@ -59,14 +60,14 @@ export function OnboardingInstructions({
           </p>
           <div className="flex items-center gap-2 p-3 bg-surface-variant rounded-lg text-sm">
             <a
-              href={MOCK_TEMPLATE_URL}
+              href={TEMPLATE_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-1 truncate text-primary hover:underline"
             >
               Open in AWS Console
             </a>
-            <CopyButton text={MOCK_TEMPLATE_URL} />
+            <CopyButton text={TEMPLATE_URL} />
           </div>
           <p className="text-xs text-on-surface-variant">
             This creates an IAM role that grants Catalyst read-only access to

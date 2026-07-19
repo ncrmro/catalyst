@@ -12,7 +12,7 @@
 
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { isUserTeamAdminOrOwner } from "@/lib/team-auth";
+import { isUserTeamAdminOrOwner, isUserTeamMember } from "@/lib/team-auth";
 import { getBilling, isBillingEnabled } from "@/lib/billing-guard";
 import { teams } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -273,5 +273,46 @@ export async function getTeamBillingStatus(teamId: string): Promise<
       success: false,
       error: "Failed to retrieve billing status. Please try again.",
     };
+  }
+}
+
+/**
+ * Check if a team has an active subscription.
+ * Works for all team members (not just admins/owners).
+ * Returns true if billing is disabled (grant access by default).
+ *
+ * @param teamId - The team ID to check
+ * @returns true if the team has an active subscription or billing is disabled
+ */
+export async function checkTeamHasActiveSubscription(
+  teamId: string,
+): Promise<boolean> {
+  // If billing is not enabled, grant access to all team members
+  if (!isBillingEnabled()) {
+    return true;
+  }
+
+  const session = await auth();
+  if (!session?.user?.id) {
+    return false;
+  }
+
+  const isMember = await isUserTeamMember(teamId);
+  if (!isMember) {
+    return false;
+  }
+
+  try {
+    const billing = await getBilling();
+    if (!billing) {
+      // Billing package unavailable despite being enabled — deny access to be safe
+      console.error("[billing-actions] Billing package unavailable but BILLING_ENABLED=true");
+      return false;
+    }
+
+    return billing.isTeamOnPaidPlan(db, teamId);
+  } catch (error) {
+    console.error("[billing-actions] checkTeamHasActiveSubscription error:", error);
+    return false;
   }
 }

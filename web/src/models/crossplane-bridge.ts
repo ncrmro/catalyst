@@ -22,8 +22,8 @@ import {
   getClusterConfig,
   getCoreV1Api,
   ensureTeamNamespace,
+  sanitizeNamespaceName,
 } from "@/lib/k8s-client";
-import { generateTeamNamespace } from "@/lib/namespace-utils";
 
 // Crossplane Group/Version constants
 const AWS_PROVIDER_GROUP = "aws.upbound.io";
@@ -36,6 +36,36 @@ export interface DecryptedAWSAccount {
   externalID: string;
   accessKeyId?: string;
   secretAccessKey?: string;
+}
+
+/** Shape of Kubernetes API status conditions (Crossplane / Kubernetes) */
+interface K8sCondition {
+  type: string;
+  status: string;
+  reason?: string;
+}
+
+/** Shape returned by k8s CustomObjectsApi for our cluster claims */
+interface K8sClusterResponse {
+  status?: {
+    conditions?: K8sCondition[];
+  };
+}
+
+/**
+ * Narrow an unknown caught error to extract the HTTP status code from
+ * @kubernetes/client-node error responses (which carry a `response.statusCode`
+ * property on the thrown object).
+ */
+function k8sStatusCode(e: unknown): number | undefined {
+  return (e as { response?: { statusCode?: number } }).response?.statusCode;
+}
+
+/**
+ * Extract an error message string from an unknown caught value.
+ */
+function errorMessage(e: unknown): string {
+  return e instanceof Error ? e.message : "Unknown error";
 }
 
 /**
@@ -63,14 +93,17 @@ export async function createProviderConfig(accountId: string) {
       account.credentialAuthTag
     );
 
-    const k8sCustomApi = getCustomObjectsApi();
-    const k8sCoreApi = getCoreV1Api();
+    const CustomObjectsApiClass = await getCustomObjectsApi();
+    const CoreV1ApiClass = await getCoreV1Api();
+    const kubeConfig = await getClusterConfig();
+    const k8sCustomApi = kubeConfig.makeApiClient(CustomObjectsApiClass);
+    const k8sCoreApi = kubeConfig.makeApiClient(CoreV1ApiClass);
 
     if (account.provider === "aws") {
       let credentials: DecryptedAWSAccount;
       try {
         credentials = JSON.parse(decrypted);
-      } catch (e) {
+      } catch (_e) {
         throw new Error("Failed to parse cloud account credentials. Expected JSON.");
       }
 
@@ -100,12 +133,12 @@ export async function createProviderConfig(accountId: string) {
           },
         };
 
-        await k8sCustomApi.createClusterCustomObject(
-          AWS_PROVIDER_GROUP,
-          AWS_PROVIDER_VERSION,
-          "providerconfigs",
-          providerConfig
-        );
+        await k8sCustomApi.createClusterCustomObject({
+          group: AWS_PROVIDER_GROUP,
+          version: AWS_PROVIDER_VERSION,
+          plural: "providerconfigs",
+          body: providerConfig,
+        });
       } else if (account.credentialType === "access_key") {
         // Access key pattern: create a secret for this account
         const secretName = `aws-creds-${account.id}`;
@@ -144,12 +177,12 @@ aws_secret_access_key = ${credentials.secretAccessKey}
           },
         };
 
-        await k8sCustomApi.createClusterCustomObject(
-          AWS_PROVIDER_GROUP,
-          AWS_PROVIDER_VERSION,
-          "providerconfigs",
-          providerConfig
-        );
+        await k8sCustomApi.createClusterCustomObject({
+          group: AWS_PROVIDER_GROUP,
+          version: AWS_PROVIDER_VERSION,
+          plural: "providerconfigs",
+          body: providerConfig,
+        });
       } else {
         throw new Error(`Credential type ${account.credentialType} not supported for AWS`);
       }
@@ -163,7 +196,7 @@ aws_secret_access_key = ${credentials.secretAccessKey}
       .set({ status: "active", lastError: null, updatedAt: new Date() })
       .where(eq(cloudAccounts.id, accountId));
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Failed to create ProviderConfig for account ${accountId}:`, error);
     
     // Update DB with error
@@ -171,7 +204,7 @@ aws_secret_access_key = ${credentials.secretAccessKey}
       .update(cloudAccounts)
       .set({ 
         status: "error", 
-        lastError: error.message || "Unknown error during ProviderConfig creation",
+        lastError: errorMessage(error) || "Unknown error during ProviderConfig creation",
         updatedAt: new Date() 
       })
       .where(eq(cloudAccounts.id, accountId));
@@ -192,20 +225,23 @@ export async function deleteProviderConfig(accountId: string) {
 
   if (!account) return;
 
-  const k8sCustomApi = getCustomObjectsApi();
-  const k8sCoreApi = getCoreV1Api();
+  const CustomObjectsApiClass = await getCustomObjectsApi();
+  const CoreV1ApiClass = await getCoreV1Api();
+  const kubeConfig = await getClusterConfig();
+  const k8sCustomApi = kubeConfig.makeApiClient(CustomObjectsApiClass);
+  const k8sCoreApi = kubeConfig.makeApiClient(CoreV1ApiClass);
 
   if (account.provider === "aws") {
     // Delete ProviderConfig
     try {
-      await k8sCustomApi.deleteClusterCustomObject(
-        AWS_PROVIDER_GROUP,
-        AWS_PROVIDER_VERSION,
-        "providerconfigs",
-        account.id
-      );
-    } catch (e: any) {
-      if (e.response?.statusCode !== 404) {
+      await k8sCustomApi.deleteClusterCustomObject({
+        group: AWS_PROVIDER_GROUP,
+        version: AWS_PROVIDER_VERSION,
+        plural: "providerconfigs",
+        name: account.id,
+      });
+    } catch (e: unknown) {
+      if (k8sStatusCode(e) !== 404) {
         console.error(`Error deleting ProviderConfig ${account.id}:`, e);
       }
     }
@@ -216,15 +252,29 @@ export async function deleteProviderConfig(accountId: string) {
         const secretName = `aws-creds-${account.id}`;
         await k8sCoreApi.deleteNamespacedSecret({
           name: secretName,
-          namespace: "crossplane-system"
+          namespace: "crossplane-system",
         });
-      } catch (e: any) {
-        if (e.response?.statusCode !== 404) {
+      } catch (e: unknown) {
+        if (k8sStatusCode(e) !== 404) {
           console.error(`Error deleting secret aws-creds-${account.id}:`, e);
         }
       }
     }
   }
+}
+
+/**
+ * Compute the Kubernetes metadata.name for a managed cluster claim.
+ * Appends a short ID suffix to ensure uniqueness and guard against the edge
+ * case where sanitization of the cluster name produces an empty string (e.g.
+ * a name consisting only of symbols).
+ *
+ * Cluster IDs are UUIDs (36 chars), so slice(-8) always returns 8 characters.
+ */
+function clusterClaimName(clusterName: string, clusterId: string): string {
+  const sanitized = sanitizeNamespaceName(clusterName);
+  const idSuffix = clusterId.slice(-8);
+  return sanitized ? `${sanitized}-${idSuffix}` : idSuffix;
 }
 
 /**
@@ -258,17 +308,22 @@ export async function createClusterClaim(clusterId: string) {
       .where(eq(nodePools.clusterId, cluster.id));
 
     // Ensure team namespace exists
-    const kubeConfig = getClusterConfig();
+    const CustomObjectsApiClass = await getCustomObjectsApi();
+    const kubeConfig = await getClusterConfig();
     await ensureTeamNamespace(kubeConfig, team.name);
 
-    const namespace = generateTeamNamespace(team.name);
-    const k8sCustomApi = getCustomObjectsApi();
+    // Use the same sanitization as ensureTeamNamespace for namespace consistency
+    const namespace = sanitizeNamespaceName(team.name);
+    const k8sCustomApi = kubeConfig.makeApiClient(CustomObjectsApiClass);
+
+    // Sanitize cluster name to be DNS-1123 compliant for K8s metadata.name
+    const clusterMetadataName = clusterClaimName(cluster.name, cluster.id);
 
     const claim = {
       apiVersion: `${CATALYST_GROUP}/${CATALYST_VERSION}`,
       kind: "KubernetesCluster",
       metadata: {
-        name: cluster.name,
+        name: clusterMetadataName,
         namespace: namespace,
       },
       spec: {
@@ -282,19 +337,18 @@ export async function createClusterClaim(clusterId: string) {
           desiredNodes: p.minNodes, // Initial desired equals min
           spot: p.spotEnabled,
         })),
-        providerConfigRef: {
-          name: cluster.cloudAccountId,
-        },
+        // XRD defines providerConfigRef as a string (not an object)
+        providerConfigRef: cluster.cloudAccountId,
       },
     };
 
-    await k8sCustomApi.createNamespacedCustomObject(
-      CATALYST_GROUP,
-      CATALYST_VERSION,
+    await k8sCustomApi.createNamespacedCustomObject({
+      group: CATALYST_GROUP,
+      version: CATALYST_VERSION,
       namespace,
-      "kubernetesclusters",
-      claim
-    );
+      plural: "kubernetesclusters",
+      body: claim,
+    });
 
     // Initial status update in DB if needed (usually it's already 'provisioning')
     if (cluster.status !== "provisioning") {
@@ -304,7 +358,7 @@ export async function createClusterClaim(clusterId: string) {
         .where(eq(managedClusters.id, clusterId));
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Failed to create cluster claim for ${clusterId}:`, error);
     
     // Update DB with error
@@ -340,19 +394,24 @@ export async function deleteClusterClaim(clusterId: string) {
 
   if (!team) return;
 
-  const namespace = generateTeamNamespace(team.name);
-  const k8sCustomApi = getCustomObjectsApi();
+  const namespace = sanitizeNamespaceName(team.name);
+  const CustomObjectsApiClass = await getCustomObjectsApi();
+  const kubeConfig = await getClusterConfig();
+  const k8sCustomApi = kubeConfig.makeApiClient(CustomObjectsApiClass);
+
+  // Compute the same claim name used when creating the resource
+  const clusterMetadataName = clusterClaimName(cluster.name, cluster.id);
 
   try {
-    await k8sCustomApi.deleteNamespacedCustomObject(
-      CATALYST_GROUP,
-      CATALYST_VERSION,
+    await k8sCustomApi.deleteNamespacedCustomObject({
+      group: CATALYST_GROUP,
+      version: CATALYST_VERSION,
       namespace,
-      "kubernetesclusters",
-      cluster.name
-    );
-  } catch (e: any) {
-    if (e.response?.statusCode !== 404) {
+      plural: "kubernetesclusters",
+      name: clusterMetadataName,
+    });
+  } catch (e: unknown) {
+    if (k8sStatusCode(e) !== 404) {
       console.error(`Error deleting cluster claim ${cluster.name}:`, e);
     }
   }
@@ -378,21 +437,26 @@ export async function syncClusterStatus(clusterId: string) {
 
   if (!team) return;
 
-  const namespace = generateTeamNamespace(team.name);
-  const k8sCustomApi = getCustomObjectsApi();
+  const namespace = sanitizeNamespaceName(team.name);
+  const CustomObjectsApiClass = await getCustomObjectsApi();
+  const kubeConfig = await getClusterConfig();
+  const k8sCustomApi = kubeConfig.makeApiClient(CustomObjectsApiClass);
+
+  // Compute the same claim name used when creating the resource
+  const clusterMetadataName = clusterClaimName(cluster.name, cluster.id);
 
   try {
-    const response: any = await k8sCustomApi.getNamespacedCustomObject(
-      CATALYST_GROUP,
-      CATALYST_VERSION,
+    const response = await k8sCustomApi.getNamespacedCustomObject({
+      group: CATALYST_GROUP,
+      version: CATALYST_VERSION,
       namespace,
-      "kubernetesclusters",
-      cluster.name
-    );
+      plural: "kubernetesclusters",
+      name: clusterMetadataName,
+    }) as K8sClusterResponse;
 
     // Check conditions for status
-    const conditions = response.body.status?.conditions || [];
-    const readyCondition = conditions.find((c: any) => c.type === "Ready");
+    const conditions: K8sCondition[] = response.status?.conditions ?? [];
+    const readyCondition = conditions.find((c) => c.type === "Ready");
 
     let status = "provisioning";
     if (readyCondition?.status === "True") {
@@ -402,7 +466,7 @@ export async function syncClusterStatus(clusterId: string) {
       // For now, if Ready is False, we keep it as provisioning unless there's a more specific error
       // Crossplane often has "Ready=False" during initial provisioning.
       // But if it has a specific "Synced=False" with a serious error, we might want "error".
-      const syncedCondition = conditions.find((c: any) => c.type === "Synced");
+      const syncedCondition = conditions.find((c) => c.type === "Synced");
       if (syncedCondition?.status === "False" && syncedCondition?.reason === "ReconcileError") {
         status = "error";
       }
@@ -414,8 +478,8 @@ export async function syncClusterStatus(clusterId: string) {
         .set({ status, updatedAt: new Date() })
         .where(eq(managedClusters.id, clusterId));
     }
-  } catch (e: any) {
-    if (e.response?.statusCode === 404) {
+  } catch (e: unknown) {
+    if (k8sStatusCode(e) === 404) {
       // If the claim is gone and we were deleting, mark as deleted
       if (cluster.status === "deleting") {
         await db

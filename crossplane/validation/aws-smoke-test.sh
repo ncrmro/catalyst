@@ -42,11 +42,11 @@ spec:
     name: $PROVIDER_CONFIG
 EOF
 
-# 2. Wait for READY status
-echo -e "\n2. Waiting for VPC to be READY (this usually takes ~30-60s)..."
-bin/kubectl wait --for=condition=READY=True vpc "$VPC_NAME" --timeout=120s
+# 2. Wait for Ready status
+echo -e "\n2. Waiting for VPC to be Ready (this usually takes ~30-60s)..."
+bin/kubectl wait --for=condition=Ready=True vpc "$VPC_NAME" --timeout=120s
 
-echo -e "\nSuccess! VPC $VPC_NAME is READY."
+echo -e "\nSuccess! VPC $VPC_NAME is Ready."
 
 # 3. Instruction for manual AWS verification
 echo -e "\n3. Manual Verification in AWS:"

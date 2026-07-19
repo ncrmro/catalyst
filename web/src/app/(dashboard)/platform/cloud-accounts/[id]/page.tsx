@@ -43,9 +43,9 @@ export default async function CloudAccountDetailPage({
       provider={account.provider}
       alias={account.name}
       accountId={account.externalAccountId}
-      status={account.status as "connected" | "pending" | "error"}
+      status={account.status}
       region="us-east-1" // Default for now
-      roleArn={account.credentialType === "iam-role" ? "arn:aws:iam::" + account.externalAccountId + ":role/..." : "N/A"}
+      roleArn={account.credentialType === "iam_role" ? "arn:aws:iam::" + account.externalAccountId + ":role/..." : "N/A"}
       externalId="N/A" // Should come from model if needed
       resourcePrefix={account.resourcePrefix || "N/A"}
       clusters={clusters}

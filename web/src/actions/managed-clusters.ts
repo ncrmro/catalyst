@@ -6,7 +6,6 @@ import {
   getManagedClusters,
   createManagedCluster as createManagedClusterModel,
   requestClusterDeletion as requestClusterDeletionModel,
-  updateManagedCluster,
 } from "@/models/managed-clusters";
 import { getCloudAccounts } from "@/models/cloud-accounts";
 import {

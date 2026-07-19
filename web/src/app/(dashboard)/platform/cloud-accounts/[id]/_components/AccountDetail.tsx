@@ -12,13 +12,15 @@ import { unlinkCloudAccount } from "@/actions/cloud-accounts";
 
 import { ManagedClusterSummary } from "@/actions/managed-clusters";
 
+type DisplayStatus = "connected" | "pending" | "error";
+
 interface AccountDetailProps {
   id: string;
   teamId: string;
   provider: string;
   alias: string;
   accountId: string;
-  status: "connected" | "pending" | "error";
+  status: string;
   region: string;
   roleArn: string;
   externalId: string;
@@ -26,11 +28,17 @@ interface AccountDetailProps {
   clusters: ManagedClusterSummary[];
 }
 
-const statusStyles = {
+const statusStyles: Record<DisplayStatus, string> = {
   connected: "bg-primary/10 text-primary",
   pending: "bg-warning/10 text-warning",
   error: "bg-error/10 text-error",
-} as const;
+};
+
+function toDisplayStatus(dbStatus: string): DisplayStatus {
+  if (dbStatus === "active") return "connected";
+  if (dbStatus === "pending") return "pending";
+  return "error"; // covers "error", "revoked", and anything unexpected
+}
 
 export function AccountDetail({
   id,
@@ -49,6 +57,8 @@ export function AccountDetail({
   const [showConfirm, setShowConfirm] = useState(false);
   const [isUnlinking, setIsUnlinking] = useState(false);
   const [unlinkError, setUnlinkError] = useState<string | null>(null);
+
+  const displayStatus = toDisplayStatus(status);
 
   const handleUnlink = async () => {
     setIsUnlinking(true);
@@ -91,9 +101,9 @@ export function AccountDetail({
               </div>
             </div>
             <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyles[status]}`}
+              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyles[displayStatus]}`}
             >
-              {status}
+              {displayStatus}
             </span>
           </div>
 

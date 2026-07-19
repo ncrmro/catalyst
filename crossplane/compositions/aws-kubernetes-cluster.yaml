@@ -78,6 +78,9 @@ spec:
       base:
         apiVersion: ec2.aws.upbound.io/v1beta1
         kind: Subnet
+        metadata:
+          labels:
+            "kubernetes.io/role/elb": "1"
         spec:
           forProvider:
             cidrBlock: 10.0.1.0/24
@@ -103,6 +106,9 @@ spec:
       base:
         apiVersion: ec2.aws.upbound.io/v1beta1
         kind: Subnet
+        metadata:
+          labels:
+            "kubernetes.io/role/elb": "1"
         spec:
           forProvider:
             cidrBlock: 10.0.2.0/24
@@ -128,6 +134,9 @@ spec:
       base:
         apiVersion: ec2.aws.upbound.io/v1beta1
         kind: Subnet
+        metadata:
+          labels:
+            "kubernetes.io/role/internal-elb": "1"
         spec:
           forProvider:
             cidrBlock: 10.0.3.0/24
@@ -152,6 +161,9 @@ spec:
       base:
         apiVersion: ec2.aws.upbound.io/v1beta1
         kind: Subnet
+        metadata:
+          labels:
+            "kubernetes.io/role/internal-elb": "1"
         spec:
           forProvider:
             cidrBlock: 10.0.4.0/24
@@ -530,7 +542,8 @@ spec:
         kind: Instance
         spec:
           forProvider:
-            # Ubuntu 22.04 LTS (us-east-1) - Placeholder
+            # TODO: This AMI is region-specific (us-east-1 Ubuntu 22.04 LTS).
+            # Replace with a region-parameterized lookup or a per-region map before multi-region use.
             ami: ami-0c55b159cbfafe1f0
             iamInstanceProfileSelector:
               matchControllerRef: true
@@ -568,7 +581,8 @@ spec:
         kind: LaunchTemplate
         spec:
           forProvider:
-            # Ubuntu 22.04 LTS (us-east-1) - Placeholder
+            # TODO: This AMI is region-specific (us-east-1 Ubuntu 22.04 LTS).
+            # Replace with a region-parameterized lookup or a per-region map before multi-region use.
             imageId: ami-0c55b159cbfafe1f0
             iamInstanceProfile:
               - nameSelector:
