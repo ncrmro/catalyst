@@ -16,6 +16,7 @@ web/.kube/
 .k3s-vm/vm/*.qcow2
 .k3s-vm/vm/result
 .k3s-vm/vm/configuration.nix
+.k3s-vm/e2e-port-forward.pid
 __pycache__
 node_modules
 
