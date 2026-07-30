@@ -8,6 +8,7 @@ import { CIStatusBadge } from "@/components/ci/CIStatusBadge";
 import { CIChecksList } from "@/components/ci/CIChecksList";
 import { MarkdownRenderer } from "@tetrastack/react-markdown";
 import { EnvironmentCard } from "@/components/environments";
+import { CopyButton } from "@/components/ui/copy-button";
 
 interface PRPageProps {
   params: Promise<{
@@ -76,9 +77,12 @@ export default async function PRPage({ params }: PRPageProps) {
                 ← Back to Work Items
               </Link>
             </div>
-            <h1 className="text-2xl font-bold text-on-surface">
-              #{pr.number}: {pr.title}
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-on-surface">
+                #{pr.number}: {pr.title}
+              </h1>
+              <CopyButton text={pr.url} label="Copy URL" className="text-xs" />
+            </div>
             <p className="text-sm text-on-surface-variant mt-1">
               {project.fullName} • {pr.repository}
             </p>
