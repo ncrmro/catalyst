@@ -21,16 +21,32 @@ export interface PRsBySpec {
  * Tokenize a spec name into searchable tokens
  *
  * Splits spec directory name on hyphens and filters out short tokens
- * to avoid false positives.
+ * to avoid false positives. Also generates singular variants by removing
+ * trailing 's' to match both "environments" and "environment".
  *
- * @example tokenizeSpecName("009-projects") => ["009", "projects"]
+ * @example tokenizeSpecName("009-projects") => ["009", "projects", "project"]
  * @example tokenizeSpecName("001-auth-system") => ["001", "auth", "system"]
  *
  * @param specName - The spec directory name (e.g., "009-projects")
- * @returns Array of tokens for matching
+ * @returns Array of tokens for matching (including singular variants)
  */
 export function tokenizeSpecName(specName: string): string[] {
-  return specName.split("-").filter((token) => token.length >= 2); // Filter single-char tokens to avoid false positives
+  const baseTokens = specName.split("-").filter((token) => token.length >= 2); // Filter single-char tokens to avoid false positives
+  
+  // Generate singular variants for tokens ending in 's'
+  // Note: This is a simple heuristic that works for common English plurals like
+  // "environments" -> "environment", "projects" -> "project", etc.
+  // It may produce non-standard forms for irregular plurals (e.g., "series" -> "serie"),
+  // but these edge cases are unlikely in spec names.
+  const tokens = new Set<string>(baseTokens);
+  baseTokens.forEach((token) => {
+    if (token.endsWith("s") && token.length > 2) {
+      // Only remove trailing 's' if original token has more than 2 characters
+      tokens.add(token.slice(0, -1));
+    }
+  });
+  
+  return Array.from(tokens);
 }
 
 /**
