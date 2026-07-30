@@ -11,6 +11,45 @@ The VCS provider package abstracts version control system APIs (GitHub, GitLab, 
 - Pull request and issue management
 - Deployment comments and status updates
 
+## Getting Started
+
+**IMPORTANT**: Before implementing VCS provider functionality, review these key documents:
+
+1. **[SETUP.md](./SETUP.md)** - **Complete setup guide** covering:
+   - GitHub App configuration
+   - Required API endpoints (callbacks, webhooks)
+   - Auth.js integration with JWT/session callbacks
+   - Database schema and token encryption
+   - Environment variables
+   - OAuth flows
+   - Security best practices
+   - Troubleshooting
+
+2. **[README.md](./README.md)** - Package overview and VCSProviderSingleton usage
+3. **[EXAMPLES.md](./EXAMPLES.md)** - Code examples for common operations
+
+## Required API Endpoints
+
+The VCS provider integration requires **three API endpoints** to be implemented:
+
+| Endpoint                    | Purpose                              | Documentation                                           |
+| --------------------------- | ------------------------------------ | ------------------------------------------------------- |
+| `/api/auth/callback/github` | OAuth sign-in (Auth.js built-in)     | [SETUP.md#authjs-oauth-callback](./SETUP.md#1-authjs-oauth-callback-apiauthcallbackgithub)        |
+| `/api/github/callback`      | GitHub App installation callback     | [SETUP.md#github-app-callback](./SETUP.md#2-github-app-installation-callback-apigithubcallback)   |
+| `/api/github/webhook`       | GitHub webhook events                | [SETUP.md#webhook-handler](./SETUP.md#3-github-webhook-handler-apigithubwebhook)                  |
+
+**Implementation Templates**: See SETUP.md for complete, production-ready implementation code for each endpoint.
+
+## Auth.js Integration Requirements
+
+The Auth.js JWT callback is critical for token management. Key responsibilities:
+
+1. **Store tokens on initial sign-in** - Save OAuth tokens from `account` object to database
+2. **Auto-refresh tokens** - Call `refreshTokenIfNeeded()` on subsequent requests
+3. **Update JWT with fresh tokens** - Keep session access token current
+
+**Implementation Template**: See [SETUP.md#authjs-main-file-with-jwt-callback](./SETUP.md#2-authjs-main-file-with-jwt-callback) for complete JWT and session callback implementation.
+
 ## Dependencies
 
 - **@tetrastack/backend**: Provides the database schema (`connection_tokens`) and security utilities (`encrypt`, `decrypt`) required for token storage.
@@ -155,6 +194,11 @@ if (!Array.isArray(data) && data.type === "file") {
 | `src/actions/version-control-provider.ts` | Generic VCS server actions  |
 | `src/lib/vcs-providers.ts`                | Re-export barrel file       |
 | `packages/@catalyst/vcs-provider/`        | Core package implementation |
+| `src/app/api/auth/callback/github/`       | Auth.js OAuth callback      |
+| `src/app/api/github/callback/route.ts`    | GitHub App install callback |
+| `src/app/api/github/webhook/route.ts`     | GitHub webhook handler      |
+| `src/lib/auth.config.ts`                  | Auth.js provider config     |
+| `src/auth.ts`                             | Auth.js JWT/session callbacks |
 
 ## When to Use This Package
 
@@ -170,6 +214,22 @@ Do NOT use for:
 - Local file operations
 - Non-authenticated public API calls
 - Operations that don't need user context
+
+## Quick Reference Checklist
+
+When implementing VCS provider features, ensure:
+
+- [ ] VCSProviderSingleton is initialized (check `src/lib/vcs-provider-init.ts`)
+- [ ] Required environment variables are set (see [SETUP.md#environment-variables](./SETUP.md#environment-variables))
+- [ ] Database schema includes `github_user_tokens` table (see [SETUP.md#database-schema](./SETUP.md#database-schema))
+- [ ] Auth.js JWT callback stores tokens (see [SETUP.md#authjs-main-file-with-jwt-callback](./SETUP.md#2-authjs-main-file-with-jwt-callback))
+- [ ] All three API endpoints are implemented:
+  - [ ] `/api/auth/callback/github` (Auth.js built-in)
+  - [ ] `/api/github/callback` (custom)
+  - [ ] `/api/github/webhook` (custom)
+- [ ] GitHub App has both callback URLs configured
+- [ ] GitHub App has required permissions (Email, Contents, Pull requests, Metadata)
+- [ ] Webhook secret is configured and validated
 
 ## Example: Adding a New Action
 
