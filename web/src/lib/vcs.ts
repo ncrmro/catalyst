@@ -8,6 +8,7 @@
 import {
   VCSProviderSingleton,
   GitHubProvider,
+  MockVCSProvider,
   getGitHubTokens,
   storeGitHubTokens,
   exchangeRefreshToken,
@@ -25,13 +26,28 @@ try {
 }
 
 if (!isInitialized) {
+  // Check if we should use mock provider
+  const useMockProvider = process.env.VCS_MOCK === "true";
+
   VCSProviderSingleton.initialize({
     // Explicitly register the providers the application wants to use
     // Each provider will validate its configuration on registration
-    providers: [new GitHubProvider()],
+    providers: useMockProvider
+      ? [new MockVCSProvider()]
+      : [new GitHubProvider()],
 
     // Get token data from our database
     getTokenData: async (userId, providerId) => {
+      if (useMockProvider) {
+        // Mock provider doesn't need real tokens
+        return {
+          accessToken: "mock-token",
+          refreshToken: "mock-refresh-token",
+          expiresAt: new Date(Date.now() + 3600000), // 1 hour from now
+          scope: "repo",
+        };
+      }
+
       if (providerId === "github") {
         const tokens = await getGitHubTokens(userId);
         if (!tokens) return null;
@@ -47,6 +63,16 @@ if (!isInitialized) {
 
     // Refresh token using GitHub OAuth
     refreshToken: async (refreshToken, providerId) => {
+      if (useMockProvider) {
+        // Mock provider always returns fresh tokens
+        return {
+          accessToken: "mock-token-refreshed",
+          refreshToken: "mock-refresh-token-refreshed",
+          expiresAt: new Date(Date.now() + 3600000),
+          scope: "repo",
+        };
+      }
+
       if (providerId === "github") {
         const newTokens = await exchangeRefreshToken(refreshToken);
         return {
@@ -61,6 +87,11 @@ if (!isInitialized) {
 
     // Store refreshed tokens back to our database
     storeTokenData: async (userId, tokens, providerId) => {
+      if (useMockProvider) {
+        // Mock provider doesn't need to store tokens
+        return;
+      }
+
       if (providerId === "github") {
         // We need to preserve the installationId if it exists
         const existing = await getGitHubTokens(userId);

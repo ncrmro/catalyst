@@ -32,6 +32,8 @@ export type { VCSProviderConfig } from "./vcs-provider";
 
 // Export provider classes for explicit registration
 export { GitHubProvider } from "./providers/github/provider";
+export { MockVCSProvider } from "./providers/mock/provider";
+export type { MockVCSProviderOptions } from "./providers/mock/provider";
 
 // 3. GitHub Specific Exports (Still needed by the web app for now)
 // TODO: Refactor web app to use the Singleton for these operations
