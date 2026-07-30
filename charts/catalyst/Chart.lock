@@ -8,5 +8,11 @@ dependencies:
 - name: cloudnative-pg
   repository: https://cloudnative-pg.github.io/charts
   version: 0.23.0
-digest: sha256:ffcb165ce0dff1f68a43055e719eb94a519fc661c833491c1a1d0277e23adc96
-generated: "2026-01-04T21:26:30.347801181-06:00"
+- name: base
+  repository: https://istio-release.storage.googleapis.com/charts
+  version: 1.24.2
+- name: istiod
+  repository: https://istio-release.storage.googleapis.com/charts
+  version: 1.24.2
+digest: sha256:117f11bc656a8d959230a0e4677008b5fe9d340590591146ee725df1593e81e2
+generated: "2026-01-27T21:47:10.311252238Z"

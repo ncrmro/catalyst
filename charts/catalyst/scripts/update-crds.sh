@@ -25,6 +25,9 @@ tar -xzf "$CNPG_TARBALL" cloudnative-pg/templates/crds/crds.yaml -O | \
   grep -v '^{{-' > "$CRDS_DIR/cloudnative-pg-crds.yaml"
 echo "  -> $CRDS_DIR/cloudnative-pg-crds.yaml"
 
+# Note: Istio CRDs are managed by the istio-base subchart, not in the crds/ directory.
+# This allows Istio to properly manage CRD lifecycle and upgrades.
+
 # Copy Catalyst operator CRDs
 echo "Copying Catalyst operator CRDs..."
 cp "$OPERATOR_CRD_DIR/catalyst.catalyst.dev_environments.yaml" "$CRDS_DIR/"
