@@ -31,11 +31,6 @@ import type {
 import { getUserOctokit, GITHUB_CONFIG } from "./client";
 import { createHmac, timingSafeEqual } from "crypto";
 
-// Check if we're in NextJS build phase - don't validate env vars during build
-const isNextJsBuild =
-  process.env.NEXT_PHASE === "phase-production-build" ||
-  process.env.npm_lifecycle_event === "build";
-
 /**
  * GitHub VCS Provider implementation
  */
@@ -53,33 +48,6 @@ export class GitHubProvider implements VCSProvider {
       providerId: this.id,
       raw: octokit,
     };
-  }
-
-  /**
-   * Validate provider configuration
-   */
-  validateConfig(): void {
-    // Skip validation during build or if explicitly disabled
-    if (isNextJsBuild || GITHUB_CONFIG.DISABLE_APP_CHECKS) {
-      return;
-    }
-
-    const missingVars: string[] = [];
-
-    if (!GITHUB_CONFIG.APP_ID) missingVars.push("GITHUB_APP_ID");
-    if (!GITHUB_CONFIG.APP_PRIVATE_KEY)
-      missingVars.push("GITHUB_APP_PRIVATE_KEY");
-    if (!GITHUB_CONFIG.APP_CLIENT_ID) missingVars.push("GITHUB_APP_CLIENT_ID");
-    if (!GITHUB_CONFIG.APP_CLIENT_SECRET)
-      missingVars.push("GITHUB_APP_CLIENT_SECRET");
-    if (!GITHUB_CONFIG.WEBHOOK_SECRET)
-      missingVars.push("GITHUB_WEBHOOK_SECRET");
-
-    if (missingVars.length > 0) {
-      throw new Error(
-        `Missing required GitHub environment variables: ${missingVars.join(", ")}`,
-      );
-    }
   }
 
   /**
