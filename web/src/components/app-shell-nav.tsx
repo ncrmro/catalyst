@@ -17,15 +17,30 @@ function getActiveNav(pathname: string) {
   return match?.value ?? "projects";
 }
 
+/**
+ * Check if we're in a nested route that has its own navigation
+ * (e.g., /projects/[slug] has ProjectNav)
+ */
+function isNestedRoute(pathname: string): boolean {
+  // Match patterns like /projects/something, /platform/something
+  const nestedPatterns = [
+    /^\/projects\/[^/]+/, // /projects/[slug]
+  ];
+  return nestedPatterns.some((pattern) => pattern.test(pathname));
+}
+
 export function AppNav() {
   const pathname = usePathname();
   const activeValue = getActiveNav(pathname);
+  const hideOnMobile = isNestedRoute(pathname);
 
   return (
-    <ApplicationLayoutNav
-      linkComponent={Link}
-      options={NAV_OPTIONS}
-      activeValue={activeValue}
-    />
+    <div className={hideOnMobile ? "hidden md:block" : undefined}>
+      <ApplicationLayoutNav
+        linkComponent={Link}
+        options={NAV_OPTIONS}
+        activeValue={activeValue}
+      />
+    </div>
   );
 }

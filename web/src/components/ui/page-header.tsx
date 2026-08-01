@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { GlassCard } from "@tetrastack/react-glass-components";
 import { Breadcrumbs, BreadcrumbItem } from "./breadcrumbs";
 
@@ -22,6 +23,9 @@ export interface PageHeaderProps {
  * Wraps breadcrumbs in a GlassCard with optional action button on the right.
  * Used for consistent page headers across dashboard pages.
  *
+ * On mobile: Shows a back button + current page title instead of full breadcrumbs
+ * On desktop: Shows full breadcrumbs
+ *
  * @example
  * ```tsx
  * <PageHeader
@@ -31,11 +35,51 @@ export interface PageHeaderProps {
  * ```
  */
 export function PageHeader({ breadcrumbs, action, children }: PageHeaderProps) {
+  // Get parent link (first item with href) for mobile back button
+  const parentItem = breadcrumbs.find((item) => item.href);
+  // Get current page (last item) for mobile title
+  const currentItem = breadcrumbs[breadcrumbs.length - 1];
+
   return (
     <GlassCard>
-      <div className="flex items-center justify-between">
+      {/* Desktop: Full breadcrumbs with children inline */}
+      <div className="hidden md:flex items-center justify-between">
         <Breadcrumbs items={breadcrumbs} />
         {action || children}
+      </div>
+
+      {/* Mobile: Stacked layout with back button */}
+      <div className="md:hidden space-y-4">
+        {/* Back button + Title row */}
+        <div className="flex items-center gap-3">
+          {parentItem?.href && (
+            <Link
+              href={parentItem.href}
+              className="flex items-center justify-center w-8 h-8 rounded-lg bg-surface-variant/50 text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-colors"
+              aria-label={`Back to ${parentItem.label}`}
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </Link>
+          )}
+          <span className="text-base font-medium text-on-surface uppercase tracking-wide">
+            {currentItem?.label}
+          </span>
+        </div>
+
+        {/* Children (e.g., ProjectNav) on its own row */}
+        {(action || children) && <div>{action || children}</div>}
       </div>
     </GlassCard>
   );
