@@ -27,6 +27,10 @@ import type {
   CICheck,
   CICheckState,
   CICheckSource,
+  Organization,
+  OrganizationMember,
+  OrganizationRole,
+  MembershipCheck,
 } from "../../types";
 import { getUserOctokit, GITHUB_CONFIG } from "./client";
 import { createHmac, timingSafeEqual } from "crypto";
@@ -879,7 +883,119 @@ export class GitHubProvider implements VCSProvider {
     return baseEvent;
   }
 
+  /**
+   * Get organization details
+   */
+  async getOrganization(
+    client: AuthenticatedClient,
+    org: string,
+  ): Promise<Organization> {
+    const octokit = client.raw as Octokit;
+    const { data } = await octokit.rest.orgs.get({ org });
+
+    return {
+      id: String(data.id),
+      login: data.login,
+      name: data.name || undefined,
+      description: data.description || undefined,
+      avatarUrl: data.avatar_url,
+      url: data.html_url,
+      type: "Organization",
+      // Note: GitHub API doesn't expose total member count in org details
+      // Only public_repos, public_gists are available
+      membersCount: undefined,
+    };
+  }
+
+  /**
+   * List organization members with their roles
+   */
+  async listOrganizationMembers(
+    client: AuthenticatedClient,
+    org: string,
+  ): Promise<OrganizationMember[]> {
+    const octokit = client.raw as Octokit;
+
+    // Get all members
+    const { data: members } = await octokit.rest.orgs.listMembers({
+      org,
+      per_page: 100,
+    });
+
+    // Get membership details for each member to determine role
+    const membersWithRoles = await Promise.all(
+      members.map(async (member) => {
+        try {
+          const { data: membership } =
+            await octokit.rest.orgs.getMembershipForUser({
+              org,
+              username: member.login,
+            });
+
+          return {
+            id: String(member.id),
+            login: member.login,
+            avatarUrl: member.avatar_url,
+            role: this.mapGitHubRoleToOrgRole(membership.role),
+            state: membership.state as "active" | "pending",
+          };
+        } catch {
+          // If we can't get membership details, default to member role
+          return {
+            id: String(member.id),
+            login: member.login,
+            avatarUrl: member.avatar_url,
+            role: "member" as OrganizationRole,
+            state: "active" as const,
+          };
+        }
+      }),
+    );
+
+    return membersWithRoles;
+  }
+
+  /**
+   * Check authenticated user's membership in organization
+   */
+  async getMyOrganizationMembership(
+    client: AuthenticatedClient,
+    org: string,
+  ): Promise<MembershipCheck> {
+    const octokit = client.raw as Octokit;
+
+    try {
+      const { data: membership } =
+        await octokit.rest.orgs.getMembershipForAuthenticatedUser({ org });
+
+      return {
+        isMember: true,
+        role: this.mapGitHubRoleToOrgRole(membership.role),
+        state: membership.state as "active" | "pending",
+      };
+    } catch {
+      // 404 means not a member
+      return {
+        isMember: false,
+      };
+    }
+  }
+
   // Private helper methods
+
+  /**
+   * Map GitHub organization role to normalized OrganizationRole
+   */
+  private mapGitHubRoleToOrgRole(role: string): OrganizationRole {
+    switch (role) {
+      case "admin":
+        return "owner";
+      case "member":
+        return "member";
+      default:
+        return "member";
+    }
+  }
 
   private mapRepository(repo: {
     id: number;

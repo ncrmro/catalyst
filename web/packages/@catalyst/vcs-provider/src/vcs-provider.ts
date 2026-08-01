@@ -94,6 +94,9 @@ import type {
   CIStatusSummary,
   AuthenticatedClient,
   VCSProvider,
+  Organization,
+  OrganizationMember,
+  MembershipCheck,
 } from "./types";
 import { providerRegistry } from "./provider-registry";
 
@@ -188,6 +191,7 @@ export class VCSProviderSingleton {
   public readonly repos: RepositoryOperations;
   public readonly branches: BranchOperations;
   public readonly files: FileOperations;
+  public readonly organizations: OrganizationOperations;
 
   private constructor() {
     // Initialize namespaced operations
@@ -196,6 +200,7 @@ export class VCSProviderSingleton {
     this.repos = new RepositoryOperations(this);
     this.branches = new BranchOperations(this);
     this.files = new FileOperations(this);
+    this.organizations = new OrganizationOperations(this);
   }
 
   /**
@@ -693,6 +698,29 @@ export class ScopedVCSProvider {
         ),
     };
   }
+
+  public get organizations() {
+    return {
+      get: (org: string) =>
+        this.provider.organizations.get(
+          this.tokenSourceId,
+          this.providerId,
+          org,
+        ),
+      listMembers: (org: string) =>
+        this.provider.organizations.listMembers(
+          this.tokenSourceId,
+          this.providerId,
+          org,
+        ),
+      getMyMembership: (org: string) =>
+        this.provider.organizations.getMyMembership(
+          this.tokenSourceId,
+          this.providerId,
+          org,
+        ),
+    };
+  }
 }
 
 /**
@@ -1043,6 +1071,55 @@ class FileOperations {
           message,
           branch,
         );
+      },
+    );
+  }
+}
+
+/**
+ * Organization Operations
+ */
+class OrganizationOperations {
+  constructor(private provider: VCSProviderSingleton) {}
+
+  async get(
+    tokenSourceId: string,
+    providerId: ProviderId,
+    org: string,
+  ): Promise<Organization> {
+    return this.provider.execute(
+      tokenSourceId,
+      providerId,
+      (vcsProvider, client) => {
+        return vcsProvider.getOrganization(client, org);
+      },
+    );
+  }
+
+  async listMembers(
+    tokenSourceId: string,
+    providerId: ProviderId,
+    org: string,
+  ): Promise<OrganizationMember[]> {
+    return this.provider.execute(
+      tokenSourceId,
+      providerId,
+      (vcsProvider, client) => {
+        return vcsProvider.listOrganizationMembers(client, org);
+      },
+    );
+  }
+
+  async getMyMembership(
+    tokenSourceId: string,
+    providerId: ProviderId,
+    org: string,
+  ): Promise<MembershipCheck> {
+    return this.provider.execute(
+      tokenSourceId,
+      providerId,
+      (vcsProvider, client) => {
+        return vcsProvider.getMyOrganizationMembership(client, org);
       },
     );
   }
