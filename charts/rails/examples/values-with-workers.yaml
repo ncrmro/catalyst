@@ -1,0 +1,56 @@
+# Example values for Rails with SolidQueue workers and Redis
+
+# Your Rails application image
+image:
+  repository: my-rails-app
+  tag: v1.0.0
+
+# Rails configuration
+rails:
+  env:
+    - name: RAILS_ENV
+      value: "production"
+    - name: PORT
+      value: "3000"
+    - name: RAILS_LOG_TO_STDOUT
+      value: "true"
+    - name: SECRET_KEY_BASE
+      valueFrom:
+        secretKeyRef:
+          name: rails-secrets
+          key: secret-key-base
+
+# Enable and configure workers
+worker:
+  enabled: true
+  replicaCount: 2
+  command: ["bundle", "exec", "rake", "solid_queue:start"]
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# PostgreSQL configuration (required for SolidQueue)
+postgresql:
+  enabled: true
+  auth:
+    username: rails
+    database: rails_production
+    password: "change-me-in-production"
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
+
+# Redis configuration (optional for SolidQueue, but recommended)
+redis:
+  enabled: true
+  auth:
+    password: "change-me-in-production"
+  master:
+    persistence:
+      enabled: true
+      size: 2Gi
